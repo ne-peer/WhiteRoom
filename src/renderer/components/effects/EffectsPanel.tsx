@@ -1,0 +1,165 @@
+import React from 'react'
+import { useAppStore } from '../../stores/appStore'
+import { Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button } from '../controls/UIKit'
+import type { Cell } from '../../../shared/types'
+
+type Props = { selectedCell: Cell | undefined | null }
+
+export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
+  const { setCellEffect, selectedCellId } = useAppStore()
+
+  if (!selectedCellId || !selectedCell) {
+    return (
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', textAlign: 'center', padding: '24px 0' }}>
+        キャンバス上のセルをクリックして<br />エフェクトを編集
+      </div>
+    )
+  }
+
+  const { effects } = selectedCell
+  const set = <K extends keyof typeof effects>(key: K, val: Partial<typeof effects[K]>) =>
+    setCellEffect(selectedCellId, key, val)
+
+  const handleOpenAsset = async () => {
+    const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
+    const result = await api.openAsset()
+    if (!result.canceled && result.filePath) {
+      set('dynamicAsset', { assetPath: result.filePath })
+    }
+  }
+
+  return (
+    <div>
+      {/* 色調オーバレイ */}
+      <Section title="色調オーバレイ">
+        <Row label="有効">
+          <Toggle value={effects.colorOverlay.enabled} onChange={v => set('colorOverlay', { enabled: v })} />
+        </Row>
+        {effects.colorOverlay.enabled && (
+          <>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>色</div>
+            <ColorPicker
+              r={effects.colorOverlay.color.r}
+              g={effects.colorOverlay.color.g}
+              b={effects.colorOverlay.color.b}
+              onChange={(r, g, b) => set('colorOverlay', { color: { r, g, b } })}
+              showAlpha
+              alpha={effects.colorOverlay.alpha}
+              onAlphaChange={a => set('colorOverlay', { alpha: a })}
+            />
+          </>
+        )}
+      </Section>
+
+      {/* ビネット */}
+      <Section title="ビネットエフェクト">
+        <Row label="有効">
+          <Toggle value={effects.vignette.enabled} onChange={v => set('vignette', { enabled: v })} />
+        </Row>
+        {effects.vignette.enabled && (
+          <>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>色（デフォルト: ピンク）</div>
+            <ColorPicker
+              r={effects.vignette.color.r}
+              g={effects.vignette.color.g}
+              b={effects.vignette.color.b}
+              onChange={(r, g, b) => set('vignette', { color: { r, g, b } })}
+              showAlpha
+              alpha={effects.vignette.alpha}
+              onAlphaChange={a => set('vignette', { alpha: a })}
+            />
+            <Row label="動的ビネット">
+              <Toggle value={effects.vignette.dynamic} onChange={v => set('vignette', { dynamic: v })} />
+            </Row>
+            {effects.vignette.dynamic && (
+              <>
+                <Row label="開始透明度">
+                  <Slider value={Math.round(effects.vignette.dynamicFrom * 100)} min={0} max={100}
+                    onChange={v => set('vignette', { dynamicFrom: v / 100 })} unit="%" />
+                </Row>
+                <Row label="終了透明度">
+                  <Slider value={Math.round(effects.vignette.dynamicTo * 100)} min={0} max={100}
+                    onChange={v => set('vignette', { dynamicTo: v / 100 })} unit="%" />
+                </Row>
+                <Row label="変化時間">
+                  <NumberInput value={effects.vignette.dynamicDurationMs} min={100} max={10000} step={100}
+                    unit="ms" onChange={v => set('vignette', { dynamicDurationMs: v })} />
+                </Row>
+              </>
+            )}
+          </>
+        )}
+      </Section>
+
+      {/* ブラー */}
+      <Section title="ブラーエフェクト">
+        <Row label="有効">
+          <Toggle value={effects.blur.enabled} onChange={v => set('blur', { enabled: v })} />
+        </Row>
+        {effects.blur.enabled && (
+          <>
+            <Row label="強度">
+              <Slider value={effects.blur.strength} min={0} max={100}
+                onChange={v => set('blur', { strength: v })} />
+            </Row>
+            <Row label="全エフェクトに適用">
+              <Toggle value={effects.blur.applyToAll} onChange={v => set('blur', { applyToAll: v })} />
+            </Row>
+            <Row label="徐々に増加">
+              <Toggle value={effects.blur.gradualEnabled} onChange={v => set('blur', { gradualEnabled: v })} />
+            </Row>
+            {effects.blur.gradualEnabled && (
+              <>
+                <Row label="開始強度">
+                  <Slider value={effects.blur.gradualStartStrength} min={0} max={100}
+                    onChange={v => set('blur', { gradualStartStrength: v })} />
+                </Row>
+                <Row label="終了強度">
+                  <Slider value={effects.blur.gradualEndStrength} min={0} max={100}
+                    onChange={v => set('blur', { gradualEndStrength: v })} />
+                </Row>
+                <Row label="所要時間">
+                  <NumberInput value={effects.blur.gradualDurationSec} min={1} max={3600} step={1}
+                    unit="秒" onChange={v => set('blur', { gradualDurationSec: v })} />
+                </Row>
+              </>
+            )}
+          </>
+        )}
+      </Section>
+
+      {/* 動的アセット */}
+      <Section title="動的アセットオーバレイ">
+        <Row label="有効">
+          <Toggle value={effects.dynamicAsset.enabled} onChange={v => set('dynamicAsset', { enabled: v })} />
+        </Row>
+        {effects.dynamicAsset.enabled && (
+          <>
+            <div style={{ marginBottom: 8 }}>
+              <Button variant="secondary" onClick={handleOpenAsset}>
+                🖼 アセット画像を選択（透過PNG推奨）
+              </Button>
+            </div>
+            {effects.dynamicAsset.assetPath && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 8, wordBreak: 'break-all' }}>
+                {effects.dynamicAsset.assetPath.split(/[\\/]/).pop()}
+              </div>
+            )}
+            <Row label="生成間隔">
+              <NumberInput value={effects.dynamicAsset.spawnIntervalMs} min={100} max={5000} step={100}
+                unit="ms" onChange={v => set('dynamicAsset', { spawnIntervalMs: v })} />
+            </Row>
+            <Row label="上昇速度">
+              <Slider value={effects.dynamicAsset.riseSpeedPx} min={0.5} max={10} step={0.5}
+                onChange={v => set('dynamicAsset', { riseSpeedPx: v })} unit="px" />
+            </Row>
+            <Row label="最大数">
+              <NumberInput value={effects.dynamicAsset.maxParticles} min={1} max={100} step={1}
+                onChange={v => set('dynamicAsset', { maxParticles: v })} />
+            </Row>
+          </>
+        )}
+      </Section>
+    </div>
+  )
+}

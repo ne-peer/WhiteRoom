@@ -1,0 +1,44 @@
+{
+  "name": "whiteroom",
+  "version": "0.1.0",
+  "description": "Dynamic visual effects image viewer",
+  "main": "dist-electron/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "electron-builder"
+  },
+  "dependencies": {
+    "pixi.js": "^8.4.0",
+    "zustand": "^4.5.2",
+    "gsap": "^3.12.5",
+    "immer": "^10.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "electron": "^30.0.1",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.8"
+  },
+  "build": {
+    "appId": "com.whiteroom.app",
+    "productName": "WhiteRoom",
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

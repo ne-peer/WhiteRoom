@@ -1,0 +1,21 @@
+.canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #0a0a0a;
+  transition: width 0.3s ease;
+  overflow: hidden;
+}
+
+.withPanel {
+  width: calc(100vw - 300px);
+}
+
+/* PixiJSキャンバス自体のスタイル */
+.canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}

@@ -1,0 +1,130 @@
+import React from 'react'
+import { useAppStore } from '../../stores/appStore'
+import { Section, Row, Stepper, Button, Toggle, NumberInput, Select } from './UIKit'
+
+export const GridControls: React.FC = () => {
+  const {
+    grid, cells, selectedCellId,
+    addColumn, removeColumn, addRow, removeRow,
+    setCellFolder, setCellSlideshow,
+  } = useAppStore()
+
+  const selectedCell = cells.find(c => c.id === selectedCellId)
+
+  const handleOpenFolder = async () => {
+    if (!selectedCellId) return
+    const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
+    const result = await api.openFolder()
+    if (result.canceled || !result.folderPath || !result.images) return
+    setCellFolder(selectedCellId, {
+      id: `folder-${Date.now()}`,
+      path: result.folderPath,
+      images: result.images,
+    })
+  }
+
+  return (
+    <div>
+      {/* グリッドサイズ */}
+      <Section title="グリッドサイズ">
+        <Row label="列 (Col)">
+          <Stepper
+            value={grid.cols}
+            min={1} max={15}
+            onDecrement={removeColumn}
+            onIncrement={addColumn}
+            label="列"
+          />
+        </Row>
+        <Row label="行 (Row)">
+          <Stepper
+            value={grid.rows}
+            min={1} max={15}
+            onDecrement={removeRow}
+            onIncrement={addRow}
+            label="行"
+          />
+        </Row>
+      </Section>
+
+      {/* 選択セル情報 */}
+      <Section title="選択セル">
+        {!selectedCellId ? (
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', textAlign: 'center', padding: '12px 0' }}>
+            キャンバス上のセルをクリックして選択
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 10 }}>
+              セル [{selectedCell?.col ?? '-'}, {selectedCell?.row ?? '-'}]
+              {selectedCell?.folder ? ` — ${selectedCell.folder.images.length}枚` : ' — フォルダ未設定'}
+            </div>
+
+            <Button variant="primary" onClick={handleOpenFolder}>
+              📁 フォルダを選択
+            </Button>
+
+            {selectedCell?.folder && (
+              <div style={{ marginTop: 14 }}>
+                <Section title="スライドショー">
+                  <Row label="有効">
+                    <Toggle
+                      value={selectedCell.slideshow.enabled}
+                      onChange={v => setCellSlideshow(selectedCellId, { enabled: v })}
+                    />
+                  </Row>
+                  {selectedCell.slideshow.enabled && (
+                    <>
+                      <Row label="間隔">
+                        <NumberInput
+                          value={selectedCell.slideshow.intervalMs / 1000}
+                          min={1} max={3600} step={1}
+                          unit="秒"
+                          onChange={v => setCellSlideshow(selectedCellId, { intervalMs: v * 1000 })}
+                        />
+                      </Row>
+                      <Row label="ランダム">
+                        <Toggle
+                          value={selectedCell.slideshow.randomOrder}
+                          onChange={v => setCellSlideshow(selectedCellId, { randomOrder: v })}
+                        />
+                      </Row>
+                    </>
+                  )}
+                </Section>
+              </div>
+            )}
+          </>
+        )}
+      </Section>
+
+      {/* 全セル一覧 */}
+      <Section title="セル一覧">
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
+          {cells.length}セル / {grid.cols}列 × {grid.rows}行
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {cells.map(cell => (
+            <div
+              key={cell.id}
+              onClick={() => useAppStore.getState().selectCell(cell.id)}
+              style={{
+                padding: '4px 8px',
+                borderRadius: 6,
+                fontSize: 10,
+                cursor: 'pointer',
+                background: cell.id === selectedCellId
+                  ? 'rgba(255,110,180,0.3)'
+                  : cell.folder ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${cell.id === selectedCellId ? '#ff6eb4' : 'transparent'}`,
+                color: cell.folder ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.35)',
+              }}
+            >
+              {cell.col},{cell.row}
+            </div>
+          ))}
+        </div>
+      </Section>
+    </div>
+  )
+}
