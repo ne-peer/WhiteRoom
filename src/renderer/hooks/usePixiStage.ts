@@ -90,7 +90,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       const cr = cellRenderersRef.current.get(cell.id)
       if (!cr || !cell.folder) return
       const imgPath = cell.folder.images[cell.currentImageIndex]
-      if (imgPath) cr.setImage(imgPath)
+      if (imgPath) cr.setImage(imgPath, cell.slideshow.transition, cell.slideshow.transitionDurationMs)
     })
   }, [imageKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -148,7 +148,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
 
   const setCellImage = useCallback((cellId: string, imagePath: string) => {
     const cr = cellRenderersRef.current.get(cellId)
-    if (cr) cr.setImage(imagePath)
+    if (cr) cr.setImage(imagePath, 'none')
   }, [])
 
   return { app: appRef, cellRenderers: cellRenderersRef, setCellImage }

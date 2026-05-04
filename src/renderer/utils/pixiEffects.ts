@@ -87,7 +87,7 @@ export class ParticleSystem {
       return
     }
 
-    const { spawnIntervalMs, riseSpeedPx, maxParticles } = effects.dynamicAsset
+    const { spawnIntervalMs, maxParticles } = effects.dynamicAsset
     const overlayTint = getAssetOverlayTint(effects)
 
     // スポーン
@@ -102,7 +102,7 @@ export class ParticleSystem {
         x: Math.random() * canvasWidth,
         y: canvasHeight + 20,
         alpha: 0.9,
-        vy: riseSpeedPx,
+        vy: randomRiseSpeed(),
         startTime: nowMs,
       }
       this.particles.push(p)
@@ -165,4 +165,8 @@ function getAssetOverlayTint(effects: CellEffects): number {
   const g = Math.round(255 + (da.colorOverlayColor.g - 255) * alpha)
   const b = Math.round(255 + (da.colorOverlayColor.b - 255) * alpha)
   return (r << 16) | (g << 8) | b
+}
+
+function randomRiseSpeed(): number {
+  return [2, 4, 6][Math.floor(Math.random() * 3)]
 }

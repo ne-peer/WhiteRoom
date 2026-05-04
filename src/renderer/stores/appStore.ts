@@ -8,7 +8,13 @@ import type {
 // ===== デフォルト値 =====
 
 export const DEFAULT_BLANK_COLOR: BlankColor = { r: 10, g: 10, b: 10, a: 1 }
-export const DEFAULT_SLIDESHOW: Cell['slideshow'] = { enabled: false, intervalMs: 3000, randomOrder: false }
+export const DEFAULT_SLIDESHOW: Cell['slideshow'] = {
+  enabled: false,
+  intervalMs: 3000,
+  randomOrder: false,
+  transition: 'fade',
+  transitionDurationMs: 350,
+}
 
 export const DEFAULT_EFFECTS: CellEffects = {
   colorOverlay: { enabled: false, color: { r: 255, g: 0, b: 128 }, alpha: 0.3 },
@@ -48,6 +54,7 @@ export const DEFAULT_TIMER: TimerConfig = {
   elapsedSec: 0,
   running: false,
   position: 'bottom-center',
+  showBackground: true,
 }
 
 function createCell(col: number, row: number): Cell {
@@ -82,6 +89,7 @@ export type AppState = {
   cells: Cell[]
   timer: TimerConfig
   fullscreen: boolean
+  showNavigationBar: boolean
 
   // UI状態（プロファイル対象外）
   selectedCellId: string | null
@@ -120,6 +128,8 @@ export type AppActions = {
   // 表示設定
   setBlankColor: (color: BlankColor) => void
   setFullscreen: (flag: boolean) => void
+  setNavigationBarVisible: (flag: boolean) => void
+  toggleNavigationBar: () => void
 
   // タイマー
   setTimer: (config: Partial<TimerConfig>) => void
@@ -148,6 +158,7 @@ export const useAppStore = create<AppStore>()(
     cells: buildCells(1, 1),
     timer: DEFAULT_TIMER,
     fullscreen: false,
+    showNavigationBar: true,
     selectedCellId: null,
     showControls: true,
     isLoading: false,
@@ -269,6 +280,10 @@ export const useAppStore = create<AppStore>()(
 
     setFullscreen: (flag) => set(s => { s.fullscreen = flag }),
 
+    setNavigationBarVisible: (flag) => set(s => { s.showNavigationBar = flag }),
+
+    toggleNavigationBar: () => set(s => { s.showNavigationBar = !s.showNavigationBar }),
+
     // ===== タイマー =====
 
     setTimer: (config) => set(s => { Object.assign(s.timer, config) }),
@@ -320,8 +335,9 @@ export const useAppStore = create<AppStore>()(
           dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
         },
       }))
-      s.timer = profile.timer
+      s.timer = { ...DEFAULT_TIMER, ...profile.timer }
       s.fullscreen = profile.fullscreen
+      s.showNavigationBar = true
       s.selectedCellId = null
     }),
 
@@ -331,6 +347,7 @@ export const useAppStore = create<AppStore>()(
       s.cells = buildCells(1, 1)
       s.timer = { ...DEFAULT_TIMER }
       s.fullscreen = false
+      s.showNavigationBar = true
       s.selectedCellId = null
     }),
   }))

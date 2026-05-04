@@ -1,12 +1,23 @@
 import React from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { Section, Row, Stepper, Button, Toggle, NumberInput, Select } from './UIKit'
+import type { Cell } from '../../../shared/types'
 
 export const GridControls: React.FC = () => {
   const {
-    grid, cells, selectedCellId,
-    addColumn, removeColumn, addRow, removeRow,
-    setCellFolder, setAllCellsFolder, setCellSlideshow, setAllCellsSlideshow, setCellImageFit, restartSlideshowsRandomly,
+    grid,
+    cells,
+    selectedCellId,
+    addColumn,
+    removeColumn,
+    addRow,
+    removeRow,
+    setCellFolder,
+    setAllCellsFolder,
+    setCellSlideshow,
+    setAllCellsSlideshow,
+    setCellImageFit,
+    restartSlideshowsRandomly,
   } = useAppStore()
 
   const selectedCell = cells.find(c => c.id === selectedCellId)
@@ -23,27 +34,25 @@ export const GridControls: React.FC = () => {
     })
   }
 
+  const transitionOptions = [
+    { value: 'none', label: 'なし' },
+    { value: 'fade', label: 'フェード' },
+    { value: 'slide-left', label: '左へスライド' },
+    { value: 'slide-right', label: '右へスライド' },
+    { value: 'slide-up', label: '上へスライド' },
+    { value: 'slide-down', label: '下へスライド' },
+    { value: 'zoom-in', label: 'ズームイン' },
+    { value: 'zoom-out', label: 'ズームアウト' },
+  ]
+
   return (
     <div>
-      {/* グリッドサイズ */}
       <Section title="グリッドサイズ">
         <Row label="列 (Col)">
-          <Stepper
-            value={grid.cols}
-            min={1} max={15}
-            onDecrement={removeColumn}
-            onIncrement={addColumn}
-            label="列"
-          />
+          <Stepper value={grid.cols} min={1} max={15} onDecrement={removeColumn} onIncrement={addColumn} label="列" />
         </Row>
         <Row label="行 (Row)">
-          <Stepper
-            value={grid.rows}
-            min={1} max={15}
-            onDecrement={removeRow}
-            onIncrement={addRow}
-            label="行"
-          />
+          <Stepper value={grid.rows} min={1} max={15} onDecrement={removeRow} onIncrement={addRow} label="行" />
         </Row>
       </Section>
 
@@ -57,7 +66,6 @@ export const GridControls: React.FC = () => {
         </Button>
       </Section>
 
-      {/* 選択セル情報 */}
       <Section title="選択セル">
         {!selectedCellId ? (
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', textAlign: 'center', padding: '12px 0' }}>
@@ -67,7 +75,7 @@ export const GridControls: React.FC = () => {
           <>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 10 }}>
               セル [{selectedCell ? selectedCell.col + 1 : '-'}, {selectedCell ? selectedCell.row + 1 : '-'}]
-              {selectedCell?.folder ? ` — ${selectedCell.folder.images.length}枚` : ' — フォルダ未設定'}
+              {selectedCell?.folder ? ` / ${selectedCell.folder.images.length}枚` : ' / フォルダ未設定'}
             </div>
 
             <Row label="画像フィット">
@@ -83,7 +91,7 @@ export const GridControls: React.FC = () => {
             </Row>
 
             <Button variant="primary" onClick={handleOpenFolder}>
-              📁 フォルダを選択
+              フォルダを選択
             </Button>
 
             {selectedCell?.folder && (
@@ -94,6 +102,7 @@ export const GridControls: React.FC = () => {
                 <Button variant="secondary" onClick={() => setAllCellsFolder(selectedCell.folder!)}>
                   すべてのカラムにフォルダを反映
                 </Button>
+
                 <Section title="スライドショー">
                   <Row label="有効">
                     <Toggle
@@ -106,7 +115,9 @@ export const GridControls: React.FC = () => {
                       <Row label="間隔">
                         <NumberInput
                           value={selectedCell.slideshow.intervalMs / 1000}
-                          min={1} max={3600} step={1}
+                          min={1}
+                          max={3600}
+                          step={1}
                           unit="秒"
                           onChange={v => setCellSlideshow(selectedCellId, { intervalMs: v * 1000 })}
                         />
@@ -115,6 +126,23 @@ export const GridControls: React.FC = () => {
                         <Toggle
                           value={selectedCell.slideshow.randomOrder}
                           onChange={v => setCellSlideshow(selectedCellId, { randomOrder: v })}
+                        />
+                      </Row>
+                      <Row label="遷移効果">
+                        <Select
+                          value={selectedCell.slideshow.transition}
+                          options={transitionOptions}
+                          onChange={v => setCellSlideshow(selectedCellId, { transition: v as Cell['slideshow']['transition'] })}
+                        />
+                      </Row>
+                      <Row label="遷移時間">
+                        <NumberInput
+                          value={selectedCell.slideshow.transitionDurationMs / 1000}
+                          min={0.1}
+                          max={3}
+                          step={0.05}
+                          unit="秒"
+                          onChange={v => setCellSlideshow(selectedCellId, { transitionDurationMs: v * 1000 })}
                         />
                       </Row>
                     </>
@@ -129,10 +157,9 @@ export const GridControls: React.FC = () => {
         )}
       </Section>
 
-      {/* 全セル一覧 */}
       <Section title="セル一覧">
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
-          {cells.length}セル / {grid.cols}列 × {grid.rows}行
+          {cells.length}セル / {grid.cols}列 x {grid.rows}行
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {cells.map(cell => (

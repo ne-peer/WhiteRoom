@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { CellEffects, ImageFitMode } from '../../shared/types'
+import type { CellEffects, ImageFitMode, SlideShowTransition } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -35,6 +35,9 @@ export class CellRenderer {
   private requestedImageSrc: string | null = null
   private imageFit: ImageFitMode = 'cover'
   private vignetteAnimationKey: string | null = null
+  private transitionSprite: PIXI.Sprite | null = null
+  private imageTransitionTween: gsap.core.Tween | null = null
+  private imageRequestToken = 0
 
   constructor(cellId: string, width: number, height: number) {
     this.cellId = cellId
@@ -80,12 +83,14 @@ export class CellRenderer {
     this.repositionImage()
   }
 
-  async setImage(src: string) {
+  async setImage(src: string, transition: SlideShowTransition = 'none', transitionDurationMs = 350) {
     const url = toFileUrl(src)
     if (url === this.currentImageSrc || url === this.requestedImageSrc) return
     this.requestedImageSrc = url
+    const requestToken = ++this.imageRequestToken
 
     if (!src) {
+      this.clearTransitionSprite()
       this.swapImageSprite(null, null)
       return
     }
@@ -97,12 +102,146 @@ export class CellRenderer {
       if (this.requestedImageSrc === url) this.requestedImageSrc = null
       return
     }
-    if (this.requestedImageSrc !== url) return
+    if (this.requestedImageSrc !== url || requestToken !== this.imageRequestToken) return
 
     const sprite = new PIXI.Sprite(texture)
     sprite.anchor.set(0.5)
-    this.swapImageSprite(sprite, url)
-    this.repositionImage()
+
+    if (!this.imageSprite || transition === 'none') {
+      this.clearTransitionSprite()
+      this.swapImageSprite(sprite, url)
+      this.positionSprite(sprite)
+      return
+    }
+
+    this.startImageTransition(sprite, url, transition, transitionDurationMs)
+  }
+
+  private swapImageSprite(sprite: PIXI.Sprite | null, url: string | null) {
+    const oldSprite = this.imageSprite
+    if (oldSprite) gsap.killTweensOf(oldSprite)
+    if (sprite) {
+      this.imageLayer.addChild(sprite)
+    }
+    this.imageSprite = sprite
+    this.currentImageSrc = url
+    this.requestedImageSrc = null
+
+    if (oldSprite) {
+      this.imageLayer.removeChild(oldSprite)
+      oldSprite.destroy({ texture: false })
+    }
+  }
+
+  private clearTransitionSprite() {
+    this.imageTransitionTween?.kill()
+    this.imageTransitionTween = null
+
+    if (!this.transitionSprite) return
+    gsap.killTweensOf(this.transitionSprite)
+    this.imageLayer.removeChild(this.transitionSprite)
+    this.transitionSprite.destroy({ texture: false })
+    this.transitionSprite = null
+  }
+
+  private startImageTransition(
+    sprite: PIXI.Sprite,
+    url: string,
+    transition: SlideShowTransition,
+    transitionDurationMs: number
+  ) {
+    const oldSprite = this.imageSprite
+    if (!oldSprite) {
+      this.swapImageSprite(sprite, url)
+      this.positionSprite(sprite)
+      return
+    }
+
+    this.clearTransitionSprite()
+    this.transitionSprite = oldSprite
+    gsap.killTweensOf([sprite, oldSprite])
+    this.imageLayer.addChild(sprite)
+    this.imageSprite = sprite
+    this.currentImageSrc = url
+    this.requestedImageSrc = null
+
+    this.positionSprite(oldSprite)
+    this.positionSprite(sprite)
+
+    const duration = Math.max(0.05, transitionDurationMs / 1000)
+    const baseScale = sprite.scale.x
+    const centerX = this.width / 2
+    const centerY = this.height / 2
+
+    const finish = () => {
+      if (this.transitionSprite === oldSprite) {
+        this.imageLayer.removeChild(oldSprite)
+        oldSprite.destroy({ texture: false })
+        this.transitionSprite = null
+      }
+      this.imageTransitionTween = null
+      this.repositionImage()
+    }
+
+    switch (transition) {
+      case 'fade':
+        sprite.alpha = 0
+        oldSprite.alpha = 1
+        this.imageTransitionTween = gsap.to(sprite, {
+          alpha: 1,
+          duration,
+          ease: 'sine.out',
+          onComplete: finish,
+        })
+        gsap.to(oldSprite, { alpha: 0, duration, ease: 'sine.out' })
+        break
+      case 'slide-left':
+      case 'slide-right':
+      case 'slide-up':
+      case 'slide-down': {
+        const offsetX = transition === 'slide-left' ? this.width : transition === 'slide-right' ? -this.width : 0
+        const offsetY = transition === 'slide-up' ? this.height : transition === 'slide-down' ? -this.height : 0
+        sprite.x = centerX + offsetX
+        sprite.y = centerY + offsetY
+        oldSprite.x = centerX
+        oldSprite.y = centerY
+        this.imageTransitionTween = gsap.to(sprite, {
+          x: centerX,
+          y: centerY,
+          duration,
+          ease: 'sine.out',
+          onComplete: finish,
+        })
+        gsap.to(oldSprite, {
+          x: centerX - offsetX * 0.25,
+          y: centerY - offsetY * 0.25,
+          alpha: 0,
+          duration,
+          ease: 'sine.out',
+        })
+        break
+      }
+      case 'zoom-in':
+      case 'zoom-out': {
+        const startScale = transition === 'zoom-in' ? baseScale * 1.12 : baseScale * 0.88
+        sprite.scale.set(startScale)
+        sprite.alpha = 0
+        oldSprite.alpha = 1
+        this.imageTransitionTween = gsap.to(sprite.scale, {
+          x: baseScale,
+          y: baseScale,
+          duration,
+          ease: 'sine.out',
+          onComplete: finish,
+        })
+        gsap.to(sprite, { alpha: 1, duration, ease: 'sine.out' })
+        gsap.to(oldSprite, { alpha: 0, duration, ease: 'sine.out' })
+        break
+      }
+      default:
+        this.swapImageSprite(sprite, url)
+        this.positionSprite(sprite)
+    }
   }
 
   private swapImageSprite(sprite: PIXI.Sprite | null, url: string | null) {
@@ -122,14 +261,21 @@ export class CellRenderer {
 
   private repositionImage() {
     if (!this.imageSprite) return
-    const texW = this.imageSprite.texture.width
-    const texH = this.imageSprite.texture.height
-    const scale = this.getImageScale(texW, texH)
-
-    this.imageSprite.scale.set(scale)
-    this.imageSprite.x = this.width / 2
-    this.imageSprite.y = this.height / 2
+    this.positionSprite(this.imageSprite)
+    if (this.transitionSprite && this.transitionSprite !== this.imageSprite) {
+      this.positionSprite(this.transitionSprite)
+    }
     this.redrawImageMask()
+  }
+
+  private positionSprite(sprite: PIXI.Sprite, offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
+    const texW = sprite.texture.width
+    const texH = sprite.texture.height
+    const scale = this.getImageScale(texW, texH) * scaleMultiplier
+
+    sprite.scale.set(scale)
+    sprite.x = this.width / 2 + offsetX
+    sprite.y = this.height / 2 + offsetY
   }
 
   private getImageScale(texW: number, texH: number) {
@@ -281,6 +427,7 @@ export class CellRenderer {
   destroy() {
     this.vignetteGsapTween?.kill()
     this.blurGsapTween?.kill()
+    this.imageTransitionTween?.kill()
     this.particleSystem.destroy()
     this.container.destroy({ children: true })
   }

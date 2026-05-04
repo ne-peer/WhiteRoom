@@ -22,10 +22,22 @@ export type CellFolder = {
 
 export type ImageFitMode = 'fitHeight' | 'fitWidth' | 'cover'
 
+export type SlideShowTransition =
+  | 'none'
+  | 'fade'
+  | 'slide-left'
+  | 'slide-right'
+  | 'slide-up'
+  | 'slide-down'
+  | 'zoom-in'
+  | 'zoom-out'
+
 export type SlideShowConfig = {
   enabled: boolean
   intervalMs: number       // ミリ秒
   randomOrder: boolean
+  transition: SlideShowTransition
+  transitionDurationMs: number
 }
 
 export type Cell = {
@@ -108,6 +120,7 @@ export type TimerConfig = {
   elapsedSec: number
   running: boolean
   position: TimerPosition
+  showBackground: boolean
 }
 
 // ===== グリッド全体 =====

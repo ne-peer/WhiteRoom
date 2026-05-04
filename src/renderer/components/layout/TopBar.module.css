@@ -2,7 +2,6 @@
   position: fixed;
   top: 0;
   left: 0;
-  right: 300px;
   height: 40px;
   background: rgba(8, 8, 12, 0.9);
   border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -40,18 +39,21 @@
 }
 
 .iconBtn {
-  width: 32px;
+  min-width: 32px;
   height: 32px;
+  padding: 0 10px;
   border-radius: 8px;
   border: none;
   background: transparent;
   color: rgba(255,255,255,0.5);
-  font-size: 16px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .iconBtn:hover {
@@ -86,4 +88,38 @@
 .exitFullscreen:hover {
   opacity: 1;
   color: rgba(255,255,255,0.9);
+}
+
+.dock {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 220;
+}
+
+.dockBtn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(8, 8, 12, 0.72);
+  color: rgba(255,255,255,0.72);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+
+.dockBtn:hover {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.95);
+  transform: translateY(-1px);
+}
+
+.dockBtnActive {
+  color: #ff6eb4;
 }
