@@ -213,6 +213,11 @@ npm run build && npm run package
 npx tsc --noEmit
 ```
 
+## Codex実行環境メモ
+
+- このチャット実行環境では `node` / `npm` / `npx` が PATH に無い。検証時に毎回 `npm` → `npm.cmd` → `node` を探索してトークンを使わないこと。
+- ビルドや型チェックが必要な場合は、まず「この環境では Node.js 系コマンドを実行できない」と判断し、代替として `git diff --check` や静的な差分確認まで行う。
+
 ---
 
 ## 開発時の注意点

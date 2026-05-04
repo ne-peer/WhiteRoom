@@ -2,12 +2,13 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type {
   AppProfile, Cell, CellEffects, CellFolder, GridLayout,
-  BlankColor, TimerConfig, TimerPosition, AppProfile as Profile
+  BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile
 } from '../../shared/types'
 
 // ===== デフォルト値 =====
 
 export const DEFAULT_BLANK_COLOR: BlankColor = { r: 10, g: 10, b: 10, a: 1 }
+export const DEFAULT_SLIDESHOW: Cell['slideshow'] = { enabled: false, intervalMs: 3000, randomOrder: false }
 
 export const DEFAULT_EFFECTS: CellEffects = {
   colorOverlay: { enabled: false, color: { r: 255, g: 0, b: 128 }, alpha: 0.3 },
@@ -33,8 +34,11 @@ export const DEFAULT_EFFECTS: CellEffects = {
     enabled: false,
     assetPath: null,
     spawnIntervalMs: 800,
-    riseSpeedPx: 1.5,
+    riseSpeedPx: 2,
     maxParticles: 20,
+    colorOverlayEnabled: false,
+    colorOverlayColor: { r: 255, g: 100, b: 150 },
+    colorOverlayAlpha: 0.5,
   }
 }
 
@@ -52,8 +56,9 @@ function createCell(col: number, row: number): Cell {
     col,
     row,
     folder: null,
+    imageFit: 'cover',
     currentImageIndex: 0,
-    slideshow: { enabled: false, intervalMs: 5000, randomOrder: false },
+    slideshow: { ...DEFAULT_SLIDESHOW },
     effects: structuredClone(DEFAULT_EFFECTS),
   }
 }
@@ -82,6 +87,7 @@ export type AppState = {
   selectedCellId: string | null
   showControls: boolean
   isLoading: boolean
+  slideshowRestartNonce: number
 }
 
 export type AppActions = {
@@ -95,9 +101,13 @@ export type AppActions = {
 
   // セル操作
   setCellFolder: (cellId: string, folder: CellFolder) => void
+  setAllCellsFolder: (folder: CellFolder) => void
+  setCellImageFit: (cellId: string, imageFit: ImageFitMode) => void
   setCellImage: (cellId: string, index: number) => void
   nextCellImage: (cellId: string) => void
   setCellSlideshow: (cellId: string, config: Partial<Cell['slideshow']>) => void
+  setAllCellsSlideshow: (config: Cell['slideshow']) => void
+  restartSlideshowsRandomly: () => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -141,6 +151,7 @@ export const useAppStore = create<AppStore>()(
     selectedCellId: null,
     showControls: true,
     isLoading: false,
+    slideshowRestartNonce: 0,
 
     // ===== グリッド操作 =====
 
@@ -194,6 +205,18 @@ export const useAppStore = create<AppStore>()(
       }
     }),
 
+    setAllCellsFolder: (folder) => set(s => {
+      s.cells.forEach(cell => {
+        cell.folder = structuredClone(folder)
+        cell.currentImageIndex = 0
+      })
+    }),
+
+    setCellImageFit: (cellId, imageFit) => set(s => {
+      const cell = s.cells.find(c => c.id === cellId)
+      if (cell) cell.imageFit = imageFit
+    }),
+
     setCellImage: (cellId, index) => set(s => {
       const cell = s.cells.find(c => c.id === cellId)
       if (cell && cell.folder) {
@@ -217,6 +240,16 @@ export const useAppStore = create<AppStore>()(
     setCellSlideshow: (cellId, config) => set(s => {
       const cell = s.cells.find(c => c.id === cellId)
       if (cell) Object.assign(cell.slideshow, config)
+    }),
+
+    setAllCellsSlideshow: (config) => set(s => {
+      s.cells.forEach(cell => {
+        cell.slideshow = structuredClone(config)
+      })
+    }),
+
+    restartSlideshowsRandomly: () => set(s => {
+      s.slideshowRestartNonce += 1
     }),
 
     // ===== エフェクト =====
@@ -274,7 +307,19 @@ export const useAppStore = create<AppStore>()(
     importProfile: (profile) => set(s => {
       s.blankColor = profile.blankColor
       s.grid = profile.grid
-      s.cells = profile.cells
+      s.cells = profile.cells.map(cell => ({
+        ...cell,
+        imageFit: cell.imageFit ?? 'cover',
+        slideshow: { ...DEFAULT_SLIDESHOW, ...cell.slideshow },
+        effects: {
+          ...structuredClone(DEFAULT_EFFECTS),
+          ...cell.effects,
+          colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...cell.effects?.colorOverlay },
+          vignette: { ...DEFAULT_EFFECTS.vignette, ...cell.effects?.vignette },
+          blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
+          dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
+        },
+      }))
       s.timer = profile.timer
       s.fullscreen = profile.fullscreen
       s.selectedCellId = null
@@ -298,7 +343,7 @@ function rebuildCells(existing: Cell[], cols: number, rows: number): Cell[] {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const found = existing.find(cell => cell.col === c && cell.row === r)
-      result.push(found ?? createCell(c, r))
+      result.push(found ? { ...found, imageFit: found.imageFit ?? 'cover' } : createCell(c, r))
     }
   }
   return result

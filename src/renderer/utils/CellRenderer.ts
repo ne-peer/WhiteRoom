@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { CellEffects } from '../../shared/types'
+import type { CellEffects, ImageFitMode } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -32,6 +32,9 @@ export class CellRenderer {
   private assetTexture: PIXI.Texture | null = null
   private assetPath: string | null = null
   private currentImageSrc: string | null = null
+  private requestedImageSrc: string | null = null
+  private imageFit: ImageFitMode = 'cover'
+  private vignetteAnimationKey: string | null = null
 
   constructor(cellId: string, width: number, height: number) {
     this.cellId = cellId
@@ -71,37 +74,68 @@ export class CellRenderer {
     this.rebuildVignette()
   }
 
+  setImageFit(imageFit: ImageFitMode = 'cover') {
+    if (this.imageFit === imageFit) return
+    this.imageFit = imageFit
+    this.repositionImage()
+  }
+
   async setImage(src: string) {
     const url = toFileUrl(src)
-    if (url === this.currentImageSrc) return
-    this.currentImageSrc = url
+    if (url === this.currentImageSrc || url === this.requestedImageSrc) return
+    this.requestedImageSrc = url
 
-    if (this.imageSprite) {
-      this.imageLayer.removeChild(this.imageSprite)
-      this.imageSprite.destroy({ texture: false })
-      this.imageSprite = null
+    if (!src) {
+      this.swapImageSprite(null, null)
+      return
     }
 
-    if (!src) return
+    let texture: PIXI.Texture
+    try {
+      texture = await PIXI.Assets.load(url)
+    } catch {
+      if (this.requestedImageSrc === url) this.requestedImageSrc = null
+      return
+    }
+    if (this.requestedImageSrc !== url) return
 
-    const texture = await PIXI.Assets.load(url)
     const sprite = new PIXI.Sprite(texture)
     sprite.anchor.set(0.5)
-    this.imageLayer.addChild(sprite)
-    this.imageSprite = sprite
+    this.swapImageSprite(sprite, url)
     this.repositionImage()
+  }
+
+  private swapImageSprite(sprite: PIXI.Sprite | null, url: string | null) {
+    const oldSprite = this.imageSprite
+    if (sprite) {
+      this.imageLayer.addChild(sprite)
+    }
+    this.imageSprite = sprite
+    this.currentImageSrc = url
+    this.requestedImageSrc = null
+
+    if (oldSprite) {
+      this.imageLayer.removeChild(oldSprite)
+      oldSprite.destroy({ texture: false })
+    }
   }
 
   private repositionImage() {
     if (!this.imageSprite) return
     const texW = this.imageSprite.texture.width
     const texH = this.imageSprite.texture.height
-    const scale = Math.max(this.width / texW, this.height / texH)
+    const scale = this.getImageScale(texW, texH)
 
     this.imageSprite.scale.set(scale)
     this.imageSprite.x = this.width / 2
     this.imageSprite.y = this.height / 2
     this.redrawImageMask()
+  }
+
+  private getImageScale(texW: number, texH: number) {
+    if (this.imageFit === 'fitHeight') return this.height / texH
+    if (this.imageFit === 'fitWidth') return this.width / texW
+    return Math.max(this.width / texW, this.height / texH)
   }
 
   private redrawImageMask() {
@@ -138,6 +172,7 @@ export class CellRenderer {
         this.vignetteGsapTween.kill()
         this.vignetteGsapTween = null
       }
+      this.vignetteAnimationKey = null
       return
     }
 
@@ -150,8 +185,18 @@ export class CellRenderer {
     this.vignetteSprite.visible = true
 
     if (vig.dynamic) {
-      if (!this.vignetteGsapTween) {
+      const animationKey = [
+        vig.dynamicFrom,
+        vig.dynamicTo,
+        vig.dynamicDurationMs,
+        effects.blur.enabled && effects.blur.gradualEnabled ? 'sync-blur' : 'solo',
+      ].join(':')
+
+      if (this.vignetteAnimationKey !== animationKey) {
+        this.vignetteGsapTween?.kill()
+        this.vignetteAnimationKey = animationKey
         const proxy = { alpha: vig.dynamicFrom }
+        if (this.vignetteSprite) this.vignetteSprite.alpha = vig.dynamicFrom
         this.vignetteGsapTween = gsap.to(proxy, {
           alpha: vig.dynamicTo,
           duration: vig.dynamicDurationMs / 1000,
@@ -169,6 +214,7 @@ export class CellRenderer {
         this.vignetteGsapTween.kill()
         this.vignetteGsapTween = null
       }
+      this.vignetteAnimationKey = null
       this.vignetteSprite.alpha = vig.alpha
     }
   }

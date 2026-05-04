@@ -88,6 +88,7 @@ export class ParticleSystem {
     }
 
     const { spawnIntervalMs, riseSpeedPx, maxParticles } = effects.dynamicAsset
+    const overlayTint = getAssetOverlayTint(effects)
 
     // スポーン
     if (
@@ -112,6 +113,7 @@ export class ParticleSystem {
       sprite.y = p.y
       sprite.alpha = p.alpha
       sprite.scale.set(0.5 + Math.random() * 0.5)
+      sprite.tint = overlayTint
       this.container.addChild(sprite)
       this.sprites.set(p.id, sprite)
     }
@@ -125,6 +127,7 @@ export class ParticleSystem {
       if (sprite) {
         sprite.y = p.y
         sprite.alpha = Math.max(0, p.alpha)
+        sprite.tint = overlayTint
       }
 
       if (p.alpha <= 0 || p.y < -50) {
@@ -151,4 +154,15 @@ export class ParticleSystem {
   destroy() {
     this.clear()
   }
+}
+
+function getAssetOverlayTint(effects: CellEffects): number {
+  const da = effects.dynamicAsset
+  if (!da.colorOverlayEnabled || da.colorOverlayAlpha <= 0) return 0xffffff
+
+  const alpha = Math.max(0, Math.min(1, da.colorOverlayAlpha))
+  const r = Math.round(255 + (da.colorOverlayColor.r - 255) * alpha)
+  const g = Math.round(255 + (da.colorOverlayColor.g - 255) * alpha)
+  const b = Math.round(255 + (da.colorOverlayColor.b - 255) * alpha)
+  return (r << 16) | (g << 8) | b
 }

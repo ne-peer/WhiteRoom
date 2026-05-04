@@ -20,6 +20,8 @@ export type CellFolder = {
   images: string[]  // ファイルパス一覧
 }
 
+export type ImageFitMode = 'fitHeight' | 'fitWidth' | 'cover'
+
 export type SlideShowConfig = {
   enabled: boolean
   intervalMs: number       // ミリ秒
@@ -31,6 +33,7 @@ export type Cell = {
   col: number
   row: number
   folder: CellFolder | null
+  imageFit: ImageFitMode
   currentImageIndex: number
   slideshow: SlideShowConfig
   effects: CellEffects
@@ -80,6 +83,9 @@ export type DynamicAssetEffect = {
   spawnIntervalMs: number    // 生成間隔
   riseSpeedPx: number        // 上昇速度 px/frame
   maxParticles: number
+  colorOverlayEnabled: boolean
+  colorOverlayColor: { r: number; g: number; b: number }
+  colorOverlayAlpha: number
 }
 
 export type CellEffects = {
