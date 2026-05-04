@@ -35,6 +35,11 @@ export const DEFAULT_EFFECTS: CellEffects = {
     gradualDurationSec: 60,
     gradualStartStrength: 0,
     gradualEndStrength: 20,
+    regionEnabled: false,
+    regionCenterX: 0.5,
+    regionCenterY: 0.5,
+    regionWidth: 0.35,
+    regionHeight: 0.35,
   },
   dynamicAsset: {
     enabled: false,
@@ -96,6 +101,7 @@ export type AppState = {
   showControls: boolean
   isLoading: boolean
   slideshowRestartNonce: number
+  blurRegionPickerCellId: string | null
 }
 
 export type AppActions = {
@@ -139,6 +145,7 @@ export type AppActions = {
   selectCell: (cellId: string | null) => void
   toggleControls: () => void
   setLoading: (flag: boolean) => void
+  setBlurRegionPickerCell: (cellId: string | null) => void
 
   // プロファイル
   exportProfile: (name: string) => AppProfile
@@ -163,6 +170,7 @@ export const useAppStore = create<AppStore>()(
     showControls: true,
     isLoading: false,
     slideshowRestartNonce: 0,
+    blurRegionPickerCellId: null,
 
     // ===== グリッド操作 =====
 
@@ -302,6 +310,8 @@ export const useAppStore = create<AppStore>()(
 
     setLoading: (flag) => set(s => { s.isLoading = flag }),
 
+    setBlurRegionPickerCell: (cellId) => set(s => { s.blurRegionPickerCellId = cellId }),
+
     // ===== プロファイル =====
 
     exportProfile: (name) => {
@@ -339,6 +349,7 @@ export const useAppStore = create<AppStore>()(
       s.fullscreen = profile.fullscreen
       s.showNavigationBar = true
       s.selectedCellId = null
+      s.blurRegionPickerCellId = null
     }),
 
     resetProfile: () => set(s => {
@@ -349,6 +360,7 @@ export const useAppStore = create<AppStore>()(
       s.fullscreen = false
       s.showNavigationBar = true
       s.selectedCellId = null
+      s.blurRegionPickerCellId = null
     }),
   }))
 )

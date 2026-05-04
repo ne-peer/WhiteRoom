@@ -77,6 +77,11 @@ export type BlurEffect = {
   gradualDurationSec: number  // 最大3600秒
   gradualStartStrength: number
   gradualEndStrength: number
+  regionEnabled: boolean
+  regionCenterX: number
+  regionCenterY: number
+  regionWidth: number
+  regionHeight: number
 }
 
 export type AssetParticle = {

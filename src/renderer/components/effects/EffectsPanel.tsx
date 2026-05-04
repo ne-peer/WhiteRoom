@@ -6,7 +6,13 @@ import type { Cell } from '../../../shared/types'
 type Props = { selectedCell: Cell | undefined | null }
 
 export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
-  const { setCellEffect, setAllCellsEffect, selectedCellId } = useAppStore()
+  const {
+    setCellEffect,
+    setAllCellsEffect,
+    selectedCellId,
+    blurRegionPickerCellId,
+    setBlurRegionPickerCell,
+  } = useAppStore()
 
   if (!selectedCellId || !selectedCell) {
     return (
@@ -38,6 +44,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       set('dynamicAsset', { assetPath: result.filePath })
     }
   }
+
+  const isPickingBlurRegion = blurRegionPickerCellId === selectedCellId
 
   return (
     <div>
@@ -133,6 +141,48 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             <Row label="全エフェクトに適用">
               <Toggle value={effects.blur.applyToAll} onChange={v => set('blur', { applyToAll: v })} />
             </Row>
+            <Row label="楕円エリアのみ">
+              <Toggle
+                value={effects.blur.regionEnabled}
+                onChange={v => {
+                  set('blur', { regionEnabled: v })
+                  if (!v && isPickingBlurRegion) setBlurRegionPickerCell(null)
+                }}
+              />
+            </Row>
+            {effects.blur.regionEnabled && (
+              <>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 8 }}>
+                  キャンバス上の選択セルをクリックして、楕円エリアの中心位置を指定できます。
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <Button
+                    variant={isPickingBlurRegion ? 'primary' : 'secondary'}
+                    onClick={() => setBlurRegionPickerCell(isPickingBlurRegion ? null : selectedCellId)}
+                  >
+                    {isPickingBlurRegion ? '位置選択を終了' : '中心位置を選ぶ'}
+                  </Button>
+                </div>
+                <Row label="横幅">
+                  <Slider
+                    value={Math.round(effects.blur.regionWidth * 100)}
+                    min={5}
+                    max={100}
+                    onChange={v => set('blur', { regionWidth: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label="高さ">
+                  <Slider
+                    value={Math.round(effects.blur.regionHeight * 100)}
+                    min={5}
+                    max={100}
+                    onChange={v => set('blur', { regionHeight: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              </>
+            )}
             <Row label="徐々に増加">
               <Toggle value={effects.blur.gradualEnabled} onChange={v => set('blur', { gradualEnabled: v })} />
             </Row>

@@ -105,6 +105,18 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   }, [store.cells])
 
   useEffect(() => {
+    store.cells.forEach(cell => {
+      const cr = cellRenderersRef.current.get(cell.id)
+      if (cr) {
+        cr.setBlurRegionEditorState(
+          store.selectedCellId === cell.id,
+          store.blurRegionPickerCellId === cell.id
+        )
+      }
+    })
+  }, [store.selectedCellId, store.blurRegionPickerCellId, store.cells])
+
+  useEffect(() => {
     const { cells, slideshowRestartNonce } = store
     const randomizeStart = slideshowRestartNonce !== lastRandomRestartNonceRef.current
     lastRandomRestartNonceRef.current = slideshowRestartNonce
@@ -188,8 +200,17 @@ function layoutCells(
       app.stage.addChild(cr.container)
       renderers.set(cell.id, cr)
 
-      cr.container.on('pointerdown', () => {
-        useAppStore.getState().selectCell(cell.id)
+      cr.container.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
+        const state = useAppStore.getState()
+        if (state.blurRegionPickerCellId === cell.id) {
+          const local = cr.getNormalizedPointFromGlobal(event.global)
+          state.setCellEffect(cell.id, 'blur', {
+            regionCenterX: local.x,
+            regionCenterY: local.y,
+          })
+          state.setBlurRegionPickerCell(null)
+        }
+        state.selectCell(cell.id)
       })
 
       if (cell.folder && cell.folder.images[cell.currentImageIndex]) {
@@ -198,6 +219,10 @@ function layoutCells(
 
       cr.setImageFit(cell.imageFit ?? 'cover')
       cr.updateEffects(cell.effects)
+      cr.setBlurRegionEditorState(
+        state.selectedCellId === cell.id,
+        state.blurRegionPickerCellId === cell.id
+      )
     } else {
       cr.resize(cellW, cellH)
     }
