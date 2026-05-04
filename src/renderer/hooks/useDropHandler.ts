@@ -5,8 +5,9 @@ import type { CellFolder, IpcApi } from '../../shared/types'
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
 
 function isImageFile(name: string): boolean {
-  const ext = name.slice(name.lastIndexOf('.')).toLowerCase()
-  return IMAGE_EXTENSIONS.includes(ext)
+  const dotIndex = name.lastIndexOf('.')
+  if (dotIndex < 0) return false
+  return IMAGE_EXTENSIONS.includes(name.slice(dotIndex).toLowerCase())
 }
 
 function getApi(): IpcApi {
@@ -21,7 +22,6 @@ export function useDropHandler(
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
 
-    // Electron では dataTransfer.files の File.path が実OSパスを返す
     const files = Array.from(e.dataTransfer.files) as (File & { path?: string })[]
 
     for (const file of files) {
@@ -29,26 +29,33 @@ export function useDropHandler(
       if (!filePath) continue
 
       if (file.type === '' || !file.type) {
-        // type が空 = フォルダの可能性が高い → IPC経由で中身を読む
         const result = await getApi().readFolderPath(filePath)
-        if (!result.canceled && result.images && result.images.length > 0) {
-          await assignFolderToCell(result.folderPath!, result.images, e, cells, addCellByDrop, setCellFolder, setCellImage, grid)
+        if (!result.canceled && result.folderPath && result.images && result.images.length > 0) {
+          assignFolderToCell(
+            result.folderPath,
+            result.images,
+            e,
+            cells,
+            addCellByDrop,
+            setCellFolder,
+            setCellImage,
+            grid
+          )
           continue
         }
       }
 
-      // 単一画像ファイル
       if (isImageFile(file.name)) {
-        const cellId = getCellIdAtPosition(e, cells, grid)
-        if (cellId) {
-          const folder: CellFolder = {
-            id: `folder-${Date.now()}`,
-            path: filePath.replace(/[/\\][^/\\]+$/, ''),
-            images: [filePath],
-          }
-          setCellFolder(cellId, folder)
-          setCellImage(cellId, filePath)
+        const cellId = getAvailableCellIdAtDropPosition(e, cells, grid, addCellByDrop)
+        if (!cellId) continue
+
+        const folder: CellFolder = {
+          id: `folder-${Date.now()}-${Math.random()}`,
+          path: filePath.replace(/[/\\][^/\\]+$/, ''),
+          images: [filePath],
         }
+        setCellFolder(cellId, folder)
+        setCellImage(cellId, filePath)
       }
     }
   }, [cells, addCellByDrop, setCellFolder, grid, setCellImage])
@@ -61,8 +68,7 @@ export function useDropHandler(
   return { handleDrop, handleDragOver }
 }
 
-// フォルダをセルに割り当てる
-async function assignFolderToCell(
+function assignFolderToCell(
   folderPath: string,
   images: string[],
   e: React.DragEvent<HTMLDivElement>,
@@ -72,16 +78,8 @@ async function assignFolderToCell(
   setCellImage: (cellId: string, imagePath: string) => void,
   grid: ReturnType<typeof useAppStore.getState>['grid'],
 ) {
-  let cellId = getCellIdAtPosition(e, cells, grid)
-
-  if (!cellId) {
-    addCellByDrop()
-    const updated = useAppStore.getState()
-    const newCol = updated.grid.cols - 1
-    const newCell = updated.cells.find(c => c.col === newCol && c.row === 0)
-    if (!newCell) return
-    cellId = newCell.id
-  }
+  const cellId = getAvailableCellIdAtDropPosition(e, cells, grid, addCellByDrop)
+  if (!cellId) return
 
   const folder: CellFolder = {
     id: `folder-${Date.now()}-${Math.random()}`,
@@ -93,7 +91,26 @@ async function assignFolderToCell(
   if (images[0]) setCellImage(cellId, images[0])
 }
 
-// ドロップ位置からセルIDを計算
+function getAvailableCellIdAtDropPosition(
+  e: React.DragEvent<HTMLDivElement>,
+  cells: ReturnType<typeof useAppStore.getState>['cells'],
+  grid: ReturnType<typeof useAppStore.getState>['grid'],
+  addCellByDrop: () => void,
+): string | null {
+  const targetCellId = getCellIdAtPosition(e, cells, grid)
+  const targetCell = targetCellId ? cells.find(c => c.id === targetCellId) : null
+
+  if (targetCell && !targetCell.folder) {
+    return targetCell.id
+  }
+
+  addCellByDrop()
+  const updated = useAppStore.getState()
+  const newCol = updated.grid.cols - 1
+  const newCell = updated.cells.find(c => c.col === newCol && c.row === 0)
+  return newCell?.id ?? null
+}
+
 function getCellIdAtPosition(
   e: React.DragEvent<HTMLDivElement>,
   cells: ReturnType<typeof useAppStore.getState>['cells'],
@@ -104,8 +121,8 @@ function getCellIdAtPosition(
   const relY = e.clientY - rect.top
   const cellW = rect.width / grid.cols
   const cellH = rect.height / grid.rows
-  const col = Math.min(Math.floor(relX / cellW), grid.cols - 1)
-  const row = Math.min(Math.floor(relY / cellH), grid.rows - 1)
+  const col = Math.max(0, Math.min(Math.floor(relX / cellW), grid.cols - 1))
+  const row = Math.max(0, Math.min(Math.floor(relY / cellH), grid.rows - 1))
   const cell = cells.find(c => c.col === col && c.row === row)
   return cell?.id ?? null
 }

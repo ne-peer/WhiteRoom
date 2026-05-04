@@ -12,30 +12,35 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
 
   const store = useAppStore()
 
-  // PixiJSアプリ初期化
   useEffect(() => {
     if (!canvasRef.current) return
 
     const container = canvasRef.current
-    const w = container.clientWidth || window.innerWidth
-    const h = container.clientHeight || window.innerHeight
-
     const app = new PIXI.Application()
+    let cancelled = false
+    let initialized = false
+    let resizeObserver: ResizeObserver | null = null
 
     ;(async () => {
       await app.init({
-        width: w,
-        height: h,
-        backgroundColor: rgbaToHex(store.blankColor),
+        width: container.clientWidth || window.innerWidth,
+        height: container.clientHeight || window.innerHeight,
+        backgroundColor: rgbaToHex(useAppStore.getState().blankColor),
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
       })
+      initialized = true
 
+      if (cancelled) {
+        app.destroy(true)
+        return
+      }
+
+      container.querySelectorAll(':scope > canvas').forEach(canvas => canvas.remove())
       container.appendChild(app.canvas)
       appRef.current = app
 
-      // グローバルtickerにフレーム更新登録
       app.ticker.add((ticker) => {
         const { cells } = useAppStore.getState()
         cells.forEach(cell => {
@@ -44,34 +49,37 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
         })
       })
 
-      // リサイズオブザーバー
-      const ro = new ResizeObserver(() => {
-        const { clientWidth: nw, clientHeight: nh } = container
-        app.renderer.resize(nw, nh)
+      resizeObserver = new ResizeObserver(() => {
+        const { clientWidth, clientHeight } = container
+        app.renderer.resize(clientWidth, clientHeight)
         layoutCells(app, cellRenderersRef.current, useAppStore.getState())
       })
-      ro.observe(container)
+      resizeObserver.observe(container)
 
-      // 初期レイアウト
       layoutCells(app, cellRenderersRef.current, useAppStore.getState())
-
-      return () => {
-        ro.disconnect()
-        app.destroy(true)
-        appRef.current = null
-      }
     })()
+
+    return () => {
+      cancelled = true
+      resizeObserver?.disconnect()
+      cellRenderersRef.current.forEach(cr => cr.destroy())
+      cellRenderersRef.current.clear()
+      if (initialized && app.canvas.parentElement === container) {
+        container.removeChild(app.canvas)
+      }
+      if (initialized) {
+        app.destroy(true)
+      }
+      if (appRef.current === app) appRef.current = null
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // グリッド・セル変更時にレイアウト再計算
   useEffect(() => {
     const app = appRef.current
     if (!app) return
     layoutCells(app, cellRenderersRef.current, store)
   }, [store.grid, store.cells.length, store.blankColor])
 
-  // フォルダ/表示インデックス変更時に画像を更新
-  // （ダイアログ・D&D・スライドショー問わず、ストアが変わったら反映する）
   const imageKey = store.cells
     .map(c => `${c.id}:${c.folder?.id ?? ''}:${c.currentImageIndex}`)
     .join(',')
@@ -85,7 +93,6 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     })
   }, [imageKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 各セルのエフェクト変更を個別に反映
   useEffect(() => {
     store.cells.forEach(cell => {
       const cr = cellRenderersRef.current.get(cell.id)
@@ -93,17 +100,14 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     })
   }, [store.cells])
 
-  // スライドショータイマー管理
   useEffect(() => {
     const { cells } = store
 
-    // 既存タイマー全クリア
     slideshowTimersRef.current.forEach(id => clearInterval(id))
     slideshowTimersRef.current.clear()
 
     cells.forEach(cell => {
       if (!cell.slideshow.enabled || !cell.folder || cell.folder.images.length <= 1) return
-      // nextCellImage でストアの currentImageIndex を変更 → imageKey の useEffect が setImage を呼ぶ
       const tid = window.setInterval(() => {
         useAppStore.getState().nextCellImage(cell.id)
       }, cell.slideshow.intervalMs)
@@ -116,7 +120,6 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     }
   }, [store.cells.map(c => `${c.id}:${c.slideshow.enabled}:${c.slideshow.intervalMs}`).join(',')])
 
-  // セルへの画像セット（外部から呼び出し可能）
   const setCellImage = useCallback((cellId: string, imagePath: string) => {
     const cr = cellRenderersRef.current.get(cellId)
     if (cr) cr.setImage(imagePath)
@@ -125,25 +128,20 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   return { app: appRef, cellRenderers: cellRenderersRef, setCellImage }
 }
 
-// ===== レイアウト計算 =====
-
 function layoutCells(
   app: PIXI.Application,
   renderers: CellRendererMap,
   state: ReturnType<typeof useAppStore.getState>
 ) {
   const { grid, cells, blankColor } = state
-  const totalW = app.renderer.width
-  const totalH = app.renderer.height
+  const totalW = app.canvas.clientWidth || app.screen.width
+  const totalH = app.canvas.clientHeight || app.screen.height
 
-  // 背景色
   app.renderer.background.color = rgbaToHex(blankColor)
 
-  // セルサイズ
   const cellW = totalW / grid.cols
   const cellH = totalH / grid.rows
 
-  // 既存レンダラーのうち、現在セルにないものを破棄
   const currentIds = new Set(cells.map(c => c.id))
   renderers.forEach((cr, id) => {
     if (!currentIds.has(id)) {
@@ -153,7 +151,6 @@ function layoutCells(
     }
   })
 
-  // 各セルのレンダラーを生成・更新
   cells.forEach(cell => {
     const x = cell.col * cellW
     const y = cell.row * cellH
@@ -165,12 +162,10 @@ function layoutCells(
       app.stage.addChild(cr.container)
       renderers.set(cell.id, cr)
 
-      // セルクリック → 選択
       cr.container.on('pointerdown', () => {
         useAppStore.getState().selectCell(cell.id)
       })
 
-      // 既に画像があれば描画
       if (cell.folder && cell.folder.images[cell.currentImageIndex]) {
         cr.setImage(cell.folder.images[cell.currentImageIndex])
       }
@@ -182,8 +177,6 @@ function layoutCells(
 
     cr.container.x = x
     cr.container.y = y
-
-    // セル背景（ブランクカラー）
     drawCellBackground(cr.container, cellW, cellH, blankColor)
   })
 }
@@ -194,9 +187,11 @@ function drawCellBackground(
   h: number,
   color: { r: number; g: number; b: number; a: number }
 ) {
-  // 既存背景削除
   const existing = container.getChildByName('__bg__') as PIXI.Graphics | null
-  if (existing) { container.removeChild(existing); existing.destroy() }
+  if (existing) {
+    container.removeChild(existing)
+    existing.destroy()
+  }
 
   const bg = new PIXI.Graphics()
   bg.label = '__bg__'
