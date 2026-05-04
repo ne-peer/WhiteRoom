@@ -220,16 +220,29 @@
 .select {
   width: 100%;
   padding: 6px 10px;
-  background: rgba(255,255,255,0.08);
+  background: #24222a;
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 6px;
   color: #ffffff;
   font-size: 12px;
   outline: none;
   cursor: pointer;
+  color-scheme: dark;
 }
 
-.select:focus { border-color: #ff6eb4; }
+.select:hover {
+  background: #2d2a33;
+}
+
+.select:focus {
+  border-color: #ff6eb4;
+  box-shadow: 0 0 0 2px rgba(255,110,180,0.18);
+}
+
+.select option {
+  background: #24222a;
+  color: #ffffff;
+}
 
 /* ===== ステッパー ===== */
 .stepper {

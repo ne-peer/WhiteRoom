@@ -9,6 +9,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   const appRef = useRef<PIXI.Application | null>(null)
   const cellRenderersRef = useRef<CellRendererMap>(new Map())
   const slideshowTimersRef = useRef<Map<string, number>>(new Map())
+  const lastRandomRestartNonceRef = useRef(0)
 
   const store = useAppStore()
 
@@ -96,29 +97,54 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   useEffect(() => {
     store.cells.forEach(cell => {
       const cr = cellRenderersRef.current.get(cell.id)
-      if (cr) cr.updateEffects(cell.effects)
+      if (cr) {
+        cr.setImageFit(cell.imageFit ?? 'cover')
+        cr.updateEffects(cell.effects)
+      }
     })
   }, [store.cells])
 
   useEffect(() => {
-    const { cells } = store
+    const { cells, slideshowRestartNonce } = store
+    const randomizeStart = slideshowRestartNonce !== lastRandomRestartNonceRef.current
+    lastRandomRestartNonceRef.current = slideshowRestartNonce
 
-    slideshowTimersRef.current.forEach(id => clearInterval(id))
+    slideshowTimersRef.current.forEach(id => {
+      clearInterval(id)
+      clearTimeout(id)
+    })
     slideshowTimersRef.current.clear()
 
     cells.forEach(cell => {
       if (!cell.slideshow.enabled || !cell.folder || cell.folder.images.length <= 1) return
-      const tid = window.setInterval(() => {
+      const startInterval = () => window.setInterval(() => {
         useAppStore.getState().nextCellImage(cell.id)
       }, cell.slideshow.intervalMs)
+
+      if (randomizeStart) {
+        const tid = window.setTimeout(() => {
+          useAppStore.getState().nextCellImage(cell.id)
+          slideshowTimersRef.current.set(cell.id, startInterval())
+        }, Math.random() * cell.slideshow.intervalMs)
+        slideshowTimersRef.current.set(cell.id, tid)
+        return
+      }
+
+      const tid = startInterval()
       slideshowTimersRef.current.set(cell.id, tid)
     })
 
     return () => {
-      slideshowTimersRef.current.forEach(id => clearInterval(id))
+      slideshowTimersRef.current.forEach(id => {
+        clearInterval(id)
+        clearTimeout(id)
+      })
       slideshowTimersRef.current.clear()
     }
-  }, [store.cells.map(c => `${c.id}:${c.slideshow.enabled}:${c.slideshow.intervalMs}`).join(',')])
+  }, [
+    store.slideshowRestartNonce,
+    store.cells.map(c => `${c.id}:${c.slideshow.enabled}:${c.slideshow.intervalMs}`).join(',')
+  ])
 
   const setCellImage = useCallback((cellId: string, imagePath: string) => {
     const cr = cellRenderersRef.current.get(cellId)
@@ -170,11 +196,13 @@ function layoutCells(
         cr.setImage(cell.folder.images[cell.currentImageIndex])
       }
 
+      cr.setImageFit(cell.imageFit ?? 'cover')
       cr.updateEffects(cell.effects)
     } else {
       cr.resize(cellW, cellH)
     }
 
+    cr.setImageFit(cell.imageFit ?? 'cover')
     cr.container.x = x
     cr.container.y = y
     drawCellBackground(cr.container, cellW, cellH, blankColor)

@@ -6,7 +6,7 @@ import type { Cell } from '../../../shared/types'
 type Props = { selectedCell: Cell | undefined | null }
 
 export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
-  const { setCellEffect, selectedCellId } = useAppStore()
+  const { setCellEffect, setAllCellsEffect, selectedCellId } = useAppStore()
 
   if (!selectedCellId || !selectedCell) {
     return (
@@ -19,6 +19,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const { effects } = selectedCell
   const set = <K extends keyof typeof effects>(key: K, val: Partial<typeof effects[K]>) =>
     setCellEffect(selectedCellId, key, val)
+
+  const applyVignetteAndBlurToAll = () => {
+    setAllCellsEffect('vignette', structuredClone(effects.vignette))
+    setAllCellsEffect('blur', structuredClone(effects.blur))
+  }
+
+  const applyDynamicAssetToAll = () => {
+    setAllCellsEffect('dynamicAsset', structuredClone(effects.dynamicAsset))
+  }
 
   const handleOpenAsset = async () => {
     const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
@@ -82,8 +91,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     onChange={v => set('vignette', { dynamicTo: v / 100 })} unit="%" />
                 </Row>
                 <Row label="変化時間">
-                  <NumberInput value={effects.vignette.dynamicDurationMs} min={100} max={10000} step={100}
-                    unit="ms" onChange={v => set('vignette', { dynamicDurationMs: v })} />
+                  <NumberInput value={effects.vignette.dynamicDurationMs / 1000} min={0.1} max={10} step={0.1}
+                    unit="秒" onChange={v => set('vignette', { dynamicDurationMs: v * 1000 })} />
                 </Row>
               </>
             )}
@@ -128,6 +137,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
+      <Section title="一斉反映">
+        <Button variant="primary" onClick={applyVignetteAndBlurToAll}>
+          ビネット・ブラー設定を全カラムへ反映
+        </Button>
+      </Section>
+
       {/* 動的アセット */}
       <Section title="動的アセットオーバレイ">
         <Row label="有効">
@@ -146,17 +161,53 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               </div>
             )}
             <Row label="生成間隔">
-              <NumberInput value={effects.dynamicAsset.spawnIntervalMs} min={100} max={5000} step={100}
-                unit="ms" onChange={v => set('dynamicAsset', { spawnIntervalMs: v })} />
+              <NumberInput value={effects.dynamicAsset.spawnIntervalMs / 1000} min={0.1} max={5} step={0.1}
+                unit="秒" onChange={v => set('dynamicAsset', { spawnIntervalMs: v * 1000 })} />
             </Row>
             <Row label="上昇速度">
-              <Slider value={effects.dynamicAsset.riseSpeedPx} min={0.5} max={10} step={0.5}
-                onChange={v => set('dynamicAsset', { riseSpeedPx: v })} unit="px" />
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {[2, 4, 6].map(speed => (
+                  <Button
+                    key={speed}
+                    small
+                    variant={effects.dynamicAsset.riseSpeedPx === speed ? 'primary' : 'secondary'}
+                    onClick={() => set('dynamicAsset', { riseSpeedPx: speed })}
+                  >
+                    {speed}px
+                  </Button>
+                ))}
+              </div>
+            </Row>
+            <Row label="速度調整">
+              <NumberInput value={effects.dynamicAsset.riseSpeedPx} min={0.1} max={30} step={0.1}
+                unit="px" onChange={v => set('dynamicAsset', { riseSpeedPx: v })} />
             </Row>
             <Row label="最大数">
               <NumberInput value={effects.dynamicAsset.maxParticles} min={1} max={100} step={1}
                 onChange={v => set('dynamicAsset', { maxParticles: v })} />
             </Row>
+            <Row label="アセット色">
+              <Toggle
+                value={effects.dynamicAsset.colorOverlayEnabled}
+                onChange={v => set('dynamicAsset', { colorOverlayEnabled: v })}
+              />
+            </Row>
+            {effects.dynamicAsset.colorOverlayEnabled && (
+              <ColorPicker
+                r={effects.dynamicAsset.colorOverlayColor.r}
+                g={effects.dynamicAsset.colorOverlayColor.g}
+                b={effects.dynamicAsset.colorOverlayColor.b}
+                onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
+                showAlpha
+                alpha={effects.dynamicAsset.colorOverlayAlpha}
+                onAlphaChange={a => set('dynamicAsset', { colorOverlayAlpha: a })}
+              />
+            )}
+            <div style={{ marginTop: 10 }}>
+              <Button variant="primary" onClick={applyDynamicAssetToAll}>
+                アセットエフェクト設定を全カラムへ反映
+              </Button>
+            </div>
           </>
         )}
       </Section>

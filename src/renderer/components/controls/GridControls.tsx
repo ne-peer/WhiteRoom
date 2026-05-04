@@ -6,7 +6,7 @@ export const GridControls: React.FC = () => {
   const {
     grid, cells, selectedCellId,
     addColumn, removeColumn, addRow, removeRow,
-    setCellFolder, setCellSlideshow,
+    setCellFolder, setAllCellsFolder, setCellSlideshow, setAllCellsSlideshow, setCellImageFit, restartSlideshowsRandomly,
   } = useAppStore()
 
   const selectedCell = cells.find(c => c.id === selectedCellId)
@@ -47,6 +47,16 @@ export const GridControls: React.FC = () => {
         </Row>
       </Section>
 
+      <Section title="スライドショー一括操作">
+        <Button
+          variant="secondary"
+          onClick={restartSlideshowsRandomly}
+          disabled={!cells.some(cell => cell.slideshow.enabled && cell.folder && cell.folder.images.length > 1)}
+        >
+          開始タイミングをランダムに再開
+        </Button>
+      </Section>
+
       {/* 選択セル情報 */}
       <Section title="選択セル">
         {!selectedCellId ? (
@@ -56,9 +66,21 @@ export const GridControls: React.FC = () => {
         ) : (
           <>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 10 }}>
-              セル [{selectedCell?.col ?? '-'}, {selectedCell?.row ?? '-'}]
+              セル [{selectedCell ? selectedCell.col + 1 : '-'}, {selectedCell ? selectedCell.row + 1 : '-'}]
               {selectedCell?.folder ? ` — ${selectedCell.folder.images.length}枚` : ' — フォルダ未設定'}
             </div>
+
+            <Row label="画像フィット">
+              <Select
+                value={selectedCell?.imageFit ?? 'cover'}
+                options={[
+                  { value: 'fitHeight', label: '高さに合わせる' },
+                  { value: 'fitWidth', label: '横幅に合わせる' },
+                  { value: 'cover', label: '大きい方に合わせる' },
+                ]}
+                onChange={v => setCellImageFit(selectedCellId, v as NonNullable<typeof selectedCell>['imageFit'])}
+              />
+            </Row>
 
             <Button variant="primary" onClick={handleOpenFolder}>
               📁 フォルダを選択
@@ -66,6 +88,12 @@ export const GridControls: React.FC = () => {
 
             {selectedCell?.folder && (
               <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.38)', marginBottom: 8, wordBreak: 'break-all' }}>
+                  {selectedCell.folder.path}
+                </div>
+                <Button variant="secondary" onClick={() => setAllCellsFolder(selectedCell.folder!)}>
+                  すべてのカラムにフォルダを反映
+                </Button>
                 <Section title="スライドショー">
                   <Row label="有効">
                     <Toggle
@@ -91,6 +119,9 @@ export const GridControls: React.FC = () => {
                       </Row>
                     </>
                   )}
+                  <Button variant="secondary" onClick={() => setAllCellsSlideshow(selectedCell.slideshow)}>
+                    スライドショー設定を全カラムへ反映
+                  </Button>
                 </Section>
               </div>
             )}
@@ -120,7 +151,7 @@ export const GridControls: React.FC = () => {
                 color: cell.folder ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.35)',
               }}
             >
-              {cell.col},{cell.row}
+              {cell.col + 1},{cell.row + 1}
             </div>
           ))}
         </div>
