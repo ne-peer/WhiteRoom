@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlurEffect, CellEffects, ImageFitMode, SlideShowTransition } from '../../shared/types'
+import type { BlurEffect, CellEffects, EchoEffect, ImageFitMode, SlideShowTransition } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -12,6 +12,7 @@ export class CellRenderer {
   readonly container: PIXI.Container
 
   private imageLayer: PIXI.Container
+  private echoLayer: PIXI.Container
   private effectsLayer: PIXI.Container
   private overlayLayer: PIXI.Container
   private particleContainer: PIXI.Container
@@ -19,7 +20,9 @@ export class CellRenderer {
 
   private imageSprite: PIXI.Sprite | null = null
   private imageMask: PIXI.Graphics
+  private echoMask: PIXI.Graphics
   private colorOverlayGraphics: PIXI.Graphics
+  private echoSprite: PIXI.Sprite | null = null
   private vignetteSprite: PIXI.Sprite | null = null
   private radialBlurLayer: PIXI.Container | null = null
   private radialBlurMaskSprite: PIXI.Sprite | null = null
@@ -34,6 +37,8 @@ export class CellRenderer {
   private blurFilter: PIXI.BlurFilter | null = null
   private blurGsapTween: gsap.core.Tween | null = null
   private blurAnimationKey: string | null = null
+  private echoGsapTween: gsap.core.Tween | null = null
+  private echoAnimationKey: string | null = null
 
   private assetTexture: PIXI.Texture | null = null
   private assetTexturesKey: string | null = null
@@ -56,21 +61,27 @@ export class CellRenderer {
     this.container.cursor = 'pointer'
 
     this.imageLayer = new PIXI.Container()
+    this.echoLayer = new PIXI.Container()
     this.effectsLayer = new PIXI.Container()
     this.overlayLayer = new PIXI.Container()
     this.particleContainer = new PIXI.Container()
     this.vignetteLayer = new PIXI.Container()
     this.imageMask = new PIXI.Graphics()
+    this.echoMask = new PIXI.Graphics()
 
     this.container.addChild(this.imageLayer)
+    this.container.addChild(this.echoLayer)
     this.container.addChild(this.effectsLayer)
     this.container.addChild(this.overlayLayer)
     this.container.addChild(this.particleContainer)
     this.container.addChild(this.vignetteLayer)
+    this.container.addChild(this.echoMask)
 
     this.imageLayer.addChild(this.imageMask)
     this.imageLayer.mask = this.imageMask
+    this.echoLayer.mask = this.echoMask
     this.redrawImageMask()
+    this.redrawEchoMask()
 
     this.colorOverlayGraphics = new PIXI.Graphics()
     this.overlayLayer.addChild(this.colorOverlayGraphics)
@@ -83,6 +94,8 @@ export class CellRenderer {
     this.height = height
     this.repositionImage()
     this.redrawImageMask()
+    this.redrawEchoMask()
+    this.refreshEcho()
     this.rebuildVignette()
     this.refreshBlurRegion()
   }
@@ -91,6 +104,7 @@ export class CellRenderer {
     if (this.imageFit === imageFit) return
     this.imageFit = imageFit
     this.repositionImage()
+    this.refreshEcho()
     this.refreshBlurRegion()
   }
 
@@ -111,6 +125,7 @@ export class CellRenderer {
     if (!src) {
       this.clearTransitionSprite()
       this.swapImageSprite(null, null)
+      this.refreshEcho()
       this.refreshBlurRegion()
       return
     }
@@ -131,6 +146,7 @@ export class CellRenderer {
       this.clearTransitionSprite()
       this.swapImageSprite(sprite, url)
       this.positionSprite(sprite)
+      this.refreshEcho()
       this.refreshBlurRegion()
       return
     }
@@ -143,19 +159,28 @@ export class CellRenderer {
     this.updateColorOverlay(effects)
     this.updateVignette(effects)
     this.updateBlur(effects)
+    this.updateEcho(effects)
     this.updateAsset(effects)
   }
 
   resetEffectTiming(effects: CellEffects, withRandomDelay = false) {
-    // ビネット・ブラーアニメーション開始タイミングをリセット
-    const durationMs = Math.max(effects.vignette.dynamicDurationMs, effects.blur.gradualDurationSec * 1000, 1000)
+    // ビネット・ブラー・エコーアニメーション開始タイミングをリセット
+    const durationMs = Math.max(
+      effects.vignette.dynamicDurationMs,
+      effects.blur.gradualDurationSec * 1000,
+      effects.echo.durationSec * 1000,
+      1000
+    )
     const delay = withRandomDelay ? Math.random() * durationMs : 0
     this.vignetteGsapTween?.kill()
     this.blurGsapTween?.kill()
+    this.echoGsapTween?.kill()
     this.vignetteGsapTween = null
     this.blurGsapTween = null
+    this.echoGsapTween = null
     this.vignetteAnimationKey = null
     this.blurAnimationKey = null
+    this.echoAnimationKey = null
     if (delay > 0) {
       const timeoutId = window.setTimeout(() => {
         this.updateEffects(effects)
@@ -183,6 +208,7 @@ export class CellRenderer {
   destroy() {
     this.vignetteGsapTween?.kill()
     this.blurGsapTween?.kill()
+    this.echoGsapTween?.kill()
     this.imageTransitionTween?.kill()
     this.particleSystem.destroy()
     this.clearRadialBlurContents()
@@ -199,6 +225,7 @@ export class CellRenderer {
     if (!oldSprite) {
       this.swapImageSprite(sprite, url)
       this.positionSprite(sprite)
+      this.refreshEcho()
       this.refreshBlurRegion()
       return
     }
@@ -227,6 +254,7 @@ export class CellRenderer {
       }
       this.imageTransitionTween = null
       this.repositionImage()
+      this.refreshEcho()
       this.refreshBlurRegion()
     }
 
@@ -288,6 +316,7 @@ export class CellRenderer {
       default:
         this.swapImageSprite(sprite, url)
         this.positionSprite(sprite)
+        this.refreshEcho()
         this.refreshBlurRegion()
     }
   }
@@ -349,8 +378,88 @@ export class CellRenderer {
     this.imageMask.fill(0xffffff)
   }
 
+  private redrawEchoMask() {
+    this.echoMask.clear()
+    this.echoMask.rect(0, 0, this.width, this.height)
+    this.echoMask.fill(0xffffff)
+  }
+
   private updateColorOverlay(effects: CellEffects) {
     updateColorOverlay(this.colorOverlayGraphics, this.width, this.height, effects)
+  }
+
+  private updateEcho(effects: CellEffects) {
+    const echo = effects.echo
+    const animationKey = [
+      echo.enabled,
+      echo.durationSec,
+      echo.startAlpha,
+      echo.startScale,
+      echo.endScale,
+      this.currentImageSrc,
+    ].join(':')
+
+    if (!echo.enabled || !this.imageSprite) {
+      this.clearEcho()
+      return
+    }
+
+    if (this.echoAnimationKey === animationKey && this.echoSprite) {
+      return
+    }
+
+    this.clearEcho()
+    this.echoAnimationKey = animationKey
+
+    const sprite = new PIXI.Sprite(this.imageSprite.texture)
+    sprite.anchor.set(0.5)
+    this.echoLayer.addChild(sprite)
+    this.echoSprite = sprite
+
+    const proxy = { progress: 0 }
+    this.syncEchoSprite(echo, proxy.progress)
+    this.echoGsapTween = gsap.to(proxy, {
+      progress: 1,
+      duration: Math.max(0.1, echo.durationSec),
+      ease: 'none',
+      repeat: -1,
+      onRepeat: () => {
+        proxy.progress = 0
+        if (this.echoSprite && this.imageSprite) {
+          this.echoSprite.texture = this.imageSprite.texture
+        }
+        this.syncEchoSprite(echo, proxy.progress)
+      },
+      onUpdate: () => this.syncEchoSprite(echo, proxy.progress),
+    })
+  }
+
+  private syncEchoSprite(echo: EchoEffect, progress: number) {
+    if (!this.echoSprite || !this.imageSprite) return
+    const p = clamp(progress, 0, 1)
+    const scale = echo.startScale + (echo.endScale - echo.startScale) * p
+    this.echoSprite.x = this.imageSprite.x
+    this.echoSprite.y = this.imageSprite.y
+    this.echoSprite.rotation = this.imageSprite.rotation
+    this.echoSprite.scale.set(this.imageSprite.scale.x * scale, this.imageSprite.scale.y * scale)
+    this.echoSprite.alpha = clamp(echo.startAlpha, 0, 1) * (1 - p)
+  }
+
+  private refreshEcho() {
+    if (!this.latestEffects) return
+    this.echoAnimationKey = null
+    this.updateEcho(this.latestEffects)
+  }
+
+  private clearEcho() {
+    this.echoGsapTween?.kill()
+    this.echoGsapTween = null
+    this.echoAnimationKey = null
+    if (this.echoSprite) {
+      this.echoLayer.removeChild(this.echoSprite)
+      this.echoSprite.destroy({ texture: false })
+      this.echoSprite = null
+    }
   }
 
   private rebuildVignette() {

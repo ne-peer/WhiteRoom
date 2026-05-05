@@ -11,7 +11,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setAllCellsEffect,
     selectedCellId,
     cells,
-    applyVignetteAndBlurToAll,
+    applyEffectsToAll,
     restartEffectsWithRandomTiming,
   } = useAppStore()
 
@@ -196,15 +196,53 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
+      <Section title="エコーエフェクト">
+        <Row label="有効">
+          <Toggle value={effects.echo.enabled} onChange={v => set('echo', { enabled: v })} />
+        </Row>
+        {effects.echo.enabled && (
+          <>
+            <Row label="所要時間">
+              <NumberInput
+                value={effects.echo.durationSec}
+                min={0.1}
+                max={3600}
+                step={0.1}
+                unit="秒"
+                onChange={v => set('echo', { durationSec: v })}
+              />
+            </Row>
+            <Row label="開始不透明度">
+              <Slider
+                value={Math.round(effects.echo.startAlpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('echo', { startAlpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label="終了拡大率">
+              <Slider
+                value={Math.round(effects.echo.endScale * 100)}
+                min={100}
+                max={200}
+                onChange={v => set('echo', { endScale: v / 100 })}
+                unit="%"
+              />
+            </Row>
+          </>
+        )}
+      </Section>
+
       <Section title="一斉反映">
-        <Button variant="primary" onClick={applyVignetteAndBlurToAll}>
-          ビネット・ブラー設定を全カラムへ反映
+        <Button variant="primary" onClick={applyEffectsToAll}>
+          エフェクトを全カラムへ反映
         </Button>
         <div style={{ marginTop: 8 }}>
           <Button
             variant="secondary"
             onClick={restartEffectsWithRandomTiming}
-            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled)}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled || c.effects.echo.enabled)}
           >
             開始タイミングをランダムに再開
           </Button>

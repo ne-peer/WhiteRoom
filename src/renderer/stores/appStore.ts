@@ -38,6 +38,13 @@ export const DEFAULT_EFFECTS: CellEffects = {
     radialEnabled: false,
     radialIntensity: 0.8,
   },
+  echo: {
+    enabled: false,
+    durationSec: 1,
+    startAlpha: 0.45,
+    startScale: 1,
+    endScale: 1.2,
+  },
   dynamicAsset: {
     enabled: false,
     assetPath: null,
@@ -123,7 +130,7 @@ export type AppActions = {
   setCellSlideshow: (cellId: string, config: Partial<Cell['slideshow']>) => void
   setAllCellsSlideshow: (config: Cell['slideshow']) => void
   restartSlideshowsRandomly: () => void
-  applyVignetteAndBlurToAll: () => void
+  applyEffectsToAll: () => void
   restartEffectsWithRandomTiming: () => void
 
   // エフェクト操作
@@ -285,13 +292,14 @@ export const useAppStore = create<AppStore>()(
       s.cells.forEach(cell => Object.assign(cell.effects[effectKey], value))
     }),
 
-    applyVignetteAndBlurToAll: () => set(s => {
+    applyEffectsToAll: () => set(s => {
       const selectedCell = s.cells.find(c => c.id === s.selectedCellId)
       if (!selectedCell) return
       const effects = selectedCell.effects
       s.cells.forEach(cell => {
         Object.assign(cell.effects.vignette, effects.vignette)
         Object.assign(cell.effects.blur, effects.blur)
+        Object.assign(cell.effects.echo, effects.echo)
       })
       s.effectSyncNonce += 1
     }),
@@ -358,6 +366,7 @@ export const useAppStore = create<AppStore>()(
           colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...cell.effects?.colorOverlay },
           vignette: { ...DEFAULT_EFFECTS.vignette, ...cell.effects?.vignette },
           blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
+          echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
           dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
         },
       }))

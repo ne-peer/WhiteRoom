@@ -81,6 +81,14 @@ export type BlurEffect = {
   radialIntensity: number   // 放射線状の強度係数 0.0 - 1.0
 }
 
+export type EchoEffect = {
+  enabled: boolean
+  durationSec: number       // 繰り返し時間
+  startAlpha: number        // 開始時の不透明度 0.0 - 1.0
+  startScale: number        // 開始時の拡大率
+  endScale: number          // 終了時の拡大率
+}
+
 export type AssetParticle = {
   id: string
   assetPath: string
@@ -109,6 +117,7 @@ export type CellEffects = {
   colorOverlay: ColorOverlayEffect
   vignette: VignetteEffect
   blur: BlurEffect
+  echo: EchoEffect
   dynamicAsset: DynamicAssetEffect
 }
 
