@@ -248,9 +248,10 @@ ipcMain.handle('load-profile', async (_event, language?: UiLanguage): Promise<Lo
     return { success: false }
   }
   try {
-    const raw = readFileSync(result.filePaths[0], 'utf-8')
+    const filePath = result.filePaths[0]
+    const raw = readFileSync(filePath, 'utf-8')
     const profile = JSON.parse(raw) as AppProfile
-    return { success: true, profile }
+    return { success: true, profile, filePath }
   } catch (e: unknown) {
     return { success: false, error: String(e) }
   }

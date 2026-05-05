@@ -8,6 +8,7 @@ export const ProfileControls: React.FC = () => {
   const { exportProfile, importProfile, resetProfile } = useAppStore()
   const { language, t } = useTranslation()
   const [profileName, setProfileName] = useState('MyProfile')
+  const [importedFileName, setImportedFileName] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   const api = (window as unknown as { api: IpcApi }).api
@@ -27,8 +28,12 @@ export const ProfileControls: React.FC = () => {
   const handleLoad = async () => {
     const result = await api.loadProfile(language)
     if (result.success && result.profile) {
+      const fileName = result.filePath?.split(/[\\/]/).pop() ?? null
       importProfile(result.profile)
-      setProfileName(result.profile.name)
+      if (fileName) {
+        setProfileName(fileName.replace(/\.json$/i, ''))
+        setImportedFileName(fileName)
+      }
       showMsg('ok', t('loadDone'))
     } else if (!result.success && result.error) {
       showMsg('err', `${t('loadFailed')}: ${result.error}`)
@@ -38,39 +43,45 @@ export const ProfileControls: React.FC = () => {
   const handleReset = () => {
     if (confirm(t('resetConfirm'))) {
       resetProfile()
+      setProfileName('MyProfile')
+      setImportedFileName(null)
       showMsg('ok', t('resetDone'))
     }
   }
 
   return (
     <div>
-      <Section title={t('profileName')}>
-        <input
-          type="text"
-          value={profileName}
-          onChange={e => setProfileName(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '8px 10px',
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 8,
-            color: '#fff',
-            fontSize: 13,
-            outline: 'none',
-            boxSizing: 'border-box',
-          }}
-          placeholder={t('profileNamePlaceholder')}
-        />
-      </Section>
+      {importedFileName && (
+        <Section title={t('profileName')}>
+          <input
+            type="text"
+            value={importedFileName}
+            readOnly
+            disabled
+            style={{
+              width: '100%',
+              padding: '8px 10px',
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 8,
+              color: '#fff',
+              fontSize: 13,
+              outline: 'none',
+              boxSizing: 'border-box',
+              opacity: 0.75,
+              cursor: 'not-allowed',
+            }}
+          />
+        </Section>
+      )}
 
       <Section title={t('exportImport')}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Button variant="primary" onClick={handleSave}>
-            {t('saveJson')}
-          </Button>
           <Button variant="secondary" onClick={handleLoad}>
             {t('loadJson')}
+          </Button>
+          <Button variant="secondary" onClick={handleSave}>
+            {t('saveJson')}
           </Button>
           <Button variant="danger" onClick={handleReset}>
             {t('resetSettings')}

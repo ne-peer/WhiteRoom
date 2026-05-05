@@ -208,6 +208,7 @@ export type SaveProfileResult = {
 export type LoadProfileResult = {
   success: boolean
   profile?: AppProfile
+  filePath?: string
   error?: string
 }
 
