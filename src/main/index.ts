@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, session, Menu } from 'electron'
 import { join, extname } from 'path'
 import { readFileSync, writeFileSync, readdirSync } from 'fs'
 import { execFileSync } from 'child_process'
@@ -109,6 +109,7 @@ function createWindow(): BrowserWindow {
     minHeight: 600,
     backgroundColor: '#0a0a0a',
     frame: true,
+    autoHideMenuBar: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -117,6 +118,8 @@ function createWindow(): BrowserWindow {
       webSecurity: false,  // ローカル画像ファイルのアクセスに必要
     }
   })
+
+  win.setMenuBarVisibility(false)
 
   // 開発時
   if (process.env.NODE_ENV === 'development' || process.env['ELECTRON_RENDERER_URL']) {
@@ -270,6 +273,8 @@ ipcMain.handle('list-system-fonts', async (): Promise<string[]> => {
 // ===== アプリ起動 =====
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null)
+
   // ローカルファイルプロトコル許可
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
