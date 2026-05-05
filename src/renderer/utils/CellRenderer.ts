@@ -15,6 +15,7 @@ export class CellRenderer {
   private effectsLayer: PIXI.Container
   private overlayLayer: PIXI.Container
   private particleContainer: PIXI.Container
+  private vignetteLayer: PIXI.Container
 
   private imageSprite: PIXI.Sprite | null = null
   private imageMask: PIXI.Graphics
@@ -57,12 +58,14 @@ export class CellRenderer {
     this.effectsLayer = new PIXI.Container()
     this.overlayLayer = new PIXI.Container()
     this.particleContainer = new PIXI.Container()
+    this.vignetteLayer = new PIXI.Container()
     this.imageMask = new PIXI.Graphics()
 
     this.container.addChild(this.imageLayer)
     this.container.addChild(this.effectsLayer)
     this.container.addChild(this.overlayLayer)
     this.container.addChild(this.particleContainer)
+    this.container.addChild(this.vignetteLayer)
 
     this.imageLayer.addChild(this.imageMask)
     this.imageLayer.mask = this.imageMask
@@ -328,7 +331,7 @@ export class CellRenderer {
 
   private rebuildVignette() {
     if (this.vignetteSprite) {
-      this.effectsLayer.removeChild(this.vignetteSprite)
+      this.vignetteLayer.removeChild(this.vignetteSprite)
       this.vignetteSprite.destroy({ texture: true })
       this.vignetteSprite = null
     }
@@ -350,7 +353,7 @@ export class CellRenderer {
     if (!this.vignetteSprite) {
       const tex = createVignetteTexture(this.width, this.height, vig.color)
       this.vignetteSprite = new PIXI.Sprite(tex)
-      this.effectsLayer.addChild(this.vignetteSprite)
+      this.vignetteLayer.addChild(this.vignetteSprite)
     }
 
     this.vignetteSprite.visible = true
@@ -456,10 +459,21 @@ export class CellRenderer {
     if (blurFilter) blurFilter.strength = blur.gradualStartStrength
 
     const proxy = { strength: blur.gradualStartStrength }
+    const resetStrength = () => {
+      proxy.strength = blur.gradualStartStrength
+      if (blurFilter) blurFilter.strength = blur.gradualStartStrength
+      // 放射線ブラー時、リセット時に画像クローンを更新
+      if (blur.radialEnabled && this.radialBlurImageClone && this.imageSprite) {
+        this.copySpriteTransform(this.imageSprite, this.radialBlurImageClone)
+      }
+    }
+
     this.blurGsapTween = gsap.to(proxy, {
       strength: blur.gradualEndStrength,
-      duration: blur.gradualDurationSec,
+      duration: Math.max(0.001, blur.gradualDurationSec),
       ease: 'none',
+      repeat: -1,
+      onRepeat: resetStrength,
       onUpdate: () => {
         if (blurFilter) blurFilter.strength = proxy.strength
       },
