@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type {
   AppProfile, Cell, CellEffects, CellFolder, GridLayout,
-  BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile
+  BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
+  TextEffect,
 } from '../../shared/types'
 
 // ===== デフォルト値 =====
@@ -59,7 +60,18 @@ export const DEFAULT_EFFECTS: CellEffects = {
     colorOverlayEnabled: false,
     colorOverlayColor: { r: 255, g: 100, b: 150 },
     colorOverlayAlpha: 0.5,
-  }
+  },
+  textEffect: {
+    enabled: false,
+    texts: ['', '', '', '', ''],
+    font: 'Meiryo',
+    color: { r: 255, g: 255, b: 255 },
+    fontSize: 48,
+    charIntervalMs: 150,
+    displayDurationMs: 2000,
+    intervalMs: 1000,
+    direction: 'horizontal',
+  } satisfies TextEffect,
 }
 
 export const DEFAULT_TIMER: TimerConfig = {
@@ -302,6 +314,7 @@ export const useAppStore = create<AppStore>()(
         Object.assign(cell.effects.vignette, effects.vignette)
         Object.assign(cell.effects.blur, effects.blur)
         Object.assign(cell.effects.echo, effects.echo)
+        cell.effects.textEffect = structuredClone(effects.textEffect)
       })
       s.effectSyncNonce += 1
     }),
@@ -370,6 +383,7 @@ export const useAppStore = create<AppStore>()(
           blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
           echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
           dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
+          textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
         },
       }))
       s.timer = { ...DEFAULT_TIMER, ...profile.timer }

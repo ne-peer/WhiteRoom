@@ -5,6 +5,7 @@ import {
   createVignetteTexture,
   updateColorOverlay,
   ParticleSystem,
+  TextSystem,
 } from './pixiEffects'
 
 export class CellRenderer {
@@ -16,6 +17,7 @@ export class CellRenderer {
   private effectsLayer: PIXI.Container
   private overlayLayer: PIXI.Container
   private particleContainer: PIXI.Container
+  private textLayer: PIXI.Container
   private vignetteLayer: PIXI.Container
 
   private imageSprite: PIXI.Sprite | null = null
@@ -28,6 +30,7 @@ export class CellRenderer {
   private radialBlurMaskSprite: PIXI.Sprite | null = null
   private radialBlurImageClone: PIXI.Sprite | null = null
   private particleSystem: ParticleSystem
+  private textSystem: TextSystem
 
   private width: number
   private height: number
@@ -65,6 +68,7 @@ export class CellRenderer {
     this.effectsLayer = new PIXI.Container()
     this.overlayLayer = new PIXI.Container()
     this.particleContainer = new PIXI.Container()
+    this.textLayer = new PIXI.Container()
     this.vignetteLayer = new PIXI.Container()
     this.imageMask = new PIXI.Graphics()
     this.echoMask = new PIXI.Graphics()
@@ -74,6 +78,7 @@ export class CellRenderer {
     this.container.addChild(this.effectsLayer)
     this.container.addChild(this.overlayLayer)
     this.container.addChild(this.particleContainer)
+    this.container.addChild(this.textLayer)
     this.container.addChild(this.vignetteLayer)
     this.container.addChild(this.echoMask)
 
@@ -87,6 +92,8 @@ export class CellRenderer {
     this.overlayLayer.addChild(this.colorOverlayGraphics)
 
     this.particleSystem = new ParticleSystem(this.particleContainer)
+    this.textSystem = new TextSystem(this.textLayer)
+    this.textSystem.resizeMask(width, height)
   }
 
   resize(width: number, height: number) {
@@ -98,6 +105,7 @@ export class CellRenderer {
     this.refreshEcho()
     this.rebuildVignette()
     this.refreshBlurRegion()
+    this.textSystem.resizeMask(width, height)
   }
 
   setImageFit(imageFit: ImageFitMode = 'cover') {
@@ -161,6 +169,7 @@ export class CellRenderer {
     this.updateBlur(effects)
     this.updateEcho(effects)
     this.updateAsset(effects)
+    this.updateText(effects)
   }
 
   resetEffectTiming(effects: CellEffects, withRandomDelay = false) {
@@ -211,6 +220,7 @@ export class CellRenderer {
     this.echoGsapTween?.kill()
     this.imageTransitionTween?.kill()
     this.particleSystem.destroy()
+    this.textSystem.destroy()
     this.clearRadialBlurContents()
     this.container.destroy({ children: true })
   }
@@ -700,6 +710,10 @@ export class CellRenderer {
       this.radialBlurMaskSprite.destroy()
       this.radialBlurMaskSprite = null
     }
+  }
+
+  private updateText(effects: CellEffects) {
+    this.textSystem.update(effects.textEffect, this.width, this.height)
   }
 
   private async updateAsset(effects: CellEffects) {

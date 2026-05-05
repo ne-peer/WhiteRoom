@@ -115,12 +115,25 @@ export type DynamicAssetEffect = {
   colorOverlayAlpha: number
 }
 
+export type TextEffect = {
+  enabled: boolean
+  texts: string[]                           // 最大5件
+  font: string                              // フォントファミリー名
+  color: { r: number; g: number; b: number }
+  fontSize: number                          // px
+  charIntervalMs: number                    // 描画速度: 1文字ごとの間隔 ms
+  displayDurationMs: number                 // 表示時間: 全文字表示後にフェードアウトするまでの時間 ms
+  intervalMs: number                        // 表示間隔: 次のテキスト表示までの時間 ms
+  direction: 'horizontal' | 'vertical'
+}
+
 export type CellEffects = {
   colorOverlay: ColorOverlayEffect
   vignette: VignetteEffect
   blur: BlurEffect
   echo: EchoEffect
   dynamicAsset: DynamicAssetEffect
+  textEffect: TextEffect
 }
 
 // ===== タイマー =====

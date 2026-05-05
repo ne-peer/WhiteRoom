@@ -1,7 +1,14 @@
 import React from 'react'
-import { useAppStore } from '../../stores/appStore'
-import { Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button } from '../controls/UIKit'
+import { useAppStore, DEFAULT_EFFECTS } from '../../stores/appStore'
+import { Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select } from '../controls/UIKit'
 import type { Cell } from '../../../shared/types'
+
+const FONT_OPTIONS = [
+  { value: 'Meiryo', label: 'メイリオ (Meiryo)' },
+  { value: 'BIZ UDPGothic', label: 'BIZ UDPゴシック' },
+  { value: 'Yu Gothic', label: '游ゴシック (Yu Gothic)' },
+  { value: 'MS PGothic', label: 'ＭＳ Ｐゴシック' },
+]
 
 type Props = { selectedCell: Cell | undefined | null }
 
@@ -25,7 +32,11 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     )
   }
 
-  const { effects } = selectedCell
+  const rawEffects = selectedCell.effects
+  const effects = {
+    ...rawEffects,
+    textEffect: rawEffects.textEffect ?? DEFAULT_EFFECTS.textEffect,
+  }
   const set = <K extends keyof typeof effects>(key: K, val: Partial<typeof effects[K]>) =>
     setCellEffect(selectedCellId, key, val)
 
@@ -228,6 +239,106 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 max={200}
                 onChange={v => set('echo', { endScale: v / 100 })}
                 unit="%"
+              />
+            </Row>
+          </>
+        )}
+      </Section>
+
+      <Section title="テキストエフェクト">
+        <Row label="有効">
+          <Toggle value={effects.textEffect.enabled} onChange={v => set('textEffect', { enabled: v })} />
+        </Row>
+        {effects.textEffect.enabled && (
+          <>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>テキスト（最大5件、いずれかをランダム表示）</div>
+            {effects.textEffect.texts.map((txt, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', minWidth: 14 }}>{i + 1}</span>
+                <input
+                  type="text"
+                  value={txt}
+                  placeholder={`テキスト ${i + 1}`}
+                  onChange={e => {
+                    const next = [...effects.textEffect.texts]
+                    next[i] = e.target.value
+                    set('textEffect', { texts: next })
+                  }}
+                  style={{
+                    flex: 1,
+                    background: 'rgba(255,255,255,0.07)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: 4,
+                    color: '#fff',
+                    fontSize: 12,
+                    padding: '3px 6px',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+            ))}
+            <Row label="フォント">
+              <Select
+                value={effects.textEffect.font}
+                options={FONT_OPTIONS}
+                onChange={v => set('textEffect', { font: v })}
+              />
+            </Row>
+            <Row label="方向">
+              <Select
+                value={effects.textEffect.direction}
+                options={[
+                  { value: 'horizontal', label: '横書き' },
+                  { value: 'vertical', label: '縦書き' },
+                ]}
+                onChange={v => set('textEffect', { direction: v as 'horizontal' | 'vertical' })}
+              />
+            </Row>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6, marginTop: 6 }}>文字色</div>
+            <ColorPicker
+              r={effects.textEffect.color.r}
+              g={effects.textEffect.color.g}
+              b={effects.textEffect.color.b}
+              onChange={(r, g, b) => set('textEffect', { color: { r, g, b } })}
+            />
+            <Row label="フォントサイズ">
+              <Slider
+                value={effects.textEffect.fontSize}
+                min={8}
+                max={200}
+                step={1}
+                onChange={v => set('textEffect', { fontSize: v })}
+                unit="px"
+              />
+            </Row>
+            <Row label="描画速度">
+              <NumberInput
+                value={effects.textEffect.charIntervalMs}
+                min={10}
+                max={2000}
+                step={10}
+                unit="ms/文字"
+                onChange={v => set('textEffect', { charIntervalMs: v })}
+              />
+            </Row>
+            <Row label="表示時間">
+              <NumberInput
+                value={effects.textEffect.displayDurationMs}
+                min={100}
+                max={30000}
+                step={100}
+                unit="ms"
+                onChange={v => set('textEffect', { displayDurationMs: v })}
+              />
+            </Row>
+            <Row label="表示間隔">
+              <NumberInput
+                value={effects.textEffect.intervalMs}
+                min={0}
+                max={30000}
+                step={100}
+                unit="ms"
+                onChange={v => set('textEffect', { intervalMs: v })}
               />
             </Row>
           </>
