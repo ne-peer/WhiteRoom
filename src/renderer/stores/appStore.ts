@@ -8,7 +8,7 @@ import type {
 
 // ===== デフォルト値 =====
 
-export const DEFAULT_BLANK_COLOR: BlankColor = { r: 10, g: 10, b: 10, a: 1 }
+export const DEFAULT_BLANK_COLOR: BlankColor = { r: 255, g: 100, b: 150, a: 1 }
 export const DEFAULT_SLIDESHOW: Cell['slideshow'] = {
   enabled: false,
   intervalMs: 3000,
@@ -45,6 +45,13 @@ export const DEFAULT_EFFECTS: CellEffects = {
     startAlpha: 0.45,
     startScale: 1,
     endScale: 1.2,
+  },
+  breathing: {
+    enabled: false,
+    speedPxPerSec: 8,
+    maxOffsetPx: 20,
+    scaleEnabled: false,
+    scaleDurationSec: 8,
   },
   dynamicAsset: {
     enabled: false,
@@ -389,6 +396,7 @@ export const useAppStore = create<AppStore>()(
           vignette: { ...DEFAULT_EFFECTS.vignette, ...cell.effects?.vignette },
           blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
           echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
+          breathing: { ...DEFAULT_EFFECTS.breathing, ...cell.effects?.breathing },
           dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
           textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
         },

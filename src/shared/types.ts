@@ -89,6 +89,14 @@ export type EchoEffect = {
   endScale: number          // 終了時の拡大率
 }
 
+export type BreathingEffect = {
+  enabled: boolean
+  speedPxPerSec: number
+  maxOffsetPx: number
+  scaleEnabled: boolean
+  scaleDurationSec: number
+}
+
 export type AssetParticle = {
   id: string
   assetPath: string
@@ -133,6 +141,7 @@ export type CellEffects = {
   vignette: VignetteEffect
   blur: BlurEffect
   echo: EchoEffect
+  breathing: BreathingEffect
   dynamicAsset: DynamicAssetEffect
   textEffect: TextEffect
 }

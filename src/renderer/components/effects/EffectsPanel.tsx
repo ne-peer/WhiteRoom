@@ -54,6 +54,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const rawEffects = selectedCell.effects
   const effects = {
     ...rawEffects,
+    breathing: { ...DEFAULT_EFFECTS.breathing, ...rawEffects.breathing },
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...rawEffects.textEffect },
   }
   const set = <K extends keyof typeof effects>(key: K, val: Partial<typeof effects[K]>) =>
@@ -264,6 +265,54 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
+      <Section title="ブリージングエフェクト">
+        <Row label="有効">
+          <Toggle value={effects.breathing.enabled} onChange={v => set('breathing', { enabled: v })} />
+        </Row>
+        {effects.breathing.enabled && (
+          <>
+            <Row label="移動速度">
+              <NumberInput
+                value={effects.breathing.speedPxPerSec}
+                min={0.1}
+                max={100}
+                step={0.1}
+                unit="px/s"
+                onChange={v => set('breathing', { speedPxPerSec: v })}
+              />
+            </Row>
+            <Row label="移動上限">
+              <Slider
+                value={effects.breathing.maxOffsetPx}
+                min={0}
+                max={40}
+                step={1}
+                unit="px"
+                onChange={v => set('breathing', { maxOffsetPx: v })}
+              />
+            </Row>
+            <Row label="拡大縮小">
+              <Toggle
+                value={effects.breathing.scaleEnabled}
+                onChange={v => set('breathing', { scaleEnabled: v })}
+              />
+            </Row>
+            {effects.breathing.scaleEnabled && (
+              <Row label="周期">
+                <NumberInput
+                  value={effects.breathing.scaleDurationSec}
+                  min={1}
+                  max={60}
+                  step={0.5}
+                  unit="秒"
+                  onChange={v => set('breathing', { scaleDurationSec: v })}
+                />
+              </Row>
+            )}
+          </>
+        )}
+      </Section>
+
       <Section title="テキストエフェクト">
         <Row label="有効">
           <Toggle value={effects.textEffect.enabled} onChange={v => set('textEffect', { enabled: v })} />
@@ -375,7 +424,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <Button
             variant="secondary"
             onClick={restartEffectsWithRandomTiming}
-            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled || c.effects.echo.enabled)}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled)}
           >
             開始タイミングをランダムに再開
           </Button>

@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlurEffect, CellEffects, EchoEffect, ImageFitMode, SlideShowTransition } from '../../shared/types'
+import type { BlurEffect, BreathingEffect, CellEffects, EchoEffect, ImageFitMode, SlideShowTransition } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -42,6 +42,25 @@ export class CellRenderer {
   private blurAnimationKey: string | null = null
   private echoGsapTween: gsap.core.Tween | null = null
   private echoAnimationKey: string | null = null
+  private breathingKey: string | null = null
+  private breathingOffsetX = 0
+  private breathingOffsetY = 0
+  private breathingDirectionX = 1
+  private breathingDirectionY = 1
+  private breathingScalePhase = 0
+  private activeSlideTransition: {
+    incoming: PIXI.Sprite
+    outgoing: PIXI.Sprite
+    incomingOffsetX: number
+    incomingOffsetY: number
+    outgoingOffsetX: number
+    outgoingOffsetY: number
+  } | null = null
+  private activeZoomTransition: {
+    incoming: PIXI.Sprite
+    outgoing: PIXI.Sprite
+    incomingScaleMultiplier: number
+  } | null = null
 
   private assetTexture: PIXI.Texture | null = null
   private assetTexturesKey: string | null = null
@@ -154,7 +173,7 @@ export class CellRenderer {
     if (!this.imageSprite || transition === 'none') {
       this.clearTransitionSprite()
       this.swapImageSprite(sprite, url)
-      this.positionSprite(sprite)
+      this.positionImageSprite(sprite)
       this.refreshEcho()
       this.refreshBlurRegion()
       return
@@ -165,6 +184,7 @@ export class CellRenderer {
 
   updateEffects(effects: CellEffects) {
     this.latestEffects = effects
+    this.updateBreathing(effects.breathing)
     this.updateColorOverlay(effects)
     this.updateVignette(effects)
     this.updateBlur(effects)
@@ -174,7 +194,7 @@ export class CellRenderer {
   }
 
   resetEffectTiming(effects: CellEffects, withRandomDelay = false) {
-    // ビネット・ブラー・エコー・テキストの開始タイミングをリセット
+    // ビネット・ブラー・エコー・ブリージング・テキストの開始タイミングをリセット
     const maxTextChars = effects.textEffect.enabled
       ? Math.max(0, ...effects.textEffect.texts.map(text => Array.from(text.trim()).length))
       : 0
@@ -187,6 +207,7 @@ export class CellRenderer {
       effects.vignette.dynamicDurationMs,
       effects.blur.gradualDurationSec * 1000,
       effects.echo.durationSec * 1000,
+      (effects.breathing?.scaleDurationSec ?? 1) * 1000,
       textDurationMs,
       1000
     )
@@ -194,6 +215,7 @@ export class CellRenderer {
     this.vignetteGsapTween?.kill()
     this.blurGsapTween?.kill()
     this.echoGsapTween?.kill()
+    this.resetBreathingMotion(withRandomDelay)
     if (this.effectResetTimeoutId !== null) {
       clearTimeout(this.effectResetTimeoutId)
       this.effectResetTimeoutId = null
@@ -204,6 +226,7 @@ export class CellRenderer {
     this.vignetteAnimationKey = null
     this.blurAnimationKey = null
     this.echoAnimationKey = null
+    this.breathingKey = null
     this.textSystem.stop()
     if (delay > 0) {
       const timeoutId = window.setTimeout(() => {
@@ -217,7 +240,9 @@ export class CellRenderer {
   }
 
   tick(delta: number, effects: CellEffects) {
+    this.tickBreathing(delta, effects.breathing)
     this.syncRadialBlurClones()
+    this.syncEchoToImage()
     this.particleSystem.update(
       delta,
       this.width,
@@ -251,7 +276,7 @@ export class CellRenderer {
     const oldSprite = this.imageSprite
     if (!oldSprite) {
       this.swapImageSprite(sprite, url)
-      this.positionSprite(sprite)
+      this.positionImageSprite(sprite)
       this.refreshEcho()
       this.refreshBlurRegion()
       return
@@ -265,15 +290,14 @@ export class CellRenderer {
     this.currentImageSrc = url
     this.requestedImageSrc = null
 
-    this.positionSprite(oldSprite)
-    this.positionSprite(sprite)
+    this.positionImageSprite(oldSprite)
+    this.positionImageSprite(sprite)
 
     const duration = Math.max(0.05, transitionDurationMs / 1000)
-    const baseScale = sprite.scale.x
-    const centerX = this.width / 2
-    const centerY = this.height / 2
 
     const finish = () => {
+      this.activeSlideTransition = null
+      this.activeZoomTransition = null
       if (this.transitionSprite === oldSprite) {
         this.imageLayer.removeChild(oldSprite)
         oldSprite.destroy({ texture: false })
@@ -303,20 +327,39 @@ export class CellRenderer {
       case 'slide-down': {
         const offsetX = transition === 'slide-left' ? this.width : transition === 'slide-right' ? -this.width : 0
         const offsetY = transition === 'slide-up' ? this.height : transition === 'slide-down' ? -this.height : 0
-        sprite.x = centerX + offsetX
-        sprite.y = centerY + offsetY
-        oldSprite.x = centerX
-        oldSprite.y = centerY
-        this.imageTransitionTween = gsap.to(sprite, {
-          x: centerX,
-          y: centerY,
+        const proxy = {
+          incomingOffsetX: offsetX,
+          incomingOffsetY: offsetY,
+          outgoingOffsetX: 0,
+          outgoingOffsetY: 0,
+        }
+        this.activeSlideTransition = {
+          incoming: sprite,
+          outgoing: oldSprite,
+          incomingOffsetX: proxy.incomingOffsetX,
+          incomingOffsetY: proxy.incomingOffsetY,
+          outgoingOffsetX: proxy.outgoingOffsetX,
+          outgoingOffsetY: proxy.outgoingOffsetY,
+        }
+        this.applySlideTransitionPositions()
+        this.imageTransitionTween = gsap.to(proxy, {
+          incomingOffsetX: 0,
+          incomingOffsetY: 0,
+          outgoingOffsetX: -offsetX * 0.25,
+          outgoingOffsetY: -offsetY * 0.25,
           duration,
           ease: 'sine.out',
+          onUpdate: () => {
+            if (!this.activeSlideTransition) return
+            this.activeSlideTransition.incomingOffsetX = proxy.incomingOffsetX
+            this.activeSlideTransition.incomingOffsetY = proxy.incomingOffsetY
+            this.activeSlideTransition.outgoingOffsetX = proxy.outgoingOffsetX
+            this.activeSlideTransition.outgoingOffsetY = proxy.outgoingOffsetY
+            this.applySlideTransitionPositions()
+          },
           onComplete: finish,
         })
         gsap.to(oldSprite, {
-          x: centerX - offsetX * 0.25,
-          y: centerY - offsetY * 0.25,
           alpha: 0,
           duration,
           ease: 'sine.out',
@@ -325,15 +368,24 @@ export class CellRenderer {
       }
       case 'zoom-in':
       case 'zoom-out': {
-        const startScale = transition === 'zoom-in' ? baseScale * 1.12 : baseScale * 0.88
-        sprite.scale.set(startScale)
+        const proxy = { incomingScaleMultiplier: transition === 'zoom-in' ? 1.12 : 0.88 }
+        this.activeZoomTransition = {
+          incoming: sprite,
+          outgoing: oldSprite,
+          incomingScaleMultiplier: proxy.incomingScaleMultiplier,
+        }
+        this.applyZoomTransitionTransforms()
         sprite.alpha = 0
         oldSprite.alpha = 1
-        this.imageTransitionTween = gsap.to(sprite.scale, {
-          x: baseScale,
-          y: baseScale,
+        this.imageTransitionTween = gsap.to(proxy, {
+          incomingScaleMultiplier: 1,
           duration,
           ease: 'sine.out',
+          onUpdate: () => {
+            if (!this.activeZoomTransition) return
+            this.activeZoomTransition.incomingScaleMultiplier = proxy.incomingScaleMultiplier
+            this.applyZoomTransitionTransforms()
+          },
           onComplete: finish,
         })
         gsap.to(sprite, { alpha: 1, duration, ease: 'sine.out' })
@@ -342,7 +394,7 @@ export class CellRenderer {
       }
       default:
         this.swapImageSprite(sprite, url)
-        this.positionSprite(sprite)
+        this.positionImageSprite(sprite)
         this.refreshEcho()
         this.refreshBlurRegion()
     }
@@ -365,6 +417,8 @@ export class CellRenderer {
   private clearTransitionSprite() {
     this.imageTransitionTween?.kill()
     this.imageTransitionTween = null
+    this.activeSlideTransition = null
+    this.activeZoomTransition = null
 
     if (!this.transitionSprite) return
     gsap.killTweensOf(this.transitionSprite)
@@ -375,12 +429,17 @@ export class CellRenderer {
 
   private repositionImage() {
     if (!this.imageSprite) return
-    this.positionSprite(this.imageSprite)
+    this.positionImageSprite(this.imageSprite)
     if (this.transitionSprite && this.transitionSprite !== this.imageSprite) {
-      this.positionSprite(this.transitionSprite)
+      this.positionImageSprite(this.transitionSprite)
     }
     this.redrawImageMask()
     this.syncRadialBlurClones()
+  }
+
+  private positionImageSprite(sprite: PIXI.Sprite) {
+    const { offsetX, offsetY, scaleMultiplier } = this.getBreathingTransform()
+    this.positionSprite(sprite, offsetX, offsetY, scaleMultiplier)
   }
 
   private positionSprite(sprite: PIXI.Sprite, offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
@@ -413,6 +472,177 @@ export class CellRenderer {
 
   private updateColorOverlay(effects: CellEffects) {
     updateColorOverlay(this.colorOverlayGraphics, this.width, this.height, effects)
+  }
+
+  private updateBreathing(breathing?: BreathingEffect) {
+    const key = breathing
+      ? [
+          breathing.enabled,
+          breathing.speedPxPerSec,
+          breathing.maxOffsetPx,
+          breathing.scaleEnabled,
+          breathing.scaleDurationSec,
+        ].join(':')
+      : 'disabled'
+
+    if (this.breathingKey === key) return
+    const wasEnabled = this.breathingKey !== null && this.breathingKey !== 'disabled'
+    this.breathingKey = key
+
+    if (!breathing?.enabled) {
+      this.resetBreathingMotion(false)
+      if (wasEnabled) this.repositionImage()
+      return
+    }
+
+    if (!wasEnabled) this.resetBreathingMotion(false)
+  }
+
+  private getBreathingTransform() {
+    const breathing = this.latestEffects?.breathing
+    if (!breathing?.enabled) {
+      return { offsetX: 0, offsetY: 0, scaleMultiplier: 1 }
+    }
+
+    return {
+      offsetX: this.breathingOffsetX,
+      offsetY: this.breathingOffsetY,
+      scaleMultiplier: breathing.scaleEnabled ? this.getBreathingScaleMultiplier() : 1,
+    }
+  }
+
+  private getBreathingScaleMultiplier() {
+    return 1 + ((Math.sin(this.breathingScalePhase) + 1) / 2) * 0.05
+  }
+
+  private tickBreathing(delta: number, breathing?: BreathingEffect) {
+    if (!this.imageSprite || !breathing?.enabled) return
+
+    const speed = Math.max(0, breathing.speedPxPerSec)
+    const dtSec = Math.max(0, delta) / 60
+    const threshold = clamp(breathing.maxOffsetPx ?? 20, 0, 40)
+
+    this.breathingOffsetX += this.breathingDirectionX * speed * dtSec
+    this.breathingOffsetY += this.breathingDirectionY * speed * dtSec
+
+    let hitBoundary = false
+    if (this.breathingOffsetX > threshold) {
+      this.breathingOffsetX = threshold
+      hitBoundary = true
+    } else if (this.breathingOffsetX < -threshold) {
+      this.breathingOffsetX = -threshold
+      hitBoundary = true
+    }
+
+    if (this.breathingOffsetY > threshold) {
+      this.breathingOffsetY = threshold
+      hitBoundary = true
+    } else if (this.breathingOffsetY < -threshold) {
+      this.breathingOffsetY = -threshold
+      hitBoundary = true
+    }
+    if (hitBoundary) this.randomizeBreathingDirection(threshold)
+
+    const duration = Math.max(0.001, breathing.scaleDurationSec)
+    if (breathing.scaleEnabled) {
+      this.breathingScalePhase = (this.breathingScalePhase + (Math.PI * 2 * dtSec) / duration) % (Math.PI * 2)
+    }
+    const scaleMultiplier = breathing.scaleEnabled ? this.getBreathingScaleMultiplier() : 1
+
+    if (this.activeSlideTransition) {
+      this.applySlideTransitionPositions()
+      return
+    }
+
+    if (this.activeZoomTransition) {
+      this.applyZoomTransitionTransforms()
+      return
+    }
+
+    if (this.imageTransitionTween) {
+      this.applyBreathingTransform(this.imageSprite, 1)
+      if (this.transitionSprite) this.applyBreathingTransform(this.transitionSprite, 1)
+      return
+    }
+
+    this.positionSprite(this.imageSprite, this.breathingOffsetX, this.breathingOffsetY, scaleMultiplier)
+  }
+
+  private resetBreathingMotion(randomize: boolean) {
+    const threshold = clamp(this.latestEffects?.breathing?.maxOffsetPx ?? 20, 0, 40)
+    this.breathingOffsetX = randomize ? Math.random() * threshold * 2 - threshold : 0
+    this.breathingOffsetY = randomize ? Math.random() * threshold * 2 - threshold : 0
+    this.randomizeBreathingDirection(threshold)
+    this.breathingScalePhase = randomize ? Math.random() * Math.PI * 2 : -Math.PI / 2
+  }
+
+  private randomizeBreathingDirection(threshold: number) {
+    if (threshold <= 0) {
+      this.breathingDirectionX = 0
+      this.breathingDirectionY = 0
+      return
+    }
+
+    for (let i = 0; i < 32; i += 1) {
+      const angle = Math.random() * Math.PI * 2
+      const x = Math.cos(angle)
+      const y = Math.sin(angle)
+      if (this.isBreathingDirectionInsideBounds(x, y, threshold)) {
+        this.breathingDirectionX = x
+        this.breathingDirectionY = y
+        return
+      }
+    }
+
+    const fallbackX = this.breathingOffsetX >= threshold ? -1 : this.breathingOffsetX <= -threshold ? 1 : 0
+    const fallbackY = this.breathingOffsetY >= threshold ? -1 : this.breathingOffsetY <= -threshold ? 1 : 0
+    const fallbackLength = Math.hypot(fallbackX, fallbackY) || 1
+    this.breathingDirectionX = fallbackX / fallbackLength
+    this.breathingDirectionY = fallbackY / fallbackLength
+  }
+
+  private isBreathingDirectionInsideBounds(x: number, y: number, threshold: number) {
+    if (this.breathingOffsetX >= threshold && x > 0) return false
+    if (this.breathingOffsetX <= -threshold && x < 0) return false
+    if (this.breathingOffsetY >= threshold && y > 0) return false
+    if (this.breathingOffsetY <= -threshold && y < 0) return false
+    return true
+  }
+
+  private applyBreathingTransform(sprite: PIXI.Sprite, extraScaleMultiplier: number) {
+    const breathingScale = this.latestEffects?.breathing?.scaleEnabled ? this.getBreathingScaleMultiplier() : 1
+    sprite.x = this.width / 2 + this.breathingOffsetX
+    sprite.y = this.height / 2 + this.breathingOffsetY
+    sprite.scale.set(this.getImageScale(sprite.texture.width, sprite.texture.height) * breathingScale * extraScaleMultiplier)
+  }
+
+  private applySlideTransitionPositions() {
+    if (!this.activeSlideTransition) return
+    const transform = this.getBreathingTransform()
+    const centerX = this.width / 2 + transform.offsetX
+    const centerY = this.height / 2 + transform.offsetY
+    const {
+      incoming,
+      outgoing,
+      incomingOffsetX,
+      incomingOffsetY,
+      outgoingOffsetX,
+      outgoingOffsetY,
+    } = this.activeSlideTransition
+
+    incoming.x = centerX + incomingOffsetX
+    incoming.y = centerY + incomingOffsetY
+    outgoing.x = centerX + outgoingOffsetX
+    outgoing.y = centerY + outgoingOffsetY
+    incoming.scale.set(this.getImageScale(incoming.texture.width, incoming.texture.height) * transform.scaleMultiplier)
+    outgoing.scale.set(this.getImageScale(outgoing.texture.width, outgoing.texture.height) * transform.scaleMultiplier)
+  }
+
+  private applyZoomTransitionTransforms() {
+    if (!this.activeZoomTransition) return
+    const { incoming, outgoing, incomingScaleMultiplier } = this.activeZoomTransition
+    this.applyBreathingTransform(incoming, incomingScaleMultiplier)
+    this.applyBreathingTransform(outgoing, 1)
   }
 
   private updateEcho(effects: CellEffects) {
@@ -470,6 +700,15 @@ export class CellRenderer {
     this.echoSprite.rotation = this.imageSprite.rotation
     this.echoSprite.scale.set(this.imageSprite.scale.x * scale, this.imageSprite.scale.y * scale)
     this.echoSprite.alpha = clamp(echo.startAlpha, 0, 1) * (1 - p)
+  }
+
+  private syncEchoToImage() {
+    if (!this.latestEffects?.echo.enabled || !this.echoSprite) return
+    const echo = this.latestEffects.echo
+    const currentAlpha = this.echoSprite.alpha
+    const baseAlpha = clamp(echo.startAlpha, 0, 1)
+    const progress = baseAlpha > 0 ? clamp(1 - currentAlpha / baseAlpha, 0, 1) : 1
+    this.syncEchoSprite(echo, progress)
   }
 
   private refreshEcho() {
