@@ -595,6 +595,8 @@ export class CellRenderer {
     }
     this.blurFilter = null
     this.clearRadialBlurContents()
+    this.imageLayer.filterArea = null
+    this.effectsLayer.filterArea = null
 
     if (!blur.enabled || blur.strength <= 0) {
       return
@@ -610,6 +612,7 @@ export class CellRenderer {
     const targetLayer = blur.applyToAll ? this.effectsLayer : this.imageLayer
     const blurFilter = new PIXI.BlurFilter({ strength: blur.strength, quality: 4 })
     this.blurFilter = blurFilter
+    targetLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
     targetLayer.filters = [blurFilter]
     this.applyGradualBlur(blurFilter, blur)
   }
@@ -656,6 +659,7 @@ export class CellRenderer {
       sprite: maskSprite,
       channel: 'alpha',
     })
+    radialBlurLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
     radialBlurLayer.filters = [blurFilter, maskFilter]
     this.blurFilter = blurFilter
 
@@ -692,6 +696,7 @@ export class CellRenderer {
 
   private refreshBlurRegion() {
     if (!this.latestEffects) return
+    this.blurAnimationKey = null
     this.updateBlur(this.latestEffects)
   }
 
@@ -712,6 +717,7 @@ export class CellRenderer {
   private clearRadialBlurContents() {
     if (this.radialBlurLayer) {
       this.radialBlurLayer.filters = []
+      this.radialBlurLayer.filterArea = null
       this.container.removeChild(this.radialBlurLayer)
       if (this.radialBlurImageClone) {
         this.radialBlurLayer.removeChild(this.radialBlurImageClone)
