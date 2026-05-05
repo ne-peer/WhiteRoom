@@ -26,6 +26,7 @@ export const MasterCanvas: React.FC = () => {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && useAppStore.getState().fullscreen) {
+        e.preventDefault()
         const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
         useAppStore.getState().setFullscreen(false)
         api?.setFullscreen(false)

@@ -6,11 +6,8 @@ export const TopBar: React.FC = () => {
   const {
     toggleControls,
     showControls,
-    grid,
     fullscreen,
     setFullscreen,
-    showNavigationBar,
-    toggleNavigationBar,
   } = useAppStore()
 
   const handleFullscreen = () => {
@@ -20,48 +17,21 @@ export const TopBar: React.FC = () => {
     api.setFullscreen(next)
   }
 
-  if (!fullscreen && showNavigationBar) {
-    return (
-      <div className={styles.bar} style={{ right: showControls ? 300 : 0 }}>
-        <div className={styles.left}>
-          <span className={styles.logo}>WhiteRoom</span>
-          <span className={styles.info}>
-            {grid.cols} x {grid.rows}
-          </span>
-        </div>
-        <div className={styles.right}>
-          <button className={styles.iconBtn} onClick={handleFullscreen} title="フルスクリーン">
-            フルスクリーン
-          </button>
-          <button className={styles.iconBtn} onClick={toggleNavigationBar} title="ナビゲーションバーを表示切替">
-            UI切替
-          </button>
-          <button
-            className={`${styles.iconBtn} ${showControls ? styles.iconBtnActive : ''}`}
-            onClick={toggleControls}
-            title="右の操作UIを表示/非表示"
-          >
-            操作UI
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className={styles.dock}>
-      <button className={styles.dockBtn} onClick={handleFullscreen} title="ウィンドウ表示に戻す">
-        ウィンドウ
+      <button
+        className={styles.dockBtn}
+        onClick={handleFullscreen}
+        title={fullscreen ? 'ウィンドウ表示に切り替え' : 'フルスクリーン表示に切り替え'}
+      >
+        {fullscreen ? 'ウィンドウ' : 'フルスクリーン'}
       </button>
       <button
         className={`${styles.dockBtn} ${showControls ? styles.dockBtnActive : ''}`}
         onClick={toggleControls}
-        title="右の操作UIを表示/非表示"
+        title={showControls ? '操作UIを非表示' : '操作UIを表示'}
       >
-        操作UI
-      </button>
-      <button className={styles.dockBtn} onClick={toggleNavigationBar} title="ナビゲーションバーを表示切替">
-        UI切替
+        {showControls ? 'UI非表示' : 'UI表示'}
       </button>
     </div>
   )
