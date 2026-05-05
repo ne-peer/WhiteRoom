@@ -303,6 +303,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('dynamicAsset', { maxParticles: v })}
               />
             </Row>
+            <Row label="サイズ">
+              <Slider
+                value={Math.round(effects.dynamicAsset.sizeRatio * 100)}
+                min={10}
+                max={300}
+                onChange={v => set('dynamicAsset', { sizeRatio: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label="透明度">
+              <Slider
+                value={Math.round(effects.dynamicAsset.baseAlpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('dynamicAsset', { baseAlpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
             <Row label="アセット色">
               <Toggle
                 value={effects.dynamicAsset.colorOverlayEnabled}

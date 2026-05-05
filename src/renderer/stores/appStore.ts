@@ -54,6 +54,8 @@ export const DEFAULT_EFFECTS: CellEffects = {
     spawnIntervalMs: 800,
     riseSpeedPx: 2,
     maxParticles: 20,
+    sizeRatio: 1.0,
+    baseAlpha: 1.0,
     colorOverlayEnabled: false,
     colorOverlayColor: { r: 255, g: 100, b: 150 },
     colorOverlayAlpha: 0.5,

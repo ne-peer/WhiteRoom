@@ -97,7 +97,7 @@ export class ParticleSystem {
       return
     }
 
-    const { spawnIntervalMs, maxParticles } = effects.dynamicAsset
+    const { spawnIntervalMs, maxParticles, sizeRatio, baseAlpha } = effects.dynamicAsset
     const overlayTint = getAssetOverlayTint(effects)
 
     // スポーン
@@ -111,7 +111,7 @@ export class ParticleSystem {
         assetPath: effects.dynamicAsset.assetPath ?? '',
         x: Math.random() * canvasWidth,
         y: canvasHeight - Math.random() * canvasHeight * clamp(effects.dynamicAsset.spawnMaxHeightRatio, 0, 0.7),
-        alpha: 0.9,
+        alpha: clamp(baseAlpha, 0, 1),
         vy: randomRiseSpeed(),
         startTime: nowMs,
       }
@@ -122,7 +122,7 @@ export class ParticleSystem {
       sprite.x = p.x
       sprite.y = p.y
       sprite.alpha = p.alpha
-      sprite.scale.set(0.5 + Math.random() * 0.5)
+      sprite.scale.set((0.5 + Math.random() * 0.5) * clamp(sizeRatio, 0.1, 3.0))
       sprite.tint = overlayTint
       this.container.addChild(sprite)
       this.sprites.set(p.id, sprite)
