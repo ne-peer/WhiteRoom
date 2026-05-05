@@ -145,6 +145,22 @@ export class CellRenderer {
     this.updateAsset(effects)
   }
 
+  resetEffectTiming(effects: CellEffects) {
+    // ビネット・ブラーアニメーション開始タイミングをランダムにリセット
+    const randomDelay = Math.random() * 1000  // 最大1秒の遅延
+    if (randomDelay > 0) {
+      const timeoutId = window.setTimeout(() => {
+        this.updateEffects(effects)
+      }, randomDelay)
+      // タイムアウトIDを記録（cleanup用）
+      const prevTimeoutId = (this as any).effectResetTimeoutId
+      if (prevTimeoutId) clearTimeout(prevTimeoutId)
+      ;(this as any).effectResetTimeoutId = timeoutId
+    } else {
+      this.updateEffects(effects)
+    }
+  }
+
   tick(delta: number, effects: CellEffects) {
     this.syncRadialBlurClones()
     this.particleSystem.update(
