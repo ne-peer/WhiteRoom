@@ -145,13 +145,13 @@ export class CellRenderer {
     this.updateAsset(effects)
   }
 
-  resetEffectTiming(effects: CellEffects) {
-    // ビネット・ブラーアニメーション開始タイミングをランダムにリセット
-    const randomDelay = Math.random() * 1000  // 最大1秒の遅延
-    if (randomDelay > 0) {
+  resetEffectTiming(effects: CellEffects, withRandomDelay = false) {
+    // ビネット・ブラーアニメーション開始タイミングをリセット
+    const delay = withRandomDelay ? Math.random() * 1000 : 0
+    if (delay > 0) {
       const timeoutId = window.setTimeout(() => {
         this.updateEffects(effects)
-      }, randomDelay)
+      }, delay)
       // タイムアウトIDを記録（cleanup用）
       const prevTimeoutId = (this as any).effectResetTimeoutId
       if (prevTimeoutId) clearTimeout(prevTimeoutId)

@@ -148,17 +148,24 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   ])
 
   useEffect(() => {
-    const { cells, effectRestartNonce } = store
+    const { cells, effectSyncNonce } = store
     cells.forEach(cell => {
       const cr = cellRenderersRef.current.get(cell.id)
       if (cr) {
-        cr.resetEffectTiming(cell.effects)
+        cr.resetEffectTiming(cell.effects, false)
       }
     })
-  }, [
-    store.effectRestartNonce,
-    store.cells.map(c => `${c.id}:${c.effects.vignette.enabled}:${c.effects.vignette.dynamic}:${c.effects.blur.enabled}:${c.effects.blur.gradualEnabled}`).join(',')
-  ])
+  }, [store.effectSyncNonce])
+
+  useEffect(() => {
+    const { cells, effectRandomNonce } = store
+    cells.forEach(cell => {
+      const cr = cellRenderersRef.current.get(cell.id)
+      if (cr) {
+        cr.resetEffectTiming(cell.effects, true)
+      }
+    })
+  }, [store.effectRandomNonce])
 
   const setCellImage = useCallback((cellId: string, imagePath: string) => {
     const cr = cellRenderersRef.current.get(cellId)

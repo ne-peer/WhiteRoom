@@ -11,7 +11,7 @@ export const DEFAULT_BLANK_COLOR: BlankColor = { r: 10, g: 10, b: 10, a: 1 }
 export const DEFAULT_SLIDESHOW: Cell['slideshow'] = {
   enabled: false,
   intervalMs: 3000,
-  randomOrder: false,
+  randomOrder: true,
   transition: 'fade',
   transitionDurationMs: 350,
 }
@@ -32,7 +32,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     strength: 0,
     applyToAll: false,
     gradualEnabled: false,
-    gradualDurationSec: 60,
+    gradualDurationSec: 1,
     gradualStartStrength: 0,
     gradualEndStrength: 20,
     radialEnabled: false,
@@ -98,7 +98,8 @@ export type AppState = {
   showControls: boolean
   isLoading: boolean
   slideshowRestartNonce: number
-  effectRestartNonce: number
+  effectSyncNonce: number
+  effectRandomNonce: number
 }
 
 export type AppActions = {
@@ -120,7 +121,7 @@ export type AppActions = {
   setAllCellsSlideshow: (config: Cell['slideshow']) => void
   restartSlideshowsRandomly: () => void
   applyVignetteAndBlurToAll: () => void
-  restartEffectsRandomly: () => void
+  restartEffectsWithRandomTiming: () => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -168,7 +169,8 @@ export const useAppStore = create<AppStore>()(
     showControls: true,
     isLoading: false,
     slideshowRestartNonce: 0,
-    effectRestartNonce: 0,
+    effectSyncNonce: 0,
+    effectRandomNonce: 0,
 
     // ===== グリッド操作 =====
 
@@ -288,11 +290,11 @@ export const useAppStore = create<AppStore>()(
         Object.assign(cell.effects.vignette, effects.vignette)
         Object.assign(cell.effects.blur, effects.blur)
       })
-      s.effectRestartNonce += 1
+      s.effectSyncNonce += 1
     }),
 
-    restartEffectsRandomly: () => set(s => {
-      s.effectRestartNonce += 1
+    restartEffectsWithRandomTiming: () => set(s => {
+      s.effectRandomNonce += 1
     }),
 
     // ===== 表示設定 =====

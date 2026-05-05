@@ -12,7 +12,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     selectedCellId,
     cells,
     applyVignetteAndBlurToAll,
-    restartEffectsRandomly,
+    restartEffectsWithRandomTiming,
   } = useAppStore()
 
   if (!selectedCellId || !selectedCell) {
@@ -132,9 +132,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('blur', { strength: v })}
               />
             </Row>
-            <Row label="全エフェクトに適用">
-              <Toggle value={effects.blur.applyToAll} onChange={v => set('blur', { applyToAll: v })} />
-            </Row>
             <Row label="放射線状ブラー">
               <Toggle value={effects.blur.radialEnabled} onChange={v => set('blur', { radialEnabled: v })} />
             </Row>
@@ -198,7 +195,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         <div style={{ marginTop: 8 }}>
           <Button
             variant="secondary"
-            onClick={restartEffectsRandomly}
+            onClick={restartEffectsWithRandomTiming}
             disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled)}
           >
             開始タイミングをランダムに再開
