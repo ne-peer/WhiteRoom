@@ -22,6 +22,10 @@ export function useDropHandler(
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
 
+    // React sets e.currentTarget to null after the first await, so capture it now
+    const canvasRect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+    const clientX = e.clientX
+    const clientY = e.clientY
     const files = Array.from(e.dataTransfer.files) as (File & { path?: string })[]
 
     for (const file of files) {
@@ -34,7 +38,9 @@ export function useDropHandler(
           assignFolderToCell(
             result.folderPath,
             result.images,
-            e,
+            canvasRect,
+            clientX,
+            clientY,
             cells,
             addCellByDrop,
             setCellFolder,
@@ -57,7 +63,9 @@ export function useDropHandler(
         assignFolderToCell(
           result.folderPath,
           result.images,
-          e,
+          canvasRect,
+          clientX,
+          clientY,
           cells,
           addCellByDrop,
           setCellFolder,
@@ -80,14 +88,16 @@ export function useDropHandler(
 function assignFolderToCell(
   folderPath: string,
   images: string[],
-  e: React.DragEvent<HTMLDivElement>,
+  canvasRect: DOMRect,
+  clientX: number,
+  clientY: number,
   cells: ReturnType<typeof useAppStore.getState>['cells'],
   addCellByDrop: () => void,
   setCellFolder: (cellId: string, folder: CellFolder) => void,
   setCellImage: (cellId: string, imagePath: string) => void,
   grid: ReturnType<typeof useAppStore.getState>['grid'],
 ) {
-  const cellId = getAvailableCellIdAtDropPosition(e, cells, grid, addCellByDrop)
+  const cellId = getAvailableCellIdAtDropPosition(canvasRect, clientX, clientY, cells, grid, addCellByDrop)
   if (!cellId) return
 
   const folder: CellFolder = {
@@ -101,12 +111,14 @@ function assignFolderToCell(
 }
 
 function getAvailableCellIdAtDropPosition(
-  e: React.DragEvent<HTMLDivElement>,
+  canvasRect: DOMRect,
+  clientX: number,
+  clientY: number,
   cells: ReturnType<typeof useAppStore.getState>['cells'],
   grid: ReturnType<typeof useAppStore.getState>['grid'],
   addCellByDrop: () => void,
 ): string | null {
-  const targetCellId = getCellIdAtPosition(e, cells, grid)
+  const targetCellId = getCellIdAtPosition(canvasRect, clientX, clientY, cells, grid)
   const targetCell = targetCellId ? cells.find(c => c.id === targetCellId) : null
 
   if (targetCell && !targetCell.folder) {
@@ -121,15 +133,16 @@ function getAvailableCellIdAtDropPosition(
 }
 
 function getCellIdAtPosition(
-  e: React.DragEvent<HTMLDivElement>,
+  canvasRect: DOMRect,
+  clientX: number,
+  clientY: number,
   cells: ReturnType<typeof useAppStore.getState>['cells'],
   grid: ReturnType<typeof useAppStore.getState>['grid'],
 ): string | null {
-  const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-  const relX = e.clientX - rect.left
-  const relY = e.clientY - rect.top
-  const cellW = rect.width / grid.cols
-  const cellH = rect.height / grid.rows
+  const relX = clientX - canvasRect.left
+  const relY = clientY - canvasRect.top
+  const cellW = canvasRect.width / grid.cols
+  const cellH = canvasRect.height / grid.rows
   const col = Math.max(0, Math.min(Math.floor(relX / cellW), grid.cols - 1))
   const row = Math.max(0, Math.min(Math.floor(relY / cellH), grid.rows - 1))
   const cell = cells.find(c => c.col === col && c.row === row)
