@@ -10,6 +10,9 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect,
     setAllCellsEffect,
     selectedCellId,
+    cells,
+    applyVignetteAndBlurToAll,
+    restartEffectsRandomly,
   } = useAppStore()
 
   if (!selectedCellId || !selectedCell) {
@@ -25,11 +28,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const { effects } = selectedCell
   const set = <K extends keyof typeof effects>(key: K, val: Partial<typeof effects[K]>) =>
     setCellEffect(selectedCellId, key, val)
-
-  const applyVignetteAndBlurToAll = () => {
-    setAllCellsEffect('vignette', structuredClone(effects.vignette))
-    setAllCellsEffect('blur', structuredClone(effects.blur))
-  }
 
   const applyAssetEffectToAll = () => {
     setAllCellsEffect('dynamicAsset', structuredClone(effects.dynamicAsset))
@@ -196,6 +194,13 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       <Section title="一斉反映">
         <Button variant="primary" onClick={applyVignetteAndBlurToAll}>
           ビネット・ブラー設定を全カラムへ反映
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={restartEffectsRandomly}
+          disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled)}
+        >
+          開始タイミングをランダムに再開
         </Button>
       </Section>
 

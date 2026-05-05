@@ -56,16 +56,6 @@ export const GridControls: React.FC = () => {
         </Row>
       </Section>
 
-      <Section title="スライドショー一括操作">
-        <Button
-          variant="secondary"
-          onClick={restartSlideshowsRandomly}
-          disabled={!cells.some(cell => cell.slideshow.enabled && cell.folder && cell.folder.images.length > 1)}
-        >
-          開始タイミングをランダムに再開
-        </Button>
-      </Section>
-
       <Section title="選択セル">
         {!selectedCellId ? (
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', textAlign: 'center', padding: '12px 0' }}>
@@ -149,6 +139,13 @@ export const GridControls: React.FC = () => {
                   )}
                   <Button variant="secondary" onClick={() => setAllCellsSlideshow(selectedCell.slideshow)}>
                     スライドショー設定を全カラムへ反映
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={restartSlideshowsRandomly}
+                    disabled={!cells.some(cell => cell.slideshow.enabled && cell.folder && cell.folder.images.length > 1)}
+                  >
+                    開始タイミングをランダムに再開
                   </Button>
                 </Section>
               </div>

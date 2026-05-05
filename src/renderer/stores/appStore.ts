@@ -98,6 +98,7 @@ export type AppState = {
   showControls: boolean
   isLoading: boolean
   slideshowRestartNonce: number
+  effectRestartNonce: number
 }
 
 export type AppActions = {
@@ -118,6 +119,8 @@ export type AppActions = {
   setCellSlideshow: (cellId: string, config: Partial<Cell['slideshow']>) => void
   setAllCellsSlideshow: (config: Cell['slideshow']) => void
   restartSlideshowsRandomly: () => void
+  applyVignetteAndBlurToAll: () => void
+  restartEffectsRandomly: () => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -165,6 +168,7 @@ export const useAppStore = create<AppStore>()(
     showControls: true,
     isLoading: false,
     slideshowRestartNonce: 0,
+    effectRestartNonce: 0,
 
     // ===== グリッド操作 =====
 
@@ -274,6 +278,21 @@ export const useAppStore = create<AppStore>()(
 
     setAllCellsEffect: (effectKey, value) => set(s => {
       s.cells.forEach(cell => Object.assign(cell.effects[effectKey], value))
+    }),
+
+    applyVignetteAndBlurToAll: () => set(s => {
+      const selectedCell = s.cells.find(c => c.id === s.selectedCellId)
+      if (!selectedCell) return
+      const effects = selectedCell.effects
+      s.cells.forEach(cell => {
+        Object.assign(cell.effects.vignette, effects.vignette)
+        Object.assign(cell.effects.blur, effects.blur)
+      })
+      s.effectRestartNonce += 1
+    }),
+
+    restartEffectsRandomly: () => set(s => {
+      s.effectRestartNonce += 1
     }),
 
     // ===== 表示設定 =====
