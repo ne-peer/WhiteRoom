@@ -99,3 +99,4 @@ npx tsc --noEmit               # type check only
 | v0.1.0 | Initial implementation |
 | v0.1.1 | Blur mid-animation reset fix; blur+vignette start-time sync |
 | v0.1.2 | Radial blur & vignette z-order fix (added vignetteLayer) |
+| v0.1.3 | Fix packaged app showing blank UI (electron-builder output dir conflict with dist/renderer) |
