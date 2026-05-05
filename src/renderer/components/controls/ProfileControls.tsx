@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { Section, Button } from '../controls/UIKit'
+import { formatCount, useTranslation } from '../../i18n'
 import type { IpcApi } from '../../../shared/types'
 
 export const ProfileControls: React.FC = () => {
   const { exportProfile, importProfile, resetProfile } = useAppStore()
+  const { language, t } = useTranslation()
   const [profileName, setProfileName] = useState('MyProfile')
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
@@ -17,32 +19,32 @@ export const ProfileControls: React.FC = () => {
 
   const handleSave = async () => {
     const profile = exportProfile(profileName)
-    const result = await api.saveProfile(profile)
-    if (result.success) showMsg('ok', '✓ 保存完了')
-    else showMsg('err', `✗ 保存失敗: ${result.error ?? ''}`)
+    const result = await api.saveProfile(profile, language)
+    if (result.success) showMsg('ok', t('saveDone'))
+    else showMsg('err', `${t('saveFailed')}: ${result.error ?? ''}`)
   }
 
   const handleLoad = async () => {
-    const result = await api.loadProfile()
+    const result = await api.loadProfile(language)
     if (result.success && result.profile) {
       importProfile(result.profile)
       setProfileName(result.profile.name)
-      showMsg('ok', '✓ 読み込み完了')
+      showMsg('ok', t('loadDone'))
     } else if (!result.success && result.error) {
-      showMsg('err', `✗ 読み込み失敗: ${result.error}`)
+      showMsg('err', `${t('loadFailed')}: ${result.error}`)
     }
   }
 
   const handleReset = () => {
-    if (confirm('現在の設定をすべてリセットしますか？')) {
+    if (confirm(t('resetConfirm'))) {
       resetProfile()
-      showMsg('ok', '✓ リセット完了')
+      showMsg('ok', t('resetDone'))
     }
   }
 
   return (
     <div>
-      <Section title="プロファイル名">
+      <Section title={t('profileName')}>
         <input
           type="text"
           value={profileName}
@@ -58,20 +60,20 @@ export const ProfileControls: React.FC = () => {
             outline: 'none',
             boxSizing: 'border-box',
           }}
-          placeholder="プロファイル名を入力"
+          placeholder={t('profileNamePlaceholder')}
         />
       </Section>
 
-      <Section title="エクスポート / インポート">
+      <Section title={t('exportImport')}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Button variant="primary" onClick={handleSave}>
-            ↑ JSONとして保存（エクスポート）
+            {t('saveJson')}
           </Button>
           <Button variant="secondary" onClick={handleLoad}>
-            ↓ JSONから読み込む（インポート）
+            {t('loadJson')}
           </Button>
           <Button variant="danger" onClick={handleReset}>
-            ↺ 設定をリセット
+            {t('resetSettings')}
           </Button>
         </div>
       </Section>
@@ -91,7 +93,7 @@ export const ProfileControls: React.FC = () => {
         </div>
       )}
 
-      <Section title="現在のプロファイル情報">
+      <Section title={t('currentProfileInfo')}>
         <ProfileInfo />
       </Section>
     </div>
@@ -100,13 +102,14 @@ export const ProfileControls: React.FC = () => {
 
 const ProfileInfo: React.FC = () => {
   const { grid, cells } = useAppStore()
+  const { language, t } = useTranslation()
   const activeCells = cells.filter(c => c.folder !== null)
 
   return (
     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', lineHeight: 2 }}>
-      <div>グリッド: {grid.cols} × {grid.rows}</div>
-      <div>アクティブセル: {activeCells.length} / {cells.length}</div>
-      <div>スライドショー: {cells.filter(c => c.slideshow.enabled).length}セル</div>
+      <div>{t('grid')}: {grid.cols} × {grid.rows}</div>
+      <div>{t('activeCells')}: {activeCells.length} / {cells.length}</div>
+      <div>{t('slideshow')}: {formatCount(language, cells.filter(c => c.slideshow.enabled).length, t('cell'))}</div>
     </div>
   )
 }

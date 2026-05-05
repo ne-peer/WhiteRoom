@@ -3,7 +3,7 @@ import { immer } from 'zustand/middleware/immer'
 import type {
   AppProfile, Cell, CellEffects, CellFolder, GridLayout,
   BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
-  TextEffect,
+  TextEffect, UiLanguage,
 } from '../../shared/types'
 
 // ===== デフォルト値 =====
@@ -91,6 +91,14 @@ export const DEFAULT_TIMER: TimerConfig = {
   showBackground: true,
 }
 
+const DEFAULT_LANGUAGE: UiLanguage = 'ja'
+
+function getInitialLanguage(): UiLanguage {
+  if (typeof window === 'undefined') return DEFAULT_LANGUAGE
+  const stored = window.localStorage.getItem('whiteroom.uiLanguage')
+  return stored === 'en' || stored === 'ja' ? stored : DEFAULT_LANGUAGE
+}
+
 function createCell(col: number, row: number): Cell {
   return {
     id: `cell-${col}-${row}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -129,6 +137,7 @@ export type AppState = {
   selectedCellId: string | null
   showControls: boolean
   isLoading: boolean
+  language: UiLanguage
   slideshowRestartNonce: number
   effectSyncNonce: number
   effectRandomNonce: number
@@ -178,6 +187,7 @@ export type AppActions = {
   selectCell: (cellId: string | null) => void
   toggleControls: () => void
   setLoading: (flag: boolean) => void
+  setLanguage: (language: UiLanguage) => void
 
   // プロファイル
   exportProfile: (name: string) => AppProfile
@@ -201,6 +211,7 @@ export const useAppStore = create<AppStore>()(
     selectedCellId: null,
     showControls: true,
     isLoading: false,
+    language: getInitialLanguage(),
     slideshowRestartNonce: 0,
     effectSyncNonce: 0,
     effectRandomNonce: 0,
@@ -364,6 +375,11 @@ export const useAppStore = create<AppStore>()(
     toggleControls: () => set(s => { s.showControls = !s.showControls }),
 
     setLoading: (flag) => set(s => { s.isLoading = flag }),
+
+    setLanguage: (language) => set(s => {
+      s.language = language
+      window.localStorage.setItem('whiteroom.uiLanguage', language)
+    }),
 
     // ===== プロファイル =====
 

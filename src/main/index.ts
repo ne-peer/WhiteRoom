@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
 import { join, extname } from 'path'
 import { readFileSync, writeFileSync, readdirSync } from 'fs'
 import { execFileSync } from 'child_process'
-import type { AppProfile, SaveProfileResult, LoadProfileResult, OpenFolderResult } from '../shared/types'
+import type { AppProfile, SaveProfileResult, LoadProfileResult, OpenFolderResult, UiLanguage } from '../shared/types'
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
 const FALLBACK_FONTS = [
@@ -15,6 +15,29 @@ const FALLBACK_FONTS = [
   'Times New Roman',
   'Courier New',
 ]
+
+const DIALOG_TEXT = {
+  ja: {
+    imageFolderTitle: '画像フォルダを選択',
+    imageFileFilter: '画像ファイル',
+    assetImageTitle: 'アセット画像を選択（透過PNG推奨）',
+    assetFolderTitle: 'アセットフォルダを選択',
+    saveProfileTitle: 'プロファイルを保存',
+    loadProfileTitle: 'プロファイルを読み込む',
+  },
+  en: {
+    imageFolderTitle: 'Select Image Folder',
+    imageFileFilter: 'Image Files',
+    assetImageTitle: 'Select Asset Image (transparent PNG recommended)',
+    assetFolderTitle: 'Select Asset Folder',
+    saveProfileTitle: 'Save Profile',
+    loadProfileTitle: 'Load Profile',
+  },
+} satisfies Record<UiLanguage, Record<string, string>>
+
+function getDialogText(language?: UiLanguage): typeof DIALOG_TEXT.ja {
+  return DIALOG_TEXT[language === 'en' ? 'en' : 'ja']
+}
 
 function isImageFile(filename: string): boolean {
   return IMAGE_EXTENSIONS.includes(extname(filename).toLowerCase())
@@ -130,10 +153,11 @@ ipcMain.handle('read-folder-path', async (_event, folderPath: string): Promise<O
 })
 
 // フォルダ選択ダイアログ
-ipcMain.handle('open-folder', async (): Promise<OpenFolderResult> => {
+ipcMain.handle('open-folder', async (_event, language?: UiLanguage): Promise<OpenFolderResult> => {
+  const text = getDialogText(language)
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory'],
-    title: '画像フォルダを選択'
+    title: text.imageFolderTitle
   })
   if (result.canceled || !result.filePaths[0]) {
     return { canceled: true }
@@ -147,11 +171,12 @@ ipcMain.handle('open-folder', async (): Promise<OpenFolderResult> => {
 })
 
 // アセット画像選択
-ipcMain.handle('open-asset', async () => {
+ipcMain.handle('open-asset', async (_event, language?: UiLanguage) => {
+  const text = getDialogText(language)
   const result = await dialog.showOpenDialog({
     properties: ['openFile'],
-    filters: [{ name: '画像ファイル', extensions: ['png', 'webp', 'gif'] }],
-    title: 'アセット画像を選択（透過PNG推奨）'
+    filters: [{ name: text.imageFileFilter, extensions: ['png', 'webp', 'gif'] }],
+    title: text.assetImageTitle
   })
   if (result.canceled || !result.filePaths[0]) {
     return { canceled: true }
@@ -159,10 +184,11 @@ ipcMain.handle('open-asset', async () => {
   return { canceled: false, filePath: result.filePaths[0] }
 })
 
-ipcMain.handle('open-asset-folder', async () => {
+ipcMain.handle('open-asset-folder', async (_event, language?: UiLanguage) => {
+  const text = getDialogText(language)
   const result = await dialog.showOpenDialog({
     properties: ['openDirectory'],
-    title: 'アセットフォルダを選択'
+    title: text.assetFolderTitle
   })
   if (result.canceled || !result.filePaths[0]) {
     return { canceled: true }
@@ -192,11 +218,12 @@ ipcMain.handle('read-image-base64', async (_event, filePath: string): Promise<st
 })
 
 // プロファイル保存
-ipcMain.handle('save-profile', async (_event, profile: AppProfile): Promise<SaveProfileResult> => {
+ipcMain.handle('save-profile', async (_event, profile: AppProfile, language?: UiLanguage): Promise<SaveProfileResult> => {
+  const text = getDialogText(language)
   const result = await dialog.showSaveDialog({
     filters: [{ name: 'WhiteRoom Profile', extensions: ['json'] }],
     defaultPath: `${profile.name || 'profile'}.json`,
-    title: 'プロファイルを保存'
+    title: text.saveProfileTitle
   })
   if (result.canceled || !result.filePath) {
     return { success: false }
@@ -210,11 +237,12 @@ ipcMain.handle('save-profile', async (_event, profile: AppProfile): Promise<Save
 })
 
 // プロファイル読み込み
-ipcMain.handle('load-profile', async (): Promise<LoadProfileResult> => {
+ipcMain.handle('load-profile', async (_event, language?: UiLanguage): Promise<LoadProfileResult> => {
+  const text = getDialogText(language)
   const result = await dialog.showOpenDialog({
     filters: [{ name: 'WhiteRoom Profile', extensions: ['json'] }],
     properties: ['openFile'],
-    title: 'プロファイルを読み込む'
+    title: text.loadProfileTitle
   })
   if (result.canceled || !result.filePaths[0]) {
     return { success: false }

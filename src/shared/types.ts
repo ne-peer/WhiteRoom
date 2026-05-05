@@ -12,6 +12,8 @@ export type BlankColor = {
   a: number  // 0.0 - 1.0
 }
 
+export type UiLanguage = 'ja' | 'en'
+
 // ===== セル（各分割区画）=====
 
 export type CellFolder = {
@@ -210,13 +212,13 @@ export type LoadProfileResult = {
 }
 
 export type IpcApi = {
-  openFolder: () => Promise<OpenFolderResult>
+  openFolder: (language?: UiLanguage) => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
-  openAsset: () => Promise<OpenAssetResult>
-  openAssetFolder: () => Promise<OpenAssetResult>
+  openAsset: (language?: UiLanguage) => Promise<OpenAssetResult>
+  openAssetFolder: (language?: UiLanguage) => Promise<OpenAssetResult>
   readImageAsBase64: (filePath: string) => Promise<string>
-  saveProfile: (profile: AppProfile) => Promise<SaveProfileResult>
-  loadProfile: () => Promise<LoadProfileResult>
+  saveProfile: (profile: AppProfile, language?: UiLanguage) => Promise<SaveProfileResult>
+  loadProfile: (language?: UiLanguage) => Promise<LoadProfileResult>
   setFullscreen: (flag: boolean) => Promise<void>
   listSystemFonts: () => Promise<string[]>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void

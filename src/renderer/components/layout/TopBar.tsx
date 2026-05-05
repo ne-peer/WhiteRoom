@@ -1,5 +1,6 @@
 import React from 'react'
 import { useAppStore } from '../../stores/appStore'
+import { useTranslation } from '../../i18n'
 import styles from './TopBar.module.css'
 
 export const TopBar: React.FC = () => {
@@ -9,6 +10,7 @@ export const TopBar: React.FC = () => {
     fullscreen,
     setFullscreen,
   } = useAppStore()
+  const { t } = useTranslation()
 
   const handleFullscreen = () => {
     const next = !fullscreen
@@ -22,16 +24,16 @@ export const TopBar: React.FC = () => {
       <button
         className={styles.dockBtn}
         onClick={handleFullscreen}
-        title={fullscreen ? 'ウィンドウ表示に切り替え' : 'フルスクリーン表示に切り替え'}
+        title={fullscreen ? t('fullscreenToWindowTitle') : t('fullscreenToFullscreenTitle')}
       >
-        {fullscreen ? 'ウィンドウ' : 'フルスクリーン'}
+        {fullscreen ? t('window') : t('fullscreen')}
       </button>
       <button
         className={`${styles.dockBtn} ${showControls ? styles.dockBtnActive : ''}`}
         onClick={toggleControls}
-        title={showControls ? '操作UIを非表示' : '操作UIを表示'}
+        title={showControls ? t('hideControlsTitle') : t('showControlsTitle')}
       >
-        {showControls ? 'UI非表示' : 'UI表示'}
+        {showControls ? t('hideUi') : t('showUi')}
       </button>
     </div>
   )

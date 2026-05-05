@@ -2,60 +2,62 @@ import React from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useTimer } from '../../hooks/useTimer'
 import { Section, Row, Toggle, NumberInput, Select, Button } from '../controls/UIKit'
+import { useTranslation } from '../../i18n'
 import type { TimerPosition } from '../../../shared/types'
 
-const POSITION_OPTIONS: { value: TimerPosition; label: string }[] = [
-  { value: 'top-left', label: '上・左' },
-  { value: 'top-center', label: '上・中央' },
-  { value: 'top-right', label: '上・右' },
-  { value: 'middle-left', label: '中・左' },
-  { value: 'middle-center', label: '中央' },
-  { value: 'middle-right', label: '中・右' },
-  { value: 'bottom-left', label: '下・左' },
-  { value: 'bottom-center', label: '下・中央' },
-  { value: 'bottom-right', label: '下・右' },
+const POSITION_OPTIONS: { value: TimerPosition; labelKey: 'topLeft' | 'topCenter' | 'topRight' | 'middleLeft' | 'middleCenter' | 'middleRight' | 'bottomLeft' | 'bottomCenter' | 'bottomRight' }[] = [
+  { value: 'top-left', labelKey: 'topLeft' },
+  { value: 'top-center', labelKey: 'topCenter' },
+  { value: 'top-right', labelKey: 'topRight' },
+  { value: 'middle-left', labelKey: 'middleLeft' },
+  { value: 'middle-center', labelKey: 'middleCenter' },
+  { value: 'middle-right', labelKey: 'middleRight' },
+  { value: 'bottom-left', labelKey: 'bottomLeft' },
+  { value: 'bottom-center', labelKey: 'bottomCenter' },
+  { value: 'bottom-right', labelKey: 'bottomRight' },
 ]
 
 export const TimerControls: React.FC = () => {
   const { setTimer } = useAppStore()
   const { timer, start, pause, reset } = useTimer()
+  const { t } = useTranslation()
 
   return (
     <div>
-      <Section title="タイマー設定">
-        <Row label="表示">
+      <Section title={t('timerSettings')}>
+        <Row label={t('display')}>
           <Toggle value={timer.enabled} onChange={v => setTimer({ enabled: v })} />
         </Row>
         {timer.enabled && (
           <>
-            <Row label="背景">
+            <Row label={t('background')}>
               <Toggle value={timer.showBackground} onChange={v => setTimer({ showBackground: v })} />
             </Row>
-            <Row label="合計時間">
+            <Row label={t('totalTime')}>
               <NumberInput
                 value={timer.totalSec}
                 min={10}
                 max={86400}
                 step={10}
-                unit="秒"
+                unit={t('seconds')}
                 onChange={v => setTimer({ totalSec: v, elapsedSec: 0 })}
               />
             </Row>
-            <Row label="表示位置">
+            <Row label={t('position')}>
               <Select
                 value={timer.position}
-                options={POSITION_OPTIONS}
+                options={POSITION_OPTIONS.map(opt => ({ value: opt.value, label: t(opt.labelKey) }))}
                 onChange={v => setTimer({ position: v as TimerPosition })}
               />
             </Row>
 
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
               {timer.running ? (
-                <Button variant="secondary" onClick={pause}>一時停止</Button>
+                <Button variant="secondary" onClick={pause}>{t('pause')}</Button>
               ) : (
-                <Button variant="primary" onClick={start}>開始</Button>
+                <Button variant="primary" onClick={start}>{t('start')}</Button>
               )}
-              <Button variant="danger" onClick={reset}>リセット</Button>
+              <Button variant="danger" onClick={reset}>{t('reset')}</Button>
             </div>
 
             <div style={{ marginTop: 14 }}>
@@ -68,8 +70,8 @@ export const TimerControls: React.FC = () => {
                   marginBottom: 6,
                 }}
               >
-                <span>経過: {formatTime(timer.elapsedSec)}</span>
-                <span>残り: {formatTime(timer.totalSec - timer.elapsedSec)}</span>
+                <span>{t('elapsed')}: {formatTime(timer.elapsedSec)}</span>
+                <span>{t('remaining')}: {formatTime(timer.totalSec - timer.elapsedSec)}</span>
               </div>
               <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
                 <div

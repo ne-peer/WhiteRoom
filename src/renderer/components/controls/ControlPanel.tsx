@@ -5,22 +5,24 @@ import { EffectsPanel } from '../effects/EffectsPanel'
 import { TimerControls } from '../timer/TimerControls'
 import { ProfileControls } from './ProfileControls'
 import { AppearanceControls } from './AppearanceControls'
+import { useTranslation } from '../../i18n'
 import styles from './ControlPanel.module.css'
 
 type Tab = 'grid' | 'effects' | 'timer' | 'appearance' | 'profile'
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'grid',       label: 'グリッド',   icon: '▦' },
-  { id: 'effects',    label: 'エフェクト', icon: '✦' },
-  { id: 'timer',      label: 'タイマー',   icon: '◷' },
-  { id: 'appearance', label: '外観',       icon: '◈' },
-  { id: 'profile',    label: 'プロファイル', icon: '☁' },
+const TABS: { id: Tab; labelKey: 'tabGrid' | 'tabEffects' | 'tabTimer' | 'tabAppearance' | 'tabProfile'; icon: string }[] = [
+  { id: 'grid',       labelKey: 'tabGrid',       icon: '▦' },
+  { id: 'effects',    labelKey: 'tabEffects',    icon: '✦' },
+  { id: 'timer',      labelKey: 'tabTimer',      icon: '◷' },
+  { id: 'appearance', labelKey: 'tabAppearance', icon: '◈' },
+  { id: 'profile',    labelKey: 'tabProfile',    icon: '☁' },
 ]
 
 export const ControlPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('grid')
   const selectedCell = useAppStore(selectSelectedCell)
   const showControls = useAppStore(s => s.showControls)
+  const { t } = useTranslation()
 
   if (!showControls) return null
 
@@ -33,10 +35,10 @@ export const ControlPanel: React.FC = () => {
             key={tab.id}
             className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
             onClick={() => setActiveTab(tab.id)}
-            title={tab.label}
+            title={t(tab.labelKey)}
           >
             <span className={styles.tabIcon}>{tab.icon}</span>
-            <span className={styles.tabLabel}>{tab.label}</span>
+            <span className={styles.tabLabel}>{t(tab.labelKey)}</span>
           </button>
         ))}
       </div>
