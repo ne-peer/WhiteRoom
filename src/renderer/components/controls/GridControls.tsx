@@ -17,6 +17,7 @@ export const GridControls: React.FC = () => {
     setCellSlideshow,
     setAllCellsSlideshow,
     setCellImageFit,
+    setAllCellsImageFit,
     restartSlideshowsRandomly,
   } = useAppStore()
 
@@ -79,6 +80,15 @@ export const GridControls: React.FC = () => {
                 onChange={v => setCellImageFit(selectedCellId, v as NonNullable<typeof selectedCell>['imageFit'])}
               />
             </Row>
+
+            <div style={{ marginBottom: 8 }}>
+              <Button
+                variant="secondary"
+                onClick={() => setAllCellsImageFit(selectedCell?.imageFit ?? 'cover')}
+              >
+                画像フィットを全カラムへ反映
+              </Button>
+            </div>
 
             <Button variant="primary" onClick={handleOpenFolder}>
               フォルダを選択

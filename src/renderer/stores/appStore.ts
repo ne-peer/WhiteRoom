@@ -140,6 +140,7 @@ export type AppActions = {
   setCellFolder: (cellId: string, folder: CellFolder) => void
   setAllCellsFolder: (folder: CellFolder) => void
   setCellImageFit: (cellId: string, imageFit: ImageFitMode) => void
+  setAllCellsImageFit: (imageFit: ImageFitMode) => void
   setCellImage: (cellId: string, index: number) => void
   nextCellImage: (cellId: string) => void
   setCellSlideshow: (cellId: string, config: Partial<Cell['slideshow']>) => void
@@ -259,6 +260,12 @@ export const useAppStore = create<AppStore>()(
     setCellImageFit: (cellId, imageFit) => set(s => {
       const cell = s.cells.find(c => c.id === cellId)
       if (cell) cell.imageFit = imageFit
+    }),
+
+    setAllCellsImageFit: (imageFit) => set(s => {
+      s.cells.forEach(cell => {
+        cell.imageFit = imageFit
+      })
     }),
 
     setCellImage: (cellId, index) => set(s => {
