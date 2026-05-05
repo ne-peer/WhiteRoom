@@ -8,7 +8,13 @@ import type {
 // ===== デフォルト値 =====
 
 export const DEFAULT_BLANK_COLOR: BlankColor = { r: 10, g: 10, b: 10, a: 1 }
-export const DEFAULT_SLIDESHOW: Cell['slideshow'] = { enabled: false, intervalMs: 3000, randomOrder: false }
+export const DEFAULT_SLIDESHOW: Cell['slideshow'] = {
+  enabled: false,
+  intervalMs: 3000,
+  randomOrder: true,
+  transition: 'fade',
+  transitionDurationMs: 350,
+}
 
 export const DEFAULT_EFFECTS: CellEffects = {
   colorOverlay: { enabled: false, color: { r: 255, g: 0, b: 128 }, alpha: 0.3 },
@@ -26,13 +32,25 @@ export const DEFAULT_EFFECTS: CellEffects = {
     strength: 0,
     applyToAll: false,
     gradualEnabled: false,
-    gradualDurationSec: 60,
+    gradualDurationSec: 1,
     gradualStartStrength: 0,
     gradualEndStrength: 20,
+    radialEnabled: false,
+    radialIntensity: 0.8,
+  },
+  echo: {
+    enabled: false,
+    durationSec: 1,
+    startAlpha: 0.45,
+    startScale: 1,
+    endScale: 1.2,
   },
   dynamicAsset: {
     enabled: false,
     assetPath: null,
+    assetPaths: [],
+    assetFolderPath: null,
+    spawnMaxHeightRatio: 0.7,
     spawnIntervalMs: 800,
     riseSpeedPx: 2,
     maxParticles: 20,
@@ -48,6 +66,7 @@ export const DEFAULT_TIMER: TimerConfig = {
   elapsedSec: 0,
   running: false,
   position: 'bottom-center',
+  showBackground: true,
 }
 
 function createCell(col: number, row: number): Cell {
@@ -82,12 +101,15 @@ export type AppState = {
   cells: Cell[]
   timer: TimerConfig
   fullscreen: boolean
+  showNavigationBar: boolean
 
   // UI状態（プロファイル対象外）
   selectedCellId: string | null
   showControls: boolean
   isLoading: boolean
   slideshowRestartNonce: number
+  effectSyncNonce: number
+  effectRandomNonce: number
 }
 
 export type AppActions = {
@@ -108,6 +130,8 @@ export type AppActions = {
   setCellSlideshow: (cellId: string, config: Partial<Cell['slideshow']>) => void
   setAllCellsSlideshow: (config: Cell['slideshow']) => void
   restartSlideshowsRandomly: () => void
+  applyEffectsToAll: () => void
+  restartEffectsWithRandomTiming: () => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -120,6 +144,8 @@ export type AppActions = {
   // 表示設定
   setBlankColor: (color: BlankColor) => void
   setFullscreen: (flag: boolean) => void
+  setNavigationBarVisible: (flag: boolean) => void
+  toggleNavigationBar: () => void
 
   // タイマー
   setTimer: (config: Partial<TimerConfig>) => void
@@ -148,10 +174,13 @@ export const useAppStore = create<AppStore>()(
     cells: buildCells(1, 1),
     timer: DEFAULT_TIMER,
     fullscreen: false,
+    showNavigationBar: true,
     selectedCellId: null,
     showControls: true,
     isLoading: false,
     slideshowRestartNonce: 0,
+    effectSyncNonce: 0,
+    effectRandomNonce: 0,
 
     // ===== グリッド操作 =====
 
@@ -263,11 +292,31 @@ export const useAppStore = create<AppStore>()(
       s.cells.forEach(cell => Object.assign(cell.effects[effectKey], value))
     }),
 
+    applyEffectsToAll: () => set(s => {
+      const selectedCell = s.cells.find(c => c.id === s.selectedCellId)
+      if (!selectedCell) return
+      const effects = selectedCell.effects
+      s.cells.forEach(cell => {
+        Object.assign(cell.effects.vignette, effects.vignette)
+        Object.assign(cell.effects.blur, effects.blur)
+        Object.assign(cell.effects.echo, effects.echo)
+      })
+      s.effectSyncNonce += 1
+    }),
+
+    restartEffectsWithRandomTiming: () => set(s => {
+      s.effectRandomNonce += 1
+    }),
+
     // ===== 表示設定 =====
 
     setBlankColor: (color) => set(s => { s.blankColor = color }),
 
     setFullscreen: (flag) => set(s => { s.fullscreen = flag }),
+
+    setNavigationBarVisible: (flag) => set(s => { s.showNavigationBar = flag }),
+
+    toggleNavigationBar: () => set(s => { s.showNavigationBar = !s.showNavigationBar }),
 
     // ===== タイマー =====
 
@@ -317,11 +366,13 @@ export const useAppStore = create<AppStore>()(
           colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...cell.effects?.colorOverlay },
           vignette: { ...DEFAULT_EFFECTS.vignette, ...cell.effects?.vignette },
           blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
+          echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
           dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
         },
       }))
-      s.timer = profile.timer
+      s.timer = { ...DEFAULT_TIMER, ...profile.timer }
       s.fullscreen = profile.fullscreen
+      s.showNavigationBar = true
       s.selectedCellId = null
     }),
 
@@ -331,6 +382,7 @@ export const useAppStore = create<AppStore>()(
       s.cells = buildCells(1, 1)
       s.timer = { ...DEFAULT_TIMER }
       s.fullscreen = false
+      s.showNavigationBar = true
       s.selectedCellId = null
     }),
   }))

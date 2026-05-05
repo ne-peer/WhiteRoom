@@ -6,12 +6,21 @@ import type { Cell } from '../../../shared/types'
 type Props = { selectedCell: Cell | undefined | null }
 
 export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
-  const { setCellEffect, setAllCellsEffect, selectedCellId } = useAppStore()
+  const {
+    setCellEffect,
+    setAllCellsEffect,
+    selectedCellId,
+    cells,
+    applyEffectsToAll,
+    restartEffectsWithRandomTiming,
+  } = useAppStore()
 
   if (!selectedCellId || !selectedCell) {
     return (
       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', textAlign: 'center', padding: '24px 0' }}>
-        キャンバス上のセルをクリックして<br />エフェクトを編集
+        キャンバス上のセルをクリックして
+        <br />
+        エフェクトを編集
       </div>
     )
   }
@@ -20,12 +29,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const set = <K extends keyof typeof effects>(key: K, val: Partial<typeof effects[K]>) =>
     setCellEffect(selectedCellId, key, val)
 
-  const applyVignetteAndBlurToAll = () => {
-    setAllCellsEffect('vignette', structuredClone(effects.vignette))
-    setAllCellsEffect('blur', structuredClone(effects.blur))
-  }
-
-  const applyDynamicAssetToAll = () => {
+  const applyAssetEffectToAll = () => {
     setAllCellsEffect('dynamicAsset', structuredClone(effects.dynamicAsset))
   }
 
@@ -33,14 +37,21 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
     const result = await api.openAsset()
     if (!result.canceled && result.filePath) {
-      set('dynamicAsset', { assetPath: result.filePath })
+      set('dynamicAsset', { assetPath: result.filePath, assetPaths: [result.filePath], assetFolderPath: null })
+    }
+  }
+
+  const handleOpenAssetFolder = async () => {
+    const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
+    const result = await api.openAssetFolder()
+    if (!result.canceled && result.folderPath && result.images && result.images.length > 0) {
+      set('dynamicAsset', { assetPath: result.images[0], assetPaths: result.images, assetFolderPath: result.folderPath })
     }
   }
 
   return (
     <div>
-      {/* 色調オーバレイ */}
-      <Section title="色調オーバレイ">
+      <Section title="色調オーバーレイ">
         <Row label="有効">
           <Toggle value={effects.colorOverlay.enabled} onChange={v => set('colorOverlay', { enabled: v })} />
         </Row>
@@ -60,14 +71,13 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      {/* ビネット */}
       <Section title="ビネットエフェクト">
         <Row label="有効">
           <Toggle value={effects.vignette.enabled} onChange={v => set('vignette', { enabled: v })} />
         </Row>
         {effects.vignette.enabled && (
           <>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>色（デフォルト: ピンク）</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>色</div>
             <ColorPicker
               r={effects.vignette.color.r}
               g={effects.vignette.color.g}
@@ -83,16 +93,32 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             {effects.vignette.dynamic && (
               <>
                 <Row label="開始透明度">
-                  <Slider value={Math.round(effects.vignette.dynamicFrom * 100)} min={0} max={100}
-                    onChange={v => set('vignette', { dynamicFrom: v / 100 })} unit="%" />
+                  <Slider
+                    value={Math.round(effects.vignette.dynamicFrom * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('vignette', { dynamicFrom: v / 100 })}
+                    unit="%"
+                  />
                 </Row>
                 <Row label="終了透明度">
-                  <Slider value={Math.round(effects.vignette.dynamicTo * 100)} min={0} max={100}
-                    onChange={v => set('vignette', { dynamicTo: v / 100 })} unit="%" />
+                  <Slider
+                    value={Math.round(effects.vignette.dynamicTo * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('vignette', { dynamicTo: v / 100 })}
+                    unit="%"
+                  />
                 </Row>
                 <Row label="変化時間">
-                  <NumberInput value={effects.vignette.dynamicDurationMs / 1000} min={0.1} max={10} step={0.1}
-                    unit="秒" onChange={v => set('vignette', { dynamicDurationMs: v * 1000 })} />
+                  <NumberInput
+                    value={effects.vignette.dynamicDurationMs / 1000}
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    unit="秒"
+                    onChange={v => set('vignette', { dynamicDurationMs: v * 1000 })}
+                  />
                 </Row>
               </>
             )}
@@ -100,7 +126,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      {/* ブラー */}
       <Section title="ブラーエフェクト">
         <Row label="有効">
           <Toggle value={effects.blur.enabled} onChange={v => set('blur', { enabled: v })} />
@@ -108,28 +133,62 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         {effects.blur.enabled && (
           <>
             <Row label="強度">
-              <Slider value={effects.blur.strength} min={0} max={100}
-                onChange={v => set('blur', { strength: v })} />
+              <Slider
+                value={effects.blur.strength}
+                min={0}
+                max={100}
+                onChange={v => set('blur', { strength: v })}
+              />
             </Row>
-            <Row label="全エフェクトに適用">
-              <Toggle value={effects.blur.applyToAll} onChange={v => set('blur', { applyToAll: v })} />
+            <Row label="放射線状ブラー">
+              <Toggle value={effects.blur.radialEnabled} onChange={v => set('blur', { radialEnabled: v })} />
             </Row>
+            {effects.blur.radialEnabled && (
+              <>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 8 }}>
+                  中心から周辺へ向かって、段階的にブラーが強くなります。
+                </div>
+                <Row label="強度係数">
+                  <Slider
+                    value={Math.round(effects.blur.radialIntensity * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('blur', { radialIntensity: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              </>
+            )}
             <Row label="徐々に増加">
               <Toggle value={effects.blur.gradualEnabled} onChange={v => set('blur', { gradualEnabled: v })} />
             </Row>
             {effects.blur.gradualEnabled && (
               <>
                 <Row label="開始強度">
-                  <Slider value={effects.blur.gradualStartStrength} min={0} max={100}
-                    onChange={v => set('blur', { gradualStartStrength: v })} />
+                  <Slider
+                    value={effects.blur.gradualStartStrength}
+                    min={0}
+                    max={100}
+                    onChange={v => set('blur', { gradualStartStrength: v })}
+                  />
                 </Row>
                 <Row label="終了強度">
-                  <Slider value={effects.blur.gradualEndStrength} min={0} max={100}
-                    onChange={v => set('blur', { gradualEndStrength: v })} />
+                  <Slider
+                    value={effects.blur.gradualEndStrength}
+                    min={0}
+                    max={100}
+                    onChange={v => set('blur', { gradualEndStrength: v })}
+                  />
                 </Row>
                 <Row label="所要時間">
-                  <NumberInput value={effects.blur.gradualDurationSec} min={1} max={3600} step={1}
-                    unit="秒" onChange={v => set('blur', { gradualDurationSec: v })} />
+                  <NumberInput
+                    value={effects.blur.gradualDurationSec}
+                    min={1}
+                    max={3600}
+                    step={1}
+                    unit="秒"
+                    onChange={v => set('blur', { gradualDurationSec: v })}
+                  />
                 </Row>
               </>
             )}
@@ -137,14 +196,60 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title="一斉反映">
-        <Button variant="primary" onClick={applyVignetteAndBlurToAll}>
-          ビネット・ブラー設定を全カラムへ反映
-        </Button>
+      <Section title="エコーエフェクト">
+        <Row label="有効">
+          <Toggle value={effects.echo.enabled} onChange={v => set('echo', { enabled: v })} />
+        </Row>
+        {effects.echo.enabled && (
+          <>
+            <Row label="所要時間">
+              <NumberInput
+                value={effects.echo.durationSec}
+                min={0.1}
+                max={3600}
+                step={0.1}
+                unit="秒"
+                onChange={v => set('echo', { durationSec: v })}
+              />
+            </Row>
+            <Row label="開始不透明度">
+              <Slider
+                value={Math.round(effects.echo.startAlpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('echo', { startAlpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label="終了拡大率">
+              <Slider
+                value={Math.round(effects.echo.endScale * 100)}
+                min={100}
+                max={200}
+                onChange={v => set('echo', { endScale: v / 100 })}
+                unit="%"
+              />
+            </Row>
+          </>
+        )}
       </Section>
 
-      {/* 動的アセット */}
-      <Section title="動的アセットオーバレイ">
+      <Section title="一斉反映">
+        <Button variant="primary" onClick={applyEffectsToAll}>
+          エフェクトを全カラムへ反映
+        </Button>
+        <div style={{ marginTop: 8 }}>
+          <Button
+            variant="secondary"
+            onClick={restartEffectsWithRandomTiming}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled || c.effects.echo.enabled)}
+          >
+            開始タイミングをランダムに再開
+          </Button>
+        </div>
+      </Section>
+
+      <Section title="アセットエフェクト">
         <Row label="有効">
           <Toggle value={effects.dynamicAsset.enabled} onChange={v => set('dynamicAsset', { enabled: v })} />
         </Row>
@@ -152,39 +257,51 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <>
             <div style={{ marginBottom: 8 }}>
               <Button variant="secondary" onClick={handleOpenAsset}>
-                🖼 アセット画像を選択（透過PNG推奨）
+                アセット画像を選択
+              </Button>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <Button variant="secondary" onClick={handleOpenAssetFolder}>
+                フォルダからランダムに描画
               </Button>
             </div>
             {effects.dynamicAsset.assetPath && (
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 8, wordBreak: 'break-all' }}>
-                {effects.dynamicAsset.assetPath.split(/[\\/]/).pop()}
+                {effects.dynamicAsset.assetFolderPath
+                  ? `${effects.dynamicAsset.assetFolderPath} (${effects.dynamicAsset.assetPaths.length}枚)`
+                  : effects.dynamicAsset.assetPath.split(/[\\/]/).pop()}
               </div>
             )}
             <Row label="生成間隔">
-              <NumberInput value={effects.dynamicAsset.spawnIntervalMs / 1000} min={0.1} max={5} step={0.1}
-                unit="秒" onChange={v => set('dynamicAsset', { spawnIntervalMs: v * 1000 })} />
+              <NumberInput
+                value={effects.dynamicAsset.spawnIntervalMs / 1000}
+                min={0.1}
+                max={5}
+                step={0.1}
+                unit="秒"
+                onChange={v => set('dynamicAsset', { spawnIntervalMs: v * 1000 })}
+              />
             </Row>
-            <Row label="上昇速度">
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {[2, 4, 6].map(speed => (
-                  <Button
-                    key={speed}
-                    small
-                    variant={effects.dynamicAsset.riseSpeedPx === speed ? 'primary' : 'secondary'}
-                    onClick={() => set('dynamicAsset', { riseSpeedPx: speed })}
-                  >
-                    {speed}px
-                  </Button>
-                ))}
-              </div>
-            </Row>
-            <Row label="速度調整">
-              <NumberInput value={effects.dynamicAsset.riseSpeedPx} min={0.1} max={30} step={0.1}
-                unit="px" onChange={v => set('dynamicAsset', { riseSpeedPx: v })} />
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', margin: '8px 0 10px' }}>
+              上昇速度は毎回 2px / 4px / 6px のいずれかからランダムに選ばれます。
+            </div>
+            <Row label="発生高さ上限">
+              <Slider
+                value={Math.round(effects.dynamicAsset.spawnMaxHeightRatio * 100)}
+                min={0}
+                max={70}
+                onChange={v => set('dynamicAsset', { spawnMaxHeightRatio: v / 100 })}
+                unit="%"
+              />
             </Row>
             <Row label="最大数">
-              <NumberInput value={effects.dynamicAsset.maxParticles} min={1} max={100} step={1}
-                onChange={v => set('dynamicAsset', { maxParticles: v })} />
+              <NumberInput
+                value={effects.dynamicAsset.maxParticles}
+                min={1}
+                max={100}
+                step={1}
+                onChange={v => set('dynamicAsset', { maxParticles: v })}
+              />
             </Row>
             <Row label="アセット色">
               <Toggle
@@ -204,7 +321,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               />
             )}
             <div style={{ marginTop: 10 }}>
-              <Button variant="primary" onClick={applyDynamicAssetToAll}>
+              <Button variant="primary" onClick={applyAssetEffectToAll}>
                 アセットエフェクト設定を全カラムへ反映
               </Button>
             </div>

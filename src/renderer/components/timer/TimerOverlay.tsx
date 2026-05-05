@@ -32,7 +32,10 @@ export const TimerOverlay: React.FC = () => {
   const remaining = timer.totalSec - timer.elapsedSec
 
   return (
-    <div className={styles.wrapper} style={posStyle}>
+    <div
+      className={`${styles.wrapper} ${timer.showBackground ? '' : styles.wrapperPlain}`}
+      style={posStyle}
+    >
       <div className={styles.timeLabel}>{formatTime(remaining)}</div>
       <div className={styles.barTrack}>
         <div

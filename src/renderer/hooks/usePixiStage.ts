@@ -90,7 +90,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       const cr = cellRenderersRef.current.get(cell.id)
       if (!cr || !cell.folder) return
       const imgPath = cell.folder.images[cell.currentImageIndex]
-      if (imgPath) cr.setImage(imgPath)
+      if (imgPath) cr.setImage(imgPath, cell.slideshow.transition, cell.slideshow.transitionDurationMs)
     })
   }, [imageKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -103,6 +103,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       }
     })
   }, [store.cells])
+
 
   useEffect(() => {
     const { cells, slideshowRestartNonce } = store
@@ -146,9 +147,29 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     store.cells.map(c => `${c.id}:${c.slideshow.enabled}:${c.slideshow.intervalMs}`).join(',')
   ])
 
+  useEffect(() => {
+    const { cells, effectSyncNonce } = store
+    cells.forEach(cell => {
+      const cr = cellRenderersRef.current.get(cell.id)
+      if (cr) {
+        cr.resetEffectTiming(cell.effects, false)
+      }
+    })
+  }, [store.effectSyncNonce])
+
+  useEffect(() => {
+    const { cells, effectRandomNonce } = store
+    cells.forEach(cell => {
+      const cr = cellRenderersRef.current.get(cell.id)
+      if (cr) {
+        cr.resetEffectTiming(cell.effects, true)
+      }
+    })
+  }, [store.effectRandomNonce])
+
   const setCellImage = useCallback((cellId: string, imagePath: string) => {
     const cr = cellRenderersRef.current.get(cellId)
-    if (cr) cr.setImage(imagePath)
+    if (cr) cr.setImage(imagePath, 'none')
   }, [])
 
   return { app: appRef, cellRenderers: cellRenderersRef, setCellImage }
@@ -188,8 +209,9 @@ function layoutCells(
       app.stage.addChild(cr.container)
       renderers.set(cell.id, cr)
 
-      cr.container.on('pointerdown', () => {
-        useAppStore.getState().selectCell(cell.id)
+      cr.container.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
+        const state = useAppStore.getState()
+        state.selectCell(cell.id)
       })
 
       if (cell.folder && cell.folder.images[cell.currentImageIndex]) {

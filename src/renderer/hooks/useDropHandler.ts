@@ -41,21 +41,30 @@ export function useDropHandler(
             setCellImage,
             grid
           )
-          continue
+          break
         }
       }
 
       if (isImageFile(file.name)) {
-        const cellId = getAvailableCellIdAtDropPosition(e, cells, grid, addCellByDrop)
-        if (!cellId) continue
+        const parentFolderPath = getParentFolderPath(filePath)
+        if (!parentFolderPath) continue
 
-        const folder: CellFolder = {
-          id: `folder-${Date.now()}-${Math.random()}`,
-          path: filePath.replace(/[/\\][^/\\]+$/, ''),
-          images: [filePath],
+        const result = await getApi().readFolderPath(parentFolderPath)
+        if (result.canceled || !result.folderPath || !result.images || result.images.length === 0) {
+          continue
         }
-        setCellFolder(cellId, folder)
-        setCellImage(cellId, filePath)
+
+        assignFolderToCell(
+          result.folderPath,
+          result.images,
+          e,
+          cells,
+          addCellByDrop,
+          setCellFolder,
+          setCellImage,
+          grid
+        )
+        break
       }
     }
   }, [cells, addCellByDrop, setCellFolder, grid, setCellImage])
@@ -125,4 +134,9 @@ function getCellIdAtPosition(
   const row = Math.max(0, Math.min(Math.floor(relY / cellH), grid.rows - 1))
   const cell = cells.find(c => c.col === col && c.row === row)
   return cell?.id ?? null
+}
+
+function getParentFolderPath(filePath: string): string | null {
+  const match = filePath.match(/^(.*)[\\/][^\\/]+$/)
+  return match?.[1] ?? null
 }

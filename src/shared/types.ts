@@ -22,10 +22,22 @@ export type CellFolder = {
 
 export type ImageFitMode = 'fitHeight' | 'fitWidth' | 'cover'
 
+export type SlideShowTransition =
+  | 'none'
+  | 'fade'
+  | 'slide-left'
+  | 'slide-right'
+  | 'slide-up'
+  | 'slide-down'
+  | 'zoom-in'
+  | 'zoom-out'
+
 export type SlideShowConfig = {
   enabled: boolean
   intervalMs: number       // ミリ秒
   randomOrder: boolean
+  transition: SlideShowTransition
+  transitionDurationMs: number
 }
 
 export type Cell = {
@@ -65,6 +77,16 @@ export type BlurEffect = {
   gradualDurationSec: number  // 最大3600秒
   gradualStartStrength: number
   gradualEndStrength: number
+  radialEnabled: boolean    // 放射線状ブラー（中心から周辺に向かって強くなる）
+  radialIntensity: number   // 放射線状の強度係数 0.0 - 1.0
+}
+
+export type EchoEffect = {
+  enabled: boolean
+  durationSec: number       // 繰り返し時間
+  startAlpha: number        // 開始時の不透明度 0.0 - 1.0
+  startScale: number        // 開始時の拡大率
+  endScale: number          // 終了時の拡大率
 }
 
 export type AssetParticle = {
@@ -80,6 +102,9 @@ export type AssetParticle = {
 export type DynamicAssetEffect = {
   enabled: boolean
   assetPath: string | null
+  assetPaths: string[]
+  assetFolderPath: string | null
+  spawnMaxHeightRatio: number
   spawnIntervalMs: number    // 生成間隔
   riseSpeedPx: number        // 上昇速度 px/frame
   maxParticles: number
@@ -92,6 +117,7 @@ export type CellEffects = {
   colorOverlay: ColorOverlayEffect
   vignette: VignetteEffect
   blur: BlurEffect
+  echo: EchoEffect
   dynamicAsset: DynamicAssetEffect
 }
 
@@ -108,6 +134,7 @@ export type TimerConfig = {
   elapsedSec: number
   running: boolean
   position: TimerPosition
+  showBackground: boolean
 }
 
 // ===== グリッド全体 =====
@@ -141,6 +168,8 @@ export type OpenFolderResult = {
 export type OpenAssetResult = {
   canceled: boolean
   filePath?: string
+  folderPath?: string
+  images?: string[]
 }
 
 export type SaveProfileResult = {
@@ -159,6 +188,7 @@ export type IpcApi = {
   openFolder: () => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
   openAsset: () => Promise<OpenAssetResult>
+  openAssetFolder: () => Promise<OpenAssetResult>
   readImageAsBase64: (filePath: string) => Promise<string>
   saveProfile: (profile: AppProfile) => Promise<SaveProfileResult>
   loadProfile: () => Promise<LoadProfileResult>
