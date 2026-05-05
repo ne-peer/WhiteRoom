@@ -462,8 +462,9 @@ export class CellRenderer {
     const resetStrength = () => {
       proxy.strength = blur.gradualStartStrength
       if (blurFilter) blurFilter.strength = blur.gradualStartStrength
-      // 放射線ブラー時、リセット時に画像クローンを更新
+      // 放射線ブラー時、リセット時に画像クローンを更新（テクスチャ＆トランスフォーム）
       if (blur.radialEnabled && this.radialBlurImageClone && this.imageSprite) {
+        this.radialBlurImageClone.texture = this.imageSprite.texture
         this.copySpriteTransform(this.imageSprite, this.radialBlurImageClone)
       }
     }
