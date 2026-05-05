@@ -29,15 +29,16 @@ export class CellRenderer {
   private height: number
 
   private vignetteGsapTween: gsap.core.Tween | null = null
+  private vignetteAnimationKey: string | null = null
   private blurFilter: PIXI.BlurFilter | null = null
   private blurGsapTween: gsap.core.Tween | null = null
+  private blurAnimationKey: string | null = null
 
   private assetTexture: PIXI.Texture | null = null
   private assetPath: string | null = null
   private currentImageSrc: string | null = null
   private requestedImageSrc: string | null = null
   private imageFit: ImageFitMode = 'cover'
-  private vignetteAnimationKey: string | null = null
   private transitionSprite: PIXI.Sprite | null = null
   private imageTransitionTween: gsap.core.Tween | null = null
   private imageRequestToken = 0
@@ -355,11 +356,21 @@ export class CellRenderer {
     this.vignetteSprite.visible = true
 
     if (vig.dynamic) {
+      // ブラー同期モードを判定
+      const isSyncMode = effects.blur.enabled &&
+                         effects.blur.gradualEnabled &&
+                         effects.blur.gradualDurationSec > 0
+
+      // 同期モード時、ビネットのアニメーション時間をブラーに合わせる
+      const vignetteAnimDurationMs = isSyncMode
+        ? effects.blur.gradualDurationSec * 1000
+        : vig.dynamicDurationMs
+
       const animationKey = [
         vig.dynamicFrom,
         vig.dynamicTo,
-        vig.dynamicDurationMs,
-        effects.blur.enabled && effects.blur.gradualEnabled ? 'sync-blur' : 'solo',
+        vignetteAnimDurationMs,
+        isSyncMode ? 'sync-blur' : 'solo',
       ].join(':')
 
       if (this.vignetteAnimationKey !== animationKey) {
@@ -369,7 +380,7 @@ export class CellRenderer {
         if (this.vignetteSprite) this.vignetteSprite.alpha = vig.dynamicFrom
         this.vignetteGsapTween = gsap.to(proxy, {
           alpha: vig.dynamicTo,
-          duration: vig.dynamicDurationMs / 1000,
+          duration: vignetteAnimDurationMs / 1000,
           ease: 'sine.inOut',
           repeat: -1,
           yoyo: false,
@@ -390,6 +401,28 @@ export class CellRenderer {
   }
 
   private updateBlur(effects: CellEffects) {
+    const blur = effects.blur
+
+    // 設定キーを生成
+    const blurKey = [
+      blur.enabled,
+      blur.strength,
+      blur.applyToAll,
+      blur.gradualEnabled,
+      blur.gradualStartStrength,
+      blur.gradualEndStrength,
+      blur.gradualDurationSec,
+      blur.radialEnabled,
+      blur.radialIntensity,
+    ].join(':')
+
+    // キーが同じ場合は、既存のアニメーションを継続
+    if (this.blurAnimationKey === blurKey) {
+      return
+    }
+
+    this.blurAnimationKey = blurKey
+
     this.imageLayer.filters = []
     this.effectsLayer.filters = []
 
@@ -400,7 +433,6 @@ export class CellRenderer {
     this.blurFilter = null
     this.clearRadialBlurContents()
 
-    const blur = effects.blur
     if (!blur.enabled || blur.strength <= 0) {
       return
     }
