@@ -10,8 +10,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect,
     setAllCellsEffect,
     selectedCellId,
-    blurRegionPickerCellId,
-    setBlurRegionPickerCell,
   } = useAppStore()
 
   if (!selectedCellId || !selectedCell) {
@@ -44,8 +42,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       set('dynamicAsset', { assetPath: result.filePath })
     }
   }
-
-  const isPickingBlurRegion = blurRegionPickerCellId === selectedCellId
 
   return (
     <div>
@@ -141,43 +137,20 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             <Row label="全エフェクトに適用">
               <Toggle value={effects.blur.applyToAll} onChange={v => set('blur', { applyToAll: v })} />
             </Row>
-            <Row label="楕円エリアのみ">
-              <Toggle
-                value={effects.blur.regionEnabled}
-                onChange={v => {
-                  set('blur', { regionEnabled: v })
-                  if (!v && isPickingBlurRegion) setBlurRegionPickerCell(null)
-                }}
-              />
+            <Row label="放射線状ブラー">
+              <Toggle value={effects.blur.radialEnabled} onChange={v => set('blur', { radialEnabled: v })} />
             </Row>
-            {effects.blur.regionEnabled && (
+            {effects.blur.radialEnabled && (
               <>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 8 }}>
-                  キャンバス上の選択セルをクリックして、楕円エリアの中心位置を指定できます。
+                  中心から周辺へ向かって、段階的にブラーが強くなります。
                 </div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                  <Button
-                    variant={isPickingBlurRegion ? 'primary' : 'secondary'}
-                    onClick={() => setBlurRegionPickerCell(isPickingBlurRegion ? null : selectedCellId)}
-                  >
-                    {isPickingBlurRegion ? '位置選択を終了' : '中心位置を選ぶ'}
-                  </Button>
-                </div>
-                <Row label="横幅">
+                <Row label="強度係数">
                   <Slider
-                    value={Math.round(effects.blur.regionWidth * 100)}
-                    min={5}
+                    value={Math.round(effects.blur.radialIntensity * 100)}
+                    min={0}
                     max={100}
-                    onChange={v => set('blur', { regionWidth: v / 100 })}
-                    unit="%"
-                  />
-                </Row>
-                <Row label="高さ">
-                  <Slider
-                    value={Math.round(effects.blur.regionHeight * 100)}
-                    min={5}
-                    max={100}
-                    onChange={v => set('blur', { regionHeight: v / 100 })}
+                    onChange={v => set('blur', { radialIntensity: v / 100 })}
                     unit="%"
                   />
                 </Row>

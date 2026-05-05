@@ -20,8 +20,9 @@ export class CellRenderer {
   private imageMask: PIXI.Graphics
   private colorOverlayGraphics: PIXI.Graphics
   private vignetteSprite: PIXI.Sprite | null = null
-  private blurRegionOutline: PIXI.Graphics
-  private blurRegionBands: BlurRegionBand[] = []
+  private radialBlurLayer: PIXI.Container | null = null
+  private radialBlurMaskSprite: PIXI.Sprite | null = null
+  private radialBlurImageClone: PIXI.Sprite | null = null
   private particleSystem: ParticleSystem
 
   private width: number
@@ -41,8 +42,6 @@ export class CellRenderer {
   private imageTransitionTween: gsap.core.Tween | null = null
   private imageRequestToken = 0
   private latestEffects: CellEffects | null = null
-  private isSelected = false
-  private isBlurRegionPicking = false
 
   constructor(cellId: string, width: number, height: number) {
     this.cellId = cellId
@@ -58,13 +57,11 @@ export class CellRenderer {
     this.overlayLayer = new PIXI.Container()
     this.particleContainer = new PIXI.Container()
     this.imageMask = new PIXI.Graphics()
-    this.blurRegionOutline = new PIXI.Graphics()
 
     this.container.addChild(this.imageLayer)
     this.container.addChild(this.effectsLayer)
     this.container.addChild(this.overlayLayer)
     this.container.addChild(this.particleContainer)
-    this.container.addChild(this.blurRegionOutline)
 
     this.imageLayer.addChild(this.imageMask)
     this.imageLayer.mask = this.imageMask
@@ -90,13 +87,6 @@ export class CellRenderer {
     this.imageFit = imageFit
     this.repositionImage()
     this.refreshBlurRegion()
-  }
-
-  setBlurRegionEditorState(selected: boolean, picking: boolean) {
-    if (this.isSelected === selected && this.isBlurRegionPicking === picking) return
-    this.isSelected = selected
-    this.isBlurRegionPicking = picking
-    this.updateBlurRegionEditor()
   }
 
   getNormalizedPointFromGlobal(global: PIXI.PointData) {
@@ -149,12 +139,10 @@ export class CellRenderer {
     this.updateVignette(effects)
     this.updateBlur(effects)
     this.updateAsset(effects)
-    this.updateBlurRegionEditor()
   }
 
   tick(delta: number, effects: CellEffects) {
-    this.syncBlurRegionClones()
-    this.updateBlurRegionEditor()
+    this.syncRadialBlurClones()
     this.particleSystem.update(
       delta,
       this.width,
@@ -169,7 +157,7 @@ export class CellRenderer {
     this.blurGsapTween?.kill()
     this.imageTransitionTween?.kill()
     this.particleSystem.destroy()
-    this.clearBlurRegionContents()
+    this.clearRadialBlurContents()
     this.container.destroy({ children: true })
   }
 
@@ -308,7 +296,7 @@ export class CellRenderer {
       this.positionSprite(this.transitionSprite)
     }
     this.redrawImageMask()
-    this.syncBlurRegionClones()
+    this.syncRadialBlurClones()
   }
 
   private positionSprite(sprite: PIXI.Sprite, offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
@@ -410,24 +398,17 @@ export class CellRenderer {
       this.blurGsapTween = null
     }
     this.blurFilter = null
-    this.clearBlurRegionContents()
+    this.clearRadialBlurContents()
 
     const blur = effects.blur
     if (!blur.enabled || blur.strength <= 0) {
-      this.updateBlurRegionEditor()
       return
     }
 
-    if (blur.regionEnabled) {
-      this.buildBlurRegionBands(blur)
-      if (this.blurRegionBands.length === 0) {
-        this.updateBlurRegionEditor()
-        return
-      }
-
-      this.applyRegionBlurStrength(blur.strength)
-      this.applyGradualBlur(null, blur)
-      this.updateBlurRegionEditor()
+    if (blur.radialEnabled) {
+      this.buildRadialGradientBlur(blur)
+      if (!this.radialBlurLayer) return
+      this.applyGradualBlur(this.blurFilter, blur)
       return
     }
 
@@ -436,16 +417,11 @@ export class CellRenderer {
     this.blurFilter = blurFilter
     targetLayer.filters = [blurFilter]
     this.applyGradualBlur(blurFilter, blur)
-    this.updateBlurRegionEditor()
   }
 
   private applyGradualBlur(blurFilter: PIXI.BlurFilter | null, blur: BlurEffect) {
     if (!blur.gradualEnabled) return
-    if (blur.regionEnabled) {
-      this.applyRegionBlurStrength(blur.gradualStartStrength)
-    } else if (blurFilter) {
-      blurFilter.blur = blur.gradualStartStrength
-    }
+    if (blurFilter) blurFilter.strength = blur.gradualStartStrength
 
     const proxy = { strength: blur.gradualStartStrength }
     this.blurGsapTween = gsap.to(proxy, {
@@ -453,31 +429,58 @@ export class CellRenderer {
       duration: blur.gradualDurationSec,
       ease: 'none',
       onUpdate: () => {
-        if (blur.regionEnabled) {
-          this.applyRegionBlurStrength(proxy.strength)
-          return
-        }
-        if (blurFilter) blurFilter.blur = proxy.strength
+        if (blurFilter) blurFilter.strength = proxy.strength
       },
     })
   }
 
-  private buildBlurRegionBands(blur: BlurEffect) {
+  private buildRadialGradientBlur(blur: BlurEffect) {
     if (!this.imageSprite) return
 
-    const bandCount = 6
+    const radialBlurLayer = new PIXI.Container()
+    const imageClone = new PIXI.Sprite(this.imageSprite.texture)
+    imageClone.anchor.set(0.5)
+    this.copySpriteTransform(this.imageSprite, imageClone)
+    radialBlurLayer.addChild(imageClone)
+
+    const maskSprite = this.createRadialGradientMaskSprite(blur.radialIntensity)
+    const blurFilter = new PIXI.BlurFilter({ strength: blur.strength, quality: 4 })
+    const maskFilter = new PIXI.MaskFilter({
+      sprite: maskSprite,
+      channel: 'alpha',
+    })
+    radialBlurLayer.filters = [blurFilter, maskFilter]
+    this.blurFilter = blurFilter
+
     const insertIndex = this.container.getChildIndex(this.overlayLayer)
+    maskSprite.alpha = 0
+    this.container.addChildAt(radialBlurLayer, insertIndex)
+    this.container.addChildAt(maskSprite, insertIndex + 1)
 
-    for (let index = 0; index < bandCount; index += 1) {
-      const innerRatio = index / bandCount
-      const outerRatio = (index + 1) / bandCount
-      const band = this.createBlurRegionBand(blur, innerRatio, outerRatio)
-      if (!band) continue
+    this.radialBlurLayer = radialBlurLayer
+    this.radialBlurMaskSprite = maskSprite
+    this.radialBlurImageClone = imageClone
+  }
 
-      this.container.addChildAt(band.layer, insertIndex + index * 2)
-      this.container.addChildAt(band.mask, insertIndex + index * 2 + 1)
-      this.blurRegionBands.push(band)
-    }
+  private createRadialGradientMaskSprite(intensity: number): PIXI.Sprite {
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.ceil(this.width)
+    canvas.height = Math.ceil(this.height)
+    const ctx = canvas.getContext('2d')!
+    const cx = this.width / 2
+    const cy = this.height / 2
+    const maxRadius = Math.sqrt(cx * cx + cy * cy)
+
+    const innerStop = Math.max(0, Math.min(0.6, 1 - intensity))
+    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxRadius)
+    gradient.addColorStop(0, `rgba(0,0,0,0)`)
+    gradient.addColorStop(innerStop, `rgba(0,0,0,0)`)
+    gradient.addColorStop(1, `rgba(255,255,255,1)`)
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    const texture = PIXI.Texture.from(canvas)
+    return new PIXI.Sprite(texture)
   }
 
   private refreshBlurRegion() {
@@ -485,15 +488,10 @@ export class CellRenderer {
     this.updateBlur(this.latestEffects)
   }
 
-  private syncBlurRegionClones() {
-    this.blurRegionBands.forEach(band => {
-      if (this.imageSprite && band.imageSprite) {
-        this.copySpriteTransform(this.imageSprite, band.imageSprite)
-      }
-      if (this.vignetteSprite && band.vignetteSprite) {
-        band.vignetteSprite.alpha = this.vignetteSprite.alpha
-      }
-    })
+  private syncRadialBlurClones() {
+    if (this.imageSprite && this.radialBlurImageClone) {
+      this.copySpriteTransform(this.imageSprite, this.radialBlurImageClone)
+    }
   }
 
   private copySpriteTransform(from: PIXI.Sprite, to: PIXI.Sprite) {
@@ -504,118 +502,24 @@ export class CellRenderer {
     to.rotation = from.rotation
   }
 
-  private clearBlurRegionContents() {
-    this.blurRegionBands.forEach(band => {
-      band.layer.filters = []
-      band.layer.removeChildren().forEach(child => {
-        if (child instanceof PIXI.Sprite) {
-          child.destroy({ texture: false })
-          return
-        }
-        child.destroy()
-      })
-      this.container.removeChild(band.layer)
-      this.container.removeChild(band.mask)
-      band.layer.destroy()
-      band.mask.destroy()
-    })
-    this.blurRegionBands = []
-  }
-
-  private updateBlurRegionEditor() {
-    this.blurRegionOutline.clear()
-
-    const effects = this.latestEffects
-    if (!effects?.blur.regionEnabled) return
-    if (!this.imageSprite) return
-    if (!this.isBlurRegionPicking) return
-
-    const { centerX, centerY, radiusX, radiusY } = this.getBlurEllipse(effects.blur)
-    const strokeColor = this.isBlurRegionPicking ? 0xff6eb4 : 0xffffff
-    const strokeAlpha = this.isBlurRegionPicking ? 0.95 : 0.55
-
-    this.blurRegionOutline.ellipse(centerX, centerY, radiusX, radiusY)
-    this.blurRegionOutline.stroke({ color: strokeColor, width: 2, alpha: strokeAlpha })
-    this.blurRegionOutline.circle(centerX, centerY, 3)
-    this.blurRegionOutline.fill({ color: strokeColor, alpha: 0.9 })
-  }
-
-  private getBlurEllipse(blur: BlurEffect) {
-    const centerX = clamp(blur.regionCenterX, 0, 1) * this.width
-    const centerY = clamp(blur.regionCenterY, 0, 1) * this.height
-    const radiusX = Math.max(12, clamp(blur.regionWidth, 0.05, 1) * this.width / 2)
-    const radiusY = Math.max(12, clamp(blur.regionHeight, 0.05, 1) * this.height / 2)
-    return { centerX, centerY, radiusX, radiusY }
-  }
-
-  private createBlurRegionBand(
-    blur: BlurEffect,
-    innerRatio: number,
-    outerRatio: number
-  ): BlurRegionBand | null {
-    if (!this.imageSprite) return null
-
-    const layer = new PIXI.Container()
-    const mask = new PIXI.Graphics()
-    const imageClone = new PIXI.Sprite(this.imageSprite.texture)
-    imageClone.anchor.set(0.5)
-    this.copySpriteTransform(this.imageSprite, imageClone)
-    layer.addChild(imageClone)
-
-    let vignetteClone: PIXI.Sprite | null = null
-    if (blur.applyToAll && this.vignetteSprite?.visible) {
-      vignetteClone = new PIXI.Sprite(this.vignetteSprite.texture)
-      vignetteClone.alpha = this.vignetteSprite.alpha
-      vignetteClone.x = this.vignetteSprite.x
-      vignetteClone.y = this.vignetteSprite.y
-      layer.addChild(vignetteClone)
+  private clearRadialBlurContents() {
+    if (this.radialBlurLayer) {
+      this.radialBlurLayer.filters = []
+      this.container.removeChild(this.radialBlurLayer)
+      if (this.radialBlurImageClone) {
+        this.radialBlurLayer.removeChild(this.radialBlurImageClone)
+        this.radialBlurImageClone.destroy({ texture: false })
+        this.radialBlurImageClone = null
+      }
+      this.radialBlurLayer.destroy()
+      this.radialBlurLayer = null
     }
-
-    let overlayClone: PIXI.Graphics | null = null
-    if (blur.applyToAll && this.latestEffects?.colorOverlay.enabled) {
-      overlayClone = new PIXI.Graphics()
-      updateColorOverlay(overlayClone, this.width, this.height, this.latestEffects)
-      layer.addChild(overlayClone)
+    if (this.radialBlurMaskSprite) {
+      this.container.removeChild(this.radialBlurMaskSprite)
+      this.radialBlurMaskSprite.texture.destroy(true)
+      this.radialBlurMaskSprite.destroy()
+      this.radialBlurMaskSprite = null
     }
-
-    const { centerX, centerY, radiusX, radiusY } = this.getBlurEllipse(blur)
-    const outerRadiusX = radiusX * outerRatio
-    const outerRadiusY = radiusY * outerRatio
-    const innerRadiusX = radiusX * innerRatio
-    const innerRadiusY = radiusY * innerRatio
-
-    mask
-      .ellipse(centerX, centerY, outerRadiusX, outerRadiusY)
-
-    if (innerRatio > 0) {
-      mask
-        .ellipse(centerX, centerY, innerRadiusX, innerRadiusY)
-        .cut()
-    }
-
-    mask.fill(0xffffff)
-    mask.renderable = false
-    layer.mask = mask
-
-    const strengthFactor = 0.12 + Math.pow(outerRatio, 1.35) * 0.88
-    const filter = new PIXI.BlurFilter({ strength: Math.max(0.1, blur.strength * strengthFactor), quality: 4 })
-    layer.filters = [filter]
-
-    return {
-      layer,
-      mask,
-      filter,
-      strengthFactor,
-      imageSprite: imageClone,
-      vignetteSprite: vignetteClone,
-      overlayGraphics: overlayClone,
-    }
-  }
-
-  private applyRegionBlurStrength(strength: number) {
-    this.blurRegionBands.forEach(band => {
-      band.filter.blur = Math.max(0.1, strength * band.strengthFactor)
-    })
   }
 
   private async updateAsset(effects: CellEffects) {
@@ -647,14 +551,4 @@ function toFileUrl(src: string): string {
   }
   const normalized = src.replace(/\\/g, '/')
   return normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`
-}
-
-type BlurRegionBand = {
-  layer: PIXI.Container
-  mask: PIXI.Graphics
-  filter: PIXI.BlurFilter
-  strengthFactor: number
-  imageSprite: PIXI.Sprite
-  vignetteSprite: PIXI.Sprite | null
-  overlayGraphics: PIXI.Graphics | null
 }

@@ -77,11 +77,8 @@ export type BlurEffect = {
   gradualDurationSec: number  // 最大3600秒
   gradualStartStrength: number
   gradualEndStrength: number
-  regionEnabled: boolean
-  regionCenterX: number
-  regionCenterY: number
-  regionWidth: number
-  regionHeight: number
+  radialEnabled: boolean    // 放射線状ブラー（中心から周辺に向かって強くなる）
+  radialIntensity: number   // 放射線状の強度係数 0.0 - 1.0
 }
 
 export type AssetParticle = {
