@@ -15,14 +15,46 @@ function getApi(): IpcApi {
 }
 
 export function useDropHandler(
-  setCellImage: (cellId: string, imagePath: string) => void
+  setCellImage: (cellId: string, imagePath: string) => void,
+  containerRef: React.RefObject<HTMLDivElement | null>
 ) {
   const { cells, addCellByDrop, setCellFolder, grid } = useAppStore()
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
 
+    // containerRef から rect を取得（e.currentTarget は async 前後で null になる）
+    const container = containerRef.current
+    if (!container) return
+
+    const rect = container.getBoundingClientRect()
+    const clientX = e.clientX
+    const clientY = e.clientY
     const files = Array.from(e.dataTransfer.files) as (File & { path?: string })[]
+
+    const getCellId = () => {
+      const currentCells = useAppStore.getState().cells
+      const currentGrid = useAppStore.getState().grid
+      const cellW = rect.width / currentGrid.cols
+      const cellH = rect.height / currentGrid.rows
+      const col = Math.max(0, Math.min(Math.floor((clientX - rect.left) / cellW), currentGrid.cols - 1))
+      const row = Math.max(0, Math.min(Math.floor((clientY - rect.top) / cellH), currentGrid.rows - 1))
+      return currentCells.find(c => c.col === col && c.row === row)?.id ?? null
+    }
+
+    // ドロップ先セルを決定（空きがなければ列追加）
+    let targetCellId = getCellId()
+    const targetCell = targetCellId ? cells.find(c => c.id === targetCellId) : null
+    if (!targetCell || targetCell.folder) {
+      addCellByDrop()
+      const newState = useAppStore.getState()
+      const newCol = newState.grid.cols - 1
+      targetCellId = newState.cells.find(c => c.col === newCol && c.row === 0)?.id ?? null
+    }
+
+    if (!targetCellId) return
+
+    const cellId = targetCellId
 
     for (const file of files) {
       const filePath = file.path
@@ -31,34 +63,26 @@ export function useDropHandler(
       if (file.type === '' || !file.type) {
         const result = await getApi().readFolderPath(filePath)
         if (!result.canceled && result.folderPath && result.images && result.images.length > 0) {
-          assignFolderToCell(
-            result.folderPath,
-            result.images,
-            e,
-            cells,
-            addCellByDrop,
-            setCellFolder,
-            setCellImage,
-            grid
-          )
+          setCellFolder(cellId, {
+            id: `folder-${Date.now()}-${Math.random()}`,
+            path: result.folderPath,
+            images: result.images,
+          })
+          if (result.images[0]) setCellImage(cellId, result.images[0])
           continue
         }
       }
 
       if (isImageFile(file.name)) {
-        const cellId = getAvailableCellIdAtDropPosition(e, cells, grid, addCellByDrop)
-        if (!cellId) continue
-
-        const folder: CellFolder = {
+        setCellFolder(cellId, {
           id: `folder-${Date.now()}-${Math.random()}`,
           path: filePath.replace(/[/\\][^/\\]+$/, ''),
           images: [filePath],
-        }
-        setCellFolder(cellId, folder)
+        })
         setCellImage(cellId, filePath)
       }
     }
-  }, [cells, addCellByDrop, setCellFolder, grid, setCellImage])
+  }, [cells, addCellByDrop, setCellFolder, grid, setCellImage, containerRef])
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -66,63 +90,4 @@ export function useDropHandler(
   }, [])
 
   return { handleDrop, handleDragOver }
-}
-
-function assignFolderToCell(
-  folderPath: string,
-  images: string[],
-  e: React.DragEvent<HTMLDivElement>,
-  cells: ReturnType<typeof useAppStore.getState>['cells'],
-  addCellByDrop: () => void,
-  setCellFolder: (cellId: string, folder: CellFolder) => void,
-  setCellImage: (cellId: string, imagePath: string) => void,
-  grid: ReturnType<typeof useAppStore.getState>['grid'],
-) {
-  const cellId = getAvailableCellIdAtDropPosition(e, cells, grid, addCellByDrop)
-  if (!cellId) return
-
-  const folder: CellFolder = {
-    id: `folder-${Date.now()}-${Math.random()}`,
-    path: folderPath,
-    images,
-  }
-
-  setCellFolder(cellId, folder)
-  if (images[0]) setCellImage(cellId, images[0])
-}
-
-function getAvailableCellIdAtDropPosition(
-  e: React.DragEvent<HTMLDivElement>,
-  cells: ReturnType<typeof useAppStore.getState>['cells'],
-  grid: ReturnType<typeof useAppStore.getState>['grid'],
-  addCellByDrop: () => void,
-): string | null {
-  const targetCellId = getCellIdAtPosition(e, cells, grid)
-  const targetCell = targetCellId ? cells.find(c => c.id === targetCellId) : null
-
-  if (targetCell && !targetCell.folder) {
-    return targetCell.id
-  }
-
-  addCellByDrop()
-  const updated = useAppStore.getState()
-  const newCol = updated.grid.cols - 1
-  const newCell = updated.cells.find(c => c.col === newCol && c.row === 0)
-  return newCell?.id ?? null
-}
-
-function getCellIdAtPosition(
-  e: React.DragEvent<HTMLDivElement>,
-  cells: ReturnType<typeof useAppStore.getState>['cells'],
-  grid: ReturnType<typeof useAppStore.getState>['grid'],
-): string | null {
-  const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-  const relX = e.clientX - rect.left
-  const relY = e.clientY - rect.top
-  const cellW = rect.width / grid.cols
-  const cellH = rect.height / grid.rows
-  const col = Math.max(0, Math.min(Math.floor(relX / cellW), grid.cols - 1))
-  const row = Math.max(0, Math.min(Math.floor(relY / cellH), grid.rows - 1))
-  const cell = cells.find(c => c.col === col && c.row === row)
-  return cell?.id ?? null
 }

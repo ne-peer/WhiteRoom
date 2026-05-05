@@ -33,6 +33,9 @@ export const DEFAULT_EFFECTS: CellEffects = {
   dynamicAsset: {
     enabled: false,
     assetPath: null,
+    assetSourceType: 'file',
+    folderImages: undefined,
+    maxHeightPercent: 70,
     spawnIntervalMs: 800,
     riseSpeedPx: 2,
     maxParticles: 20,
@@ -88,6 +91,7 @@ export type AppState = {
   showControls: boolean
   isLoading: boolean
   slideshowRestartNonce: number
+  effectRandomizeTiming: number  // エフェクト開始タイミングをランダム化するトリガー
 }
 
 export type AppActions = {
@@ -129,6 +133,7 @@ export type AppActions = {
   selectCell: (cellId: string | null) => void
   toggleControls: () => void
   setLoading: (flag: boolean) => void
+  setEffectRandomizeTiming: () => void  // エフェクト開始タイミングをランダム化
 
   // プロファイル
   exportProfile: (name: string) => AppProfile
@@ -152,6 +157,7 @@ export const useAppStore = create<AppStore>()(
     showControls: true,
     isLoading: false,
     slideshowRestartNonce: 0,
+    effectRandomizeTiming: 0,
 
     // ===== グリッド操作 =====
 
@@ -286,6 +292,8 @@ export const useAppStore = create<AppStore>()(
     toggleControls: () => set(s => { s.showControls = !s.showControls }),
 
     setLoading: (flag) => set(s => { s.isLoading = flag }),
+
+    setEffectRandomizeTiming: () => set(s => { s.effectRandomizeTiming = Date.now() }),
 
     // ===== プロファイル =====
 

@@ -80,6 +80,9 @@ export type AssetParticle = {
 export type DynamicAssetEffect = {
   enabled: boolean
   assetPath: string | null
+  assetSourceType: 'file' | 'folder'  // ファイル/フォルダ区別
+  folderImages?: string[]              // フォルダ内の画像一覧
+  maxHeightPercent: number             // 発生位置の高さ上限（0-100%、デフォルト70）
   spawnIntervalMs: number    // 生成間隔
   riseSpeedPx: number        // 上昇速度 px/frame
   maxParticles: number
@@ -143,6 +146,12 @@ export type OpenAssetResult = {
   filePath?: string
 }
 
+export type OpenAssetFolderResult = {
+  canceled: boolean
+  folderPath?: string
+  images?: string[]  // フルパスの配列
+}
+
 export type SaveProfileResult = {
   success: boolean
   filePath?: string
@@ -159,6 +168,7 @@ export type IpcApi = {
   openFolder: () => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
   openAsset: () => Promise<OpenAssetResult>
+  openAssetFolder: () => Promise<OpenAssetFolderResult>
   readImageAsBase64: (filePath: string) => Promise<string>
   saveProfile: (profile: AppProfile) => Promise<SaveProfileResult>
   loadProfile: () => Promise<LoadProfileResult>

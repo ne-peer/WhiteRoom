@@ -129,11 +129,13 @@ export const Button: React.FC<{
   variant?: 'primary' | 'secondary' | 'danger'
   small?: boolean
   disabled?: boolean
-}> = ({ onClick, children, variant = 'secondary', small, disabled }) => (
+  style?: React.CSSProperties
+}> = ({ onClick, children, variant = 'secondary', small, disabled, style }) => (
   <button
     className={`${styles.button} ${styles[`button_${variant}`]} ${small ? styles.buttonSmall : ''}`}
     onClick={onClick}
     disabled={disabled}
+    style={style}
   >
     {children}
   </button>

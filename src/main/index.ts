@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
 import { join, extname } from 'path'
 import { readFileSync, writeFileSync, readdirSync } from 'fs'
-import type { AppProfile, SaveProfileResult, LoadProfileResult, OpenFolderResult } from '../shared/types'
+import type { AppProfile, SaveProfileResult, LoadProfileResult, OpenFolderResult, OpenAssetFolderResult } from '../shared/types'
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
 
@@ -88,6 +88,23 @@ ipcMain.handle('open-asset', async () => {
     return { canceled: true }
   }
   return { canceled: false, filePath: result.filePaths[0] }
+})
+
+// アセット画像フォルダ選択
+ipcMain.handle('open-asset-folder', async (): Promise<OpenAssetFolderResult> => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+    title: 'アセット画像フォルダを選択'
+  })
+  if (result.canceled || !result.filePaths[0]) {
+    return { canceled: true }
+  }
+  const folderPath = result.filePaths[0]
+  const images = readdirSync(folderPath)
+    .filter(isImageFile)
+    .map(f => join(folderPath, f))
+    .sort()
+  return { canceled: false, folderPath, images }
 })
 
 // 画像をBase64で読み込み

@@ -10,7 +10,7 @@ export const MasterCanvas: React.FC = () => {
   const showControls = useAppStore(s => s.showControls)
 
   const { setCellImage } = usePixiStage(containerRef)
-  const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
+  const { handleDrop, handleDragOver } = useDropHandler(setCellImage, containerRef)
 
   // フルスクリーン変更をElectronから受け取り
   useEffect(() => {

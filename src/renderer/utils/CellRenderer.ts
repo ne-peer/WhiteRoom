@@ -28,9 +28,11 @@ export class CellRenderer {
   private vignetteGsapTween: gsap.core.Tween | null = null
   private blurFilter: PIXI.BlurFilter | null = null
   private blurGsapTween: gsap.core.Tween | null = null
+  private animationRandomOffset: number = 0  // 各セルのアニメーション開始ランダムオフセット（秒）
 
   private assetTexture: PIXI.Texture | null = null
   private assetPath: string | null = null
+  private assetFolderImagePaths: string[] = []
   private currentImageSrc: string | null = null
   private requestedImageSrc: string | null = null
   private imageFit: ImageFitMode = 'cover'
@@ -64,6 +66,7 @@ export class CellRenderer {
     this.overlayLayer.addChild(this.colorOverlayGraphics)
 
     this.particleSystem = new ParticleSystem(this.particleContainer)
+    this.animationRandomOffset = Math.random() * 2  // 0～2秒のランダムオフセット
   }
 
   resize(width: number, height: number) {
@@ -203,6 +206,7 @@ export class CellRenderer {
           ease: 'sine.inOut',
           repeat: -1,
           yoyo: false,
+          delay: this.animationRandomOffset,
           onComplete: () => { proxy.alpha = vig.dynamicFrom },
           onUpdate: () => {
             if (this.vignetteSprite) this.vignetteSprite.alpha = proxy.alpha
@@ -234,7 +238,7 @@ export class CellRenderer {
 
     if (!blur.enabled) return
 
-    const blurFilter = new PIXI.BlurFilter({ strength: blur.strength, quality: 4 })
+    const blurFilter = new PIXI.BlurFilter()
     this.blurFilter = blurFilter
     targetLayer.filters = [blurFilter]
 
@@ -245,26 +249,48 @@ export class CellRenderer {
         strength: blur.gradualEndStrength,
         duration: blur.gradualDurationSec,
         ease: 'none',
+        delay: this.animationRandomOffset,
         onUpdate: () => { blurFilter.blur = proxy.strength }
       })
+    } else {
+      blurFilter.blur = blur.strength
     }
   }
 
   private async updateAsset(effects: CellEffects) {
     const da = effects.dynamicAsset
 
-    if (da.assetPath && da.assetPath !== this.assetPath) {
+    if (!da.assetPath) {
+      this.assetPath = null
+      this.assetTexture = null
+      this.assetFolderImagePaths = []
+      this.particleSystem.setTextures([])
+      return
+    }
+
+    // フォルダ選択: folderImages の内容が変わった場合にリロード
+    if (da.assetSourceType === 'folder' && da.folderImages && da.folderImages.length > 0) {
+      const pathKey = da.folderImages.join('|')
+      if (pathKey === this.assetFolderImagePaths.join('|')) return
       this.assetPath = da.assetPath
+      this.assetFolderImagePaths = da.folderImages.slice()
+      const textures = (await Promise.all(
+        da.folderImages.map(p => PIXI.Assets.load(toFileUrl(p)).catch(() => null))
+      )).filter(Boolean) as PIXI.Texture[]
+      this.particleSystem.setTextures(textures)
+      return
+    }
+
+    // ファイル選択
+    if (da.assetPath !== this.assetPath) {
+      this.assetPath = da.assetPath
+      this.assetFolderImagePaths = []
       try {
         this.assetTexture = await PIXI.Assets.load(toFileUrl(da.assetPath))
       } catch {
         this.assetTexture = null
       }
-      this.particleSystem.setTexture(this.assetTexture)
-    } else if (!da.assetPath) {
-      this.assetPath = null
-      this.assetTexture = null
-      this.particleSystem.setTexture(null)
+      this.particleSystem.setTextures(this.assetTexture ? [this.assetTexture] : [])
     }
   }
 
@@ -276,6 +302,16 @@ export class CellRenderer {
       effects,
       performance.now()
     )
+  }
+
+  resetAnimationTiming() {
+    this.animationRandomOffset = Math.random() * 2
+    this.vignetteGsapTween?.kill()
+    this.vignetteGsapTween = null
+    this.vignetteAnimationKey = null
+    this.blurGsapTween?.kill()
+    this.blurGsapTween = null
+    this.blurFilter = null
   }
 
   destroy() {

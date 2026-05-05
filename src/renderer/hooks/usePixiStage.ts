@@ -10,6 +10,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   const cellRenderersRef = useRef<CellRendererMap>(new Map())
   const slideshowTimersRef = useRef<Map<string, number>>(new Map())
   const lastRandomRestartNonceRef = useRef(0)
+  const lastEffectRandomizeTimingRef = useRef(0)
 
   const store = useAppStore()
 
@@ -145,6 +146,19 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     store.slideshowRestartNonce,
     store.cells.map(c => `${c.id}:${c.slideshow.enabled}:${c.slideshow.intervalMs}`).join(',')
   ])
+
+  useEffect(() => {
+    const { effectRandomizeTiming } = store
+    if (effectRandomizeTiming === lastEffectRandomizeTimingRef.current) return
+    lastEffectRandomizeTimingRef.current = effectRandomizeTiming
+
+    const currentCells = useAppStore.getState().cells
+    cellRenderersRef.current.forEach((cr, cellId) => {
+      cr.resetAnimationTiming()
+      const cell = currentCells.find(c => c.id === cellId)
+      if (cell) cr.updateEffects(cell.effects)
+    })
+  }, [store.effectRandomizeTiming])
 
   const setCellImage = useCallback((cellId: string, imagePath: string) => {
     const cr = cellRenderersRef.current.get(cellId)

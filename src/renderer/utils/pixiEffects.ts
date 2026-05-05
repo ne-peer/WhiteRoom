@@ -48,10 +48,10 @@ export function applyBlurFilter(
   container: PIXI.Container,
   effects: CellEffects
 ): PIXI.BlurFilter | null {
-  // 既存フィルタ除去
   container.filters = []
   if (!effects.blur.enabled || effects.blur.strength <= 0) return null
-  const blur = new PIXI.BlurFilter({ strength: effects.blur.strength, quality: 4 })
+  const blur = new PIXI.BlurFilter()
+  blur.blur = effects.blur.strength
   container.filters = [blur]
   return blur
 }
@@ -61,16 +61,16 @@ export class ParticleSystem {
   private particles: AssetParticle[] = []
   private sprites: Map<string, PIXI.Sprite> = new Map()
   private container: PIXI.Container
-  private texture: PIXI.Texture | null = null
+  private textures: PIXI.Texture[] = []
   private lastSpawn = 0
 
   constructor(container: PIXI.Container) {
     this.container = container
   }
 
-  setTexture(texture: PIXI.Texture | null) {
-    this.texture = texture
-    if (!texture) {
+  setTextures(textures: PIXI.Texture[]) {
+    this.textures = textures
+    if (textures.length === 0) {
       this.clear()
     }
   }
@@ -82,7 +82,7 @@ export class ParticleSystem {
     effects: CellEffects,
     nowMs: number
   ) {
-    if (!effects.dynamicAsset.enabled || !this.texture) {
+    if (!effects.dynamicAsset.enabled || this.textures.length === 0) {
       this.clear()
       return
     }
@@ -96,18 +96,27 @@ export class ParticleSystem {
       this.particles.length < maxParticles
     ) {
       this.lastSpawn = nowMs
+
+      // 発生位置Y：底辺から maxHeightPercent% の範囲内でランダム（0%=底辺のみ, 100%=全体）
+      const maxHeightPercent = effects.dynamicAsset.maxHeightPercent ?? 70
+      const spawnTop = canvasHeight * (1 - maxHeightPercent / 100)
+      const randomY = spawnTop + Math.random() * (canvasHeight - spawnTop)
+
+      // フォルダ時はランダムテクスチャを使用
+      const texture = this.textures[Math.floor(Math.random() * this.textures.length)]
+
       const p: AssetParticle = {
         id: `p-${nowMs}-${Math.random()}`,
-        assetPath: effects.dynamicAsset.assetPath ?? '',
+        assetPath: '',
         x: Math.random() * canvasWidth,
-        y: canvasHeight + 20,
+        y: randomY,
         alpha: 0.9,
         vy: riseSpeedPx,
         startTime: nowMs,
       }
       this.particles.push(p)
 
-      const sprite = new PIXI.Sprite(this.texture)
+      const sprite = new PIXI.Sprite(texture)
       sprite.anchor.set(0.5)
       sprite.x = p.x
       sprite.y = p.y

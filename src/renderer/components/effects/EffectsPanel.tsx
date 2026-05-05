@@ -6,7 +6,8 @@ import type { Cell } from '../../../shared/types'
 type Props = { selectedCell: Cell | undefined | null }
 
 export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
-  const { setCellEffect, setAllCellsEffect, selectedCellId } = useAppStore()
+  const { setCellEffect, setAllCellsEffect, selectedCellId, setEffectRandomizeTiming } = useAppStore()
+  const [assetMode, setAssetMode] = React.useState<'file' | 'folder'>('file')
 
   if (!selectedCellId || !selectedCell) {
     return (
@@ -31,9 +32,25 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
 
   const handleOpenAsset = async () => {
     const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
-    const result = await api.openAsset()
-    if (!result.canceled && result.filePath) {
-      set('dynamicAsset', { assetPath: result.filePath })
+
+    if (assetMode === 'file') {
+      const result = await api.openAsset()
+      if (!result.canceled && result.filePath) {
+        set('dynamicAsset', {
+          assetPath: result.filePath,
+          assetSourceType: 'file',
+          folderImages: undefined,
+        })
+      }
+    } else {
+      const result = await api.openAssetFolder()
+      if (!result.canceled && result.folderPath && result.images) {
+        set('dynamicAsset', {
+          assetPath: result.folderPath,
+          assetSourceType: 'folder',
+          folderImages: result.images,
+        })
+      }
     }
   }
 
@@ -138,8 +155,11 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       </Section>
 
       <Section title="一斉反映">
-        <Button variant="primary" onClick={applyVignetteAndBlurToAll}>
+        <Button variant="primary" onClick={applyVignetteAndBlurToAll} style={{ marginBottom: 8 }}>
           ビネット・ブラー設定を全カラムへ反映
+        </Button>
+        <Button variant="secondary" onClick={setEffectRandomizeTiming}>
+          ⏱ 開始タイミングをランダムに再開
         </Button>
       </Section>
 
@@ -151,8 +171,25 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         {effects.dynamicAsset.enabled && (
           <>
             <div style={{ marginBottom: 8 }}>
-              <Button variant="secondary" onClick={handleOpenAsset}>
-                🖼 アセット画像を選択（透過PNG推奨）
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>アセット選択</div>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                <Button
+                  small
+                  variant={assetMode === 'file' ? 'primary' : 'secondary'}
+                  onClick={() => setAssetMode('file')}
+                >
+                  📄 ファイル
+                </Button>
+                <Button
+                  small
+                  variant={assetMode === 'folder' ? 'primary' : 'secondary'}
+                  onClick={() => setAssetMode('folder')}
+                >
+                  📁 フォルダ
+                </Button>
+              </div>
+              <Button variant="secondary" onClick={handleOpenAsset} style={{ width: '100%' }}>
+                {assetMode === 'file' ? '🖼 ファイルを選択' : '📂 フォルダを選択'}
               </Button>
             </div>
             {effects.dynamicAsset.assetPath && (
@@ -160,6 +197,20 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 {effects.dynamicAsset.assetPath.split(/[\\/]/).pop()}
               </div>
             )}
+            <Row label="発生位置上限">
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
+                <span style={{ fontSize: 12 }}>{effects.dynamicAsset.maxHeightPercent}%</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={effects.dynamicAsset.maxHeightPercent ?? 70}
+                  onChange={e => set('dynamicAsset', { maxHeightPercent: Number(e.target.value) })}
+                  style={{ flex: 1, maxWidth: 100 }}
+                />
+              </div>
+            </Row>
             <Row label="生成間隔">
               <NumberInput value={effects.dynamicAsset.spawnIntervalMs / 1000} min={0.1} max={5} step={0.1}
                 unit="秒" onChange={v => set('dynamicAsset', { spawnIntervalMs: v * 1000 })} />
