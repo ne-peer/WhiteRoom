@@ -1,14 +1,10 @@
-import React from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAppStore, DEFAULT_EFFECTS } from '../../stores/appStore'
 import { Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select } from '../controls/UIKit'
 import type { Cell } from '../../../shared/types'
 
-const FONT_OPTIONS = [
-  { value: 'Meiryo', label: 'メイリオ (Meiryo)' },
-  { value: 'BIZ UDPGothic', label: 'BIZ UDPゴシック' },
-  { value: 'Yu Gothic', label: '游ゴシック (Yu Gothic)' },
-  { value: 'MS PGothic', label: 'ＭＳ Ｐゴシック' },
-]
+const FALLBACK_FONT_OPTIONS = ['Meiryo', 'BIZ UDPGothic', 'Yu Gothic', 'MS PGothic']
+  .map(font => ({ value: font, label: font }))
 
 type Props = { selectedCell: Cell | undefined | null }
 
@@ -21,6 +17,29 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     applyEffectsToAll,
     restartEffectsWithRandomTiming,
   } = useAppStore()
+  const [systemFonts, setSystemFonts] = useState<string[]>([])
+
+  useEffect(() => {
+    let alive = true
+    window.api.listSystemFonts()
+      .then(fonts => {
+        if (alive) setSystemFonts(fonts)
+      })
+      .catch(() => {
+        if (alive) setSystemFonts([])
+      })
+    return () => { alive = false }
+  }, [])
+  const selectedFont = selectedCell?.effects.textEffect?.font ?? DEFAULT_EFFECTS.textEffect.font
+  const fontOptions = useMemo(() => {
+    const fonts = systemFonts.length > 0
+      ? systemFonts
+      : FALLBACK_FONT_OPTIONS.map(opt => opt.value)
+    const values = selectedFont && !fonts.includes(selectedFont)
+      ? [selectedFont, ...fonts]
+      : fonts
+    return values.map(font => ({ value: font, label: font }))
+  }, [selectedFont, systemFonts])
 
   if (!selectedCellId || !selectedCell) {
     return (
@@ -35,7 +54,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const rawEffects = selectedCell.effects
   const effects = {
     ...rawEffects,
-    textEffect: rawEffects.textEffect ?? DEFAULT_EFFECTS.textEffect,
+    textEffect: { ...DEFAULT_EFFECTS.textEffect, ...rawEffects.textEffect },
   }
   const set = <K extends keyof typeof effects>(key: K, val: Partial<typeof effects[K]>) =>
     setCellEffect(selectedCellId, key, val)
@@ -280,7 +299,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             <Row label="フォント">
               <Select
                 value={effects.textEffect.font}
-                options={FONT_OPTIONS}
+                options={fontOptions}
                 onChange={v => set('textEffect', { font: v })}
               />
             </Row>
@@ -300,6 +319,9 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               g={effects.textEffect.color.g}
               b={effects.textEffect.color.b}
               onChange={(r, g, b) => set('textEffect', { color: { r, g, b } })}
+              showAlpha
+              alpha={effects.textEffect.alpha}
+              onAlphaChange={a => set('textEffect', { alpha: a })}
             />
             <Row label="フォントサイズ">
               <Slider

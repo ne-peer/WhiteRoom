@@ -120,6 +120,7 @@ export type TextEffect = {
   texts: string[]                           // 最大5件
   font: string                              // フォントファミリー名
   color: { r: number; g: number; b: number }
+  alpha: number                             // 0.0 - 1.0
   fontSize: number                          // px
   charIntervalMs: number                    // 描画速度: 1文字ごとの間隔 ms
   displayDurationMs: number                 // 表示時間: 全文字表示後にフェードアウトするまでの時間 ms
@@ -208,5 +209,6 @@ export type IpcApi = {
   saveProfile: (profile: AppProfile) => Promise<SaveProfileResult>
   loadProfile: () => Promise<LoadProfileResult>
   setFullscreen: (flag: boolean) => Promise<void>
+  listSystemFonts: () => Promise<string[]>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void
 }

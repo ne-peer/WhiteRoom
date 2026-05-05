@@ -53,6 +53,7 @@ export class CellRenderer {
   private imageTransitionTween: gsap.core.Tween | null = null
   private imageRequestToken = 0
   private latestEffects: CellEffects | null = null
+  private effectResetTimeoutId: number | null = null
 
   constructor(cellId: string, width: number, height: number) {
     this.cellId = cellId
@@ -173,31 +174,43 @@ export class CellRenderer {
   }
 
   resetEffectTiming(effects: CellEffects, withRandomDelay = false) {
-    // ビネット・ブラー・エコーアニメーション開始タイミングをリセット
+    // ビネット・ブラー・エコー・テキストの開始タイミングをリセット
+    const maxTextChars = effects.textEffect.enabled
+      ? Math.max(0, ...effects.textEffect.texts.map(text => Array.from(text.trim()).length))
+      : 0
+    const textDurationMs = maxTextChars > 0
+      ? maxTextChars * effects.textEffect.charIntervalMs +
+        effects.textEffect.displayDurationMs +
+        effects.textEffect.intervalMs
+      : 0
     const durationMs = Math.max(
       effects.vignette.dynamicDurationMs,
       effects.blur.gradualDurationSec * 1000,
       effects.echo.durationSec * 1000,
+      textDurationMs,
       1000
     )
     const delay = withRandomDelay ? Math.random() * durationMs : 0
     this.vignetteGsapTween?.kill()
     this.blurGsapTween?.kill()
     this.echoGsapTween?.kill()
+    if (this.effectResetTimeoutId !== null) {
+      clearTimeout(this.effectResetTimeoutId)
+      this.effectResetTimeoutId = null
+    }
     this.vignetteGsapTween = null
     this.blurGsapTween = null
     this.echoGsapTween = null
     this.vignetteAnimationKey = null
     this.blurAnimationKey = null
     this.echoAnimationKey = null
+    this.textSystem.stop()
     if (delay > 0) {
       const timeoutId = window.setTimeout(() => {
+        this.effectResetTimeoutId = null
         this.updateEffects(effects)
       }, delay)
-      // タイムアウトIDを記録（cleanup用）
-      const prevTimeoutId = (this as any).effectResetTimeoutId
-      if (prevTimeoutId) clearTimeout(prevTimeoutId)
-      ;(this as any).effectResetTimeoutId = timeoutId
+      this.effectResetTimeoutId = timeoutId
     } else {
       this.updateEffects(effects)
     }
@@ -219,6 +232,10 @@ export class CellRenderer {
     this.blurGsapTween?.kill()
     this.echoGsapTween?.kill()
     this.imageTransitionTween?.kill()
+    if (this.effectResetTimeoutId !== null) {
+      clearTimeout(this.effectResetTimeoutId)
+      this.effectResetTimeoutId = null
+    }
     this.particleSystem.destroy()
     this.textSystem.destroy()
     this.clearRadialBlurContents()

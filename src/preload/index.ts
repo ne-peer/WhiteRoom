@@ -10,6 +10,7 @@ const api: IpcApi = {
   saveProfile: (profile) => ipcRenderer.invoke('save-profile', profile),
   loadProfile: () => ipcRenderer.invoke('load-profile'),
   setFullscreen: (flag) => ipcRenderer.invoke('set-fullscreen', flag),
+  listSystemFonts: () => ipcRenderer.invoke('list-system-fonts'),
   onFullscreenChange: (cb) => {
     const handler = (_: Electron.IpcRendererEvent, isFullscreen: boolean) => cb(isFullscreen)
     ipcRenderer.on('fullscreen-change', handler)

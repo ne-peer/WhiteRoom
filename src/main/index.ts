@@ -1,12 +1,81 @@
 import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
 import { join, extname } from 'path'
 import { readFileSync, writeFileSync, readdirSync } from 'fs'
+import { execFileSync } from 'child_process'
 import type { AppProfile, SaveProfileResult, LoadProfileResult, OpenFolderResult } from '../shared/types'
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
+const FALLBACK_FONTS = [
+  'Meiryo',
+  'BIZ UDPGothic',
+  'Yu Gothic',
+  'MS PGothic',
+  'Arial',
+  'Segoe UI',
+  'Times New Roman',
+  'Courier New',
+]
 
 function isImageFile(filename: string): boolean {
   return IMAGE_EXTENSIONS.includes(extname(filename).toLowerCase())
+}
+
+function normalizeFontName(name: string): string[] {
+  const withoutType = name.replace(/\s*\([^)]+\)\s*$/u, '').trim()
+  if (!withoutType) return []
+  return withoutType
+    .split(/\s*&\s*/u)
+    .map(part => part.trim())
+    .filter(Boolean)
+}
+
+function sortedUnique(values: string[]): string[] {
+  return [...new Set(values)]
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+}
+
+function listWindowsFonts(): string[] {
+  const command = [
+    '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8',
+    '$OutputEncoding = [System.Text.Encoding]::UTF8',
+    "$paths = @('HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts', 'HKCU:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts')",
+    'foreach ($path in $paths) {',
+    '  if (Test-Path $path) {',
+    '    (Get-ItemProperty -Path $path).PSObject.Properties |',
+    "      Where-Object { $_.Name -notlike 'PS*' } |",
+    '      ForEach-Object { $_.Name }',
+    '  }',
+    '}',
+  ].join('\n')
+
+  const output = execFileSync(
+    'powershell.exe',
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
+    { encoding: 'utf8', windowsHide: true, maxBuffer: 4 * 1024 * 1024 }
+  )
+
+  return output
+    .split(/\r?\n/u)
+    .flatMap(line => normalizeFontName(line))
+}
+
+function listUnixFonts(): string[] {
+  const output = execFileSync('fc-list', [':', 'family'], { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 })
+  return output
+    .split(/\r?\n/u)
+    .flatMap(line => line.split(','))
+    .map(name => name.trim())
+    .filter(Boolean)
+}
+
+function listSystemFonts(): string[] {
+  try {
+    const fonts = process.platform === 'win32' ? listWindowsFonts() : listUnixFonts()
+    return sortedUnique([...FALLBACK_FONTS, ...fonts])
+  } catch (error) {
+    console.warn('Failed to list system fonts:', error)
+    return sortedUnique(FALLBACK_FONTS)
+  }
 }
 
 function createWindow(): BrowserWindow {
@@ -163,6 +232,10 @@ ipcMain.handle('load-profile', async (): Promise<LoadProfileResult> => {
 ipcMain.handle('set-fullscreen', (_event, flag: boolean) => {
   const win = BrowserWindow.getFocusedWindow()
   if (win) win.setFullScreen(flag)
+})
+
+ipcMain.handle('list-system-fonts', async (): Promise<string[]> => {
+  return listSystemFonts()
 })
 
 // ===== アプリ起動 =====

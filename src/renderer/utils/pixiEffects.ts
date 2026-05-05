@@ -209,6 +209,7 @@ export class TextSystem {
       effects.font,
       effects.fontSize,
       effects.color.r, effects.color.g, effects.color.b,
+      effects.alpha,
       effects.charIntervalMs,
       effects.displayDurationMs,
       effects.intervalMs,
@@ -239,6 +240,7 @@ export class TextSystem {
 
     const text = validTexts[Math.floor(Math.random() * validTexts.length)]
     const { font, fontSize, color, charIntervalMs, displayDurationMs, intervalMs, direction } = effects
+    const alpha = clamp(effects.alpha ?? 1, 0, 1)
     const hexColor = (color.r << 16) | (color.g << 8) | color.b
 
     const style = new PIXI.TextStyle({
@@ -286,7 +288,7 @@ export class TextSystem {
     // 1文字ずつフェードイン
     const charIntervalSec = charIntervalMs / 1000
     chars.forEach((_, i) => {
-      tl.to(charObjects[i], { alpha: 1, duration: Math.max(0.03, charIntervalSec * 0.5), ease: 'sine.out' },
+      tl.to(charObjects[i], { alpha, duration: Math.max(0.03, charIntervalSec * 0.5), ease: 'sine.out' },
         i * charIntervalSec)
     })
 

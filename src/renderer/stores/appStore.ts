@@ -65,12 +65,13 @@ export const DEFAULT_EFFECTS: CellEffects = {
     enabled: false,
     texts: ['', '', '', '', ''],
     font: 'Meiryo',
-    color: { r: 255, g: 255, b: 255 },
+    color: { r: 255, g: 100, b: 150 },
+    alpha: 0.5,
     fontSize: 48,
-    charIntervalMs: 150,
-    displayDurationMs: 2000,
-    intervalMs: 1000,
-    direction: 'horizontal',
+    charIntervalMs: 300,
+    displayDurationMs: 1000,
+    intervalMs: 600,
+    direction: 'vertical',
   } satisfies TextEffect,
 }
 
@@ -306,18 +307,17 @@ export const useAppStore = create<AppStore>()(
       s.cells.forEach(cell => Object.assign(cell.effects[effectKey], value))
     }),
 
-    applyEffectsToAll: () => set(s => {
-      const selectedCell = s.cells.find(c => c.id === s.selectedCellId)
+    applyEffectsToAll: () => {
+      const selectedCell = get().cells.find(c => c.id === get().selectedCellId)
       if (!selectedCell) return
-      const effects = selectedCell.effects
-      s.cells.forEach(cell => {
-        Object.assign(cell.effects.vignette, effects.vignette)
-        Object.assign(cell.effects.blur, effects.blur)
-        Object.assign(cell.effects.echo, effects.echo)
-        cell.effects.textEffect = structuredClone(effects.textEffect)
+      const effects = structuredClone(selectedCell.effects)
+      set(s => {
+        s.cells.forEach(cell => {
+          cell.effects = structuredClone(effects)
+        })
+        s.effectSyncNonce += 1
       })
-      s.effectSyncNonce += 1
-    }),
+    },
 
     restartEffectsWithRandomTiming: () => set(s => {
       s.effectRandomNonce += 1
