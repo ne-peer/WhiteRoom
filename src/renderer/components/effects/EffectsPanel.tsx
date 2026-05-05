@@ -195,13 +195,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         <Button variant="primary" onClick={applyVignetteAndBlurToAll}>
           ビネット・ブラー設定を全カラムへ反映
         </Button>
-        <Button
-          variant="secondary"
-          onClick={restartEffectsRandomly}
-          disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled)}
-        >
-          開始タイミングをランダムに再開
-        </Button>
+        <div style={{ marginTop: 8 }}>
+          <Button
+            variant="secondary"
+            onClick={restartEffectsRandomly}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled)}
+          >
+            開始タイミングをランダムに再開
+          </Button>
+        </div>
       </Section>
 
       <Section title="アセットエフェクト">
