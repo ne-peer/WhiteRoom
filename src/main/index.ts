@@ -90,6 +90,22 @@ ipcMain.handle('open-asset', async () => {
   return { canceled: false, filePath: result.filePaths[0] }
 })
 
+ipcMain.handle('open-asset-folder', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+    title: 'アセットフォルダを選択'
+  })
+  if (result.canceled || !result.filePaths[0]) {
+    return { canceled: true }
+  }
+  const folderPath = result.filePaths[0]
+  const images = readdirSync(folderPath)
+    .filter(isImageFile)
+    .map(f => join(folderPath, f))
+    .sort()
+  return { canceled: false, folderPath, images }
+})
+
 // 画像をBase64で読み込み
 ipcMain.handle('read-image-base64', async (_event, filePath: string): Promise<string> => {
   try {

@@ -5,6 +5,7 @@ const api: IpcApi = {
   openFolder: () => ipcRenderer.invoke('open-folder'),
   readFolderPath: (folderPath) => ipcRenderer.invoke('read-folder-path', folderPath),
   openAsset: () => ipcRenderer.invoke('open-asset'),
+  openAssetFolder: () => ipcRenderer.invoke('open-asset-folder'),
   readImageAsBase64: (filePath) => ipcRenderer.invoke('read-image-base64', filePath),
   saveProfile: (profile) => ipcRenderer.invoke('save-profile', profile),
   loadProfile: () => ipcRenderer.invoke('load-profile'),

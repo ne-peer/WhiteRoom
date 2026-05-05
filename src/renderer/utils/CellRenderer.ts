@@ -36,6 +36,7 @@ export class CellRenderer {
   private blurAnimationKey: string | null = null
 
   private assetTexture: PIXI.Texture | null = null
+  private assetTexturesKey: string | null = null
   private assetPath: string | null = null
   private currentImageSrc: string | null = null
   private requestedImageSrc: string | null = null
@@ -147,7 +148,14 @@ export class CellRenderer {
 
   resetEffectTiming(effects: CellEffects, withRandomDelay = false) {
     // ビネット・ブラーアニメーション開始タイミングをリセット
-    const delay = withRandomDelay ? Math.random() * 1000 : 0
+    const durationMs = Math.max(effects.vignette.dynamicDurationMs, effects.blur.gradualDurationSec * 1000, 1000)
+    const delay = withRandomDelay ? Math.random() * durationMs : 0
+    this.vignetteGsapTween?.kill()
+    this.blurGsapTween?.kill()
+    this.vignetteGsapTween = null
+    this.blurGsapTween = null
+    this.vignetteAnimationKey = null
+    this.blurAnimationKey = null
     if (delay > 0) {
       const timeoutId = window.setTimeout(() => {
         this.updateEffects(effects)
@@ -587,19 +595,27 @@ export class CellRenderer {
 
   private async updateAsset(effects: CellEffects) {
     const da = effects.dynamicAsset
+    const assetPaths = da.assetPaths?.length ? da.assetPaths : (da.assetPath ? [da.assetPath] : [])
+    const assetKey = assetPaths.join('|')
 
-    if (da.assetPath && da.assetPath !== this.assetPath) {
+    if (assetPaths.length > 0 && assetKey !== this.assetTexturesKey) {
       this.assetPath = da.assetPath
-      try {
-        this.assetTexture = await PIXI.Assets.load(toFileUrl(da.assetPath))
-      } catch {
-        this.assetTexture = null
+      this.assetTexturesKey = assetKey
+      const textures: PIXI.Texture[] = []
+      for (const path of assetPaths) {
+        try {
+          textures.push(await PIXI.Assets.load(toFileUrl(path)))
+        } catch {
+          // skip unreadable assets
+        }
       }
-      this.particleSystem.setTexture(this.assetTexture)
-    } else if (!da.assetPath) {
+      this.assetTexture = textures[0] ?? null
+      this.particleSystem.setTextures(textures)
+    } else if (assetPaths.length === 0) {
       this.assetPath = null
+      this.assetTexturesKey = null
       this.assetTexture = null
-      this.particleSystem.setTexture(null)
+      this.particleSystem.setTextures([])
     }
   }
 }

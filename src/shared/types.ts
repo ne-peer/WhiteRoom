@@ -94,6 +94,9 @@ export type AssetParticle = {
 export type DynamicAssetEffect = {
   enabled: boolean
   assetPath: string | null
+  assetPaths: string[]
+  assetFolderPath: string | null
+  spawnMaxHeightRatio: number
   spawnIntervalMs: number    // 生成間隔
   riseSpeedPx: number        // 上昇速度 px/frame
   maxParticles: number
@@ -156,6 +159,8 @@ export type OpenFolderResult = {
 export type OpenAssetResult = {
   canceled: boolean
   filePath?: string
+  folderPath?: string
+  images?: string[]
 }
 
 export type SaveProfileResult = {
@@ -174,6 +179,7 @@ export type IpcApi = {
   openFolder: () => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
   openAsset: () => Promise<OpenAssetResult>
+  openAssetFolder: () => Promise<OpenAssetResult>
   readImageAsBase64: (filePath: string) => Promise<string>
   saveProfile: (profile: AppProfile) => Promise<SaveProfileResult>
   loadProfile: () => Promise<LoadProfileResult>

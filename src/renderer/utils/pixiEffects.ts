@@ -62,6 +62,7 @@ export class ParticleSystem {
   private sprites: Map<string, PIXI.Sprite> = new Map()
   private container: PIXI.Container
   private texture: PIXI.Texture | null = null
+  private textures: PIXI.Texture[] = []
   private lastSpawn = 0
 
   constructor(container: PIXI.Container) {
@@ -70,7 +71,16 @@ export class ParticleSystem {
 
   setTexture(texture: PIXI.Texture | null) {
     this.texture = texture
+    this.textures = texture ? [texture] : []
     if (!texture) {
+      this.clear()
+    }
+  }
+
+  setTextures(textures: PIXI.Texture[]) {
+    this.textures = textures
+    this.texture = textures[0] ?? null
+    if (textures.length === 0) {
       this.clear()
     }
   }
@@ -82,7 +92,7 @@ export class ParticleSystem {
     effects: CellEffects,
     nowMs: number
   ) {
-    if (!effects.dynamicAsset.enabled || !this.texture) {
+    if (!effects.dynamicAsset.enabled || this.textures.length === 0) {
       this.clear()
       return
     }
@@ -100,14 +110,14 @@ export class ParticleSystem {
         id: `p-${nowMs}-${Math.random()}`,
         assetPath: effects.dynamicAsset.assetPath ?? '',
         x: Math.random() * canvasWidth,
-        y: canvasHeight + 20,
+        y: canvasHeight - Math.random() * canvasHeight * clamp(effects.dynamicAsset.spawnMaxHeightRatio, 0, 0.7),
         alpha: 0.9,
         vy: randomRiseSpeed(),
         startTime: nowMs,
       }
       this.particles.push(p)
 
-      const sprite = new PIXI.Sprite(this.texture)
+      const sprite = new PIXI.Sprite(randomTexture(this.textures))
       sprite.anchor.set(0.5)
       sprite.x = p.x
       sprite.y = p.y
@@ -169,4 +179,12 @@ function getAssetOverlayTint(effects: CellEffects): number {
 
 function randomRiseSpeed(): number {
   return [2, 4, 6][Math.floor(Math.random() * 3)]
+}
+
+function randomTexture(textures: PIXI.Texture[]): PIXI.Texture {
+  return textures[Math.floor(Math.random() * textures.length)]
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
 }

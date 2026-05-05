@@ -41,6 +41,9 @@ export const DEFAULT_EFFECTS: CellEffects = {
   dynamicAsset: {
     enabled: false,
     assetPath: null,
+    assetPaths: [],
+    assetFolderPath: null,
+    spawnMaxHeightRatio: 0.7,
     spawnIntervalMs: 800,
     riseSpeedPx: 2,
     maxParticles: 20,

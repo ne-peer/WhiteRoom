@@ -37,7 +37,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
     const result = await api.openAsset()
     if (!result.canceled && result.filePath) {
-      set('dynamicAsset', { assetPath: result.filePath })
+      set('dynamicAsset', { assetPath: result.filePath, assetPaths: [result.filePath], assetFolderPath: null })
+    }
+  }
+
+  const handleOpenAssetFolder = async () => {
+    const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
+    const result = await api.openAssetFolder()
+    if (!result.canceled && result.folderPath && result.images && result.images.length > 0) {
+      set('dynamicAsset', { assetPath: result.images[0], assetPaths: result.images, assetFolderPath: result.folderPath })
     }
   }
 
@@ -214,9 +222,16 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 アセット画像を選択
               </Button>
             </div>
+            <div style={{ marginBottom: 8 }}>
+              <Button variant="secondary" onClick={handleOpenAssetFolder}>
+                フォルダからランダムに描画
+              </Button>
+            </div>
             {effects.dynamicAsset.assetPath && (
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 8, wordBreak: 'break-all' }}>
-                {effects.dynamicAsset.assetPath.split(/[\\/]/).pop()}
+                {effects.dynamicAsset.assetFolderPath
+                  ? `${effects.dynamicAsset.assetFolderPath} (${effects.dynamicAsset.assetPaths.length}枚)`
+                  : effects.dynamicAsset.assetPath.split(/[\\/]/).pop()}
               </div>
             )}
             <Row label="生成間隔">
@@ -232,6 +247,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', margin: '8px 0 10px' }}>
               上昇速度は毎回 2px / 4px / 6px のいずれかからランダムに選ばれます。
             </div>
+            <Row label="発生高さ上限">
+              <Slider
+                value={Math.round(effects.dynamicAsset.spawnMaxHeightRatio * 100)}
+                min={0}
+                max={70}
+                onChange={v => set('dynamicAsset', { spawnMaxHeightRatio: v / 100 })}
+                unit="%"
+              />
+            </Row>
             <Row label="最大数">
               <NumberInput
                 value={effects.dynamicAsset.maxParticles}
