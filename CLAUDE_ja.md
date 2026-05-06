@@ -1,4 +1,4 @@
-# CLAUDE.md — WhiteRoom
+﻿# CLAUDE.md — WhiteRoom
 
 ## プロジェクト概要
 

@@ -1,4 +1,4 @@
-import { useAppStore } from './stores/appStore'
+﻿import { useAppStore } from './stores/appStore'
 import type { UiLanguage } from '../shared/types'
 
 export type TranslationKey = keyof typeof translations.ja
@@ -59,6 +59,7 @@ export const translations = {
     cell: 'セル',
     imagesUnit: '枚',
     folderNotSet: 'フォルダ未設定',
+    dropImageOrFolderHere: '画像またはフォルダをドロップ',
     imageFit: '画像フィット',
     fitHeight: '高さに合わせる',
     fitWidth: '横幅に合わせる',
@@ -182,8 +183,8 @@ export const translations = {
     profileName: 'プロファイル名',
     profileNamePlaceholder: 'プロファイル名を入力',
     exportImport: 'エクスポート / インポート',
-    saveJson: '↑ JSONとして保存（エクスポート）',
-    loadJson: '↓ JSONから読み込む（インポート）',
+    saveJson: 'プロファイルを保存（エクスポート）',
+    loadJson: 'プロファイルを読み込み（インポート）',
     resetSettings: '↺ 設定をリセット',
     saveDone: '✓ 保存完了',
     saveFailed: '✗ 保存失敗',
@@ -234,6 +235,7 @@ export const translations = {
     cell: 'Cell',
     imagesUnit: 'images',
     folderNotSet: 'No folder set',
+    dropImageOrFolderHere: 'Drop image or folder here',
     imageFit: 'Image Fit',
     fitHeight: 'Fit height',
     fitWidth: 'Fit width',
@@ -357,8 +359,8 @@ export const translations = {
     profileName: 'Profile Name',
     profileNamePlaceholder: 'Enter profile name',
     exportImport: 'Export / Import',
-    saveJson: '↑ Save as JSON (export)',
-    loadJson: '↓ Load from JSON (import)',
+    saveJson: 'Save profile (export)',
+    loadJson: 'Load profile (import)',
     resetSettings: '↺ Reset settings',
     saveDone: '✓ Saved',
     saveFailed: '✗ Save failed',

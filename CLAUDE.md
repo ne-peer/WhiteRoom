@@ -64,6 +64,7 @@ type AppProfile = {  // matches profile JSON structure
 - **PixiJS stays in CellRenderer**: never manipulate PixiJS objects from React
 - **IPC**: always use `window.api.xxx()` from renderer, never call Electron APIs directly
 - **Error handling**: always `try/catch` for file I/O and `PixiJS.Assets.load()`
+- **Japanese text encoding**: keep Japanese messages in `src/renderer/i18n.ts` as literal Japanese text, not Unicode escape sequences. Save `src/renderer/i18n.ts` and `CLAUDE_ja.md` as UTF-8 with BOM so Japanese text is detected correctly on Windows.
 
 ## Commands
 

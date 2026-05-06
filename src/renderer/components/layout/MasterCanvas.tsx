@@ -5,12 +5,16 @@ import { useDropHandler } from '../../hooks/useDropHandler'
 import { useAppStore } from '../../stores/appStore'
 import { TimerOverlay } from '../timer/TimerOverlay'
 import { CellNavigationOverlay } from './CellNavigationOverlay'
+import { useTranslation } from '../../i18n'
 import styles from './MasterCanvas.module.css'
 
 export const MasterCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const showControls = useAppStore(s => s.showControls)
+  const grid = useAppStore(s => s.grid)
+  const cells = useAppStore(s => s.cells)
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null)
+  const { t } = useTranslation()
 
   const { setCellImage } = usePixiStage(containerRef)
   const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
@@ -92,6 +96,21 @@ export const MasterCanvas: React.FC = () => {
       onMouseLeave={handleMouseLeave}
     >
       {/* タイマーオーバレイ（PixiJSの上にReactでレンダリング） */}
+      <div
+        className={styles.emptyCellHints}
+        style={{
+          gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${grid.rows}, minmax(0, 1fr))`,
+        }}
+      >
+        {cells.map(cell => (
+          <div key={cell.id} className={styles.emptyCellHintSlot}>
+            {(!cell.folder || cell.folder.images.length === 0) && (
+              <span className={styles.emptyCellHint}>{t('dropImageOrFolderHere')}</span>
+            )}
+          </div>
+        ))}
+      </div>
       <TimerOverlay />
       {/* セルナビゲーションオーバーレイ（前/次画像ボタン） */}
       <CellNavigationOverlay hoveredCellId={hoveredCellId} />

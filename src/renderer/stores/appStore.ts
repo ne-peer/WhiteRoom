@@ -110,7 +110,7 @@ export const DEFAULT_TIMER: TimerConfig = {
   elapsedSec: 0,
   running: false,
   position: 'bottom-center',
-  showBackground: true,
+  showBackground: false,
 }
 
 const DEFAULT_LANGUAGE: UiLanguage = 'ja'
