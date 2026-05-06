@@ -67,6 +67,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
   },
   dynamicAsset: {
     enabled: false,
+    pattern: 'rising' as const,
     assetPath: null,
     assetPaths: [],
     assetFolderPath: null,
@@ -76,6 +77,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     maxParticles: 20,
     sizeRatio: 1.0,
     baseAlpha: 1.0,
+    emergenceSpeedFactor: 1.0,
     colorOverlayEnabled: false,
     colorOverlayColor: { r: 255, g: 100, b: 150 },
     colorOverlayAlpha: 0.5,
