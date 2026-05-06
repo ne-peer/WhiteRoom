@@ -29,7 +29,7 @@ export function useDropHandler(
     const files = Array.from(e.dataTransfer.files) as (File & { path?: string })[]
 
     for (const file of files) {
-      const filePath = file.path
+      const filePath = getFilePath(file)
       if (!filePath) continue
 
       if (file.type === '' || !file.type) {
@@ -114,9 +114,7 @@ function assignFolderToCell(
 
   setCellFolder(cellId, folder)
 
-  const startIndex = startImagePath
-    ? Math.max(0, images.indexOf(startImagePath))
-    : 0
+  const startIndex = startImagePath ? findImageIndex(images, startImagePath) : 0
 
   if (startIndex > 0) {
     setCellImageStore(cellId, startIndex)
@@ -168,4 +166,18 @@ function getCellIdAtPosition(
 function getParentFolderPath(filePath: string): string | null {
   const match = filePath.match(/^(.*)[\\/][^\\/]+$/)
   return match?.[1] ?? null
+}
+
+function getFilePath(file: File & { path?: string }): string {
+  return getApi().getPathForFile?.(file) || file.path || ''
+}
+
+function findImageIndex(images: string[], imagePath: string): number {
+  const normalizedPath = normalizePath(imagePath)
+  const index = images.findIndex(path => normalizePath(path) === normalizedPath)
+  return Math.max(0, index)
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/\\/g, '/').toLowerCase()
 }

@@ -88,7 +88,11 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   useEffect(() => {
     store.cells.forEach(cell => {
       const cr = cellRenderersRef.current.get(cell.id)
-      if (!cr || !cell.folder) return
+      if (!cr) return
+      if (!cell.folder) {
+        cr.clearImage()
+        return
+      }
       const imgPath = cell.folder.images[cell.currentImageIndex]
       if (imgPath) cr.setImage(imgPath, cell.slideshow.transition, cell.slideshow.transitionDurationMs)
     })

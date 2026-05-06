@@ -215,6 +215,7 @@ export type LoadProfileResult = {
 export type IpcApi = {
   openFolder: (language?: UiLanguage) => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
+  getPathForFile: (file: File) => string
   openAsset: (language?: UiLanguage) => Promise<OpenAssetResult>
   openAssetFolder: (language?: UiLanguage) => Promise<OpenAssetResult>
   readImageAsBase64: (filePath: string) => Promise<string>
