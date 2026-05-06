@@ -724,15 +724,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', margin: '8px 0 10px' }}>
                   {t('riseSpeedHelp')}
                 </div>
-                <Row label={t('maxSpawnHeight')}>
-                  <Slider
-                    value={Math.round(effects.dynamicAsset.spawnMaxHeightRatio * 100)}
-                    min={0}
-                    max={70}
-                    onChange={v => set('dynamicAsset', { spawnMaxHeightRatio: v / 100 })}
-                    unit="%"
-                  />
-                </Row>
               </>
             )}
             <Row label={t('maxCount')}>

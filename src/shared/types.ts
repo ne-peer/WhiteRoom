@@ -141,7 +141,6 @@ export type DynamicAssetEffect = {
   assetPath: string | null
   assetPaths: string[]
   assetFolderPath: string | null
-  spawnMaxHeightRatio: number
   spawnIntervalMs: number    // 生成間隔
   riseSpeedPx: number        // 上昇速度 px/frame
   maxParticles: number

@@ -154,7 +154,7 @@ export class ParticleSystem {
           id: `p-${nowMs}-${Math.random()}`,
           assetPath: effects.dynamicAsset.assetPath ?? '',
           x: Math.random() * canvasWidth,
-          y: canvasHeight - Math.random() * canvasHeight * clamp(effects.dynamicAsset.spawnMaxHeightRatio, 0, 0.7),
+          y: canvasHeight - Math.random() * canvasHeight * 0.7,
           alpha: assetBaseAlpha,
           vy: randomRiseSpeed(),
           startTime: nowMs,
