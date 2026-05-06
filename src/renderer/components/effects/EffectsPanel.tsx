@@ -63,6 +63,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setAllCellsEffect,
     selectedCellId,
     cells,
+    applyEffectChangesToAllColumns,
+    setApplyEffectChangesToAllColumns,
     applyEffectsToAll,
     restartEffectsWithRandomTiming,
     syncActiveEffectsInSelectedColumn,
@@ -187,6 +189,18 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         <Button small variant="secondary" onClick={applyEffectPreset1}>
           プリセット1
         </Button>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <Row label={t('applyEffectChangesToAllColumns')}>
+          <Toggle
+            value={applyEffectChangesToAllColumns}
+            onChange={setApplyEffectChangesToAllColumns}
+          />
+        </Row>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', wordBreak: 'break-all' }}>
+          {t('applyEffectChangesToAllColumnsHelp')}
+        </div>
       </div>
 
       <Section title={t('colorOverlay')}>

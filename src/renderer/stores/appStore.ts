@@ -173,6 +173,7 @@ export type AppState = {
   effectRandomNonce: number
   effectColumnSyncNonce: number
   effectColumnSyncCol: number | null
+  applyEffectChangesToAllColumns: boolean
 }
 
 export type AppActions = {
@@ -200,6 +201,7 @@ export type AppActions = {
   restartEffectsWithRandomTiming: () => void
   syncActiveEffectsInSelectedColumn: () => void
   enableAllTimerSyncForSelectedCell: () => void
+  setApplyEffectChangesToAllColumns: (flag: boolean) => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -258,6 +260,7 @@ export const useAppStore = create<AppStore>()(
     effectRandomNonce: 0,
     effectColumnSyncNonce: 0,
     effectColumnSyncCol: null,
+    applyEffectChangesToAllColumns: true,
 
     // ===== グリッド操作 =====
 
@@ -384,11 +387,18 @@ export const useAppStore = create<AppStore>()(
 
     setCellEffect: (cellId, effectKey, value) => set(s => {
       const cell = s.cells.find(c => c.id === cellId)
-      if (cell) Object.assign(cell.effects[effectKey], value)
+      if (!cell) return
+      if (s.applyEffectChangesToAllColumns) {
+        s.cells.forEach(targetCell => {
+          Object.assign(targetCell.effects[effectKey], structuredClone(value))
+        })
+        return
+      }
+      Object.assign(cell.effects[effectKey], value)
     }),
 
     setAllCellsEffect: (effectKey, value) => set(s => {
-      s.cells.forEach(cell => Object.assign(cell.effects[effectKey], value))
+      s.cells.forEach(cell => Object.assign(cell.effects[effectKey], structuredClone(value)))
     }),
 
     applyEffectsToAll: () => {
@@ -417,13 +427,20 @@ export const useAppStore = create<AppStore>()(
     enableAllTimerSyncForSelectedCell: () => set(s => {
       const selectedCell = s.cells.find(c => c.id === s.selectedCellId)
       if (!selectedCell) return
-      selectedCell.effects.colorOverlay.dynamicAdjustTimerSync = true
-      selectedCell.effects.vignette.dynamicTimerSync = true
-      selectedCell.effects.blur.gradualTimerSync = true
-      selectedCell.effects.echo.timerSync = true
-      selectedCell.effects.breathing.timerSync = true
-      selectedCell.effects.dynamicAsset.alphaTimerSync = true
-      selectedCell.effects.textEffect.alphaTimerSync = true
+      const targetCells = s.applyEffectChangesToAllColumns ? s.cells : [selectedCell]
+      targetCells.forEach(cell => {
+        cell.effects.colorOverlay.dynamicAdjustTimerSync = true
+        cell.effects.vignette.dynamicTimerSync = true
+        cell.effects.blur.gradualTimerSync = true
+        cell.effects.echo.timerSync = true
+        cell.effects.breathing.timerSync = true
+        cell.effects.dynamicAsset.alphaTimerSync = true
+        cell.effects.textEffect.alphaTimerSync = true
+      })
+    }),
+
+    setApplyEffectChangesToAllColumns: (flag) => set(s => {
+      s.applyEffectChangesToAllColumns = flag
     }),
 
     // ===== 表示設定 =====
@@ -519,6 +536,7 @@ export const useAppStore = create<AppStore>()(
       s.fullscreen = false
       s.showNavigationBar = true
       s.selectedCellId = cells[0]?.id ?? null
+      s.applyEffectChangesToAllColumns = true
     }),
   })})
 )
