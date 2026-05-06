@@ -171,6 +171,25 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     })
   }, [store.effectRandomNonce])
 
+  useEffect(() => {
+    const { cells, effectColumnSyncCol } = store
+    if (effectColumnSyncCol === null) return
+
+    cells.forEach(cell => {
+      if (cell.col !== effectColumnSyncCol) return
+      const hasActiveTimedEffect =
+        (cell.effects.vignette.enabled && cell.effects.vignette.dynamic) ||
+        (cell.effects.blur.enabled && cell.effects.blur.gradualEnabled) ||
+        cell.effects.echo.enabled
+      if (!hasActiveTimedEffect) return
+
+      const cr = cellRenderersRef.current.get(cell.id)
+      if (cr) {
+        cr.resetVignetteBlurEchoTiming(cell.effects)
+      }
+    })
+  }, [store.effectColumnSyncNonce])
+
   const setCellImage = useCallback((cellId: string, imagePath: string) => {
     const cr = cellRenderersRef.current.get(cellId)
     if (cr) cr.setImage(imagePath, 'none')

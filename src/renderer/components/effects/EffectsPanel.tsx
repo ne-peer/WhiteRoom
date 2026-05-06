@@ -57,6 +57,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     cells,
     applyEffectsToAll,
     restartEffectsWithRandomTiming,
+    syncActiveEffectsInSelectedColumn,
   } = useAppStore()
   const { language, t } = useTranslation()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
@@ -113,6 +114,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const applyAssetEffectToAll = () => {
     setAllCellsEffect('dynamicAsset', structuredClone(effects.dynamicAsset))
   }
+
+  const hasColumnSyncTarget = cells.some(c =>
+    c.col === selectedCell.col &&
+    (
+      (c.effects.vignette.enabled && c.effects.vignette.dynamic) ||
+      (c.effects.blur.enabled && c.effects.blur.gradualEnabled) ||
+      c.effects.echo.enabled
+    )
+  )
 
   const handleOpenAsset = async () => {
     const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
@@ -509,8 +519,19 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             variant="secondary"
             onClick={restartEffectsWithRandomTiming}
             disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled)}
+            title={t('restartRandomTimingTip')}
           >
             {t('restartRandomTiming')}
+          </Button>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <Button
+            variant="secondary"
+            onClick={syncActiveEffectsInSelectedColumn}
+            disabled={!hasColumnSyncTarget}
+            title={t('syncColumnEffectTimingTip')}
+          >
+            {t('syncColumnEffectTiming')}
           </Button>
         </div>
       </Section>

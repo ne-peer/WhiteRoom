@@ -144,6 +144,8 @@ export type AppState = {
   slideshowRestartNonce: number
   effectSyncNonce: number
   effectRandomNonce: number
+  effectColumnSyncNonce: number
+  effectColumnSyncCol: number | null
 }
 
 export type AppActions = {
@@ -169,6 +171,7 @@ export type AppActions = {
   restartSlideshowsRandomly: () => void
   applyEffectsToAll: () => void
   restartEffectsWithRandomTiming: () => void
+  syncActiveEffectsInSelectedColumn: () => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -223,6 +226,8 @@ export const useAppStore = create<AppStore>()(
     slideshowRestartNonce: 0,
     effectSyncNonce: 0,
     effectRandomNonce: 0,
+    effectColumnSyncNonce: 0,
+    effectColumnSyncCol: null,
 
     // ===== グリッド操作 =====
 
@@ -370,6 +375,13 @@ export const useAppStore = create<AppStore>()(
 
     restartEffectsWithRandomTiming: () => set(s => {
       s.effectRandomNonce += 1
+    }),
+
+    syncActiveEffectsInSelectedColumn: () => set(s => {
+      const selectedCell = s.cells.find(c => c.id === s.selectedCellId)
+      if (!selectedCell) return
+      s.effectColumnSyncCol = selectedCell.col
+      s.effectColumnSyncNonce += 1
     }),
 
     // ===== 表示設定 =====

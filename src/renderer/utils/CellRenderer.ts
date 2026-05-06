@@ -240,6 +240,36 @@ export class CellRenderer {
     }
   }
 
+  resetVignetteBlurEchoTiming(effects: CellEffects) {
+    if (this.effectResetTimeoutId !== null) {
+      clearTimeout(this.effectResetTimeoutId)
+      this.effectResetTimeoutId = null
+    }
+
+    if (effects.vignette.enabled && effects.vignette.dynamic) {
+      this.vignetteGsapTween?.kill()
+      this.vignetteGsapTween = null
+      this.vignetteAnimationKey = null
+    }
+
+    if (effects.blur.enabled && effects.blur.gradualEnabled) {
+      this.blurGsapTween?.kill()
+      this.blurGsapTween = null
+      this.blurAnimationKey = null
+    }
+
+    if (effects.echo.enabled) {
+      this.echoGsapTween?.kill()
+      this.echoGsapTween = null
+      this.echoAnimationKey = null
+    }
+
+    this.latestEffects = effects
+    this.updateVignette(effects)
+    this.updateBlur(effects)
+    this.updateEcho(effects)
+  }
+
   tick(delta: number, effects: CellEffects) {
     this.tickBreathing(delta, effects.breathing)
     this.syncRadialBlurClones()
@@ -765,21 +795,10 @@ export class CellRenderer {
     this.vignetteSprite.visible = true
 
     if (vig.dynamic) {
-      // ブラー同期モードを判定
-      const isSyncMode = effects.blur.enabled &&
-                         effects.blur.gradualEnabled &&
-                         effects.blur.gradualDurationSec > 0
-
-      // 同期モード時、ビネットのアニメーション時間をブラーに合わせる
-      const vignetteAnimDurationMs = isSyncMode
-        ? effects.blur.gradualDurationSec * 1000
-        : vig.dynamicDurationMs
-
       const animationKey = [
         vig.dynamicFrom,
         vig.dynamicTo,
-        vignetteAnimDurationMs,
-        isSyncMode ? 'sync-blur' : 'solo',
+        vig.dynamicDurationMs,
       ].join(':')
 
       if (this.vignetteAnimationKey !== animationKey) {
@@ -789,7 +808,7 @@ export class CellRenderer {
         if (this.vignetteSprite) this.vignetteSprite.alpha = vig.dynamicFrom
         this.vignetteGsapTween = gsap.to(proxy, {
           alpha: vig.dynamicTo,
-          duration: vignetteAnimDurationMs / 1000,
+          duration: vig.dynamicDurationMs / 1000,
           ease: 'sine.inOut',
           repeat: -1,
           yoyo: false,
