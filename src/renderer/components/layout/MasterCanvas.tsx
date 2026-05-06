@@ -4,6 +4,7 @@ import { usePixiStage } from '../../hooks/usePixiStage'
 import { useDropHandler } from '../../hooks/useDropHandler'
 import { useAppStore } from '../../stores/appStore'
 import { TimerOverlay } from '../timer/TimerOverlay'
+import { TimerEndFlashOverlay } from '../timer/TimerEndFlashOverlay'
 import { CellNavigationOverlay } from './CellNavigationOverlay'
 import { useTranslation } from '../../i18n'
 import styles from './MasterCanvas.module.css'
@@ -111,6 +112,7 @@ export const MasterCanvas: React.FC = () => {
           </div>
         ))}
       </div>
+      <TimerEndFlashOverlay />
       <TimerOverlay />
       {/* セルナビゲーションオーバーレイ（前/次画像ボタン） */}
       <CellNavigationOverlay hoveredCellId={hoveredCellId} />

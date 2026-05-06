@@ -192,6 +192,15 @@ export type TimerConfig = {
   running: boolean
   position: TimerPosition
   showBackground: boolean
+  endFlash: TimerEndFlashConfig
+}
+
+export type TimerEndFlashConfig = {
+  enabled: boolean
+  color: { r: number; g: number; b: number }
+  maxTransparency: number
+  count: number
+  intervalSec: number
 }
 
 // ===== グリッド全体 =====

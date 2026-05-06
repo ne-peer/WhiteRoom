@@ -111,6 +111,13 @@ export const DEFAULT_TIMER: TimerConfig = {
   running: false,
   position: 'bottom-center',
   showBackground: false,
+  endFlash: {
+    enabled: true,
+    color: { r: 255, g: 255, b: 255 },
+    maxTransparency: 0,
+    count: 3,
+    intervalSec: 0.5,
+  },
 }
 
 const DEFAULT_LANGUAGE: UiLanguage = 'ja'
@@ -479,7 +486,11 @@ export const useAppStore = create<AppStore>()(
           textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
         },
       }))
-      s.timer = { ...DEFAULT_TIMER, ...profile.timer }
+      s.timer = {
+        ...DEFAULT_TIMER,
+        ...profile.timer,
+        endFlash: { ...DEFAULT_TIMER.endFlash, ...profile.timer?.endFlash },
+      }
       s.fullscreen = profile.fullscreen
       s.showNavigationBar = true
       s.selectedCellId = null

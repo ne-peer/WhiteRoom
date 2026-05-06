@@ -1,0 +1,25 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  pointer-events: none;
+}
+
+.column {
+  min-width: 0;
+  min-height: 0;
+  opacity: 0;
+  animation-name: timerEndFlash;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+@keyframes timerEndFlash {
+  from {
+    opacity: var(--flash-opacity, 1);
+  }
+  to {
+    opacity: 0;
+  }
+}

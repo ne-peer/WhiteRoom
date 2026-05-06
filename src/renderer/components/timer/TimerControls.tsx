@@ -1,7 +1,7 @@
 import React from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useTimer } from '../../hooks/useTimer'
-import { Section, Row, Toggle, NumberInput, Select, Button } from '../controls/UIKit'
+import { Section, Row, Toggle, NumberInput, Select, Button, ColorPicker, Slider } from '../controls/UIKit'
 import { useTranslation } from '../../i18n'
 import type { TimerPosition } from '../../../shared/types'
 
@@ -88,12 +88,94 @@ export const TimerControls: React.FC = () => {
           </>
         )}
       </Section>
+
+      <Section title={t('timerEndFlashSection')}>
+        <Row label={t('enabled')}>
+          <Toggle
+            value={timer.endFlash.enabled}
+            onChange={v => setTimer({ endFlash: { ...timer.endFlash, enabled: v } })}
+          />
+        </Row>
+        {timer.endFlash.enabled && (
+          <>
+            <Row label={t('backgroundColorLabel')}>
+              <div style={{ width: '100%' }}>
+                <ColorPicker
+                  r={timer.endFlash.color.r}
+                  g={timer.endFlash.color.g}
+                  b={timer.endFlash.color.b}
+                  onChange={(r, g, b) => setTimer({ endFlash: { ...timer.endFlash, color: { r, g, b } } })}
+                />
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {FLASH_COLOR_PRESETS.map(preset => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        title={preset.label}
+                        onClick={() => setTimer({ endFlash: { ...timer.endFlash, color: preset.color } })}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 6,
+                          background: preset.label,
+                          cursor: 'pointer',
+                          border: '1px solid rgba(255,255,255,0.18)',
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Row>
+            <Row label={t('transparency')}>
+              <Slider
+                value={timer.endFlash.maxTransparency}
+                min={0}
+                max={100}
+                step={1}
+                unit="%"
+                onChange={v => setTimer({ endFlash: { ...timer.endFlash, maxTransparency: clamp(v, 0, 100) } })}
+              />
+            </Row>
+            <Row label={t('flashCount')}>
+              <NumberInput
+                value={timer.endFlash.count}
+                min={1}
+                max={100}
+                step={1}
+                unit={t('times')}
+                onChange={v => setTimer({ endFlash: { ...timer.endFlash, count: Math.max(1, Math.round(v)) } })}
+              />
+            </Row>
+            <Row label={t('flashInterval')}>
+              <NumberInput
+                value={timer.endFlash.intervalSec}
+                min={0.05}
+                max={60}
+                step={0.05}
+                unit={t('seconds')}
+                onChange={v => setTimer({ endFlash: { ...timer.endFlash, intervalSec: Math.max(0.05, v) } })}
+              />
+            </Row>
+          </>
+        )}
+      </Section>
     </div>
   )
 }
+
+const FLASH_COLOR_PRESETS = [
+  { label: '#FF00AE', color: { r: 255, g: 0, b: 174 } },
+  { label: '#FFFFFF', color: { r: 255, g: 255, b: 255 } },
+] as const
 
 function formatTime(sec: number): string {
   const m = Math.floor(sec / 60)
   const s = sec % 60
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
 }
