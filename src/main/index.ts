@@ -124,7 +124,9 @@ function createWindow(): BrowserWindow {
   // 開発時
   if (process.env.NODE_ENV === 'development' || process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL']!)
-    win.webContents.openDevTools()
+    if (process.env.WHITEROOM_OPEN_DEVTOOLS === '1') {
+      win.webContents.openDevTools({ mode: 'detach' })
+    }
   } else {
     win.loadFile(join(__dirname, '../../dist/renderer/index.html'))
   }

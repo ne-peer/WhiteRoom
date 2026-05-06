@@ -201,15 +201,18 @@ export type AppStore = AppState & AppActions
 // ===== Store 実装 =====
 
 export const useAppStore = create<AppStore>()(
-  immer((set, get) => ({
+  immer((set, get) => {
+    const initialCells = buildCells(1, 1)
+
+    return ({
     // 初期状態
     blankColor: DEFAULT_BLANK_COLOR,
     grid: { cols: 1, rows: 1 },
-    cells: buildCells(1, 1),
+    cells: initialCells,
     timer: DEFAULT_TIMER,
     fullscreen: false,
     showNavigationBar: true,
-    selectedCellId: null,
+    selectedCellId: initialCells[0]?.id ?? null,
     showControls: true,
     isLoading: false,
     language: getInitialLanguage(),
@@ -433,15 +436,16 @@ export const useAppStore = create<AppStore>()(
     }),
 
     resetProfile: () => set(s => {
+      const cells = buildCells(1, 1)
       s.blankColor = DEFAULT_BLANK_COLOR
       s.grid = { cols: 1, rows: 1 }
-      s.cells = buildCells(1, 1)
+      s.cells = cells
       s.timer = { ...DEFAULT_TIMER }
       s.fullscreen = false
       s.showNavigationBar = true
-      s.selectedCellId = null
+      s.selectedCellId = cells[0]?.id ?? null
     }),
-  }))
+  })})
 )
 
 // ===== ヘルパー: グリッド再構築（既存データを保持） =====

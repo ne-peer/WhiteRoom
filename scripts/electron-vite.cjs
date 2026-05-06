@@ -4,10 +4,12 @@ const { join } = require('node:path')
 const env = { ...process.env }
 delete env.ELECTRON_RUN_AS_NODE
 
+const projectRoot = join(__dirname, '..')
 const electronViteBin = join(__dirname, '..', 'node_modules', 'electron-vite', 'bin', 'electron-vite.js')
 const child = spawn(process.execPath, [electronViteBin, ...process.argv.slice(2)], {
   stdio: 'inherit',
-  env
+  env,
+  cwd: projectRoot
 })
 
 child.on('exit', (code, signal) => {
