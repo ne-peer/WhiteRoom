@@ -400,6 +400,12 @@ export class CellRenderer {
     }
   }
 
+  clearImage() {
+    this.clearTransitionSprite()
+    this.swapImageSprite(null, null)
+    this.requestedImageSrc = null
+  }
+
   private swapImageSprite(sprite: PIXI.Sprite | null, url: string | null) {
     const oldSprite = this.imageSprite
     if (oldSprite) gsap.killTweensOf(oldSprite)

@@ -154,6 +154,7 @@ export type AppActions = {
 
   // セル操作
   setCellFolder: (cellId: string, folder: CellFolder) => void
+  resetCellFolder: (cellId: string) => void
   setAllCellsFolder: (folder: CellFolder) => void
   setCellImageFit: (cellId: string, imageFit: ImageFitMode) => void
   setAllCellsImageFit: (imageFit: ImageFitMode) => void
@@ -268,6 +269,14 @@ export const useAppStore = create<AppStore>()(
       const cell = s.cells.find(c => c.id === cellId)
       if (cell) {
         cell.folder = folder
+        cell.currentImageIndex = 0
+      }
+    }),
+
+    resetCellFolder: (cellId) => set(s => {
+      const cell = s.cells.find(c => c.id === cellId)
+      if (cell) {
+        cell.folder = null
         cell.currentImageIndex = 0
       }
     }),

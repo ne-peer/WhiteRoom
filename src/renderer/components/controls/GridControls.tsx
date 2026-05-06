@@ -20,7 +20,10 @@ export const GridControls: React.FC = () => {
     setCellImageFit,
     setAllCellsImageFit,
     restartSlideshowsRandomly,
+    resetCellFolder,
   } = useAppStore()
+
+  const handleResetSelectedFolder = selectedCellId ? () => resetCellFolder(selectedCellId) : undefined
   const { language, t } = useTranslation()
 
   const selectedCell = cells.find(c => c.id === selectedCellId)
@@ -52,10 +55,10 @@ export const GridControls: React.FC = () => {
     <div>
       <Section title={t('gridSize')}>
         <Row label={t('colLabel')}>
-          <Stepper value={grid.cols} min={1} max={15} onDecrement={removeColumn} onIncrement={addColumn} label={t('colUnit')} />
+          <Stepper value={grid.cols} min={1} max={15} onDecrement={removeColumn} onIncrement={addColumn} onDecrementAtMin={handleResetSelectedFolder} label={t('colUnit')} />
         </Row>
         <Row label={t('rowLabel')}>
-          <Stepper value={grid.rows} min={1} max={15} onDecrement={removeRow} onIncrement={addRow} label={t('rowUnit')} />
+          <Stepper value={grid.rows} min={1} max={15} onDecrement={removeRow} onIncrement={addRow} onDecrementAtMin={handleResetSelectedFolder} label={t('rowUnit')} />
         </Row>
       </Section>
 

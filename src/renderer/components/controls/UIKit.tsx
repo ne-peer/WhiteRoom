@@ -163,11 +163,17 @@ export const Stepper: React.FC<{
   max: number
   onDecrement: () => void
   onIncrement: () => void
+  onDecrementAtMin?: () => void
   label?: string
-}> = ({ value, min, max, onDecrement, onIncrement, label }) => (
-  <div className={styles.stepper}>
-    <button className={styles.stepBtn} onClick={onDecrement} disabled={value <= min}>−</button>
-    <span className={styles.stepValue}>{value}{label}</span>
-    <button className={styles.stepBtn} onClick={onIncrement} disabled={value >= max}>＋</button>
-  </div>
-)
+}> = ({ value, min, max, onDecrement, onIncrement, onDecrementAtMin, label }) => {
+  const atMin = value <= min
+  const decrementDisabled = atMin && !onDecrementAtMin
+  const handleDecrement = atMin && onDecrementAtMin ? onDecrementAtMin : onDecrement
+  return (
+    <div className={styles.stepper}>
+      <button className={styles.stepBtn} onClick={handleDecrement} disabled={decrementDisabled}>−</button>
+      <span className={styles.stepValue}>{value}{label}</span>
+      <button className={styles.stepBtn} onClick={onIncrement} disabled={value >= max}>＋</button>
+    </div>
+  )
+}
