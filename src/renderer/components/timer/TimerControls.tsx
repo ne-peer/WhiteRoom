@@ -18,7 +18,7 @@ const POSITION_OPTIONS: { value: TimerPosition; labelKey: 'topLeft' | 'topCenter
 ]
 
 export const TimerControls: React.FC = () => {
-  const { setTimer } = useAppStore()
+  const { setTimer, selectedCellId, enableAllTimerSyncForSelectedCell } = useAppStore()
   const { timer, start, pause, reset } = useTimer()
   const { t } = useTranslation()
 
@@ -87,6 +87,16 @@ export const TimerControls: React.FC = () => {
             </div>
           </>
         )}
+      </Section>
+
+      <Section title={t('timerSyncSection')}>
+        <Button
+          variant="secondary"
+          onClick={enableAllTimerSyncForSelectedCell}
+          disabled={!selectedCellId}
+        >
+          {t('enableAllTimerSync')}
+        </Button>
       </Section>
 
       <Section title={t('timerEndFlashSection')}>

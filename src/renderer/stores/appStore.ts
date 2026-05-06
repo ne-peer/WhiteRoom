@@ -199,6 +199,7 @@ export type AppActions = {
   applyEffectsToAll: () => void
   restartEffectsWithRandomTiming: () => void
   syncActiveEffectsInSelectedColumn: () => void
+  enableAllTimerSyncForSelectedCell: () => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -411,6 +412,18 @@ export const useAppStore = create<AppStore>()(
       if (!selectedCell) return
       s.effectColumnSyncCol = selectedCell.col
       s.effectColumnSyncNonce += 1
+    }),
+
+    enableAllTimerSyncForSelectedCell: () => set(s => {
+      const selectedCell = s.cells.find(c => c.id === s.selectedCellId)
+      if (!selectedCell) return
+      selectedCell.effects.colorOverlay.dynamicAdjustTimerSync = true
+      selectedCell.effects.vignette.dynamicTimerSync = true
+      selectedCell.effects.blur.gradualTimerSync = true
+      selectedCell.effects.echo.timerSync = true
+      selectedCell.effects.breathing.timerSync = true
+      selectedCell.effects.dynamicAsset.alphaTimerSync = true
+      selectedCell.effects.textEffect.alphaTimerSync = true
     }),
 
     // ===== 表示設定 =====

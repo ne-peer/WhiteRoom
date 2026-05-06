@@ -66,6 +66,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     applyEffectsToAll,
     restartEffectsWithRandomTiming,
     syncActiveEffectsInSelectedColumn,
+    enableAllTimerSyncForSelectedCell,
   } = useAppStore()
   const { language, t } = useTranslation()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
@@ -670,15 +671,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       </Section>
 
       <Section title={t('timerSyncSection')}>
-        <Button variant="secondary" onClick={() => {
-          set('colorOverlay', { dynamicAdjustTimerSync: true })
-          set('vignette', { dynamicTimerSync: true })
-          set('blur', { gradualTimerSync: true })
-          set('echo', { timerSync: true })
-          set('breathing', { timerSync: true })
-          set('dynamicAsset', { alphaTimerSync: true })
-          set('textEffect', { alphaTimerSync: true })
-        }}>
+        <Button variant="secondary" onClick={enableAllTimerSyncForSelectedCell}>
           {t('enableAllTimerSync')}
         </Button>
       </Section>
