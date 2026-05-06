@@ -8,6 +8,10 @@ import styles from './AppearanceControls.module.css'
 export const AppearanceControls: React.FC = () => {
   const { blankColor, blankBackground, setBlankColor, setBlankBackground, fullscreen, setFullscreen } = useAppStore()
   const { language, setLanguage, t } = useTranslation()
+  const backgroundModeOptions = [
+    { value: 'color', label: t('backgroundModeColor') },
+    { value: 'dynamic', label: t('backgroundModeDynamic') },
+  ]
 
   const handleFullscreen = (v: boolean) => {
     setFullscreen(v)
@@ -35,17 +39,17 @@ export const AppearanceControls: React.FC = () => {
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
             {t('blankSpaceColorHelp')}
           </div>
-          <Row label="タイプ">
+          <Row label={t('backgroundType')}>
             <Select
               value={blankBackground.mode}
-              options={BACKGROUND_MODE_OPTIONS}
+              options={backgroundModeOptions}
               onChange={mode => setBlankBackground({ mode: mode as 'color' | 'dynamic' })}
             />
           </Row>
 
           {blankBackground.mode === 'color' ? (
             <>
-              <Row label="カラー">
+              <Row label={t('backgroundColorLabel')}>
                 <ColorPicker
                   r={blankColor.r}
                   g={blankColor.g}
@@ -78,7 +82,7 @@ export const AppearanceControls: React.FC = () => {
               </div>
             </>
           ) : (
-            <Row label="ブラー">
+            <Row label={t('backgroundBlur')}>
               <Slider
                 value={blankBackground.dynamicBlur}
                 min={0}
@@ -106,11 +110,6 @@ export const AppearanceControls: React.FC = () => {
     </div>
   )
 }
-
-const BACKGROUND_MODE_OPTIONS = [
-  { value: 'color', label: 'カラー' },
-  { value: 'dynamic', label: 'ダイナミック' },
-]
 
 const PRESETS = [
   { label: 'Default', r: DEFAULT_BLANK_COLOR.r, g: DEFAULT_BLANK_COLOR.g, b: DEFAULT_BLANK_COLOR.b },

@@ -8,7 +8,7 @@ import type {
 
 // ===== デフォルト値 =====
 
-export const DEFAULT_BLANK_COLOR: BlankColor = { r: 255, g: 100, b: 150, a: 1 }
+export const DEFAULT_BLANK_COLOR: BlankColor = { r: 255, g: 100, b: 150, a: 0.5 }
 export const DEFAULT_BLANK_BACKGROUND: BlankBackground = { mode: 'color', dynamicBlur: 30 }
 export const DEFAULT_SLIDESHOW: Cell['slideshow'] = {
   enabled: false,
