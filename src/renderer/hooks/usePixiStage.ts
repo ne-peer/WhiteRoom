@@ -10,6 +10,14 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   const cellRenderersRef = useRef<CellRendererMap>(new Map())
   const slideshowTimersRef = useRef<Map<string, number>>(new Map())
   const lastRandomRestartNonceRef = useRef(0)
+  const smoothTimerRef = useRef({
+    enabled: false,
+    running: false,
+    elapsedSec: 0,
+    totalSec: 0,
+    baseElapsedSec: 0,
+    baseTimeMs: 0,
+  })
 
   const store = useAppStore()
 
@@ -43,10 +51,14 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       appRef.current = app
 
       app.ticker.add((ticker) => {
-        const { cells } = useAppStore.getState()
+        const { cells, timer } = useAppStore.getState()
+        const now = performance.now()
+        const timerProgress = getSmoothTimerProgress(smoothTimerRef.current, timer, now)
         cells.forEach(cell => {
           const cr = cellRenderersRef.current.get(cell.id)
-          if (cr) cr.tick(ticker.deltaTime, cell.effects)
+          if (!cr) return
+          cr.applyTimerProgress(cell.effects, timer.enabled, timer.running, timerProgress)
+          cr.tick(ticker.deltaTime, cell.effects)
         })
       })
 
@@ -193,6 +205,14 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   useEffect(() => {
     const { timer, cells } = store
     const progress = timer.totalSec > 0 ? timer.elapsedSec / timer.totalSec : 0
+    smoothTimerRef.current = {
+      enabled: timer.enabled,
+      running: timer.running,
+      elapsedSec: timer.elapsedSec,
+      totalSec: timer.totalSec,
+      baseElapsedSec: timer.elapsedSec,
+      baseTimeMs: performance.now(),
+    }
     cells.forEach(cell => {
       const cr = cellRenderersRef.current.get(cell.id)
       if (cr) cr.applyTimerProgress(cell.effects, timer.enabled, timer.running, progress)
@@ -205,6 +225,40 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   }, [])
 
   return { app: appRef, cellRenderers: cellRenderersRef, setCellImage }
+}
+
+function getSmoothTimerProgress(
+  state: {
+    enabled: boolean
+    running: boolean
+    elapsedSec: number
+    totalSec: number
+    baseElapsedSec: number
+    baseTimeMs: number
+  },
+  timer: ReturnType<typeof useAppStore.getState>['timer'],
+  nowMs: number
+): number {
+  if (
+    state.enabled !== timer.enabled ||
+    state.running !== timer.running ||
+    state.elapsedSec !== timer.elapsedSec ||
+    state.totalSec !== timer.totalSec
+  ) {
+    state.enabled = timer.enabled
+    state.running = timer.running
+    state.elapsedSec = timer.elapsedSec
+    state.totalSec = timer.totalSec
+    state.baseElapsedSec = timer.elapsedSec
+    state.baseTimeMs = nowMs
+  }
+
+  if (!timer.enabled || timer.totalSec <= 0) return 0
+  const elapsedSec = timer.running
+    ? state.baseElapsedSec + (nowMs - state.baseTimeMs) / 1000
+    : timer.elapsedSec
+
+  return clamp(elapsedSec / timer.totalSec, 0, 1)
 }
 
 function layoutCells(
@@ -288,4 +342,8 @@ function drawCellBackground(
 
 function rgbaToHex(c: { r: number; g: number; b: number; a?: number }): number {
   return (c.r << 16) | (c.g << 8) | c.b
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
 }
