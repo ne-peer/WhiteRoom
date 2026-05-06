@@ -97,6 +97,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const rawEffects = selectedCell.effects
   const effects = {
     ...rawEffects,
+    colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...rawEffects.colorOverlay },
+    vignette: { ...DEFAULT_EFFECTS.vignette, ...rawEffects.vignette },
     blur: { ...DEFAULT_EFFECTS.blur, ...rawEffects.blur },
     breathing: { ...DEFAULT_EFFECTS.breathing, ...rawEffects.breathing },
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...rawEffects.textEffect },
@@ -119,6 +121,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     c.col === selectedCell.col &&
     (
       (c.effects.vignette.enabled && c.effects.vignette.dynamic) ||
+      (c.effects.colorOverlay?.imageAdjustEnabled && c.effects.colorOverlay?.dynamicAdjust) ||
       (c.effects.blur.enabled && c.effects.blur.gradualEnabled) ||
       c.effects.echo.enabled
     )
@@ -164,6 +167,52 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               alpha={effects.colorOverlay.alpha}
               onAlphaChange={a => set('colorOverlay', { alpha: a })}
             />
+            <Row label={t('imageEnhanceFilter')}>
+              <Toggle
+                value={effects.colorOverlay.imageAdjustEnabled}
+                onChange={v => set('colorOverlay', { imageAdjustEnabled: v })}
+              />
+            </Row>
+            {effects.colorOverlay.imageAdjustEnabled && (
+              <>
+                <Row label={t('saturationMax')}>
+                  <Slider
+                    value={Math.round(effects.colorOverlay.saturationMax * 100)}
+                    min={100}
+                    max={300}
+                    onChange={v => set('colorOverlay', { saturationMax: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('contrastMax')}>
+                  <Slider
+                    value={Math.round(effects.colorOverlay.contrastMax * 100)}
+                    min={100}
+                    max={300}
+                    onChange={v => set('colorOverlay', { contrastMax: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('dynamicImageEnhance')}>
+                  <Toggle
+                    value={effects.colorOverlay.dynamicAdjust}
+                    onChange={v => set('colorOverlay', { dynamicAdjust: v })}
+                  />
+                </Row>
+                {effects.colorOverlay.dynamicAdjust && (
+                  <Row label={t('changeDuration')}>
+                    <NumberInput
+                      value={effects.colorOverlay.dynamicAdjustDurationMs / 1000}
+                      min={0.1}
+                      max={10}
+                      step={0.1}
+                      unit={t('seconds')}
+                      onChange={v => set('colorOverlay', { dynamicAdjustDurationMs: v * 1000 })}
+                    />
+                  </Row>
+                )}
+              </>
+            )}
           </>
         )}
       </Section>
@@ -518,7 +567,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <Button
             variant="secondary"
             onClick={restartEffectsWithRandomTiming}
-            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled)}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled)}
             title={t('restartRandomTimingTip')}
           >
             {t('restartRandomTiming')}

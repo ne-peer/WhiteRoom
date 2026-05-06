@@ -18,7 +18,16 @@ export const DEFAULT_SLIDESHOW: Cell['slideshow'] = {
 }
 
 export const DEFAULT_EFFECTS: CellEffects = {
-  colorOverlay: { enabled: false, color: { r: 255, g: 0, b: 128 }, alpha: 0.3 },
+  colorOverlay: {
+    enabled: false,
+    color: { r: 255, g: 0, b: 128 },
+    alpha: 0.3,
+    imageAdjustEnabled: false,
+    saturationMax: 1.4,
+    contrastMax: 1.35,
+    dynamicAdjust: false,
+    dynamicAdjustDurationMs: 1000,
+  },
   vignette: {
     enabled: false,
     color: { r: 255, g: 100, b: 150 },

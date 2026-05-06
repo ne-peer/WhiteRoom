@@ -59,6 +59,11 @@ export type ColorOverlayEffect = {
   enabled: boolean
   color: { r: number; g: number; b: number }
   alpha: number  // 0.0 - 1.0
+  imageAdjustEnabled: boolean
+  saturationMax: number  // 1.0 = normal
+  contrastMax: number    // 1.0 = normal
+  dynamicAdjust: boolean
+  dynamicAdjustDurationMs: number
 }
 
 export type VignetteEffect = {

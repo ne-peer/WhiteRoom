@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlurEffect, BreathingEffect, CellEffects, EchoEffect, ImageFitMode, SlideShowTransition } from '../../shared/types'
+import type { BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, SlideShowTransition } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -38,9 +38,13 @@ export class CellRenderer {
   private vignetteGsapTween: gsap.core.Tween | null = null
   private vignetteAnimationKey: string | null = null
   private blurFilter: PIXI.BlurFilter | null = null
+  private imageLayerBlurFilter: PIXI.BlurFilter | null = null
   private radialBlurFilters: { filter: PIXI.BlurFilter; multiplier: number }[] = []
   private blurGsapTween: gsap.core.Tween | null = null
   private blurAnimationKey: string | null = null
+  private colorMatrixFilter: PIXI.ColorMatrixFilter | null = null
+  private colorAdjustGsapTween: gsap.core.Tween | null = null
+  private colorAdjustAnimationKey: string | null = null
   private echoGsapTween: gsap.core.Tween | null = null
   private echoAnimationKey: string | null = null
   private breathingKey: string | null = null
@@ -126,6 +130,7 @@ export class CellRenderer {
     this.refreshEcho()
     this.rebuildVignette()
     this.refreshBlurRegion()
+    this.setImageLayerFilters()
     this.textSystem.resizeMask(width, height)
   }
 
@@ -187,8 +192,9 @@ export class CellRenderer {
     this.latestEffects = effects
     this.updateBreathing(effects.breathing)
     this.updateColorOverlay(effects)
-    this.updateVignette(effects)
     this.updateBlur(effects)
+    this.updateColorAdjustment(effects.colorOverlay)
+    this.updateVignette(effects)
     this.updateEcho(effects)
     this.updateAsset(effects)
     this.updateText(effects)
@@ -206,6 +212,7 @@ export class CellRenderer {
       : 0
     const durationMs = Math.max(
       effects.vignette.dynamicDurationMs,
+      effects.colorOverlay.dynamicAdjustDurationMs,
       effects.blur.gradualDurationSec * 1000,
       effects.echo.durationSec * 1000,
       (effects.breathing?.scaleDurationSec ?? 1) * 1000,
@@ -215,6 +222,7 @@ export class CellRenderer {
     const delay = withRandomDelay ? Math.random() * durationMs : 0
     this.vignetteGsapTween?.kill()
     this.blurGsapTween?.kill()
+    this.colorAdjustGsapTween?.kill()
     this.echoGsapTween?.kill()
     this.resetBreathingMotion(withRandomDelay)
     if (this.effectResetTimeoutId !== null) {
@@ -223,9 +231,11 @@ export class CellRenderer {
     }
     this.vignetteGsapTween = null
     this.blurGsapTween = null
+    this.colorAdjustGsapTween = null
     this.echoGsapTween = null
     this.vignetteAnimationKey = null
     this.blurAnimationKey = null
+    this.colorAdjustAnimationKey = null
     this.echoAnimationKey = null
     this.breathingKey = null
     this.textSystem.stop()
@@ -252,6 +262,12 @@ export class CellRenderer {
       this.vignetteAnimationKey = null
     }
 
+    if (effects.colorOverlay.imageAdjustEnabled && effects.colorOverlay.dynamicAdjust) {
+      this.colorAdjustGsapTween?.kill()
+      this.colorAdjustGsapTween = null
+      this.colorAdjustAnimationKey = null
+    }
+
     if (effects.blur.enabled && effects.blur.gradualEnabled) {
       this.blurGsapTween?.kill()
       this.blurGsapTween = null
@@ -267,6 +283,7 @@ export class CellRenderer {
     this.latestEffects = effects
     this.updateVignette(effects)
     this.updateBlur(effects)
+    this.updateColorAdjustment(effects.colorOverlay)
     this.updateEcho(effects)
   }
 
@@ -286,6 +303,7 @@ export class CellRenderer {
   destroy() {
     this.vignetteGsapTween?.kill()
     this.blurGsapTween?.kill()
+    this.colorAdjustGsapTween?.kill()
     this.echoGsapTween?.kill()
     this.imageTransitionTween?.kill()
     if (this.effectResetTimeoutId !== null) {
@@ -509,6 +527,75 @@ export class CellRenderer {
 
   private updateColorOverlay(effects: CellEffects) {
     updateColorOverlay(this.colorOverlayGraphics, this.width, this.height, effects)
+  }
+
+  private updateColorAdjustment(colorOverlay: ColorOverlayEffect) {
+    const enabled = colorOverlay.imageAdjustEnabled &&
+      (colorOverlay.saturationMax > 1 || colorOverlay.contrastMax > 1)
+
+    if (!enabled) {
+      this.colorAdjustGsapTween?.kill()
+      this.colorAdjustGsapTween = null
+      this.colorAdjustAnimationKey = null
+      this.colorMatrixFilter = null
+      this.setImageLayerFilters()
+      return
+    }
+
+    if (!this.colorMatrixFilter) {
+      this.colorMatrixFilter = new PIXI.ColorMatrixFilter()
+    }
+
+    const animationKey = [
+      colorOverlay.saturationMax,
+      colorOverlay.contrastMax,
+      colorOverlay.dynamicAdjust,
+      colorOverlay.dynamicAdjustDurationMs,
+    ].join(':')
+
+    if (this.colorAdjustAnimationKey === animationKey) return
+
+    this.colorAdjustGsapTween?.kill()
+    this.colorAdjustGsapTween = null
+    this.colorAdjustAnimationKey = animationKey
+    this.setImageLayerFilters()
+
+    if (colorOverlay.dynamicAdjust) {
+      const proxy = { progress: 0 }
+      this.applyColorMatrix(colorOverlay, proxy.progress)
+      this.colorAdjustGsapTween = gsap.to(proxy, {
+        progress: 1,
+        duration: Math.max(0.001, colorOverlay.dynamicAdjustDurationMs / 1000),
+        ease: 'sine.inOut',
+        repeat: -1,
+        onRepeat: () => {
+          proxy.progress = 0
+          this.applyColorMatrix(colorOverlay, proxy.progress)
+        },
+        onUpdate: () => this.applyColorMatrix(colorOverlay, proxy.progress),
+      })
+    } else {
+      this.applyColorMatrix(colorOverlay, 1)
+    }
+  }
+
+  private applyColorMatrix(colorOverlay: ColorOverlayEffect, progress: number) {
+    if (!this.colorMatrixFilter) return
+    const p = clamp(progress, 0, 1)
+    const saturation = 1 + (Math.max(1, colorOverlay.saturationMax) - 1) * p
+    const contrast = 1 + (Math.max(1, colorOverlay.contrastMax) - 1) * p
+
+    this.colorMatrixFilter.reset()
+    this.colorMatrixFilter.contrast(contrast - 1, false)
+    this.colorMatrixFilter.saturate(saturation - 1, true)
+  }
+
+  private setImageLayerFilters() {
+    const filters: PIXI.Filter[] = []
+    if (this.imageLayerBlurFilter) filters.push(this.imageLayerBlurFilter)
+    if (this.colorMatrixFilter) filters.push(this.colorMatrixFilter)
+    this.imageLayer.filters = filters
+    this.imageLayer.filterArea = filters.length > 0 ? new PIXI.Rectangle(0, 0, this.width, this.height) : null
   }
 
   private updateBreathing(breathing?: BreathingEffect) {
@@ -854,7 +941,6 @@ export class CellRenderer {
 
     this.blurAnimationKey = blurKey
 
-    this.imageLayer.filters = []
     this.effectsLayer.filters = []
 
     if (this.blurGsapTween) {
@@ -862,10 +948,11 @@ export class CellRenderer {
       this.blurGsapTween = null
     }
     this.blurFilter = null
+    this.imageLayerBlurFilter = null
     this.radialBlurFilters = []
     this.clearRadialBlurContents()
-    this.imageLayer.filterArea = null
     this.effectsLayer.filterArea = null
+    this.setImageLayerFilters()
 
     if (!blur.enabled || blur.strength <= 0) {
       return
@@ -881,8 +968,13 @@ export class CellRenderer {
     const targetLayer = blur.applyToAll ? this.effectsLayer : this.imageLayer
     const blurFilter = new PIXI.BlurFilter({ strength: blur.strength, quality: 4 })
     this.blurFilter = blurFilter
-    targetLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
-    targetLayer.filters = [blurFilter]
+    if (targetLayer === this.imageLayer) {
+      this.imageLayerBlurFilter = blurFilter
+      this.setImageLayerFilters()
+    } else {
+      targetLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      targetLayer.filters = [blurFilter]
+    }
     this.applyGradualBlur([{ filter: blurFilter, multiplier: 1 }], blur)
   }
 
