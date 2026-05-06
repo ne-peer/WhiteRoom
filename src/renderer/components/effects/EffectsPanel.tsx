@@ -2,12 +2,49 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useAppStore, DEFAULT_EFFECTS } from '../../stores/appStore'
 import { Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select } from '../controls/UIKit'
 import { formatCount, useTranslation } from '../../i18n'
-import type { Cell } from '../../../shared/types'
+import type { Cell, CellEffects } from '../../../shared/types'
 
 const FALLBACK_FONT_OPTIONS = ['Meiryo', 'BIZ UDPGothic', 'Yu Gothic', 'MS PGothic']
   .map(font => ({ value: font, label: font }))
 
 type Props = { selectedCell: Cell | undefined | null }
+
+const EFFECT_PRESET_1: Pick<CellEffects, 'vignette' | 'blur' | 'echo' | 'breathing'> = {
+  vignette: {
+    enabled: true,
+    color: { r: 255, g: 100, b: 150 },
+    alpha: 0.5,
+    dynamic: true,
+    dynamicFrom: 0.62,
+    dynamicTo: 1,
+    dynamicDurationMs: 3000,
+  },
+  blur: {
+    enabled: true,
+    strength: 8,
+    applyToAll: false,
+    gradualEnabled: true,
+    gradualDurationSec: 1,
+    gradualStartStrength: 0,
+    gradualEndStrength: 12,
+    radialEnabled: true,
+    radialIntensity: 0.8,
+  },
+  echo: {
+    enabled: true,
+    durationSec: 1.5,
+    startAlpha: 0.45,
+    startScale: 1,
+    endScale: 1.12,
+  },
+  breathing: {
+    enabled: true,
+    speedPxPerSec: 8,
+    maxOffsetPx: 8,
+    scaleEnabled: true,
+    scaleDurationSec: 8,
+  },
+}
 
 export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const {
@@ -62,6 +99,13 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const set = <K extends keyof typeof effects>(key: K, val: Partial<typeof effects[K]>) =>
     setCellEffect(selectedCellId, key, val)
 
+  const applyEffectPreset1 = () => {
+    setCellEffect(selectedCellId, 'vignette', structuredClone(EFFECT_PRESET_1.vignette))
+    setCellEffect(selectedCellId, 'blur', structuredClone(EFFECT_PRESET_1.blur))
+    setCellEffect(selectedCellId, 'echo', structuredClone(EFFECT_PRESET_1.echo))
+    setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_1.breathing))
+  }
+
   const applyAssetEffectToAll = () => {
     setAllCellsEffect('dynamicAsset', structuredClone(effects.dynamicAsset))
   }
@@ -84,6 +128,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
 
   return (
     <div>
+      <div style={{ marginBottom: 12 }}>
+        <Button small variant="secondary" onClick={applyEffectPreset1}>
+          プリセット1
+        </Button>
+      </div>
+
       <Section title={t('colorOverlay')}>
         <Row label={t('enabled')}>
           <Toggle value={effects.colorOverlay.enabled} onChange={v => set('colorOverlay', { enabled: v })} />

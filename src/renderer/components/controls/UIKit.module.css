@@ -212,7 +212,7 @@
 }
 .button_danger:hover { background: rgba(255,80,80,0.35); }
 
-.buttonSmall { padding: 4px 10px; font-size: 11px; }
+.buttonSmall { width: auto; padding: 4px 10px; font-size: 11px; }
 
 .button:disabled { opacity: 0.4; cursor: not-allowed; }
 
