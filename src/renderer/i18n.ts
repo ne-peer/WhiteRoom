@@ -146,7 +146,7 @@ export const translations = {
     applyAll: '一斉反映',
     applyEffectsAll: 'エフェクトを全カラムへ反映',
     applyEffectChangesToAllColumns: 'エフェクトをすべてのカラムに反映する',
-    applyEffectChangesToAllColumnsHelp: 'オフにするとグリッド別にエフェクトを設定できます',
+    applyEffectChangesToAllColumnsHelp: 'オフにするとカラム別にエフェクトを設定できます',
     assetEffect: 'アセットエフェクト',
     selectAssetImage: 'アセット画像を選択',
     drawRandomFromFolder: 'フォルダからランダムに描画',

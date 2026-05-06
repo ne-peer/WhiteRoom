@@ -60,7 +60,6 @@ const EFFECT_PRESET_1: Pick<CellEffects, 'vignette' | 'blur' | 'echo' | 'breathi
 export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const {
     setCellEffect,
-    setAllCellsEffect,
     selectedCellId,
     cells,
     applyEffectChangesToAllColumns,
@@ -136,10 +135,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect(selectedCellId, 'blur', structuredClone(EFFECT_PRESET_1.blur))
     setCellEffect(selectedCellId, 'echo', structuredClone(EFFECT_PRESET_1.echo))
     setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_1.breathing))
-  }
-
-  const applyAssetEffectToAll = () => {
-    setAllCellsEffect('dynamicAsset', structuredClone(effects.dynamicAsset))
   }
 
   const hasColumnSyncTarget = cells.some(c =>
@@ -660,65 +655,33 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('applyAll')}>
-        <Button variant="primary" onClick={applyEffectsToAll}>
-          {t('applyEffectsAll')}
-        </Button>
-        <div style={{ marginTop: 8 }}>
-          <Button
-            variant="secondary"
-            onClick={restartEffectsWithRandomTiming}
-            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled)}
-            title={t('restartRandomTimingTip')}
-          >
-            {t('restartRandomTiming')}
-          </Button>
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <Button
-            variant="secondary"
-            onClick={syncActiveEffectsInSelectedColumn}
-            disabled={!hasColumnSyncTarget}
-            title={t('syncColumnEffectTimingTip')}
-          >
-            {t('syncColumnEffectTiming')}
-          </Button>
-        </div>
-      </Section>
-
-      <Section title={t('timerSyncSection')}>
-        <Button variant="secondary" onClick={enableAllTimerSyncForSelectedCell}>
-          {t('enableAllTimerSync')}
-        </Button>
-      </Section>
-
       <Section title={t('assetEffect')}>
         <Row label={t('enabled')}>
           <Toggle value={effects.dynamicAsset.enabled} onChange={v => set('dynamicAsset', { enabled: v })} />
         </Row>
-        <Row label={assetEffectFolderLabel}>
-          <Select
-            value={assetEffectFolders.some(folder => folder.path === effects.dynamicAsset.assetFolderPath)
-              ? effects.dynamicAsset.assetFolderPath ?? ''
-              : ''}
-            options={[
-              {
-                value: '',
-                label: assetEffectFolderPlaceholder,
-              },
-              ...assetEffectFolders.map(folder => ({
-                value: folder.path,
-                label: `${folder.name} (${formatCount(language, folder.images.length, t('imagesUnit'))})`,
-              })),
-            ]}
-            onChange={handleSelectAssetEffectFolder}
-          />
-        </Row>
-        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 8, wordBreak: 'break-all' }}>
-          {assetEffectFolderHelp}
-        </div>
         {effects.dynamicAsset.enabled && (
           <>
+            <Row label={assetEffectFolderLabel}>
+              <Select
+                value={assetEffectFolders.some(folder => folder.path === effects.dynamicAsset.assetFolderPath)
+                  ? effects.dynamicAsset.assetFolderPath ?? ''
+                  : ''}
+                options={[
+                  {
+                    value: '',
+                    label: assetEffectFolderPlaceholder,
+                  },
+                  ...assetEffectFolders.map(folder => ({
+                    value: folder.path,
+                    label: `${folder.name} (${formatCount(language, folder.images.length, t('imagesUnit'))})`,
+                  })),
+                ]}
+                onChange={handleSelectAssetEffectFolder}
+              />
+            </Row>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 8, wordBreak: 'break-all' }}>
+              {assetEffectFolderHelp}
+            </div>
             <div style={{ marginBottom: 8 }}>
               <Button variant="secondary" onClick={handleOpenAsset}>
                 {t('selectAssetImage')}
@@ -834,14 +797,42 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onAlphaChange={a => set('dynamicAsset', { colorOverlayAlpha: a })}
               />
             )}
-            <div style={{ marginTop: 10 }}>
-              <Button variant="primary" onClick={applyAssetEffectToAll}>
-                {t('applyAssetAll')}
-              </Button>
-            </div>
           </>
         )}
       </Section>
+
+      <Section title={t('applyAll')}>
+        <Button variant="primary" onClick={applyEffectsToAll}>
+          {t('applyEffectsAll')}
+        </Button>
+        <div style={{ marginTop: 8 }}>
+          <Button
+            variant="secondary"
+            onClick={restartEffectsWithRandomTiming}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled)}
+            title={t('restartRandomTimingTip')}
+          >
+            {t('restartRandomTiming')}
+          </Button>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <Button
+            variant="secondary"
+            onClick={syncActiveEffectsInSelectedColumn}
+            disabled={!hasColumnSyncTarget}
+            title={t('syncColumnEffectTimingTip')}
+          >
+            {t('syncColumnEffectTiming')}
+          </Button>
+        </div>
+      </Section>
+
+      <Section title={t('timerSyncSection')}>
+        <Button variant="secondary" onClick={enableAllTimerSyncForSelectedCell}>
+          {t('enableAllTimerSync')}
+        </Button>
+      </Section>
+
     </div>
   )
 }
