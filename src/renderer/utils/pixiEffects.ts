@@ -57,6 +57,10 @@ export function applyBlurFilter(
   return blur
 }
 
+// emergenceパターンのフェーズ時間（固定）
+const EMERGENCE_PHASE1_MS = 600   // 高速拡大フェーズ
+const EMERGENCE_PHASE2_MS = 1400  // 緩慢拡大＋フェードアウトフェーズ
+
 // ===== パーティクル（動的アセット）管理 =====
 export class ParticleSystem {
   private particles: AssetParticle[] = []
@@ -98,8 +102,9 @@ export class ParticleSystem {
       return
     }
 
-    const { spawnIntervalMs, maxParticles, sizeRatio, baseAlpha } = effects.dynamicAsset
+    const { spawnIntervalMs, maxParticles, sizeRatio, baseAlpha, pattern } = effects.dynamicAsset
     const overlayTint = getAssetOverlayTint(effects)
+    const isEmergence = (pattern ?? 'rising') === 'emergence'
 
     // スポーン
     if (
@@ -107,48 +112,114 @@ export class ParticleSystem {
       this.particles.length < maxParticles
     ) {
       this.lastSpawn = nowMs
-      const p: AssetParticle = {
-        id: `p-${nowMs}-${Math.random()}`,
-        assetPath: effects.dynamicAsset.assetPath ?? '',
-        x: Math.random() * canvasWidth,
-        y: canvasHeight - Math.random() * canvasHeight * clamp(effects.dynamicAsset.spawnMaxHeightRatio, 0, 0.7),
-        alpha: clamp(baseAlpha, 0, 1),
-        vy: randomRiseSpeed(),
-        startTime: nowMs,
-      }
-      this.particles.push(p)
 
-      const sprite = new PIXI.Sprite(randomTexture(this.textures))
-      sprite.anchor.set(0.5)
-      sprite.x = p.x
-      sprite.y = p.y
-      sprite.alpha = p.alpha
-      sprite.scale.set((0.5 + Math.random() * 0.5) * clamp(sizeRatio, 0.1, 3.0))
-      sprite.tint = overlayTint
-      this.container.addChild(sprite)
-      this.sprites.set(p.id, sprite)
+      if (isEmergence) {
+        // 発生パターン: ランダム位置、サイズ係数1.0-1.4のランダムばらつき
+        const speedFactor = clamp(effects.dynamicAsset.emergenceSpeedFactor ?? 1.0, 0.1, 5.0)
+        const randomFactor = 1.0 + Math.random() * 0.4
+        const baseScale = clamp(sizeRatio, 0.1, 3.0) * randomFactor
+        const p: AssetParticle = {
+          id: `p-${nowMs}-${Math.random()}`,
+          assetPath: effects.dynamicAsset.assetPath ?? '',
+          x: Math.random() * canvasWidth,
+          y: Math.random() * canvasHeight,
+          alpha: 0.5,
+          vy: 0,
+          startTime: nowMs,
+          baseScale,
+          phase1DurationMs: EMERGENCE_PHASE1_MS / speedFactor,
+          phase2DurationMs: EMERGENCE_PHASE2_MS / speedFactor,
+        }
+        this.particles.push(p)
+
+        const sprite = new PIXI.Sprite(randomTexture(this.textures))
+        sprite.anchor.set(0.5)
+        sprite.x = p.x
+        sprite.y = p.y
+        sprite.alpha = 0
+        sprite.scale.set(0)
+        sprite.tint = overlayTint
+        this.container.addChild(sprite)
+        this.sprites.set(p.id, sprite)
+      } else {
+        // 上昇パターン: 既存の挙動
+        const p: AssetParticle = {
+          id: `p-${nowMs}-${Math.random()}`,
+          assetPath: effects.dynamicAsset.assetPath ?? '',
+          x: Math.random() * canvasWidth,
+          y: canvasHeight - Math.random() * canvasHeight * clamp(effects.dynamicAsset.spawnMaxHeightRatio, 0, 0.7),
+          alpha: clamp(baseAlpha, 0, 1),
+          vy: randomRiseSpeed(),
+          startTime: nowMs,
+        }
+        this.particles.push(p)
+
+        const sprite = new PIXI.Sprite(randomTexture(this.textures))
+        sprite.anchor.set(0.5)
+        sprite.x = p.x
+        sprite.y = p.y
+        sprite.alpha = p.alpha
+        sprite.scale.set((0.5 + Math.random() * 0.5) * clamp(sizeRatio, 0.1, 3.0))
+        sprite.tint = overlayTint
+        this.container.addChild(sprite)
+        this.sprites.set(p.id, sprite)
+      }
     }
 
     // 更新・削除
     this.particles = this.particles.filter(p => {
-      p.y -= p.vy * delta
-      p.alpha -= 0.004 * delta
-
       const sprite = this.sprites.get(p.id)
-      if (sprite) {
-        sprite.y = p.y
-        sprite.alpha = Math.max(0, p.alpha)
-        sprite.tint = overlayTint
+
+      if (p.baseScale !== undefined) {
+        // 発生パターンの更新
+        const elapsed = nowMs - p.startTime
+        const totalDuration = (p.phase1DurationMs ?? EMERGENCE_PHASE1_MS) + (p.phase2DurationMs ?? EMERGENCE_PHASE2_MS)
+
+        if (elapsed >= totalDuration) {
+          if (sprite) {
+            this.container.removeChild(sprite)
+            sprite.destroy()
+          }
+          this.sprites.delete(p.id)
+          return false
+        }
+
+        if (sprite) {
+          const ph1 = p.phase1DurationMs ?? EMERGENCE_PHASE1_MS
+          if (elapsed < ph1) {
+            // フェーズ1: 高速拡大、透過度50%→100%
+            const t = elapsed / ph1
+            sprite.scale.set(p.baseScale * t)
+            sprite.alpha = 0.5 + t * 0.5
+          } else {
+            // フェーズ2: ゆっくり拡大（100%→115%）、透過度100%→0%
+            const t = (elapsed - ph1) / (p.phase2DurationMs ?? EMERGENCE_PHASE2_MS)
+            sprite.scale.set(p.baseScale * (1.0 + t * 0.15))
+            sprite.alpha = 1.0 - t
+          }
+          sprite.tint = overlayTint
+        }
+      } else {
+        // 上昇パターンの更新
+        p.y -= p.vy * delta
+        p.alpha -= 0.004 * delta
+
+        if (sprite) {
+          sprite.y = p.y
+          sprite.alpha = Math.max(0, p.alpha)
+          sprite.tint = overlayTint
+        }
+
+        if (p.alpha <= 0 || p.y < -50) {
+          if (sprite) {
+            this.container.removeChild(sprite)
+            sprite.destroy()
+          }
+          this.sprites.delete(p.id)
+          return false
+        }
       }
 
-      if (p.alpha <= 0 || p.y < -50) {
-        if (sprite) {
-          this.container.removeChild(sprite)
-          sprite.destroy()
-        }
-        this.sprites.delete(p.id)
-        return false
-      }
       return true
     })
   }
