@@ -130,9 +130,10 @@ export const Button: React.FC<{
   small?: boolean
   disabled?: boolean
   title?: string
-}> = ({ onClick, children, variant = 'secondary', small, disabled, title }) => (
+  className?: string
+}> = ({ onClick, children, variant = 'secondary', small, disabled, title, className }) => (
   <button
-    className={`${styles.button} ${styles[`button_${variant}`]} ${small ? styles.buttonSmall : ''}`}
+    className={`${styles.button} ${styles[`button_${variant}`]} ${small ? styles.buttonSmall : ''} ${className ?? ''}`}
     onClick={onClick}
     disabled={disabled}
     title={title}

@@ -1,8 +1,15 @@
 import { app, BrowserWindow, ipcMain, dialog, session, Menu } from 'electron'
 import { join, extname } from 'path'
-import { readFileSync, writeFileSync, readdirSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
 import { execFileSync } from 'child_process'
-import type { AppProfile, SaveProfileResult, LoadProfileResult, OpenFolderResult, UiLanguage } from '../shared/types'
+import type {
+  AppProfile,
+  AssetEffectFoldersResult,
+  SaveProfileResult,
+  LoadProfileResult,
+  OpenFolderResult,
+  UiLanguage,
+} from '../shared/types'
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
 const FALLBACK_FONTS = [
@@ -41,6 +48,25 @@ function getDialogText(language?: UiLanguage): typeof DIALOG_TEXT.ja {
 
 function isImageFile(filename: string): boolean {
   return IMAGE_EXTENSIONS.includes(extname(filename).toLowerCase())
+}
+
+function readImagePaths(folderPath: string): string[] {
+  return readdirSync(folderPath)
+    .filter(isImageFile)
+    .map(f => join(folderPath, f))
+    .sort()
+}
+
+function getAssetEffectBasePath(): string | null {
+  const candidates = [
+    join(app.getAppPath(), 'assets', 'asset-effect'),
+    join(process.cwd(), 'assets', 'asset-effect'),
+  ]
+  return candidates.find((candidate, index) =>
+    candidates.indexOf(candidate) === index &&
+    existsSync(candidate) &&
+    statSync(candidate).isDirectory()
+  ) ?? null
 }
 
 function normalizeFontName(name: string): string[] {
@@ -147,10 +173,7 @@ function createWindow(): BrowserWindow {
 // フォルダパスを直接渡して画像一覧を取得（D&D用）
 ipcMain.handle('read-folder-path', async (_event, folderPath: string): Promise<OpenFolderResult> => {
   try {
-    const images = readdirSync(folderPath)
-      .filter(isImageFile)
-      .map(f => join(folderPath, f))
-      .sort()
+    const images = readImagePaths(folderPath)
     return { canceled: false, folderPath, images }
   } catch {
     return { canceled: true }
@@ -168,10 +191,7 @@ ipcMain.handle('open-folder', async (_event, language?: UiLanguage): Promise<Ope
     return { canceled: true }
   }
   const folderPath = result.filePaths[0]
-  const images = readdirSync(folderPath)
-    .filter(isImageFile)
-    .map(f => join(folderPath, f))
-    .sort()
+  const images = readImagePaths(folderPath)
   return { canceled: false, folderPath, images }
 })
 
@@ -199,11 +219,32 @@ ipcMain.handle('open-asset-folder', async (_event, language?: UiLanguage) => {
     return { canceled: true }
   }
   const folderPath = result.filePaths[0]
-  const images = readdirSync(folderPath)
-    .filter(isImageFile)
-    .map(f => join(folderPath, f))
-    .sort()
+  const images = readImagePaths(folderPath)
   return { canceled: false, folderPath, images }
+})
+
+ipcMain.handle('list-asset-effect-folders', async (): Promise<AssetEffectFoldersResult> => {
+  try {
+    const basePath = getAssetEffectBasePath()
+    if (!basePath) return { folders: [] }
+
+    const folders = readdirSync(basePath, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => {
+        const folderPath = join(basePath, entry.name)
+        return {
+          name: entry.name,
+          path: folderPath,
+          images: readImagePaths(folderPath),
+        }
+      })
+      .filter(folder => folder.images.length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+
+    return { basePath, folders }
+  } catch {
+    return { folders: [] }
+  }
 })
 
 // 画像をBase64で読み込み
@@ -266,6 +307,11 @@ ipcMain.handle('load-profile', async (_event, language?: UiLanguage): Promise<Lo
 ipcMain.handle('set-fullscreen', (_event, flag: boolean) => {
   const win = BrowserWindow.getFocusedWindow()
   if (win) win.setFullScreen(flag)
+})
+
+ipcMain.handle('open-devtools', async () => {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  if (win) win.webContents.openDevTools({ mode: 'detach' })
 })
 
 ipcMain.handle('list-system-fonts', async (): Promise<string[]> => {

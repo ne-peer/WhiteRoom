@@ -7,10 +7,12 @@ const api: IpcApi = {
   getPathForFile: (file) => webUtils.getPathForFile(file),
   openAsset: (language) => ipcRenderer.invoke('open-asset', language),
   openAssetFolder: (language) => ipcRenderer.invoke('open-asset-folder', language),
+  listAssetEffectFolders: () => ipcRenderer.invoke('list-asset-effect-folders'),
   readImageAsBase64: (filePath) => ipcRenderer.invoke('read-image-base64', filePath),
   saveProfile: (profile, language) => ipcRenderer.invoke('save-profile', profile, language),
   loadProfile: (language) => ipcRenderer.invoke('load-profile', language),
   setFullscreen: (flag) => ipcRenderer.invoke('set-fullscreen', flag),
+  openDevTools: () => ipcRenderer.invoke('open-devtools'),
   listSystemFonts: () => ipcRenderer.invoke('list-system-fonts'),
   onFullscreenChange: (cb) => {
     const handler = (_: Electron.IpcRendererEvent, isFullscreen: boolean) => cb(isFullscreen)

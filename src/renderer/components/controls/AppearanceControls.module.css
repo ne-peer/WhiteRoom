@@ -1,0 +1,16 @@
+.appearancePanel {
+  min-height: calc(100vh - 86px);
+  display: flex;
+  flex-direction: column;
+}
+
+.debugSection {
+  margin-top: auto;
+}
+
+.debugButton {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  min-height: 18px;
+  line-height: 1.2;
+}

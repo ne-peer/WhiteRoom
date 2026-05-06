@@ -2,12 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useAppStore, DEFAULT_EFFECTS } from '../../stores/appStore'
 import { Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select } from '../controls/UIKit'
 import { formatCount, useTranslation } from '../../i18n'
-import type { Cell, CellEffects } from '../../../shared/types'
+import type { AssetEffectFolder, Cell, CellEffects } from '../../../shared/types'
 
 const FALLBACK_FONT_OPTIONS = ['Meiryo', 'BIZ UDPGothic', 'Yu Gothic', 'MS PGothic']
   .map(font => ({ value: font, label: font }))
 
 type Props = { selectedCell: Cell | undefined | null }
+
+const assetEffectFoldersStartupPromise = typeof window !== 'undefined'
+  ? window.api.listAssetEffectFolders().catch(() => ({ folders: [] }))
+  : Promise.resolve({ folders: [] })
 
 const EFFECT_PRESET_1: Pick<CellEffects, 'vignette' | 'blur' | 'echo' | 'breathing'> = {
   vignette: {
@@ -61,6 +65,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   } = useAppStore()
   const { language, t } = useTranslation()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
+  const [assetEffectFolders, setAssetEffectFolders] = useState<AssetEffectFolder[]>([])
 
   useEffect(() => {
     let alive = true
@@ -73,6 +78,19 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       })
     return () => { alive = false }
   }, [])
+
+  useEffect(() => {
+    let alive = true
+    assetEffectFoldersStartupPromise
+      .then(result => {
+        if (alive) setAssetEffectFolders(result.folders)
+      })
+      .catch(() => {
+        if (alive) setAssetEffectFolders([])
+      })
+    return () => { alive = false }
+  }, [])
+
   const selectedFont = selectedCell?.effects.textEffect?.font ?? DEFAULT_EFFECTS.textEffect.font
   const fontOptions = useMemo(() => {
     const fonts = systemFonts.length > 0
@@ -128,20 +146,35 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   )
 
   const handleOpenAsset = async () => {
-    const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
-    const result = await api.openAsset(language)
+    const result = await window.api.openAsset(language)
     if (!result.canceled && result.filePath) {
       set('dynamicAsset', { assetPath: result.filePath, assetPaths: [result.filePath], assetFolderPath: null })
     }
   }
 
   const handleOpenAssetFolder = async () => {
-    const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
-    const result = await api.openAssetFolder(language)
+    const result = await window.api.openAssetFolder(language)
     if (!result.canceled && result.folderPath && result.images && result.images.length > 0) {
       set('dynamicAsset', { assetPath: result.images[0], assetPaths: result.images, assetFolderPath: result.folderPath })
     }
   }
+
+  const handleSelectAssetEffectFolder = (folderPath: string) => {
+    const folder = assetEffectFolders.find(item => item.path === folderPath)
+    if (!folder) return
+    set('dynamicAsset', {
+      assetPath: folder.images[0],
+      assetPaths: folder.images,
+      assetFolderPath: folder.path,
+    })
+  }
+  const assetEffectFolderPlaceholder = assetEffectFolders.length > 0
+    ? (language === 'ja' ? 'フォルダを選択' : 'Select folder')
+    : (language === 'ja' ? 'assets/asset-effect にフォルダがありません' : 'No folders in assets/asset-effect')
+  const assetEffectFolderLabel = language === 'ja' ? 'プリセットアセット' : 'Preset asset'
+  const assetEffectFolderHelp = language === 'ja'
+    ? '/assets/asset-effectにフォルダを追加すると、リストから選択できるようになります'
+    : 'Add folders to /assets/asset-effect to make them selectable from this list.'
 
   return (
     <div>
@@ -589,6 +622,27 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         <Row label={t('enabled')}>
           <Toggle value={effects.dynamicAsset.enabled} onChange={v => set('dynamicAsset', { enabled: v })} />
         </Row>
+        <Row label={assetEffectFolderLabel}>
+          <Select
+            value={assetEffectFolders.some(folder => folder.path === effects.dynamicAsset.assetFolderPath)
+              ? effects.dynamicAsset.assetFolderPath ?? ''
+              : ''}
+            options={[
+              {
+                value: '',
+                label: assetEffectFolderPlaceholder,
+              },
+              ...assetEffectFolders.map(folder => ({
+                value: folder.path,
+                label: `${folder.name} (${formatCount(language, folder.images.length, t('imagesUnit'))})`,
+              })),
+            ]}
+            onChange={handleSelectAssetEffectFolder}
+          />
+        </Row>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 8, wordBreak: 'break-all' }}>
+          {assetEffectFolderHelp}
+        </div>
         {effects.dynamicAsset.enabled && (
           <>
             <div style={{ marginBottom: 8 }}>
@@ -653,6 +707,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('dynamicAsset', { maxParticles: v })}
               />
             </Row>
+            <Row label={t('opacity')}>
+              <Slider
+                value={Math.round(effects.dynamicAsset.baseAlpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('dynamicAsset', { baseAlpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
             <Row label={t('size')}>
               <Slider
                 value={Math.round(effects.dynamicAsset.sizeRatio * 100)}
@@ -662,17 +725,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 unit="%"
               />
             </Row>
-            {(effects.dynamicAsset.pattern ?? 'rising') === 'rising' && (
-              <Row label={t('opacity')}>
-                <Slider
-                  value={Math.round(effects.dynamicAsset.baseAlpha * 100)}
-                  min={0}
-                  max={100}
-                  onChange={v => set('dynamicAsset', { baseAlpha: v / 100 })}
-                  unit="%"
-                />
-              </Row>
-            )}
             {(effects.dynamicAsset.pattern ?? 'rising') === 'emergence' && (
               <Row label={t('emergenceSpeedFactor')}>
                 <Slider

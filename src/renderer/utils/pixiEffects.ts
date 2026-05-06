@@ -103,6 +103,7 @@ export class ParticleSystem {
     }
 
     const { spawnIntervalMs, maxParticles, sizeRatio, baseAlpha, pattern } = effects.dynamicAsset
+    const assetBaseAlpha = clamp(baseAlpha, 0, 1)
     const overlayTint = getAssetOverlayTint(effects)
     const isEmergence = (pattern ?? 'rising') === 'emergence'
 
@@ -123,7 +124,7 @@ export class ParticleSystem {
           assetPath: effects.dynamicAsset.assetPath ?? '',
           x: Math.random() * canvasWidth,
           y: Math.random() * canvasHeight,
-          alpha: 0.5,
+          alpha: assetBaseAlpha,
           vy: 0,
           startTime: nowMs,
           baseScale,
@@ -148,7 +149,7 @@ export class ParticleSystem {
           assetPath: effects.dynamicAsset.assetPath ?? '',
           x: Math.random() * canvasWidth,
           y: canvasHeight - Math.random() * canvasHeight * clamp(effects.dynamicAsset.spawnMaxHeightRatio, 0, 0.7),
-          alpha: clamp(baseAlpha, 0, 1),
+          alpha: assetBaseAlpha,
           vy: randomRiseSpeed(),
           startTime: nowMs,
         }
@@ -190,12 +191,12 @@ export class ParticleSystem {
             // フェーズ1: 高速拡大、透過度50%→100%
             const t = elapsed / ph1
             sprite.scale.set(p.baseScale * t)
-            sprite.alpha = 0.5 + t * 0.5
+            sprite.alpha = p.alpha * (0.5 + t * 0.5)
           } else {
             // フェーズ2: ゆっくり拡大（100%→115%）、透過度100%→0%
             const t = (elapsed - ph1) / (p.phase2DurationMs ?? EMERGENCE_PHASE2_MS)
             sprite.scale.set(p.baseScale * (1.0 + t * 0.15))
-            sprite.alpha = 1.0 - t
+            sprite.alpha = p.alpha * (1.0 - t)
           }
           sprite.tint = overlayTint
         }

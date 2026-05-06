@@ -215,6 +215,17 @@ export type OpenAssetResult = {
   images?: string[]
 }
 
+export type AssetEffectFolder = {
+  name: string
+  path: string
+  images: string[]
+}
+
+export type AssetEffectFoldersResult = {
+  basePath?: string
+  folders: AssetEffectFolder[]
+}
+
 export type SaveProfileResult = {
   success: boolean
   filePath?: string
@@ -234,10 +245,12 @@ export type IpcApi = {
   getPathForFile: (file: File) => string
   openAsset: (language?: UiLanguage) => Promise<OpenAssetResult>
   openAssetFolder: (language?: UiLanguage) => Promise<OpenAssetResult>
+  listAssetEffectFolders: () => Promise<AssetEffectFoldersResult>
   readImageAsBase64: (filePath: string) => Promise<string>
   saveProfile: (profile: AppProfile, language?: UiLanguage) => Promise<SaveProfileResult>
   loadProfile: (language?: UiLanguage) => Promise<LoadProfileResult>
   setFullscreen: (flag: boolean) => Promise<void>
+  openDevTools: () => Promise<void>
   listSystemFonts: () => Promise<string[]>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void
 }
