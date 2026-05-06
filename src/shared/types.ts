@@ -80,7 +80,10 @@ export type BlurEffect = {
   gradualStartStrength: number
   gradualEndStrength: number
   radialEnabled: boolean    // 放射線状ブラー（中心から周辺に向かって強くなる）
+  radialPattern: 'a' | 'b'
   radialIntensity: number   // 放射線状の強度係数 0.0 - 1.0
+  radialCenterY: number     // 0.0 - 1.0
+  radialSize: number        // 放射線状ブラー領域のサイズ係数
 }
 
 export type EchoEffect = {

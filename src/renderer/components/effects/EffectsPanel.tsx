@@ -28,7 +28,10 @@ const EFFECT_PRESET_1: Pick<CellEffects, 'vignette' | 'blur' | 'echo' | 'breathi
     gradualStartStrength: 0,
     gradualEndStrength: 12,
     radialEnabled: true,
+    radialPattern: 'a',
     radialIntensity: 0.8,
+    radialCenterY: 0.5,
+    radialSize: 1,
   },
   echo: {
     enabled: true,
@@ -93,6 +96,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const rawEffects = selectedCell.effects
   const effects = {
     ...rawEffects,
+    blur: { ...DEFAULT_EFFECTS.blur, ...rawEffects.blur },
     breathing: { ...DEFAULT_EFFECTS.breathing, ...rawEffects.breathing },
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...rawEffects.textEffect },
   }
@@ -231,12 +235,40 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 8 }}>
                   {t('radialBlurHelp')}
                 </div>
+                <Row label={t('radialBlurPattern')}>
+                  <Select
+                    value={effects.blur.radialPattern ?? 'a'}
+                    options={[
+                      { value: 'a', label: t('radialBlurPatternA') },
+                      { value: 'b', label: t('radialBlurPatternB') },
+                    ]}
+                    onChange={v => set('blur', { radialPattern: v as 'a' | 'b' })}
+                  />
+                </Row>
                 <Row label={t('strengthFactor')}>
                   <Slider
                     value={Math.round(effects.blur.radialIntensity * 100)}
                     min={0}
                     max={100}
                     onChange={v => set('blur', { radialIntensity: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('radialBlurCenterY')}>
+                  <Slider
+                    value={Math.round((effects.blur.radialCenterY ?? DEFAULT_EFFECTS.blur.radialCenterY) * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('blur', { radialCenterY: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('radialBlurSize')}>
+                  <Slider
+                    value={Math.round((effects.blur.radialSize ?? DEFAULT_EFFECTS.blur.radialSize) * 100)}
+                    min={50}
+                    max={150}
+                    onChange={v => set('blur', { radialSize: v / 100 })}
                     unit="%"
                   />
                 </Row>

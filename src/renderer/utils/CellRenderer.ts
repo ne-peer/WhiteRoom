@@ -26,9 +26,9 @@ export class CellRenderer {
   private colorOverlayGraphics: PIXI.Graphics
   private echoSprite: PIXI.Sprite | null = null
   private vignetteSprite: PIXI.Sprite | null = null
-  private radialBlurLayer: PIXI.Container | null = null
-  private radialBlurMaskSprite: PIXI.Sprite | null = null
-  private radialBlurImageClone: PIXI.Sprite | null = null
+  private radialBlurLayers: PIXI.Container[] = []
+  private radialBlurMaskSprites: PIXI.Sprite[] = []
+  private radialBlurImageClones: PIXI.Sprite[] = []
   private particleSystem: ParticleSystem
   private textSystem: TextSystem
 
@@ -38,6 +38,7 @@ export class CellRenderer {
   private vignetteGsapTween: gsap.core.Tween | null = null
   private vignetteAnimationKey: string | null = null
   private blurFilter: PIXI.BlurFilter | null = null
+  private radialBlurFilters: { filter: PIXI.BlurFilter; multiplier: number }[] = []
   private blurGsapTween: gsap.core.Tween | null = null
   private blurAnimationKey: string | null = null
   private echoGsapTween: gsap.core.Tween | null = null
@@ -821,7 +822,10 @@ export class CellRenderer {
       blur.gradualEndStrength,
       blur.gradualDurationSec,
       blur.radialEnabled,
+      blur.radialPattern ?? 'a',
       blur.radialIntensity,
+      blur.radialCenterY ?? 0.5,
+      blur.radialSize ?? 1,
     ].join(':')
 
     // キーが同じ場合は、既存のアニメーションを継続
@@ -839,6 +843,7 @@ export class CellRenderer {
       this.blurGsapTween = null
     }
     this.blurFilter = null
+    this.radialBlurFilters = []
     this.clearRadialBlurContents()
     this.imageLayer.filterArea = null
     this.effectsLayer.filterArea = null
@@ -849,8 +854,8 @@ export class CellRenderer {
 
     if (blur.radialEnabled) {
       this.buildRadialGradientBlur(blur)
-      if (!this.radialBlurLayer) return
-      this.applyGradualBlur(this.blurFilter, blur)
+      if (this.radialBlurLayers.length === 0) return
+      this.applyGradualBlur(this.radialBlurFilters, blur)
       return
     }
 
@@ -859,21 +864,27 @@ export class CellRenderer {
     this.blurFilter = blurFilter
     targetLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
     targetLayer.filters = [blurFilter]
-    this.applyGradualBlur(blurFilter, blur)
+    this.applyGradualBlur([{ filter: blurFilter, multiplier: 1 }], blur)
   }
 
-  private applyGradualBlur(blurFilter: PIXI.BlurFilter | null, blur: BlurEffect) {
+  private applyGradualBlur(blurFilters: { filter: PIXI.BlurFilter; multiplier: number }[], blur: BlurEffect) {
     if (!blur.gradualEnabled) return
-    if (blurFilter) blurFilter.strength = blur.gradualStartStrength
+    blurFilters.forEach(({ filter, multiplier }) => {
+      filter.strength = blur.gradualStartStrength * multiplier
+    })
 
     const proxy = { strength: blur.gradualStartStrength }
     const resetStrength = () => {
       proxy.strength = blur.gradualStartStrength
-      if (blurFilter) blurFilter.strength = blur.gradualStartStrength
+      blurFilters.forEach(({ filter, multiplier }) => {
+        filter.strength = blur.gradualStartStrength * multiplier
+      })
       // 放射線ブラー時、リセット時に画像クローンを更新（テクスチャ＆トランスフォーム）
-      if (blur.radialEnabled && this.radialBlurImageClone && this.imageSprite) {
-        this.radialBlurImageClone.texture = this.imageSprite.texture
-        this.copySpriteTransform(this.imageSprite, this.radialBlurImageClone)
+      if (blur.radialEnabled && this.imageSprite) {
+        this.radialBlurImageClones.forEach(clone => {
+          clone.texture = this.imageSprite!.texture
+          this.copySpriteTransform(this.imageSprite!, clone)
+        })
       }
     }
 
@@ -884,7 +895,9 @@ export class CellRenderer {
       repeat: -1,
       onRepeat: resetStrength,
       onUpdate: () => {
-        if (blurFilter) blurFilter.strength = proxy.strength
+        blurFilters.forEach(({ filter, multiplier }) => {
+          filter.strength = proxy.strength * multiplier
+        })
       },
     })
   }
@@ -892,42 +905,70 @@ export class CellRenderer {
   private buildRadialGradientBlur(blur: BlurEffect) {
     if (!this.imageSprite) return
 
-    const radialBlurLayer = new PIXI.Container()
-    const imageClone = new PIXI.Sprite(this.imageSprite.texture)
-    imageClone.anchor.set(0.5)
-    this.copySpriteTransform(this.imageSprite, imageClone)
-    radialBlurLayer.addChild(imageClone)
-
-    const maskSprite = this.createRadialGradientMaskSprite(blur.radialIntensity)
-    const blurFilter = new PIXI.BlurFilter({ strength: blur.strength, quality: 4 })
-    const maskFilter = new PIXI.MaskFilter({
-      sprite: maskSprite,
-      channel: 'alpha',
-    })
-    radialBlurLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
-    radialBlurLayer.filters = [blurFilter, maskFilter]
-    this.blurFilter = blurFilter
-
     const insertIndex = this.container.getChildIndex(this.overlayLayer)
-    maskSprite.alpha = 0
-    this.container.addChildAt(radialBlurLayer, insertIndex)
-    this.container.addChildAt(maskSprite, insertIndex + 1)
+    const pattern = blur.radialPattern ?? 'a'
+    const centerY = clamp(blur.radialCenterY ?? 0.5, 0, 1)
+    const radialSize = clamp(blur.radialSize ?? 1, 0.1, 3)
+    const regions = pattern === 'b'
+      ? [
+          {
+            maskSprite: this.createRadialBandMaskSprite(0.5 * radialSize, 0.7 * radialSize, 1, 1, true, centerY),
+            multiplier: Math.max(0, blur.radialIntensity),
+          },
+          {
+            maskSprite: this.createRadialBandMaskSprite(0.75 * radialSize, 0.85 * radialSize, 1, 1, true, centerY),
+            multiplier: Math.max(0, blur.radialIntensity) * 2,
+          },
+        ]
+      : [
+          {
+            maskSprite: this.createRadialGradientMaskSprite(blur.radialIntensity, centerY, radialSize),
+            multiplier: 1,
+          },
+        ]
 
-    this.radialBlurLayer = radialBlurLayer
-    this.radialBlurMaskSprite = maskSprite
-    this.radialBlurImageClone = imageClone
+    regions.forEach(({ maskSprite, multiplier }, index) => {
+      const radialBlurLayer = new PIXI.Container()
+      const imageClone = new PIXI.Sprite(this.imageSprite!.texture)
+      imageClone.anchor.set(0.5)
+      this.copySpriteTransform(this.imageSprite!, imageClone)
+      radialBlurLayer.addChild(imageClone)
+
+      const blurFilter = new PIXI.BlurFilter({ strength: blur.strength * multiplier, quality: 4 })
+      const maskFilter = new PIXI.MaskFilter({
+        sprite: maskSprite,
+        channel: 'alpha',
+      })
+      radialBlurLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      radialBlurLayer.filters = [blurFilter, maskFilter]
+
+      maskSprite.alpha = 0
+      this.container.addChildAt(radialBlurLayer, insertIndex + index * 2)
+      this.container.addChildAt(maskSprite, insertIndex + index * 2 + 1)
+
+      if (index === 0) this.blurFilter = blurFilter
+      this.radialBlurLayers.push(radialBlurLayer)
+      this.radialBlurMaskSprites.push(maskSprite)
+      this.radialBlurImageClones.push(imageClone)
+      this.radialBlurFilters.push({ filter: blurFilter, multiplier })
+    })
   }
 
-  private createRadialGradientMaskSprite(intensity: number): PIXI.Sprite {
+  private createRadialGradientMaskSprite(intensity: number, centerYRatio: number, size: number): PIXI.Sprite {
     const canvas = document.createElement('canvas')
     canvas.width = Math.ceil(this.width)
     canvas.height = Math.ceil(this.height)
     const ctx = canvas.getContext('2d')!
     const cx = this.width / 2
-    const cy = this.height / 2
-    const maxRadius = Math.sqrt(cx * cx + cy * cy)
+    const cy = this.height * centerYRatio
+    const maxRadius = Math.max(
+      Math.hypot(cx, cy),
+      Math.hypot(this.width - cx, cy),
+      Math.hypot(cx, this.height - cy),
+      Math.hypot(this.width - cx, this.height - cy)
+    )
 
-    const innerStop = Math.max(0, Math.min(0.6, 1 - intensity))
+    const innerStop = Math.max(0, Math.min(0.9, (1 - intensity) * size))
     const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxRadius)
     gradient.addColorStop(0, `rgba(0,0,0,0)`)
     gradient.addColorStop(innerStop, `rgba(0,0,0,0)`)
@@ -939,6 +980,55 @@ export class CellRenderer {
     return new PIXI.Sprite(texture)
   }
 
+  private createRadialBandMaskSprite(
+    innerHeightRatio: number,
+    innerWidthRatio: number,
+    outerHeightRatio: number,
+    outerWidthRatio: number,
+    extendsToEdge = false,
+    centerYRatio = 0.5,
+    softenInnerEdge = true,
+    softenOuterEdge = true
+  ): PIXI.Sprite {
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.ceil(this.width)
+    canvas.height = Math.ceil(this.height)
+    const ctx = canvas.getContext('2d')!
+    const image = ctx.createImageData(canvas.width, canvas.height)
+    const cx = this.width / 2
+    const cy = this.height * centerYRatio
+    const innerRx = Math.max(1, this.width * innerWidthRatio * 0.5)
+    const innerRy = Math.max(1, this.height * innerHeightRatio * 0.5)
+    const outerRx = Math.max(1, this.width * outerWidthRatio * 0.5)
+    const outerRy = Math.max(1, this.height * outerHeightRatio * 0.5)
+    const feather = 0.08
+
+    for (let y = 0; y < canvas.height; y += 1) {
+      for (let x = 0; x < canvas.width; x += 1) {
+        const dx = x + 0.5 - cx
+        const dy = y + 0.5 - cy
+        const innerDistance = Math.sqrt((dx / innerRx) ** 2 + (dy / innerRy) ** 2)
+        const outerDistance = Math.sqrt((dx / outerRx) ** 2 + (dy / outerRy) ** 2)
+        const enterAlpha = softenInnerEdge
+          ? smoothstep(1 - feather, 1 + feather, innerDistance)
+          : (innerDistance >= 1 ? 1 : 0)
+        const exitAlpha = extendsToEdge
+          ? 1
+          : (softenOuterEdge ? 1 - smoothstep(1 - feather, 1 + feather, outerDistance) : (outerDistance <= 1 ? 1 : 0))
+        const alpha = Math.round(clamp(enterAlpha * exitAlpha, 0, 1) * 255)
+        const index = (y * canvas.width + x) * 4
+        image.data[index] = 255
+        image.data[index + 1] = 255
+        image.data[index + 2] = 255
+        image.data[index + 3] = alpha
+      }
+    }
+
+    ctx.putImageData(image, 0, 0)
+    const texture = PIXI.Texture.from(canvas)
+    return new PIXI.Sprite(texture)
+  }
+
   private refreshBlurRegion() {
     if (!this.latestEffects) return
     this.blurAnimationKey = null
@@ -946,8 +1036,11 @@ export class CellRenderer {
   }
 
   private syncRadialBlurClones() {
-    if (this.imageSprite && this.radialBlurImageClone) {
-      this.copySpriteTransform(this.imageSprite, this.radialBlurImageClone)
+    if (this.imageSprite && this.radialBlurImageClones.length > 0) {
+      this.radialBlurImageClones.forEach(clone => {
+        clone.texture = this.imageSprite!.texture
+        this.copySpriteTransform(this.imageSprite!, clone)
+      })
     }
   }
 
@@ -960,24 +1053,24 @@ export class CellRenderer {
   }
 
   private clearRadialBlurContents() {
-    if (this.radialBlurLayer) {
-      this.radialBlurLayer.filters = []
-      this.radialBlurLayer.filterArea = null
-      this.container.removeChild(this.radialBlurLayer)
-      if (this.radialBlurImageClone) {
-        this.radialBlurLayer.removeChild(this.radialBlurImageClone)
-        this.radialBlurImageClone.destroy({ texture: false })
-        this.radialBlurImageClone = null
-      }
-      this.radialBlurLayer.destroy()
-      this.radialBlurLayer = null
-    }
-    if (this.radialBlurMaskSprite) {
-      this.container.removeChild(this.radialBlurMaskSprite)
-      this.radialBlurMaskSprite.texture.destroy(true)
-      this.radialBlurMaskSprite.destroy()
-      this.radialBlurMaskSprite = null
-    }
+    this.radialBlurLayers.forEach(layer => {
+      layer.filters = []
+      layer.filterArea = null
+      this.container.removeChild(layer)
+      layer.destroy()
+    })
+    this.radialBlurMaskSprites.forEach(maskSprite => {
+      this.container.removeChild(maskSprite)
+      maskSprite.texture.destroy(true)
+      maskSprite.destroy()
+    })
+    this.radialBlurImageClones.forEach(clone => {
+      clone.destroy({ texture: false })
+    })
+    this.radialBlurLayers = []
+    this.radialBlurMaskSprites = []
+    this.radialBlurImageClones = []
+    this.radialBlurFilters = []
   }
 
   private updateText(effects: CellEffects) {
@@ -1013,6 +1106,12 @@ export class CellRenderer {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
+}
+
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  if (edge0 === edge1) return value < edge0 ? 0 : 1
+  const t = clamp((value - edge0) / (edge1 - edge0), 0, 1)
+  return t * t * (3 - 2 * t)
 }
 
 function toFileUrl(src: string): string {

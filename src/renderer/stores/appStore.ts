@@ -37,7 +37,10 @@ export const DEFAULT_EFFECTS: CellEffects = {
     gradualStartStrength: 0,
     gradualEndStrength: 20,
     radialEnabled: false,
+    radialPattern: 'a',
     radialIntensity: 0.8,
+    radialCenterY: 0.5,
+    radialSize: 1,
   },
   echo: {
     enabled: false,
