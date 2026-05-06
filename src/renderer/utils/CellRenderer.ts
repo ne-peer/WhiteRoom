@@ -461,7 +461,7 @@ export class CellRenderer {
   private getImageScale(texW: number, texH: number) {
     if (this.imageFit === 'fitHeight') return this.height / texH
     if (this.imageFit === 'fitWidth') return this.width / texW
-    return Math.max(this.width / texW, this.height / texH)
+    return Math.min(this.width / texW, this.height / texH)
   }
 
   private redrawImageMask() {
