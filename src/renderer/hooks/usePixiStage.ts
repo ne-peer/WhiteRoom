@@ -209,9 +209,6 @@ function layoutCells(
 
   app.renderer.background.color = 0x000000
 
-  const cellW = totalW / grid.cols
-  const cellH = totalH / grid.rows
-
   const currentIds = new Set(cells.map(c => c.id))
   renderers.forEach((cr, id) => {
     if (!currentIds.has(id)) {
@@ -222,8 +219,12 @@ function layoutCells(
   })
 
   cells.forEach(cell => {
-    const x = cell.col * cellW
-    const y = cell.row * cellH
+    const x = Math.round((cell.col * totalW) / grid.cols)
+    const y = Math.round((cell.row * totalH) / grid.rows)
+    const nextX = Math.round(((cell.col + 1) * totalW) / grid.cols)
+    const nextY = Math.round(((cell.row + 1) * totalH) / grid.rows)
+    const cellW = nextX - x
+    const cellH = nextY - y
 
     let cr = renderers.get(cell.id)
 
