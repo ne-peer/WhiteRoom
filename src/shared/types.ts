@@ -107,18 +107,25 @@ export type BreathingEffect = {
   scaleDurationSec: number
 }
 
+export type AssetDrawPattern = 'rising' | 'emergence'
+
 export type AssetParticle = {
   id: string
   assetPath: string
   x: number
   y: number
   alpha: number
-  vy: number  // 上昇速度
+  vy: number  // 上昇速度（risingパターン用）
   startTime: number
+  // emergenceパターン用フィールド
+  baseScale?: number
+  phase1DurationMs?: number
+  phase2DurationMs?: number
 }
 
 export type DynamicAssetEffect = {
   enabled: boolean
+  pattern: AssetDrawPattern
   assetPath: string | null
   assetPaths: string[]
   assetFolderPath: string | null
@@ -128,6 +135,7 @@ export type DynamicAssetEffect = {
   maxParticles: number
   sizeRatio: number          // アセットサイズ倍率 0.1 - 3.0
   baseAlpha: number          // 初期透明度 0.0 - 1.0
+  emergenceSpeedFactor: number  // 発生パターンの速度係数 0.1 - 5.0 (1.0 = 標準)
   colorOverlayEnabled: boolean
   colorOverlayColor: { r: number; g: number; b: number }
   colorOverlayAlpha: number

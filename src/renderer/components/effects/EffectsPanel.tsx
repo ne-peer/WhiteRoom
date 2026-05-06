@@ -608,6 +608,16 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   : effects.dynamicAsset.assetPath.split(/[\\/]/).pop()}
               </div>
             )}
+            <Row label={t('assetDrawPattern')}>
+              <Select
+                value={effects.dynamicAsset.pattern ?? 'rising'}
+                options={[
+                  { value: 'rising', label: t('assetPatternRising') },
+                  { value: 'emergence', label: t('assetPatternEmergence') },
+                ]}
+                onChange={v => set('dynamicAsset', { pattern: v as import('../../../shared/types').AssetDrawPattern })}
+              />
+            </Row>
             <Row label={t('spawnInterval')}>
               <NumberInput
                 value={effects.dynamicAsset.spawnIntervalMs / 1000}
@@ -618,18 +628,22 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('dynamicAsset', { spawnIntervalMs: v * 1000 })}
               />
             </Row>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', margin: '8px 0 10px' }}>
-              {t('riseSpeedHelp')}
-            </div>
-            <Row label={t('maxSpawnHeight')}>
-              <Slider
-                value={Math.round(effects.dynamicAsset.spawnMaxHeightRatio * 100)}
-                min={0}
-                max={70}
-                onChange={v => set('dynamicAsset', { spawnMaxHeightRatio: v / 100 })}
-                unit="%"
-              />
-            </Row>
+            {(effects.dynamicAsset.pattern ?? 'rising') === 'rising' && (
+              <>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', margin: '8px 0 10px' }}>
+                  {t('riseSpeedHelp')}
+                </div>
+                <Row label={t('maxSpawnHeight')}>
+                  <Slider
+                    value={Math.round(effects.dynamicAsset.spawnMaxHeightRatio * 100)}
+                    min={0}
+                    max={70}
+                    onChange={v => set('dynamicAsset', { spawnMaxHeightRatio: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              </>
+            )}
             <Row label={t('maxCount')}>
               <NumberInput
                 value={effects.dynamicAsset.maxParticles}
@@ -648,15 +662,28 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 unit="%"
               />
             </Row>
-            <Row label={t('opacity')}>
-              <Slider
-                value={Math.round(effects.dynamicAsset.baseAlpha * 100)}
-                min={0}
-                max={100}
-                onChange={v => set('dynamicAsset', { baseAlpha: v / 100 })}
-                unit="%"
-              />
-            </Row>
+            {(effects.dynamicAsset.pattern ?? 'rising') === 'rising' && (
+              <Row label={t('opacity')}>
+                <Slider
+                  value={Math.round(effects.dynamicAsset.baseAlpha * 100)}
+                  min={0}
+                  max={100}
+                  onChange={v => set('dynamicAsset', { baseAlpha: v / 100 })}
+                  unit="%"
+                />
+              </Row>
+            )}
+            {(effects.dynamicAsset.pattern ?? 'rising') === 'emergence' && (
+              <Row label={t('emergenceSpeedFactor')}>
+                <Slider
+                  value={effects.dynamicAsset.emergenceSpeedFactor ?? 1.0}
+                  min={0.1}
+                  max={5}
+                  step={0.1}
+                  onChange={v => set('dynamicAsset', { emergenceSpeedFactor: v })}
+                />
+              </Row>
+            )}
             <Row label={t('assetColor')}>
               <Toggle
                 value={effects.dynamicAsset.colorOverlayEnabled}
