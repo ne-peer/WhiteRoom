@@ -15,9 +15,9 @@ function getApi(): IpcApi {
 }
 
 export function useDropHandler(
-  setCellImage: (cellId: string, imagePath: string) => void
+  setCellImageRenderer: (cellId: string, imagePath: string) => void
 ) {
-  const { cells, addCellByDrop, setCellFolder, grid } = useAppStore()
+  const { cells, addCellByDrop, setCellFolder, setCellImage: setCellImageStore, grid } = useAppStore()
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -44,8 +44,10 @@ export function useDropHandler(
             cells,
             addCellByDrop,
             setCellFolder,
-            setCellImage,
-            grid
+            setCellImageRenderer,
+            setCellImageStore,
+            grid,
+            undefined
           )
           break
         }
@@ -69,13 +71,15 @@ export function useDropHandler(
           cells,
           addCellByDrop,
           setCellFolder,
-          setCellImage,
-          grid
+          setCellImageRenderer,
+          setCellImageStore,
+          grid,
+          filePath
         )
         break
       }
     }
-  }, [cells, addCellByDrop, setCellFolder, grid, setCellImage])
+  }, [cells, addCellByDrop, setCellFolder, setCellImageStore, grid, setCellImageRenderer])
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -94,8 +98,10 @@ function assignFolderToCell(
   cells: ReturnType<typeof useAppStore.getState>['cells'],
   addCellByDrop: () => void,
   setCellFolder: (cellId: string, folder: CellFolder) => void,
-  setCellImage: (cellId: string, imagePath: string) => void,
+  setCellImageRenderer: (cellId: string, imagePath: string) => void,
+  setCellImageStore: (cellId: string, index: number) => void,
   grid: ReturnType<typeof useAppStore.getState>['grid'],
+  startImagePath: string | undefined,
 ) {
   const cellId = getAvailableCellIdAtDropPosition(canvasRect, clientX, clientY, cells, grid, addCellByDrop)
   if (!cellId) return
@@ -107,7 +113,17 @@ function assignFolderToCell(
   }
 
   setCellFolder(cellId, folder)
-  if (images[0]) setCellImage(cellId, images[0])
+
+  const startIndex = startImagePath
+    ? Math.max(0, images.indexOf(startImagePath))
+    : 0
+
+  if (startIndex > 0) {
+    setCellImageStore(cellId, startIndex)
+  }
+
+  const displayPath = images[startIndex]
+  if (displayPath) setCellImageRenderer(cellId, displayPath)
 }
 
 function getAvailableCellIdAtDropPosition(

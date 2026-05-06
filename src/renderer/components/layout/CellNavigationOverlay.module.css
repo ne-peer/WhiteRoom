@@ -1,0 +1,42 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.btnGroup {
+  position: absolute;
+  display: flex;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.navBtn {
+  height: 32px;
+  min-width: 44px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(8, 8, 12, 0.72);
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 32px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: background 0.2s, color 0.2s;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.navBtn:active {
+  background: rgba(255, 255, 255, 0.15);
+}

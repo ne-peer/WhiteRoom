@@ -158,7 +158,8 @@ export type AppActions = {
   setCellImageFit: (cellId: string, imageFit: ImageFitMode) => void
   setAllCellsImageFit: (imageFit: ImageFitMode) => void
   setCellImage: (cellId: string, index: number) => void
-  nextCellImage: (cellId: string) => void
+  nextCellImage: (cellId: string, sequential?: boolean) => void
+  prevCellImage: (cellId: string) => void
   setCellSlideshow: (cellId: string, config: Partial<Cell['slideshow']>) => void
   setAllCellsSlideshow: (config: Cell['slideshow']) => void
   restartSlideshowsRandomly: () => void
@@ -294,16 +295,24 @@ export const useAppStore = create<AppStore>()(
       }
     }),
 
-    nextCellImage: (cellId) => set(s => {
+    nextCellImage: (cellId, sequential) => set(s => {
       const cell = s.cells.find(c => c.id === cellId)
       if (!cell || !cell.folder) return
       const len = cell.folder.images.length
       if (len === 0) return
-      if (cell.slideshow.randomOrder) {
+      if (!sequential && cell.slideshow.randomOrder) {
         cell.currentImageIndex = Math.floor(Math.random() * len)
       } else {
         cell.currentImageIndex = (cell.currentImageIndex + 1) % len
       }
+    }),
+
+    prevCellImage: (cellId) => set(s => {
+      const cell = s.cells.find(c => c.id === cellId)
+      if (!cell || !cell.folder) return
+      const len = cell.folder.images.length
+      if (len === 0) return
+      cell.currentImageIndex = ((cell.currentImageIndex - 1) + len) % len
     }),
 
     setCellSlideshow: (cellId, config) => set(s => {
