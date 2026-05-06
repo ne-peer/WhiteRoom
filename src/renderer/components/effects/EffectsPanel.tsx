@@ -13,7 +13,18 @@ const assetEffectFoldersStartupPromise = typeof window !== 'undefined'
   ? window.api.listAssetEffectFolders().catch(() => ({ folders: [] }))
   : Promise.resolve({ folders: [] })
 
-const EFFECT_PRESET_1: Pick<CellEffects, 'vignette' | 'blur' | 'echo' | 'breathing'> = {
+const EFFECT_PRESET_1: CellEffects = {
+  colorOverlay: {
+    enabled: false,
+    color: { r: 255, g: 0, b: 128 },
+    alpha: 0.3,
+    imageAdjustEnabled: false,
+    saturationMax: 1.25,
+    contrastMax: 1.25,
+    dynamicAdjust: true,
+    dynamicAdjustDurationMs: 1000,
+    dynamicAdjustTimerSync: false,
+  },
   vignette: {
     enabled: true,
     color: { r: 255, g: 100, b: 150 },
@@ -54,6 +65,43 @@ const EFFECT_PRESET_1: Pick<CellEffects, 'vignette' | 'blur' | 'echo' | 'breathi
     timerSync: false,
     scaleEnabled: true,
     scaleDurationSec: 8,
+  },
+  dynamicAsset: {
+    enabled: true,
+    pattern: 'rising',
+    assetPath: 'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart1.png',
+    assetPaths: [
+      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart1.png',
+      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart2.png',
+      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart5.png',
+      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart6.png',
+      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart7.png',
+      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart9.png',
+    ],
+    assetFolderPath: 'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A',
+    spawnIntervalMs: 600,
+    riseSpeedPx: 2,
+    maxParticles: 20,
+    sizeRatio: 0.56,
+    baseAlpha: 1,
+    alphaTimerSync: false,
+    emergenceSpeedFactor: 1,
+    colorOverlayEnabled: false,
+    colorOverlayColor: { r: 255, g: 100, b: 150 },
+    colorOverlayAlpha: 0.5,
+  },
+  textEffect: {
+    enabled: false,
+    texts: ['', '', '', '', ''],
+    font: 'Meiryo',
+    color: { r: 255, g: 100, b: 150 },
+    alpha: 0.5,
+    alphaTimerSync: false,
+    fontSize: 48,
+    charIntervalMs: 300,
+    displayDurationMs: 1000,
+    intervalMs: 600,
+    direction: 'vertical',
   },
 }
 
@@ -125,16 +173,20 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     vignette: { ...DEFAULT_EFFECTS.vignette, ...rawEffects.vignette },
     blur: { ...DEFAULT_EFFECTS.blur, ...rawEffects.blur },
     breathing: { ...DEFAULT_EFFECTS.breathing, ...rawEffects.breathing },
+    dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...rawEffects.dynamicAsset },
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...rawEffects.textEffect },
   }
   const set = <K extends keyof typeof effects>(key: K, val: Partial<typeof effects[K]>) =>
     setCellEffect(selectedCellId, key, val)
 
   const applyEffectPreset1 = () => {
+    setCellEffect(selectedCellId, 'colorOverlay', structuredClone(EFFECT_PRESET_1.colorOverlay))
     setCellEffect(selectedCellId, 'vignette', structuredClone(EFFECT_PRESET_1.vignette))
     setCellEffect(selectedCellId, 'blur', structuredClone(EFFECT_PRESET_1.blur))
     setCellEffect(selectedCellId, 'echo', structuredClone(EFFECT_PRESET_1.echo))
     setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_1.breathing))
+    setCellEffect(selectedCellId, 'dynamicAsset', structuredClone(EFFECT_PRESET_1.dynamicAsset))
+    setCellEffect(selectedCellId, 'textEffect', structuredClone(EFFECT_PRESET_1.textEffect))
   }
 
   const hasColumnSyncTarget = cells.some(c =>
@@ -182,7 +234,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     <div>
       <div style={{ marginBottom: 12 }}>
         <Button small variant="secondary" onClick={applyEffectPreset1}>
-          プリセット1
+          サンプルプリセット
         </Button>
       </div>
 
@@ -228,7 +280,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <Slider
                 value={Math.round(effects.colorOverlay.saturationMax * 100)}
                 min={100}
-                max={300}
+                max={250}
                 onChange={v => set('colorOverlay', { saturationMax: v / 100 })}
                 unit="%"
               />
@@ -237,7 +289,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <Slider
                 value={Math.round(effects.colorOverlay.contrastMax * 100)}
                 min={100}
-                max={300}
+                max={250}
                 onChange={v => set('colorOverlay', { contrastMax: v / 100 })}
                 unit="%"
               />
@@ -545,6 +597,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ order: 2 }}>
       <Section title={t('textEffect')}>
         <Row label={t('enabled')}>
           <Toggle value={effects.textEffect.enabled} onChange={v => set('textEffect', { enabled: v })} />
@@ -654,7 +708,9 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           </>
         )}
       </Section>
+        </div>
 
+        <div style={{ order: 1 }}>
       <Section title={t('assetEffect')}>
         <Row label={t('enabled')}>
           <Toggle value={effects.dynamicAsset.enabled} onChange={v => set('dynamicAsset', { enabled: v })} />
@@ -791,6 +847,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           </>
         )}
       </Section>
+        </div>
+      </div>
 
       <Section title={t('applyAll')}>
         <Button variant="primary" onClick={applyEffectsToAll}>
