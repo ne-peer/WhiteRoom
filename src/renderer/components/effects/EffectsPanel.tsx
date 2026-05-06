@@ -272,21 +272,23 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         {effects.vignette.enabled && (
           <>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('color')}</div>
-            <ColorPicker
-              r={effects.vignette.color.r}
-              g={effects.vignette.color.g}
-              b={effects.vignette.color.b}
-              onChange={(r, g, b) => set('vignette', { color: { r, g, b } })}
-              showAlpha
-              alpha={effects.vignette.alpha}
-              onAlphaChange={a => set('vignette', { alpha: a })}
-            />
+            <div style={{ marginBottom: 10 }}>
+              <ColorPicker
+                r={effects.vignette.color.r}
+                g={effects.vignette.color.g}
+                b={effects.vignette.color.b}
+                onChange={(r, g, b) => set('vignette', { color: { r, g, b } })}
+                showAlpha={!effects.vignette.dynamic}
+                alpha={effects.vignette.alpha}
+                onAlphaChange={a => set('vignette', { alpha: a })}
+              />
+            </div>
             <Row label={t('dynamicVignette')}>
               <Toggle value={effects.vignette.dynamic} onChange={v => set('vignette', { dynamic: v })} />
             </Row>
             {effects.vignette.dynamic && (
               <>
-                <Row label={t('start')}>
+                <Row label={t('startOpacity')}>
                   <Slider
                     value={Math.round(effects.vignette.dynamicFrom * 100)}
                     min={0}
@@ -295,7 +297,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     unit="%"
                   />
                 </Row>
-                <Row label={t('end')}>
+                <Row label={t('endOpacity')}>
                   <Slider
                     value={Math.round(effects.vignette.dynamicTo * 100)}
                     min={0}
