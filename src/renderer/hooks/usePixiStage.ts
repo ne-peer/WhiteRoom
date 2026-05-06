@@ -190,6 +190,15 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     })
   }, [store.effectColumnSyncNonce])
 
+  useEffect(() => {
+    const { timer, cells } = store
+    const progress = timer.totalSec > 0 ? timer.elapsedSec / timer.totalSec : 0
+    cells.forEach(cell => {
+      const cr = cellRenderersRef.current.get(cell.id)
+      if (cr) cr.applyTimerProgress(cell.effects, timer.enabled, timer.running, progress)
+    })
+  }, [store.timer.enabled, store.timer.running, store.timer.elapsedSec, store.timer.totalSec])
+
   const setCellImage = useCallback((cellId: string, imagePath: string) => {
     const cr = cellRenderersRef.current.get(cellId)
     if (cr) cr.setImage(imagePath, 'none')

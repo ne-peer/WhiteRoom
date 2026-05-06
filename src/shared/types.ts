@@ -71,6 +71,7 @@ export type ColorOverlayEffect = {
   contrastMax: number    // 1.0 = normal
   dynamicAdjust: boolean
   dynamicAdjustDurationMs: number
+  dynamicAdjustTimerSync: boolean  // タイマー同期
 }
 
 export type VignetteEffect = {
@@ -81,6 +82,7 @@ export type VignetteEffect = {
   dynamicFrom: number   // 開始透明度 0.0-1.0
   dynamicTo: number     // 終了透明度 0.0-1.0
   dynamicDurationMs: number  // 変化時間 ms
+  dynamicTimerSync: boolean  // タイマー同期
 }
 
 export type BlurEffect = {
@@ -91,6 +93,7 @@ export type BlurEffect = {
   gradualDurationSec: number  // 最大3600秒
   gradualStartStrength: number
   gradualEndStrength: number
+  gradualTimerSync: boolean  // タイマー同期
   radialEnabled: boolean    // 放射線状ブラー（中心から周辺に向かって強くなる）
   radialPattern: 'a' | 'b'
   radialIntensity: number   // 放射線状の強度係数 0.0 - 1.0
@@ -104,12 +107,14 @@ export type EchoEffect = {
   startAlpha: number        // 開始時の不透明度 0.0 - 1.0
   startScale: number        // 開始時の拡大率
   endScale: number          // 終了時の拡大率
+  timerSync: boolean        // タイマー同期
 }
 
 export type BreathingEffect = {
   enabled: boolean
   speedPxPerSec: number
   maxOffsetPx: number
+  timerSync: boolean        // タイマー同期（移動上限をタイマー進捗に比例して適用）
   scaleEnabled: boolean
   scaleDurationSec: number
 }
@@ -142,6 +147,7 @@ export type DynamicAssetEffect = {
   maxParticles: number
   sizeRatio: number          // アセットサイズ倍率 0.1 - 3.0
   baseAlpha: number          // 初期透明度 0.0 - 1.0
+  alphaTimerSync: boolean    // タイマー同期（透明度をタイマー進捗に比例して適用）
   emergenceSpeedFactor: number  // 発生パターンの速度係数 0.1 - 5.0 (1.0 = 標準)
   colorOverlayEnabled: boolean
   colorOverlayColor: { r: number; g: number; b: number }
@@ -154,6 +160,7 @@ export type TextEffect = {
   font: string                              // フォントファミリー名
   color: { r: number; g: number; b: number }
   alpha: number                             // 0.0 - 1.0
+  alphaTimerSync: boolean                   // タイマー同期（透明度をタイマー進捗に比例して適用）
   fontSize: number                          // px
   charIntervalMs: number                    // 描画速度: 1文字ごとの間隔 ms
   displayDurationMs: number                 // 表示時間: 全文字表示後にフェードアウトするまでの時間 ms

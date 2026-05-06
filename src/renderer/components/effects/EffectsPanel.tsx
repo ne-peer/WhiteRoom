@@ -22,6 +22,7 @@ const EFFECT_PRESET_1: Pick<CellEffects, 'vignette' | 'blur' | 'echo' | 'breathi
     dynamicFrom: 0.62,
     dynamicTo: 1,
     dynamicDurationMs: 3000,
+    dynamicTimerSync: false,
   },
   blur: {
     enabled: true,
@@ -31,6 +32,7 @@ const EFFECT_PRESET_1: Pick<CellEffects, 'vignette' | 'blur' | 'echo' | 'breathi
     gradualDurationSec: 1,
     gradualStartStrength: 0,
     gradualEndStrength: 12,
+    gradualTimerSync: false,
     radialEnabled: true,
     radialPattern: 'a',
     radialIntensity: 0.8,
@@ -43,11 +45,13 @@ const EFFECT_PRESET_1: Pick<CellEffects, 'vignette' | 'blur' | 'echo' | 'breathi
     startAlpha: 0.45,
     startScale: 1,
     endScale: 1.12,
+    timerSync: false,
   },
   breathing: {
     enabled: true,
     speedPxPerSec: 8,
     maxOffsetPx: 8,
+    timerSync: false,
     scaleEnabled: true,
     scaleDurationSec: 8,
   },
@@ -235,16 +239,26 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               />
             </Row>
             {effects.colorOverlay.dynamicAdjust && (
-              <Row label={t('changeDuration')}>
-                <NumberInput
-                  value={effects.colorOverlay.dynamicAdjustDurationMs / 1000}
-                  min={0.1}
-                  max={10}
-                  step={0.1}
-                  unit={t('seconds')}
-                  onChange={v => set('colorOverlay', { dynamicAdjustDurationMs: v * 1000 })}
-                />
-              </Row>
+              <>
+                <Row label={t('changeDuration')}>
+                  <NumberInput
+                    value={effects.colorOverlay.dynamicAdjustDurationMs / 1000}
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    unit={t('seconds')}
+                    onChange={v => set('colorOverlay', { dynamicAdjustDurationMs: v * 1000 })}
+
+                  />
+                </Row>
+                <Row label={t('timerSync')}>
+                  <Toggle
+                    value={effects.colorOverlay.dynamicAdjustTimerSync ?? false}
+                    onChange={v => set('colorOverlay', { dynamicAdjustTimerSync: v })}
+
+                  />
+                </Row>
+              </>
             )}
           </>
         )}
@@ -297,6 +311,14 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     step={0.1}
                     unit={t('seconds')}
                     onChange={v => set('vignette', { dynamicDurationMs: v * 1000 })}
+
+                  />
+                </Row>
+                <Row label={t('timerSync')}>
+                  <Toggle
+                    value={effects.vignette.dynamicTimerSync ?? false}
+                    onChange={v => set('vignette', { dynamicTimerSync: v })}
+
                   />
                 </Row>
               </>
@@ -395,6 +417,14 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     step={1}
                     unit={t('seconds')}
                     onChange={v => set('blur', { gradualDurationSec: v })}
+
+                  />
+                </Row>
+                <Row label={t('timerSync')}>
+                  <Toggle
+                    value={effects.blur.gradualTimerSync ?? false}
+                    onChange={v => set('blur', { gradualTimerSync: v })}
+
                   />
                 </Row>
               </>
@@ -437,6 +467,13 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 unit="%"
               />
             </Row>
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.echo.timerSync ?? false}
+                onChange={v => set('echo', { timerSync: v })}
+
+              />
+            </Row>
           </>
         )}
       </Section>
@@ -465,6 +502,13 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 step={1}
                 unit="px"
                 onChange={v => set('breathing', { maxOffsetPx: v })}
+              />
+            </Row>
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.breathing.timerSync ?? false}
+                onChange={v => set('breathing', { timerSync: v })}
+
               />
             </Row>
             <Row label={t('scale')}>
@@ -548,6 +592,13 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               alpha={effects.textEffect.alpha}
               onAlphaChange={a => set('textEffect', { alpha: a })}
             />
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.textEffect.alphaTimerSync ?? false}
+                onChange={v => set('textEffect', { alphaTimerSync: v })}
+
+              />
+            </Row>
             <Row label={t('fontSize')}>
               <Slider
                 value={effects.textEffect.fontSize}
@@ -616,6 +667,20 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             {t('syncColumnEffectTiming')}
           </Button>
         </div>
+      </Section>
+
+      <Section title={t('timerSyncSection')}>
+        <Button variant="secondary" onClick={() => {
+          set('colorOverlay', { dynamicAdjustTimerSync: true })
+          set('vignette', { dynamicTimerSync: true })
+          set('blur', { gradualTimerSync: true })
+          set('echo', { timerSync: true })
+          set('breathing', { timerSync: true })
+          set('dynamicAsset', { alphaTimerSync: true })
+          set('textEffect', { alphaTimerSync: true })
+        }}>
+          {t('enableAllTimerSync')}
+        </Button>
       </Section>
 
       <Section title={t('assetEffect')}>
@@ -714,6 +779,13 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 max={100}
                 onChange={v => set('dynamicAsset', { baseAlpha: v / 100 })}
                 unit="%"
+              />
+            </Row>
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.dynamicAsset.alphaTimerSync ?? false}
+                onChange={v => set('dynamicAsset', { alphaTimerSync: v })}
+
               />
             </Row>
             <Row label={t('size')}>

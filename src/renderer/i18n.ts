@@ -154,6 +154,10 @@ export const translations = {
     opacity: '透明度',
     assetColor: 'アセット色',
     applyAssetAll: 'アセットエフェクト設定を全カラムへ反映',
+    timerSync: 'タイマー同期',
+    timerSyncHelp: 'タイマー開始時を0%・終了時を100%として、エフェクト強度をタイマー経過に合わせて変化させます',
+    timerSyncSection: 'タイマー同期',
+    enableAllTimerSync: 'すべてのエフェクトのタイマー同期を有効化',
 
     timerSettings: 'タイマー設定',
     display: '表示',
@@ -325,6 +329,10 @@ export const translations = {
     opacity: 'Opacity',
     assetColor: 'Asset color',
     applyAssetAll: 'Apply asset effect settings to all columns',
+    timerSync: 'Timer sync',
+    timerSyncHelp: 'Scales effect intensity from 0% at timer start to 100% at timer end.',
+    timerSyncSection: 'Timer Sync',
+    enableAllTimerSync: 'Enable timer sync for all effects',
 
     timerSettings: 'Timer Settings',
     display: 'Display',

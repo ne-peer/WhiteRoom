@@ -28,6 +28,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     contrastMax: 1.35,
     dynamicAdjust: false,
     dynamicAdjustDurationMs: 1000,
+    dynamicAdjustTimerSync: false,
   },
   vignette: {
     enabled: false,
@@ -37,6 +38,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     dynamicFrom: 0.4,
     dynamicTo: 0.7,
     dynamicDurationMs: 1000,
+    dynamicTimerSync: false,
   },
   blur: {
     enabled: false,
@@ -46,6 +48,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     gradualDurationSec: 1,
     gradualStartStrength: 0,
     gradualEndStrength: 20,
+    gradualTimerSync: false,
     radialEnabled: false,
     radialPattern: 'a',
     radialIntensity: 0.8,
@@ -58,11 +61,13 @@ export const DEFAULT_EFFECTS: CellEffects = {
     startAlpha: 0.45,
     startScale: 1,
     endScale: 1.2,
+    timerSync: false,
   },
   breathing: {
     enabled: false,
     speedPxPerSec: 8,
     maxOffsetPx: 20,
+    timerSync: false,
     scaleEnabled: false,
     scaleDurationSec: 8,
   },
@@ -78,6 +83,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     maxParticles: 20,
     sizeRatio: 1.0,
     baseAlpha: 1.0,
+    alphaTimerSync: false,
     emergenceSpeedFactor: 1.0,
     colorOverlayEnabled: false,
     colorOverlayColor: { r: 255, g: 100, b: 150 },
@@ -89,6 +95,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     font: 'Meiryo',
     color: { r: 255, g: 100, b: 150 },
     alpha: 0.5,
+    alphaTimerSync: false,
     fontSize: 48,
     charIntervalMs: 300,
     displayDurationMs: 1000,
@@ -99,7 +106,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
 
 export const DEFAULT_TIMER: TimerConfig = {
   enabled: false,
-  totalSec: 300,
+  totalSec: 60,
   elapsedSec: 0,
   running: false,
   position: 'bottom-center',

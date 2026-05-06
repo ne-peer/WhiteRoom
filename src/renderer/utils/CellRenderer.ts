@@ -87,6 +87,11 @@ export class CellRenderer {
   private latestEffects: CellEffects | null = null
   private effectResetTimeoutId: number | null = null
 
+  // タイマー同期用
+  private timerProgress = 0   // 0.0-1.0
+  private timerEnabled = false
+  private timerRunning = false
+
   constructor(cellId: string, width: number, height: number) {
     this.cellId = cellId
     this.width = width
@@ -328,6 +333,39 @@ export class CellRenderer {
     this.updateBlur(effects)
     this.updateColorAdjustment(effects.colorOverlay)
     this.updateEcho(effects)
+  }
+
+  applyTimerProgress(effects: CellEffects, enabled: boolean, running: boolean, progress: number) {
+    this.timerEnabled = enabled
+    this.timerRunning = running
+    this.timerProgress = progress
+
+    // ビネット（動的ビネット＋タイマー同期）
+    const vig = effects.vignette
+    if (vig.enabled && vig.dynamic && vig.dynamicTimerSync && this.vignetteSprite?.visible) {
+      this.vignetteSprite.alpha = vig.dynamicFrom + (vig.dynamicTo - vig.dynamicFrom) * progress
+    }
+
+    // 画像強調フィルタ（動的強調＋タイマー同期）
+    const co = effects.colorOverlay
+    if (co.imageAdjustEnabled && co.dynamicAdjust && co.dynamicAdjustTimerSync && this.colorMatrixFilter) {
+      this.applyColorMatrix(co, progress)
+    }
+
+    // ブラー（徐々に増加＋タイマー同期）
+    const blur = effects.blur
+    if (blur.enabled && blur.gradualEnabled && blur.gradualTimerSync) {
+      const strength = blur.gradualStartStrength + (blur.gradualEndStrength - blur.gradualStartStrength) * progress
+      if (this.radialBlurFilters.length > 0) {
+        this.radialBlurFilters.forEach(({ filter, multiplier }) => { filter.strength = strength * multiplier })
+      } else if (this.blurFilter) {
+        this.blurFilter.strength = strength
+      }
+    }
+
+    // テキスト・アセット・エコー・ブリージングはtimerProgressを参照する各メソッドで反映
+    this.textSystem.setTimerProgress(progress)
+    this.particleSystem.setTimerProgress(progress)
   }
 
   tick(delta: number, effects: CellEffects) {
@@ -679,7 +717,7 @@ export class CellRenderer {
   private updateDynamicBackgroundBlur() {
     if (this.blankBackground.mode !== 'dynamic' || this.blankBackground.dynamicBlur <= 0) {
       this.dynamicBackgroundLayer.filters = []
-      this.dynamicBackgroundLayer.filterArea = null
+      this.dynamicBackgroundLayer.filterArea = undefined
       this.dynamicBackgroundBlurFilter = null
       return
     }
@@ -762,12 +800,15 @@ export class CellRenderer {
       this.colorMatrixFilter = new PIXI.ColorMatrixFilter()
     }
 
-    const animationKey = [
-      colorOverlay.saturationMax,
-      colorOverlay.contrastMax,
-      colorOverlay.dynamicAdjust,
-      colorOverlay.dynamicAdjustDurationMs,
-    ].join(':')
+    const isTimerSync = colorOverlay.dynamicAdjust && colorOverlay.dynamicAdjustTimerSync
+    const animationKey = isTimerSync
+      ? `timer-sync:${colorOverlay.saturationMax}:${colorOverlay.contrastMax}`
+      : [
+          colorOverlay.saturationMax,
+          colorOverlay.contrastMax,
+          colorOverlay.dynamicAdjust,
+          colorOverlay.dynamicAdjustDurationMs,
+        ].join(':')
 
     if (this.colorAdjustAnimationKey === animationKey) return
 
@@ -777,19 +818,24 @@ export class CellRenderer {
     this.setImageLayerFilters()
 
     if (colorOverlay.dynamicAdjust) {
-      const proxy = { progress: 0 }
-      this.applyColorMatrix(colorOverlay, proxy.progress)
-      this.colorAdjustGsapTween = gsap.to(proxy, {
-        progress: 1,
-        duration: Math.max(0.001, colorOverlay.dynamicAdjustDurationMs / 1000),
-        ease: 'sine.inOut',
-        repeat: -1,
-        onRepeat: () => {
-          proxy.progress = 0
-          this.applyColorMatrix(colorOverlay, proxy.progress)
-        },
-        onUpdate: () => this.applyColorMatrix(colorOverlay, proxy.progress),
-      })
+      if (isTimerSync) {
+        // タイマー同期: GSAPなし、timerProgressで直接適用
+        this.applyColorMatrix(colorOverlay, this.timerProgress)
+      } else {
+        const proxy = { progress: 0 }
+        this.applyColorMatrix(colorOverlay, proxy.progress)
+        this.colorAdjustGsapTween = gsap.to(proxy, {
+          progress: 1,
+          duration: Math.max(0.001, colorOverlay.dynamicAdjustDurationMs / 1000),
+          ease: 'sine.inOut',
+          repeat: -1,
+          onRepeat: () => {
+            proxy.progress = 0
+            this.applyColorMatrix(colorOverlay, proxy.progress)
+          },
+          onUpdate: () => this.applyColorMatrix(colorOverlay, proxy.progress),
+        })
+      }
     } else {
       this.applyColorMatrix(colorOverlay, 1)
     }
@@ -811,7 +857,7 @@ export class CellRenderer {
     if (this.imageLayerBlurFilter) filters.push(this.imageLayerBlurFilter)
     if (this.colorMatrixFilter) filters.push(this.colorMatrixFilter)
     this.imageLayer.filters = filters
-    this.imageLayer.filterArea = filters.length > 0 ? new PIXI.Rectangle(0, 0, this.width, this.height) : null
+    this.imageLayer.filterArea = filters.length > 0 ? new PIXI.Rectangle(0, 0, this.width, this.height) : undefined
   }
 
   private updateBreathing(breathing?: BreathingEffect) {
@@ -820,6 +866,7 @@ export class CellRenderer {
           breathing.enabled,
           breathing.speedPxPerSec,
           breathing.maxOffsetPx,
+          breathing.timerSync ?? false,
           breathing.scaleEnabled,
           breathing.scaleDurationSec,
         ].join(':')
@@ -852,7 +899,9 @@ export class CellRenderer {
   }
 
   private getBreathingScaleMultiplier() {
-    return 1 + ((Math.sin(this.breathingScalePhase) + 1) / 2) * 0.05
+    const breathing = this.latestEffects?.breathing
+    const timerP = (breathing?.timerSync && this.timerEnabled) ? this.timerProgress : 1
+    return 1 + ((Math.sin(this.breathingScalePhase) + 1) / 2) * 0.05 * timerP
   }
 
   private tickBreathing(delta: number, breathing?: BreathingEffect) {
@@ -860,7 +909,8 @@ export class CellRenderer {
 
     const speed = Math.max(0, breathing.speedPxPerSec)
     const dtSec = Math.max(0, delta) / 60
-    const threshold = clamp(breathing.maxOffsetPx ?? 20, 0, 40)
+    const timerP = (breathing.timerSync && this.timerEnabled) ? this.timerProgress : 1
+    const threshold = clamp((breathing.maxOffsetPx ?? 20) * timerP, 0, 40)
 
     this.breathingOffsetX += this.breathingDirectionX * speed * dtSec
     this.breathingOffsetY += this.breathingDirectionY * speed * dtSec
@@ -909,7 +959,9 @@ export class CellRenderer {
   }
 
   private resetBreathingMotion(randomize: boolean) {
-    const threshold = clamp(this.latestEffects?.breathing?.maxOffsetPx ?? 20, 0, 40)
+    const breathing = this.latestEffects?.breathing
+    const timerP = (breathing?.timerSync && this.timerEnabled) ? this.timerProgress : 1
+    const threshold = clamp((breathing?.maxOffsetPx ?? 20) * timerP, 0, 40)
     this.breathingOffsetX = randomize ? Math.random() * threshold * 2 - threshold : 0
     this.breathingOffsetY = randomize ? Math.random() * threshold * 2 - threshold : 0
     this.randomizeBreathingDirection(threshold)
@@ -993,6 +1045,7 @@ export class CellRenderer {
       echo.startAlpha,
       echo.startScale,
       echo.endScale,
+      echo.timerSync ?? false,
       this.currentImageSrc,
     ].join(':')
 
@@ -1034,12 +1087,17 @@ export class CellRenderer {
   private syncEchoSprite(echo: EchoEffect, progress: number) {
     if (!this.echoSprite || !this.imageSprite) return
     const p = clamp(progress, 0, 1)
-    const scale = echo.startScale + (echo.endScale - echo.startScale) * p
+
+    const timerP = (echo.timerSync && this.timerEnabled) ? this.timerProgress : 1
+    const effectiveStartAlpha = clamp(echo.startAlpha, 0, 1) * timerP
+    const effectiveEndScale = 1 + (echo.endScale - 1) * timerP
+
+    const scale = echo.startScale + (effectiveEndScale - echo.startScale) * p
     this.echoSprite.x = this.imageSprite.x
     this.echoSprite.y = this.imageSprite.y
     this.echoSprite.rotation = this.imageSprite.rotation
     this.echoSprite.scale.set(this.imageSprite.scale.x * scale, this.imageSprite.scale.y * scale)
-    this.echoSprite.alpha = clamp(echo.startAlpha, 0, 1) * (1 - p)
+    this.echoSprite.alpha = effectiveStartAlpha * (1 - p)
   }
 
   private syncEchoToImage() {
@@ -1114,28 +1172,41 @@ export class CellRenderer {
     this.vignetteSprite.visible = true
 
     if (vig.dynamic) {
-      const animationKey = [
-        vig.dynamicFrom,
-        vig.dynamicTo,
-        vig.dynamicDurationMs,
-      ].join(':')
+      if (vig.dynamicTimerSync) {
+        // タイマー同期: GSAPなし、timerProgressで直接alpha設定
+        const animationKey = `timer-sync:${vig.dynamicFrom}:${vig.dynamicTo}`
+        if (this.vignetteAnimationKey !== animationKey) {
+          this.vignetteGsapTween?.kill()
+          this.vignetteGsapTween = null
+          this.vignetteAnimationKey = animationKey
+          if (this.vignetteSprite) {
+            this.vignetteSprite.alpha = vig.dynamicFrom + (vig.dynamicTo - vig.dynamicFrom) * this.timerProgress
+          }
+        }
+      } else {
+        const animationKey = [
+          vig.dynamicFrom,
+          vig.dynamicTo,
+          vig.dynamicDurationMs,
+        ].join(':')
 
-      if (this.vignetteAnimationKey !== animationKey) {
-        this.vignetteGsapTween?.kill()
-        this.vignetteAnimationKey = animationKey
-        const proxy = { alpha: vig.dynamicFrom }
-        if (this.vignetteSprite) this.vignetteSprite.alpha = vig.dynamicFrom
-        this.vignetteGsapTween = gsap.to(proxy, {
-          alpha: vig.dynamicTo,
-          duration: vig.dynamicDurationMs / 1000,
-          ease: 'sine.inOut',
-          repeat: -1,
-          yoyo: false,
-          onComplete: () => { proxy.alpha = vig.dynamicFrom },
-          onUpdate: () => {
-            if (this.vignetteSprite) this.vignetteSprite.alpha = proxy.alpha
-          },
-        })
+        if (this.vignetteAnimationKey !== animationKey) {
+          this.vignetteGsapTween?.kill()
+          this.vignetteAnimationKey = animationKey
+          const proxy = { alpha: vig.dynamicFrom }
+          if (this.vignetteSprite) this.vignetteSprite.alpha = vig.dynamicFrom
+          this.vignetteGsapTween = gsap.to(proxy, {
+            alpha: vig.dynamicTo,
+            duration: vig.dynamicDurationMs / 1000,
+            ease: 'sine.inOut',
+            repeat: -1,
+            yoyo: false,
+            onComplete: () => { proxy.alpha = vig.dynamicFrom },
+            onUpdate: () => {
+              if (this.vignetteSprite) this.vignetteSprite.alpha = proxy.alpha
+            },
+          })
+        }
       }
     } else {
       if (this.vignetteGsapTween) {
@@ -1183,7 +1254,7 @@ export class CellRenderer {
     this.imageLayerBlurFilter = null
     this.radialBlurFilters = []
     this.clearRadialBlurContents()
-    this.effectsLayer.filterArea = null
+    this.effectsLayer.filterArea = undefined
     this.setImageLayerFilters()
 
     if (!blur.enabled || blur.strength <= 0) {
@@ -1212,6 +1283,14 @@ export class CellRenderer {
 
   private applyGradualBlur(blurFilters: { filter: PIXI.BlurFilter; multiplier: number }[], blur: BlurEffect) {
     if (!blur.gradualEnabled) return
+
+    if (blur.gradualTimerSync) {
+      // タイマー同期: GSAPなし、timerProgressで直接強度設定
+      const strength = blur.gradualStartStrength + (blur.gradualEndStrength - blur.gradualStartStrength) * this.timerProgress
+      blurFilters.forEach(({ filter, multiplier }) => { filter.strength = strength * multiplier })
+      return
+    }
+
     blurFilters.forEach(({ filter, multiplier }) => {
       filter.strength = blur.gradualStartStrength * multiplier
     })
@@ -1398,7 +1477,7 @@ export class CellRenderer {
   private clearRadialBlurContents() {
     this.radialBlurLayers.forEach(layer => {
       layer.filters = []
-      layer.filterArea = null
+      layer.filterArea = undefined
       this.container.removeChild(layer)
       layer.destroy()
     })
