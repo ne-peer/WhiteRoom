@@ -26,6 +26,7 @@ export class CellRenderer {
   private colorOverlayGraphics: PIXI.Graphics
   private echoSprite: PIXI.Sprite | null = null
   private vignetteSprite: PIXI.Sprite | null = null
+  private vignetteTextureKey: string | null = null
   private radialBlurLayers: PIXI.Container[] = []
   private radialBlurMaskSprites: PIXI.Sprite[] = []
   private radialBlurImageClones: PIXI.Sprite[] = []
@@ -858,6 +859,7 @@ export class CellRenderer {
       this.vignetteSprite.destroy({ texture: true })
       this.vignetteSprite = null
     }
+    this.vignetteTextureKey = null
   }
 
   private updateVignette(effects: CellEffects) {
@@ -873,9 +875,24 @@ export class CellRenderer {
       return
     }
 
-    if (!this.vignetteSprite) {
+    const textureKey = [
+      this.width,
+      this.height,
+      vig.color.r,
+      vig.color.g,
+      vig.color.b,
+    ].join(':')
+
+    if (!this.vignetteSprite || this.vignetteTextureKey !== textureKey) {
+      const previousAlpha = this.vignetteSprite?.alpha ?? (vig.dynamic ? vig.dynamicFrom : vig.alpha)
+      if (this.vignetteSprite) {
+        this.vignetteLayer.removeChild(this.vignetteSprite)
+        this.vignetteSprite.destroy({ texture: true })
+      }
       const tex = createVignetteTexture(this.width, this.height, vig.color)
       this.vignetteSprite = new PIXI.Sprite(tex)
+      this.vignetteSprite.alpha = previousAlpha
+      this.vignetteTextureKey = textureKey
       this.vignetteLayer.addChild(this.vignetteSprite)
     }
 

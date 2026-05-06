@@ -152,11 +152,11 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       </div>
 
       <Section title={t('colorOverlay')}>
-        <Row label={t('enabled')}>
+        <Row label={t('colorFilter')}>
           <Toggle value={effects.colorOverlay.enabled} onChange={v => set('colorOverlay', { enabled: v })} />
         </Row>
         {effects.colorOverlay.enabled && (
-          <>
+          <div style={{ marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('color')}</div>
             <ColorPicker
               r={effects.colorOverlay.color.r}
@@ -167,51 +167,51 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               alpha={effects.colorOverlay.alpha}
               onAlphaChange={a => set('colorOverlay', { alpha: a })}
             />
-            <Row label={t('imageEnhanceFilter')}>
-              <Toggle
-                value={effects.colorOverlay.imageAdjustEnabled}
-                onChange={v => set('colorOverlay', { imageAdjustEnabled: v })}
+          </div>
+        )}
+        <Row label={t('imageEnhanceFilter')}>
+          <Toggle
+            value={effects.colorOverlay.imageAdjustEnabled}
+            onChange={v => set('colorOverlay', { imageAdjustEnabled: v })}
+          />
+        </Row>
+        {effects.colorOverlay.imageAdjustEnabled && (
+          <>
+            <Row label={t('saturationMax')}>
+              <Slider
+                value={Math.round(effects.colorOverlay.saturationMax * 100)}
+                min={100}
+                max={300}
+                onChange={v => set('colorOverlay', { saturationMax: v / 100 })}
+                unit="%"
               />
             </Row>
-            {effects.colorOverlay.imageAdjustEnabled && (
-              <>
-                <Row label={t('saturationMax')}>
-                  <Slider
-                    value={Math.round(effects.colorOverlay.saturationMax * 100)}
-                    min={100}
-                    max={300}
-                    onChange={v => set('colorOverlay', { saturationMax: v / 100 })}
-                    unit="%"
-                  />
-                </Row>
-                <Row label={t('contrastMax')}>
-                  <Slider
-                    value={Math.round(effects.colorOverlay.contrastMax * 100)}
-                    min={100}
-                    max={300}
-                    onChange={v => set('colorOverlay', { contrastMax: v / 100 })}
-                    unit="%"
-                  />
-                </Row>
-                <Row label={t('dynamicImageEnhance')}>
-                  <Toggle
-                    value={effects.colorOverlay.dynamicAdjust}
-                    onChange={v => set('colorOverlay', { dynamicAdjust: v })}
-                  />
-                </Row>
-                {effects.colorOverlay.dynamicAdjust && (
-                  <Row label={t('changeDuration')}>
-                    <NumberInput
-                      value={effects.colorOverlay.dynamicAdjustDurationMs / 1000}
-                      min={0.1}
-                      max={10}
-                      step={0.1}
-                      unit={t('seconds')}
-                      onChange={v => set('colorOverlay', { dynamicAdjustDurationMs: v * 1000 })}
-                    />
-                  </Row>
-                )}
-              </>
+            <Row label={t('contrastMax')}>
+              <Slider
+                value={Math.round(effects.colorOverlay.contrastMax * 100)}
+                min={100}
+                max={300}
+                onChange={v => set('colorOverlay', { contrastMax: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label={t('dynamicImageEnhance')}>
+              <Toggle
+                value={effects.colorOverlay.dynamicAdjust}
+                onChange={v => set('colorOverlay', { dynamicAdjust: v })}
+              />
+            </Row>
+            {effects.colorOverlay.dynamicAdjust && (
+              <Row label={t('changeDuration')}>
+                <NumberInput
+                  value={effects.colorOverlay.dynamicAdjustDurationMs / 1000}
+                  min={0.1}
+                  max={10}
+                  step={0.1}
+                  unit={t('seconds')}
+                  onChange={v => set('colorOverlay', { dynamicAdjustDurationMs: v * 1000 })}
+                />
+              </Row>
             )}
           </>
         )}
@@ -238,7 +238,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             </Row>
             {effects.vignette.dynamic && (
               <>
-                <Row label={t('startOpacity')}>
+                <Row label={t('start')}>
                   <Slider
                     value={Math.round(effects.vignette.dynamicFrom * 100)}
                     min={0}
@@ -247,7 +247,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     unit="%"
                   />
                 </Row>
-                <Row label={t('endOpacity')}>
+                <Row label={t('end')}>
                   <Slider
                     value={Math.round(effects.vignette.dynamicTo * 100)}
                     min={0}
