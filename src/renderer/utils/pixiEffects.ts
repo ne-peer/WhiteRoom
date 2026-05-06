@@ -69,9 +69,14 @@ export class ParticleSystem {
   private texture: PIXI.Texture | null = null
   private textures: PIXI.Texture[] = []
   private lastSpawn = 0
+  private timerProgress = 1
 
   constructor(container: PIXI.Container) {
     this.container = container
+  }
+
+  setTimerProgress(progress: number) {
+    this.timerProgress = progress
   }
 
   setTexture(texture: PIXI.Texture | null) {
@@ -103,7 +108,8 @@ export class ParticleSystem {
     }
 
     const { spawnIntervalMs, maxParticles, sizeRatio, baseAlpha, pattern } = effects.dynamicAsset
-    const assetBaseAlpha = clamp(baseAlpha, 0, 1)
+    const rawBaseAlpha = clamp(baseAlpha, 0, 1)
+    const assetBaseAlpha = (effects.dynamicAsset.alphaTimerSync) ? rawBaseAlpha * this.timerProgress : rawBaseAlpha
     const overlayTint = getAssetOverlayTint(effects)
     const isEmergence = (pattern ?? 'rising') === 'emergence'
 
@@ -251,12 +257,17 @@ export class TextSystem {
   private currentKey: string | null = null
   private cellWidth = 0
   private cellHeight = 0
+  private timerProgress = 1
 
   constructor(container: PIXI.Container) {
     this.container = container
     this.mask = new PIXI.Graphics()
     this.container.addChild(this.mask)
     this.container.mask = this.mask
+  }
+
+  setTimerProgress(progress: number) {
+    this.timerProgress = progress
   }
 
   resizeMask(width: number, height: number) {
@@ -312,7 +323,8 @@ export class TextSystem {
 
     const text = validTexts[Math.floor(Math.random() * validTexts.length)]
     const { font, fontSize, color, charIntervalMs, displayDurationMs, intervalMs, direction } = effects
-    const alpha = clamp(effects.alpha ?? 1, 0, 1)
+    const rawAlpha = clamp(effects.alpha ?? 1, 0, 1)
+    const alpha = effects.alphaTimerSync ? rawAlpha * this.timerProgress : rawAlpha
     const hexColor = (color.r << 16) | (color.g << 8) | color.b
 
     const style = new PIXI.TextStyle({

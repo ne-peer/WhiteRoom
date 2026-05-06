@@ -26,7 +26,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       await app.init({
         width: container.clientWidth || window.innerWidth,
         height: container.clientHeight || window.innerHeight,
-        backgroundColor: rgbaToHex(useAppStore.getState().blankColor),
+        backgroundColor: 0x000000,
         antialias: true,
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
@@ -79,7 +79,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     const app = appRef.current
     if (!app) return
     layoutCells(app, cellRenderersRef.current, store)
-  }, [store.grid, store.cells.length, store.blankColor])
+  }, [store.grid, store.cells.length, store.blankColor, store.blankBackground])
 
   const imageKey = store.cells
     .map(c => `${c.id}:${c.folder?.id ?? ''}:${c.currentImageIndex}`)
@@ -190,6 +190,15 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     })
   }, [store.effectColumnSyncNonce])
 
+  useEffect(() => {
+    const { timer, cells } = store
+    const progress = timer.totalSec > 0 ? timer.elapsedSec / timer.totalSec : 0
+    cells.forEach(cell => {
+      const cr = cellRenderersRef.current.get(cell.id)
+      if (cr) cr.applyTimerProgress(cell.effects, timer.enabled, timer.running, progress)
+    })
+  }, [store.timer.enabled, store.timer.running, store.timer.elapsedSec, store.timer.totalSec])
+
   const setCellImage = useCallback((cellId: string, imagePath: string) => {
     const cr = cellRenderersRef.current.get(cellId)
     if (cr) cr.setImage(imagePath, 'none')
@@ -203,14 +212,11 @@ function layoutCells(
   renderers: CellRendererMap,
   state: ReturnType<typeof useAppStore.getState>
 ) {
-  const { grid, cells, blankColor } = state
+  const { grid, cells, blankColor, blankBackground } = state
   const totalW = app.canvas.clientWidth || app.screen.width
   const totalH = app.canvas.clientHeight || app.screen.height
 
-  app.renderer.background.color = rgbaToHex(blankColor)
-
-  const cellW = totalW / grid.cols
-  const cellH = totalH / grid.rows
+  app.renderer.background.color = 0x000000
 
   const currentIds = new Set(cells.map(c => c.id))
   renderers.forEach((cr, id) => {
@@ -222,13 +228,18 @@ function layoutCells(
   })
 
   cells.forEach(cell => {
-    const x = cell.col * cellW
-    const y = cell.row * cellH
+    const x = Math.round((cell.col * totalW) / grid.cols)
+    const y = Math.round((cell.row * totalH) / grid.rows)
+    const nextX = Math.round(((cell.col + 1) * totalW) / grid.cols)
+    const nextY = Math.round(((cell.row + 1) * totalH) / grid.rows)
+    const cellW = nextX - x
+    const cellH = nextY - y
 
     let cr = renderers.get(cell.id)
 
     if (!cr) {
       cr = new CellRenderer(cell.id, cellW, cellH)
+      cr.configureBlankBackground(blankBackground)
       app.stage.addChild(cr.container)
       renderers.set(cell.id, cr)
 
@@ -248,9 +259,10 @@ function layoutCells(
     }
 
     cr.setImageFit(cell.imageFit ?? 'cover')
+    cr.configureBlankBackground(blankBackground)
     cr.container.x = x
     cr.container.y = y
-    drawCellBackground(cr.container, cellW, cellH, blankColor)
+    drawCellBackground(cr.container, cellW, cellH, blankBackground.mode === 'color' ? blankColor : null)
   })
 }
 
@@ -258,13 +270,14 @@ function drawCellBackground(
   container: PIXI.Container,
   w: number,
   h: number,
-  color: { r: number; g: number; b: number; a: number }
+  color: { r: number; g: number; b: number; a: number } | null
 ) {
   const existing = container.getChildByName('__bg__') as PIXI.Graphics | null
   if (existing) {
     container.removeChild(existing)
     existing.destroy()
   }
+  if (!color) return
 
   const bg = new PIXI.Graphics()
   bg.label = '__bg__'

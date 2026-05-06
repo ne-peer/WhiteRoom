@@ -2,13 +2,14 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type {
   AppProfile, Cell, CellEffects, CellFolder, GridLayout,
-  BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
+  BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
   TextEffect, UiLanguage,
 } from '../../shared/types'
 
 // ===== デフォルト値 =====
 
 export const DEFAULT_BLANK_COLOR: BlankColor = { r: 255, g: 100, b: 150, a: 1 }
+export const DEFAULT_BLANK_BACKGROUND: BlankBackground = { mode: 'color', dynamicBlur: 30 }
 export const DEFAULT_SLIDESHOW: Cell['slideshow'] = {
   enabled: false,
   intervalMs: 3000,
@@ -27,6 +28,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     contrastMax: 1.35,
     dynamicAdjust: false,
     dynamicAdjustDurationMs: 1000,
+    dynamicAdjustTimerSync: false,
   },
   vignette: {
     enabled: false,
@@ -36,6 +38,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     dynamicFrom: 0.4,
     dynamicTo: 0.7,
     dynamicDurationMs: 1000,
+    dynamicTimerSync: false,
   },
   blur: {
     enabled: false,
@@ -45,6 +48,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     gradualDurationSec: 1,
     gradualStartStrength: 0,
     gradualEndStrength: 20,
+    gradualTimerSync: false,
     radialEnabled: false,
     radialPattern: 'a',
     radialIntensity: 0.8,
@@ -57,11 +61,13 @@ export const DEFAULT_EFFECTS: CellEffects = {
     startAlpha: 0.45,
     startScale: 1,
     endScale: 1.2,
+    timerSync: false,
   },
   breathing: {
     enabled: false,
     speedPxPerSec: 8,
     maxOffsetPx: 20,
+    timerSync: false,
     scaleEnabled: false,
     scaleDurationSec: 8,
   },
@@ -77,6 +83,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     maxParticles: 20,
     sizeRatio: 1.0,
     baseAlpha: 1.0,
+    alphaTimerSync: false,
     emergenceSpeedFactor: 1.0,
     colorOverlayEnabled: false,
     colorOverlayColor: { r: 255, g: 100, b: 150 },
@@ -88,6 +95,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     font: 'Meiryo',
     color: { r: 255, g: 100, b: 150 },
     alpha: 0.5,
+    alphaTimerSync: false,
     fontSize: 48,
     charIntervalMs: 300,
     displayDurationMs: 1000,
@@ -98,7 +106,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
 
 export const DEFAULT_TIMER: TimerConfig = {
   enabled: false,
-  totalSec: 300,
+  totalSec: 60,
   elapsedSec: 0,
   running: false,
   position: 'bottom-center',
@@ -141,6 +149,7 @@ function buildCells(cols: number, rows: number): Cell[] {
 export type AppState = {
   // レイアウト
   blankColor: BlankColor
+  blankBackground: BlankBackground
   grid: GridLayout
   cells: Cell[]
   timer: TimerConfig
@@ -194,6 +203,7 @@ export type AppActions = {
 
   // 表示設定
   setBlankColor: (color: BlankColor) => void
+  setBlankBackground: (config: Partial<BlankBackground>) => void
   setFullscreen: (flag: boolean) => void
   setNavigationBarVisible: (flag: boolean) => void
   toggleNavigationBar: () => void
@@ -225,6 +235,7 @@ export const useAppStore = create<AppStore>()(
     return ({
     // 初期状態
     blankColor: DEFAULT_BLANK_COLOR,
+    blankBackground: { ...DEFAULT_BLANK_BACKGROUND },
     grid: { cols: 1, rows: 1 },
     cells: initialCells,
     timer: DEFAULT_TIMER,
@@ -399,6 +410,8 @@ export const useAppStore = create<AppStore>()(
 
     setBlankColor: (color) => set(s => { s.blankColor = color }),
 
+    setBlankBackground: (config) => set(s => { Object.assign(s.blankBackground, config) }),
+
     setFullscreen: (flag) => set(s => { s.fullscreen = flag }),
 
     setNavigationBarVisible: (flag) => set(s => { s.showNavigationBar = flag }),
@@ -437,6 +450,7 @@ export const useAppStore = create<AppStore>()(
         createdAt: new Date().toISOString(),
         name,
         blankColor: s.blankColor,
+        blankBackground: s.blankBackground,
         grid: s.grid,
         cells: s.cells,
         timer: s.timer,
@@ -447,6 +461,7 @@ export const useAppStore = create<AppStore>()(
 
     importProfile: (profile) => set(s => {
       s.blankColor = profile.blankColor
+      s.blankBackground = { ...DEFAULT_BLANK_BACKGROUND, ...profile.blankBackground }
       s.grid = profile.grid
       s.cells = profile.cells.map(cell => ({
         ...cell,
@@ -473,6 +488,7 @@ export const useAppStore = create<AppStore>()(
     resetProfile: () => set(s => {
       const cells = buildCells(1, 1)
       s.blankColor = DEFAULT_BLANK_COLOR
+      s.blankBackground = { ...DEFAULT_BLANK_BACKGROUND }
       s.grid = { cols: 1, rows: 1 }
       s.cells = cells
       s.timer = { ...DEFAULT_TIMER }

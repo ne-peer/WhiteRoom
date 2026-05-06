@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, SlideShowTransition } from '../../shared/types'
+import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, SlideShowTransition } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -12,6 +12,7 @@ export class CellRenderer {
   readonly cellId: string
   readonly container: PIXI.Container
 
+  private dynamicBackgroundLayer: PIXI.Container
   private imageLayer: PIXI.Container
   private echoLayer: PIXI.Container
   private effectsLayer: PIXI.Container
@@ -21,6 +22,12 @@ export class CellRenderer {
   private vignetteLayer: PIXI.Container
 
   private imageSprite: PIXI.Sprite | null = null
+  private dynamicBackgroundSprite: PIXI.Sprite | null = null
+  private dynamicBackgroundTransitionSprite: PIXI.Sprite | null = null
+  private dynamicBackgroundTransitionTween: gsap.core.Tween | null = null
+  private dynamicBackgroundBlurFilter: PIXI.BlurFilter | null = null
+  private blankBackground: BlankBackground = { mode: 'color', dynamicBlur: 30 }
+  private dynamicBackgroundMask: PIXI.Graphics
   private imageMask: PIXI.Graphics
   private echoMask: PIXI.Graphics
   private colorOverlayGraphics: PIXI.Graphics
@@ -80,6 +87,11 @@ export class CellRenderer {
   private latestEffects: CellEffects | null = null
   private effectResetTimeoutId: number | null = null
 
+  // タイマー同期用
+  private timerProgress = 0   // 0.0-1.0
+  private timerEnabled = false
+  private timerRunning = false
+
   constructor(cellId: string, width: number, height: number) {
     this.cellId = cellId
     this.width = width
@@ -89,6 +101,7 @@ export class CellRenderer {
     this.container.eventMode = 'static'
     this.container.cursor = 'pointer'
 
+    this.dynamicBackgroundLayer = new PIXI.Container()
     this.imageLayer = new PIXI.Container()
     this.echoLayer = new PIXI.Container()
     this.effectsLayer = new PIXI.Container()
@@ -96,9 +109,11 @@ export class CellRenderer {
     this.particleContainer = new PIXI.Container()
     this.textLayer = new PIXI.Container()
     this.vignetteLayer = new PIXI.Container()
+    this.dynamicBackgroundMask = new PIXI.Graphics()
     this.imageMask = new PIXI.Graphics()
     this.echoMask = new PIXI.Graphics()
 
+    this.container.addChild(this.dynamicBackgroundLayer)
     this.container.addChild(this.imageLayer)
     this.container.addChild(this.echoLayer)
     this.container.addChild(this.effectsLayer)
@@ -108,9 +123,12 @@ export class CellRenderer {
     this.container.addChild(this.vignetteLayer)
     this.container.addChild(this.echoMask)
 
+    this.dynamicBackgroundLayer.addChild(this.dynamicBackgroundMask)
+    this.dynamicBackgroundLayer.mask = this.dynamicBackgroundMask
     this.imageLayer.addChild(this.imageMask)
     this.imageLayer.mask = this.imageMask
     this.echoLayer.mask = this.echoMask
+    this.redrawDynamicBackgroundMask()
     this.redrawImageMask()
     this.redrawEchoMask()
 
@@ -125,6 +143,8 @@ export class CellRenderer {
   resize(width: number, height: number) {
     this.width = width
     this.height = height
+    this.redrawDynamicBackgroundMask()
+    this.repositionDynamicBackground()
     this.repositionImage()
     this.redrawImageMask()
     this.redrawEchoMask()
@@ -141,6 +161,29 @@ export class CellRenderer {
     this.repositionImage()
     this.refreshEcho()
     this.refreshBlurRegion()
+  }
+
+  configureBlankBackground(blankBackground: BlankBackground) {
+    const previousMode = this.blankBackground.mode
+    this.blankBackground = {
+      mode: blankBackground.mode,
+      dynamicBlur: clamp(blankBackground.dynamicBlur, 0, 100),
+    }
+
+    this.dynamicBackgroundLayer.visible = this.blankBackground.mode === 'dynamic'
+    this.updateDynamicBackgroundBlur()
+
+    if (this.blankBackground.mode === 'dynamic') {
+      if (!this.dynamicBackgroundSprite && this.imageSprite) {
+        this.swapDynamicBackgroundSprite(new PIXI.Sprite(this.imageSprite.texture))
+      }
+      this.repositionDynamicBackground()
+      return
+    }
+
+    if (previousMode === 'dynamic') {
+      this.clearDynamicBackground()
+    }
   }
 
   getNormalizedPointFromGlobal(global: PIXI.PointData) {
@@ -160,6 +203,7 @@ export class CellRenderer {
     if (!src) {
       this.clearTransitionSprite()
       this.swapImageSprite(null, null)
+      this.clearDynamicBackground()
       this.refreshEcho()
       this.refreshBlurRegion()
       return
@@ -180,6 +224,9 @@ export class CellRenderer {
     if (!this.imageSprite || transition === 'none') {
       this.clearTransitionSprite()
       this.swapImageSprite(sprite, url)
+      if (this.blankBackground.mode === 'dynamic') {
+        this.swapDynamicBackgroundSprite(new PIXI.Sprite(texture))
+      }
       this.positionImageSprite(sprite)
       this.refreshEcho()
       this.refreshBlurRegion()
@@ -288,6 +335,39 @@ export class CellRenderer {
     this.updateEcho(effects)
   }
 
+  applyTimerProgress(effects: CellEffects, enabled: boolean, running: boolean, progress: number) {
+    this.timerEnabled = enabled
+    this.timerRunning = running
+    this.timerProgress = progress
+
+    // ビネット（動的ビネット＋タイマー同期）
+    const vig = effects.vignette
+    if (vig.enabled && vig.dynamic && vig.dynamicTimerSync && this.vignetteSprite?.visible) {
+      this.vignetteSprite.alpha = vig.dynamicFrom + (vig.dynamicTo - vig.dynamicFrom) * progress
+    }
+
+    // 画像強調フィルタ（動的強調＋タイマー同期）
+    const co = effects.colorOverlay
+    if (co.imageAdjustEnabled && co.dynamicAdjust && co.dynamicAdjustTimerSync && this.colorMatrixFilter) {
+      this.applyColorMatrix(co, progress)
+    }
+
+    // ブラー（徐々に増加＋タイマー同期）
+    const blur = effects.blur
+    if (blur.enabled && blur.gradualEnabled && blur.gradualTimerSync) {
+      const strength = blur.gradualStartStrength + (blur.gradualEndStrength - blur.gradualStartStrength) * progress
+      if (this.radialBlurFilters.length > 0) {
+        this.radialBlurFilters.forEach(({ filter, multiplier }) => { filter.strength = strength * multiplier })
+      } else if (this.blurFilter) {
+        this.blurFilter.strength = strength
+      }
+    }
+
+    // テキスト・アセット・エコー・ブリージングはtimerProgressを参照する各メソッドで反映
+    this.textSystem.setTimerProgress(progress)
+    this.particleSystem.setTimerProgress(progress)
+  }
+
   tick(delta: number, effects: CellEffects) {
     this.tickBreathing(delta, effects.breathing)
     this.syncRadialBlurClones()
@@ -307,12 +387,14 @@ export class CellRenderer {
     this.colorAdjustGsapTween?.kill()
     this.echoGsapTween?.kill()
     this.imageTransitionTween?.kill()
+    this.dynamicBackgroundTransitionTween?.kill()
     if (this.effectResetTimeoutId !== null) {
       clearTimeout(this.effectResetTimeoutId)
       this.effectResetTimeoutId = null
     }
     this.particleSystem.destroy()
     this.textSystem.destroy()
+    this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.container.destroy({ children: true })
   }
@@ -344,6 +426,7 @@ export class CellRenderer {
     this.positionImageSprite(sprite)
 
     const duration = Math.max(0.05, transitionDurationMs / 1000)
+    this.startDynamicBackgroundTransition(sprite.texture, transition, duration)
 
     const finish = () => {
       this.activeSlideTransition = null
@@ -444,6 +527,9 @@ export class CellRenderer {
       }
       default:
         this.swapImageSprite(sprite, url)
+        if (this.blankBackground.mode === 'dynamic') {
+          this.swapDynamicBackgroundSprite(new PIXI.Sprite(sprite.texture))
+        }
         this.positionImageSprite(sprite)
         this.refreshEcho()
         this.refreshBlurRegion()
@@ -453,6 +539,7 @@ export class CellRenderer {
   clearImage() {
     this.clearTransitionSprite()
     this.swapImageSprite(null, null)
+    this.clearDynamicBackground()
     this.requestedImageSrc = null
   }
 
@@ -481,6 +568,166 @@ export class CellRenderer {
     this.imageLayer.removeChild(this.transitionSprite)
     this.transitionSprite.destroy({ texture: false })
     this.transitionSprite = null
+  }
+
+  private startDynamicBackgroundTransition(
+    texture: PIXI.Texture,
+    transition: SlideShowTransition,
+    duration: number
+  ) {
+    if (this.blankBackground.mode !== 'dynamic') return
+
+    const sprite = new PIXI.Sprite(texture)
+    sprite.anchor.set(0.5)
+    this.positionDynamicBackgroundSprite(sprite)
+
+    const oldSprite = this.dynamicBackgroundSprite
+    if (!oldSprite || transition === 'none') {
+      this.swapDynamicBackgroundSprite(sprite)
+      return
+    }
+
+    this.clearDynamicBackgroundTransitionSprite()
+    this.dynamicBackgroundTransitionSprite = oldSprite
+    this.dynamicBackgroundLayer.addChild(sprite)
+    this.dynamicBackgroundSprite = sprite
+
+    switch (transition) {
+      case 'fade':
+        sprite.alpha = 0
+        oldSprite.alpha = 1
+        this.dynamicBackgroundTransitionTween = gsap.to(sprite, {
+          alpha: 1,
+          duration,
+          ease: 'sine.out',
+          onComplete: () => this.finishDynamicBackgroundTransition(oldSprite),
+        })
+        gsap.to(oldSprite, { alpha: 0, duration, ease: 'sine.out' })
+        break
+      case 'slide-left':
+      case 'slide-right':
+      case 'slide-up':
+      case 'slide-down': {
+        const offsetX = transition === 'slide-left' ? this.width : transition === 'slide-right' ? -this.width : 0
+        const offsetY = transition === 'slide-up' ? this.height : transition === 'slide-down' ? -this.height : 0
+        const proxy = { incomingX: offsetX, incomingY: offsetY, outgoingX: 0, outgoingY: 0 }
+        const apply = () => {
+          this.positionDynamicBackgroundSprite(sprite, proxy.incomingX, proxy.incomingY)
+          this.positionDynamicBackgroundSprite(oldSprite, proxy.outgoingX, proxy.outgoingY)
+        }
+        apply()
+        this.dynamicBackgroundTransitionTween = gsap.to(proxy, {
+          incomingX: 0,
+          incomingY: 0,
+          outgoingX: -offsetX * 0.25,
+          outgoingY: -offsetY * 0.25,
+          duration,
+          ease: 'sine.out',
+          onUpdate: apply,
+          onComplete: () => this.finishDynamicBackgroundTransition(oldSprite),
+        })
+        gsap.to(oldSprite, { alpha: 0, duration, ease: 'sine.out' })
+        break
+      }
+      case 'zoom-in':
+      case 'zoom-out': {
+        const proxy = { scaleMultiplier: transition === 'zoom-in' ? 1.12 : 0.88 }
+        sprite.alpha = 0
+        oldSprite.alpha = 1
+        this.dynamicBackgroundTransitionTween = gsap.to(proxy, {
+          scaleMultiplier: 1,
+          duration,
+          ease: 'sine.out',
+          onUpdate: () => this.positionDynamicBackgroundSprite(sprite, 0, 0, proxy.scaleMultiplier),
+          onComplete: () => this.finishDynamicBackgroundTransition(oldSprite),
+        })
+        this.positionDynamicBackgroundSprite(sprite, 0, 0, proxy.scaleMultiplier)
+        gsap.to(sprite, { alpha: 1, duration, ease: 'sine.out' })
+        gsap.to(oldSprite, { alpha: 0, duration, ease: 'sine.out' })
+        break
+      }
+      default:
+        this.swapDynamicBackgroundSprite(sprite)
+    }
+  }
+
+  private finishDynamicBackgroundTransition(oldSprite: PIXI.Sprite) {
+    if (this.dynamicBackgroundTransitionSprite === oldSprite) {
+      this.dynamicBackgroundLayer.removeChild(oldSprite)
+      oldSprite.destroy({ texture: false })
+      this.dynamicBackgroundTransitionSprite = null
+    }
+    this.dynamicBackgroundTransitionTween = null
+    this.repositionDynamicBackground()
+  }
+
+  private swapDynamicBackgroundSprite(sprite: PIXI.Sprite | null) {
+    const oldSprite = this.dynamicBackgroundSprite
+    this.clearDynamicBackgroundTransitionSprite()
+
+    if (sprite) {
+      sprite.anchor.set(0.5)
+      this.positionDynamicBackgroundSprite(sprite)
+      this.dynamicBackgroundLayer.addChild(sprite)
+    }
+
+    this.dynamicBackgroundSprite = sprite
+
+    if (oldSprite && oldSprite !== sprite) {
+      this.dynamicBackgroundLayer.removeChild(oldSprite)
+      oldSprite.destroy({ texture: false })
+    }
+  }
+
+  private clearDynamicBackgroundTransitionSprite() {
+    this.dynamicBackgroundTransitionTween?.kill()
+    this.dynamicBackgroundTransitionTween = null
+
+    if (!this.dynamicBackgroundTransitionSprite) return
+    gsap.killTweensOf(this.dynamicBackgroundTransitionSprite)
+    this.dynamicBackgroundLayer.removeChild(this.dynamicBackgroundTransitionSprite)
+    this.dynamicBackgroundTransitionSprite.destroy({ texture: false })
+    this.dynamicBackgroundTransitionSprite = null
+  }
+
+  private clearDynamicBackground() {
+    this.clearDynamicBackgroundTransitionSprite()
+    if (this.dynamicBackgroundSprite) {
+      this.dynamicBackgroundLayer.removeChild(this.dynamicBackgroundSprite)
+      this.dynamicBackgroundSprite.destroy({ texture: false })
+      this.dynamicBackgroundSprite = null
+    }
+  }
+
+  private repositionDynamicBackground() {
+    if (this.dynamicBackgroundSprite) this.positionDynamicBackgroundSprite(this.dynamicBackgroundSprite)
+    if (this.dynamicBackgroundTransitionSprite) this.positionDynamicBackgroundSprite(this.dynamicBackgroundTransitionSprite)
+    this.updateDynamicBackgroundBlur()
+  }
+
+  private positionDynamicBackgroundSprite(sprite: PIXI.Sprite, offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
+    const texW = sprite.texture.width
+    const texH = sprite.texture.height
+    const scale = Math.max(this.width / texW, this.height / texH) * scaleMultiplier
+    sprite.scale.set(scale)
+    sprite.x = this.width / 2 + offsetX
+    sprite.y = this.height / 2 + offsetY
+  }
+
+  private updateDynamicBackgroundBlur() {
+    if (this.blankBackground.mode !== 'dynamic' || this.blankBackground.dynamicBlur <= 0) {
+      this.dynamicBackgroundLayer.filters = []
+      this.dynamicBackgroundLayer.filterArea = undefined
+      this.dynamicBackgroundBlurFilter = null
+      return
+    }
+
+    if (!this.dynamicBackgroundBlurFilter) {
+      this.dynamicBackgroundBlurFilter = new PIXI.BlurFilter({ quality: 4 })
+    }
+    this.dynamicBackgroundBlurFilter.strength = this.blankBackground.dynamicBlur
+    this.dynamicBackgroundLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    this.dynamicBackgroundLayer.filters = [this.dynamicBackgroundBlurFilter]
   }
 
   private repositionImage() {
@@ -530,6 +777,12 @@ export class CellRenderer {
     updateColorOverlay(this.colorOverlayGraphics, this.width, this.height, effects)
   }
 
+  private redrawDynamicBackgroundMask() {
+    this.dynamicBackgroundMask.clear()
+    this.dynamicBackgroundMask.rect(0, 0, this.width, this.height)
+    this.dynamicBackgroundMask.fill(0xffffff)
+  }
+
   private updateColorAdjustment(colorOverlay: ColorOverlayEffect) {
     const enabled = colorOverlay.imageAdjustEnabled &&
       (colorOverlay.saturationMax > 1 || colorOverlay.contrastMax > 1)
@@ -547,12 +800,15 @@ export class CellRenderer {
       this.colorMatrixFilter = new PIXI.ColorMatrixFilter()
     }
 
-    const animationKey = [
-      colorOverlay.saturationMax,
-      colorOverlay.contrastMax,
-      colorOverlay.dynamicAdjust,
-      colorOverlay.dynamicAdjustDurationMs,
-    ].join(':')
+    const isTimerSync = colorOverlay.dynamicAdjust && colorOverlay.dynamicAdjustTimerSync
+    const animationKey = isTimerSync
+      ? `timer-sync:${colorOverlay.saturationMax}:${colorOverlay.contrastMax}`
+      : [
+          colorOverlay.saturationMax,
+          colorOverlay.contrastMax,
+          colorOverlay.dynamicAdjust,
+          colorOverlay.dynamicAdjustDurationMs,
+        ].join(':')
 
     if (this.colorAdjustAnimationKey === animationKey) return
 
@@ -562,19 +818,24 @@ export class CellRenderer {
     this.setImageLayerFilters()
 
     if (colorOverlay.dynamicAdjust) {
-      const proxy = { progress: 0 }
-      this.applyColorMatrix(colorOverlay, proxy.progress)
-      this.colorAdjustGsapTween = gsap.to(proxy, {
-        progress: 1,
-        duration: Math.max(0.001, colorOverlay.dynamicAdjustDurationMs / 1000),
-        ease: 'sine.inOut',
-        repeat: -1,
-        onRepeat: () => {
-          proxy.progress = 0
-          this.applyColorMatrix(colorOverlay, proxy.progress)
-        },
-        onUpdate: () => this.applyColorMatrix(colorOverlay, proxy.progress),
-      })
+      if (isTimerSync) {
+        // タイマー同期: GSAPなし、timerProgressで直接適用
+        this.applyColorMatrix(colorOverlay, this.timerProgress)
+      } else {
+        const proxy = { progress: 0 }
+        this.applyColorMatrix(colorOverlay, proxy.progress)
+        this.colorAdjustGsapTween = gsap.to(proxy, {
+          progress: 1,
+          duration: Math.max(0.001, colorOverlay.dynamicAdjustDurationMs / 1000),
+          ease: 'sine.inOut',
+          repeat: -1,
+          onRepeat: () => {
+            proxy.progress = 0
+            this.applyColorMatrix(colorOverlay, proxy.progress)
+          },
+          onUpdate: () => this.applyColorMatrix(colorOverlay, proxy.progress),
+        })
+      }
     } else {
       this.applyColorMatrix(colorOverlay, 1)
     }
@@ -596,7 +857,7 @@ export class CellRenderer {
     if (this.imageLayerBlurFilter) filters.push(this.imageLayerBlurFilter)
     if (this.colorMatrixFilter) filters.push(this.colorMatrixFilter)
     this.imageLayer.filters = filters
-    this.imageLayer.filterArea = filters.length > 0 ? new PIXI.Rectangle(0, 0, this.width, this.height) : null
+    this.imageLayer.filterArea = filters.length > 0 ? new PIXI.Rectangle(0, 0, this.width, this.height) : undefined
   }
 
   private updateBreathing(breathing?: BreathingEffect) {
@@ -605,6 +866,7 @@ export class CellRenderer {
           breathing.enabled,
           breathing.speedPxPerSec,
           breathing.maxOffsetPx,
+          breathing.timerSync ?? false,
           breathing.scaleEnabled,
           breathing.scaleDurationSec,
         ].join(':')
@@ -637,7 +899,9 @@ export class CellRenderer {
   }
 
   private getBreathingScaleMultiplier() {
-    return 1 + ((Math.sin(this.breathingScalePhase) + 1) / 2) * 0.05
+    const breathing = this.latestEffects?.breathing
+    const timerP = (breathing?.timerSync && this.timerEnabled) ? this.timerProgress : 1
+    return 1 + ((Math.sin(this.breathingScalePhase) + 1) / 2) * 0.05 * timerP
   }
 
   private tickBreathing(delta: number, breathing?: BreathingEffect) {
@@ -645,7 +909,8 @@ export class CellRenderer {
 
     const speed = Math.max(0, breathing.speedPxPerSec)
     const dtSec = Math.max(0, delta) / 60
-    const threshold = clamp(breathing.maxOffsetPx ?? 20, 0, 40)
+    const timerP = (breathing.timerSync && this.timerEnabled) ? this.timerProgress : 1
+    const threshold = clamp((breathing.maxOffsetPx ?? 20) * timerP, 0, 40)
 
     this.breathingOffsetX += this.breathingDirectionX * speed * dtSec
     this.breathingOffsetY += this.breathingDirectionY * speed * dtSec
@@ -694,7 +959,9 @@ export class CellRenderer {
   }
 
   private resetBreathingMotion(randomize: boolean) {
-    const threshold = clamp(this.latestEffects?.breathing?.maxOffsetPx ?? 20, 0, 40)
+    const breathing = this.latestEffects?.breathing
+    const timerP = (breathing?.timerSync && this.timerEnabled) ? this.timerProgress : 1
+    const threshold = clamp((breathing?.maxOffsetPx ?? 20) * timerP, 0, 40)
     this.breathingOffsetX = randomize ? Math.random() * threshold * 2 - threshold : 0
     this.breathingOffsetY = randomize ? Math.random() * threshold * 2 - threshold : 0
     this.randomizeBreathingDirection(threshold)
@@ -778,6 +1045,7 @@ export class CellRenderer {
       echo.startAlpha,
       echo.startScale,
       echo.endScale,
+      echo.timerSync ?? false,
       this.currentImageSrc,
     ].join(':')
 
@@ -819,12 +1087,17 @@ export class CellRenderer {
   private syncEchoSprite(echo: EchoEffect, progress: number) {
     if (!this.echoSprite || !this.imageSprite) return
     const p = clamp(progress, 0, 1)
-    const scale = echo.startScale + (echo.endScale - echo.startScale) * p
+
+    const timerP = (echo.timerSync && this.timerEnabled) ? this.timerProgress : 1
+    const effectiveStartAlpha = clamp(echo.startAlpha, 0, 1) * timerP
+    const effectiveEndScale = 1 + (echo.endScale - 1) * timerP
+
+    const scale = echo.startScale + (effectiveEndScale - echo.startScale) * p
     this.echoSprite.x = this.imageSprite.x
     this.echoSprite.y = this.imageSprite.y
     this.echoSprite.rotation = this.imageSprite.rotation
     this.echoSprite.scale.set(this.imageSprite.scale.x * scale, this.imageSprite.scale.y * scale)
-    this.echoSprite.alpha = clamp(echo.startAlpha, 0, 1) * (1 - p)
+    this.echoSprite.alpha = effectiveStartAlpha * (1 - p)
   }
 
   private syncEchoToImage() {
@@ -899,28 +1172,41 @@ export class CellRenderer {
     this.vignetteSprite.visible = true
 
     if (vig.dynamic) {
-      const animationKey = [
-        vig.dynamicFrom,
-        vig.dynamicTo,
-        vig.dynamicDurationMs,
-      ].join(':')
+      if (vig.dynamicTimerSync) {
+        // タイマー同期: GSAPなし、timerProgressで直接alpha設定
+        const animationKey = `timer-sync:${vig.dynamicFrom}:${vig.dynamicTo}`
+        if (this.vignetteAnimationKey !== animationKey) {
+          this.vignetteGsapTween?.kill()
+          this.vignetteGsapTween = null
+          this.vignetteAnimationKey = animationKey
+          if (this.vignetteSprite) {
+            this.vignetteSprite.alpha = vig.dynamicFrom + (vig.dynamicTo - vig.dynamicFrom) * this.timerProgress
+          }
+        }
+      } else {
+        const animationKey = [
+          vig.dynamicFrom,
+          vig.dynamicTo,
+          vig.dynamicDurationMs,
+        ].join(':')
 
-      if (this.vignetteAnimationKey !== animationKey) {
-        this.vignetteGsapTween?.kill()
-        this.vignetteAnimationKey = animationKey
-        const proxy = { alpha: vig.dynamicFrom }
-        if (this.vignetteSprite) this.vignetteSprite.alpha = vig.dynamicFrom
-        this.vignetteGsapTween = gsap.to(proxy, {
-          alpha: vig.dynamicTo,
-          duration: vig.dynamicDurationMs / 1000,
-          ease: 'sine.inOut',
-          repeat: -1,
-          yoyo: false,
-          onComplete: () => { proxy.alpha = vig.dynamicFrom },
-          onUpdate: () => {
-            if (this.vignetteSprite) this.vignetteSprite.alpha = proxy.alpha
-          },
-        })
+        if (this.vignetteAnimationKey !== animationKey) {
+          this.vignetteGsapTween?.kill()
+          this.vignetteAnimationKey = animationKey
+          const proxy = { alpha: vig.dynamicFrom }
+          if (this.vignetteSprite) this.vignetteSprite.alpha = vig.dynamicFrom
+          this.vignetteGsapTween = gsap.to(proxy, {
+            alpha: vig.dynamicTo,
+            duration: vig.dynamicDurationMs / 1000,
+            ease: 'sine.inOut',
+            repeat: -1,
+            yoyo: false,
+            onComplete: () => { proxy.alpha = vig.dynamicFrom },
+            onUpdate: () => {
+              if (this.vignetteSprite) this.vignetteSprite.alpha = proxy.alpha
+            },
+          })
+        }
       }
     } else {
       if (this.vignetteGsapTween) {
@@ -968,7 +1254,7 @@ export class CellRenderer {
     this.imageLayerBlurFilter = null
     this.radialBlurFilters = []
     this.clearRadialBlurContents()
-    this.effectsLayer.filterArea = null
+    this.effectsLayer.filterArea = undefined
     this.setImageLayerFilters()
 
     if (!blur.enabled || blur.strength <= 0) {
@@ -997,6 +1283,14 @@ export class CellRenderer {
 
   private applyGradualBlur(blurFilters: { filter: PIXI.BlurFilter; multiplier: number }[], blur: BlurEffect) {
     if (!blur.gradualEnabled) return
+
+    if (blur.gradualTimerSync) {
+      // タイマー同期: GSAPなし、timerProgressで直接強度設定
+      const strength = blur.gradualStartStrength + (blur.gradualEndStrength - blur.gradualStartStrength) * this.timerProgress
+      blurFilters.forEach(({ filter, multiplier }) => { filter.strength = strength * multiplier })
+      return
+    }
+
     blurFilters.forEach(({ filter, multiplier }) => {
       filter.strength = blur.gradualStartStrength * multiplier
     })
@@ -1183,7 +1477,7 @@ export class CellRenderer {
   private clearRadialBlurContents() {
     this.radialBlurLayers.forEach(layer => {
       layer.filters = []
-      layer.filterArea = null
+      layer.filterArea = undefined
       this.container.removeChild(layer)
       layer.destroy()
     })
