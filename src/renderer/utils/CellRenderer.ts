@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, SlideShowTransition } from '../../shared/types'
+import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, SlideShowTransition } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -12,6 +12,7 @@ export class CellRenderer {
   readonly cellId: string
   readonly container: PIXI.Container
 
+  private dynamicBackgroundLayer: PIXI.Container
   private imageLayer: PIXI.Container
   private echoLayer: PIXI.Container
   private effectsLayer: PIXI.Container
@@ -21,6 +22,12 @@ export class CellRenderer {
   private vignetteLayer: PIXI.Container
 
   private imageSprite: PIXI.Sprite | null = null
+  private dynamicBackgroundSprite: PIXI.Sprite | null = null
+  private dynamicBackgroundTransitionSprite: PIXI.Sprite | null = null
+  private dynamicBackgroundTransitionTween: gsap.core.Tween | null = null
+  private dynamicBackgroundBlurFilter: PIXI.BlurFilter | null = null
+  private blankBackground: BlankBackground = { mode: 'color', dynamicBlur: 30 }
+  private dynamicBackgroundMask: PIXI.Graphics
   private imageMask: PIXI.Graphics
   private echoMask: PIXI.Graphics
   private colorOverlayGraphics: PIXI.Graphics
@@ -89,6 +96,7 @@ export class CellRenderer {
     this.container.eventMode = 'static'
     this.container.cursor = 'pointer'
 
+    this.dynamicBackgroundLayer = new PIXI.Container()
     this.imageLayer = new PIXI.Container()
     this.echoLayer = new PIXI.Container()
     this.effectsLayer = new PIXI.Container()
@@ -96,9 +104,11 @@ export class CellRenderer {
     this.particleContainer = new PIXI.Container()
     this.textLayer = new PIXI.Container()
     this.vignetteLayer = new PIXI.Container()
+    this.dynamicBackgroundMask = new PIXI.Graphics()
     this.imageMask = new PIXI.Graphics()
     this.echoMask = new PIXI.Graphics()
 
+    this.container.addChild(this.dynamicBackgroundLayer)
     this.container.addChild(this.imageLayer)
     this.container.addChild(this.echoLayer)
     this.container.addChild(this.effectsLayer)
@@ -108,9 +118,12 @@ export class CellRenderer {
     this.container.addChild(this.vignetteLayer)
     this.container.addChild(this.echoMask)
 
+    this.dynamicBackgroundLayer.addChild(this.dynamicBackgroundMask)
+    this.dynamicBackgroundLayer.mask = this.dynamicBackgroundMask
     this.imageLayer.addChild(this.imageMask)
     this.imageLayer.mask = this.imageMask
     this.echoLayer.mask = this.echoMask
+    this.redrawDynamicBackgroundMask()
     this.redrawImageMask()
     this.redrawEchoMask()
 
@@ -125,6 +138,8 @@ export class CellRenderer {
   resize(width: number, height: number) {
     this.width = width
     this.height = height
+    this.redrawDynamicBackgroundMask()
+    this.repositionDynamicBackground()
     this.repositionImage()
     this.redrawImageMask()
     this.redrawEchoMask()
@@ -141,6 +156,29 @@ export class CellRenderer {
     this.repositionImage()
     this.refreshEcho()
     this.refreshBlurRegion()
+  }
+
+  configureBlankBackground(blankBackground: BlankBackground) {
+    const previousMode = this.blankBackground.mode
+    this.blankBackground = {
+      mode: blankBackground.mode,
+      dynamicBlur: clamp(blankBackground.dynamicBlur, 0, 100),
+    }
+
+    this.dynamicBackgroundLayer.visible = this.blankBackground.mode === 'dynamic'
+    this.updateDynamicBackgroundBlur()
+
+    if (this.blankBackground.mode === 'dynamic') {
+      if (!this.dynamicBackgroundSprite && this.imageSprite) {
+        this.swapDynamicBackgroundSprite(new PIXI.Sprite(this.imageSprite.texture))
+      }
+      this.repositionDynamicBackground()
+      return
+    }
+
+    if (previousMode === 'dynamic') {
+      this.clearDynamicBackground()
+    }
   }
 
   getNormalizedPointFromGlobal(global: PIXI.PointData) {
@@ -160,6 +198,7 @@ export class CellRenderer {
     if (!src) {
       this.clearTransitionSprite()
       this.swapImageSprite(null, null)
+      this.clearDynamicBackground()
       this.refreshEcho()
       this.refreshBlurRegion()
       return
@@ -180,6 +219,9 @@ export class CellRenderer {
     if (!this.imageSprite || transition === 'none') {
       this.clearTransitionSprite()
       this.swapImageSprite(sprite, url)
+      if (this.blankBackground.mode === 'dynamic') {
+        this.swapDynamicBackgroundSprite(new PIXI.Sprite(texture))
+      }
       this.positionImageSprite(sprite)
       this.refreshEcho()
       this.refreshBlurRegion()
@@ -307,12 +349,14 @@ export class CellRenderer {
     this.colorAdjustGsapTween?.kill()
     this.echoGsapTween?.kill()
     this.imageTransitionTween?.kill()
+    this.dynamicBackgroundTransitionTween?.kill()
     if (this.effectResetTimeoutId !== null) {
       clearTimeout(this.effectResetTimeoutId)
       this.effectResetTimeoutId = null
     }
     this.particleSystem.destroy()
     this.textSystem.destroy()
+    this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.container.destroy({ children: true })
   }
@@ -344,6 +388,7 @@ export class CellRenderer {
     this.positionImageSprite(sprite)
 
     const duration = Math.max(0.05, transitionDurationMs / 1000)
+    this.startDynamicBackgroundTransition(sprite.texture, transition, duration)
 
     const finish = () => {
       this.activeSlideTransition = null
@@ -444,6 +489,9 @@ export class CellRenderer {
       }
       default:
         this.swapImageSprite(sprite, url)
+        if (this.blankBackground.mode === 'dynamic') {
+          this.swapDynamicBackgroundSprite(new PIXI.Sprite(sprite.texture))
+        }
         this.positionImageSprite(sprite)
         this.refreshEcho()
         this.refreshBlurRegion()
@@ -453,6 +501,7 @@ export class CellRenderer {
   clearImage() {
     this.clearTransitionSprite()
     this.swapImageSprite(null, null)
+    this.clearDynamicBackground()
     this.requestedImageSrc = null
   }
 
@@ -481,6 +530,166 @@ export class CellRenderer {
     this.imageLayer.removeChild(this.transitionSprite)
     this.transitionSprite.destroy({ texture: false })
     this.transitionSprite = null
+  }
+
+  private startDynamicBackgroundTransition(
+    texture: PIXI.Texture,
+    transition: SlideShowTransition,
+    duration: number
+  ) {
+    if (this.blankBackground.mode !== 'dynamic') return
+
+    const sprite = new PIXI.Sprite(texture)
+    sprite.anchor.set(0.5)
+    this.positionDynamicBackgroundSprite(sprite)
+
+    const oldSprite = this.dynamicBackgroundSprite
+    if (!oldSprite || transition === 'none') {
+      this.swapDynamicBackgroundSprite(sprite)
+      return
+    }
+
+    this.clearDynamicBackgroundTransitionSprite()
+    this.dynamicBackgroundTransitionSprite = oldSprite
+    this.dynamicBackgroundLayer.addChild(sprite)
+    this.dynamicBackgroundSprite = sprite
+
+    switch (transition) {
+      case 'fade':
+        sprite.alpha = 0
+        oldSprite.alpha = 1
+        this.dynamicBackgroundTransitionTween = gsap.to(sprite, {
+          alpha: 1,
+          duration,
+          ease: 'sine.out',
+          onComplete: () => this.finishDynamicBackgroundTransition(oldSprite),
+        })
+        gsap.to(oldSprite, { alpha: 0, duration, ease: 'sine.out' })
+        break
+      case 'slide-left':
+      case 'slide-right':
+      case 'slide-up':
+      case 'slide-down': {
+        const offsetX = transition === 'slide-left' ? this.width : transition === 'slide-right' ? -this.width : 0
+        const offsetY = transition === 'slide-up' ? this.height : transition === 'slide-down' ? -this.height : 0
+        const proxy = { incomingX: offsetX, incomingY: offsetY, outgoingX: 0, outgoingY: 0 }
+        const apply = () => {
+          this.positionDynamicBackgroundSprite(sprite, proxy.incomingX, proxy.incomingY)
+          this.positionDynamicBackgroundSprite(oldSprite, proxy.outgoingX, proxy.outgoingY)
+        }
+        apply()
+        this.dynamicBackgroundTransitionTween = gsap.to(proxy, {
+          incomingX: 0,
+          incomingY: 0,
+          outgoingX: -offsetX * 0.25,
+          outgoingY: -offsetY * 0.25,
+          duration,
+          ease: 'sine.out',
+          onUpdate: apply,
+          onComplete: () => this.finishDynamicBackgroundTransition(oldSprite),
+        })
+        gsap.to(oldSprite, { alpha: 0, duration, ease: 'sine.out' })
+        break
+      }
+      case 'zoom-in':
+      case 'zoom-out': {
+        const proxy = { scaleMultiplier: transition === 'zoom-in' ? 1.12 : 0.88 }
+        sprite.alpha = 0
+        oldSprite.alpha = 1
+        this.dynamicBackgroundTransitionTween = gsap.to(proxy, {
+          scaleMultiplier: 1,
+          duration,
+          ease: 'sine.out',
+          onUpdate: () => this.positionDynamicBackgroundSprite(sprite, 0, 0, proxy.scaleMultiplier),
+          onComplete: () => this.finishDynamicBackgroundTransition(oldSprite),
+        })
+        this.positionDynamicBackgroundSprite(sprite, 0, 0, proxy.scaleMultiplier)
+        gsap.to(sprite, { alpha: 1, duration, ease: 'sine.out' })
+        gsap.to(oldSprite, { alpha: 0, duration, ease: 'sine.out' })
+        break
+      }
+      default:
+        this.swapDynamicBackgroundSprite(sprite)
+    }
+  }
+
+  private finishDynamicBackgroundTransition(oldSprite: PIXI.Sprite) {
+    if (this.dynamicBackgroundTransitionSprite === oldSprite) {
+      this.dynamicBackgroundLayer.removeChild(oldSprite)
+      oldSprite.destroy({ texture: false })
+      this.dynamicBackgroundTransitionSprite = null
+    }
+    this.dynamicBackgroundTransitionTween = null
+    this.repositionDynamicBackground()
+  }
+
+  private swapDynamicBackgroundSprite(sprite: PIXI.Sprite | null) {
+    const oldSprite = this.dynamicBackgroundSprite
+    this.clearDynamicBackgroundTransitionSprite()
+
+    if (sprite) {
+      sprite.anchor.set(0.5)
+      this.positionDynamicBackgroundSprite(sprite)
+      this.dynamicBackgroundLayer.addChild(sprite)
+    }
+
+    this.dynamicBackgroundSprite = sprite
+
+    if (oldSprite && oldSprite !== sprite) {
+      this.dynamicBackgroundLayer.removeChild(oldSprite)
+      oldSprite.destroy({ texture: false })
+    }
+  }
+
+  private clearDynamicBackgroundTransitionSprite() {
+    this.dynamicBackgroundTransitionTween?.kill()
+    this.dynamicBackgroundTransitionTween = null
+
+    if (!this.dynamicBackgroundTransitionSprite) return
+    gsap.killTweensOf(this.dynamicBackgroundTransitionSprite)
+    this.dynamicBackgroundLayer.removeChild(this.dynamicBackgroundTransitionSprite)
+    this.dynamicBackgroundTransitionSprite.destroy({ texture: false })
+    this.dynamicBackgroundTransitionSprite = null
+  }
+
+  private clearDynamicBackground() {
+    this.clearDynamicBackgroundTransitionSprite()
+    if (this.dynamicBackgroundSprite) {
+      this.dynamicBackgroundLayer.removeChild(this.dynamicBackgroundSprite)
+      this.dynamicBackgroundSprite.destroy({ texture: false })
+      this.dynamicBackgroundSprite = null
+    }
+  }
+
+  private repositionDynamicBackground() {
+    if (this.dynamicBackgroundSprite) this.positionDynamicBackgroundSprite(this.dynamicBackgroundSprite)
+    if (this.dynamicBackgroundTransitionSprite) this.positionDynamicBackgroundSprite(this.dynamicBackgroundTransitionSprite)
+    this.updateDynamicBackgroundBlur()
+  }
+
+  private positionDynamicBackgroundSprite(sprite: PIXI.Sprite, offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
+    const texW = sprite.texture.width
+    const texH = sprite.texture.height
+    const scale = Math.max(this.width / texW, this.height / texH) * scaleMultiplier
+    sprite.scale.set(scale)
+    sprite.x = this.width / 2 + offsetX
+    sprite.y = this.height / 2 + offsetY
+  }
+
+  private updateDynamicBackgroundBlur() {
+    if (this.blankBackground.mode !== 'dynamic' || this.blankBackground.dynamicBlur <= 0) {
+      this.dynamicBackgroundLayer.filters = []
+      this.dynamicBackgroundLayer.filterArea = null
+      this.dynamicBackgroundBlurFilter = null
+      return
+    }
+
+    if (!this.dynamicBackgroundBlurFilter) {
+      this.dynamicBackgroundBlurFilter = new PIXI.BlurFilter({ quality: 4 })
+    }
+    this.dynamicBackgroundBlurFilter.strength = this.blankBackground.dynamicBlur
+    this.dynamicBackgroundLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    this.dynamicBackgroundLayer.filters = [this.dynamicBackgroundBlurFilter]
   }
 
   private repositionImage() {
@@ -528,6 +737,12 @@ export class CellRenderer {
 
   private updateColorOverlay(effects: CellEffects) {
     updateColorOverlay(this.colorOverlayGraphics, this.width, this.height, effects)
+  }
+
+  private redrawDynamicBackgroundMask() {
+    this.dynamicBackgroundMask.clear()
+    this.dynamicBackgroundMask.rect(0, 0, this.width, this.height)
+    this.dynamicBackgroundMask.fill(0xffffff)
   }
 
   private updateColorAdjustment(colorOverlay: ColorOverlayEffect) {

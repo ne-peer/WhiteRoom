@@ -12,6 +12,13 @@ export type BlankColor = {
   a: number  // 0.0 - 1.0
 }
 
+export type BlankBackgroundMode = 'color' | 'dynamic'
+
+export type BlankBackground = {
+  mode: BlankBackgroundMode
+  dynamicBlur: number  // 0 - 100
+}
+
 export type UiLanguage = 'ja' | 'en'
 
 // ===== セル（各分割区画）=====
@@ -194,6 +201,7 @@ export type AppProfile = {
   createdAt: string
   name: string
   blankColor: BlankColor
+  blankBackground?: BlankBackground
   grid: GridLayout
   cells: Cell[]
   timer: TimerConfig
