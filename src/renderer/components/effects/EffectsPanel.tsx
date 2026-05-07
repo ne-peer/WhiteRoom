@@ -116,6 +116,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     restartEffectsWithRandomTiming,
     syncActiveEffectsInSelectedColumn,
     enableAllTimerSyncForSelectedCell,
+    disableAllTimerSyncForSelectedCell,
   } = useAppStore()
   const { language, t } = useTranslation()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
@@ -880,6 +881,11 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         <Button variant="secondary" onClick={enableAllTimerSyncForSelectedCell}>
           {t('enableAllTimerSync')}
         </Button>
+        <div style={{ marginTop: 6 }}>
+          <Button variant="secondary" onClick={disableAllTimerSyncForSelectedCell}>
+            {t('disableAllTimerSync')}
+          </Button>
+        </div>
       </Section>
 
     </div>

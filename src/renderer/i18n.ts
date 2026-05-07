@@ -167,6 +167,7 @@ export const translations = {
     timerSyncHelp: 'タイマー開始時を0%・終了時を100%として、エフェクト強度をタイマー経過に合わせて変化させます',
     timerSyncSection: 'タイマー同期',
     enableAllTimerSync: 'すべてのエフェクトをタイマー同期',
+    disableAllTimerSync: 'すべてのエフェクトの同期を解除',
     effectCompletionTiming: '適用完了タイミング',
     secondsBefore: '秒前',
 
@@ -364,6 +365,7 @@ export const translations = {
     timerSyncHelp: 'Scales effect intensity from 0% at timer start to 100% at timer end.',
     timerSyncSection: 'Timer Sync',
     enableAllTimerSync: 'Sync all effects to timer',
+    disableAllTimerSync: 'Disable sync for all effects',
     effectCompletionTiming: 'Effect completion timing',
     secondsBefore: 'sec before end',
 
