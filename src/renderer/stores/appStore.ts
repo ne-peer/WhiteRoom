@@ -475,7 +475,11 @@ export const useAppStore = create<AppStore>()(
 
     setBlankBackground: (config) => set(s => { Object.assign(s.blankBackground, config) }),
 
-    setFullscreen: (flag) => set(s => { s.fullscreen = flag }),
+    setFullscreen: (flag) => set(s => {
+      s.fullscreen = flag
+      if (flag) s.showControls = false
+      else s.showControls = true
+    }),
 
     setNavigationBarVisible: (flag) => set(s => { s.showNavigationBar = flag }),
 
