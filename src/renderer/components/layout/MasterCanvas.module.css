@@ -38,15 +38,46 @@
   min-height: 0;
 }
 
+.emptyCellContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
 .emptyCellHint {
-  max-width: min(82%, 280px);
-  padding: 0 8px;
   color: rgba(255, 255, 255, 0.22);
-  font-size: clamp(12px, 1.8vw, 18px);
+  font-size: clamp(11px, 1.6vw, 18px);
   font-weight: 600;
   line-height: 1.4;
-  text-align: center;
-  text-wrap: balance;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
   user-select: none;
+}
+
+.emptyCellTips {
+  margin-top: clamp(10px, 2vh, 20px);
+  color: rgba(255, 255, 255, 0.13);
+  font-size: clamp(9px, 1.1vw, 12px);
+  line-height: 1.6;
+  text-align: left;
+  user-select: none;
+}
+
+.emptyCellTipsTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.emptyCellTipsList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.emptyCellTipsList li {
+  white-space: nowrap;
+}
+
+.emptyCellTipsList li::before {
+  content: '· ';
 }

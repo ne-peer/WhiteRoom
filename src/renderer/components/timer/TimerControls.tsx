@@ -101,6 +101,7 @@ export const TimerControls: React.FC = () => {
         >
           {t('enableAllTimerSync')}
         </Button>
+        <div style={{ marginTop: 10 }}>
         <Row label={t('effectCompletionTiming')}>
           <Slider
             value={timer.effectCompletionLeadSec}
@@ -111,6 +112,7 @@ export const TimerControls: React.FC = () => {
             onChange={v => setTimer({ effectCompletionLeadSec: Math.round(clamp(v, 0, 30)) })}
           />
         </Row>
+        </div>
       </Section>
 
       <Section title={t('timerPreOverlaySection')}>
