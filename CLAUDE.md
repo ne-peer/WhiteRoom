@@ -93,6 +93,23 @@ npx tsc --noEmit               # type check only
 - Vignette texture cache: share same-color vignette across cells
 - Performance: measure ticker load with many cells; consider OffscreenCanvas
 
+## Release Notes Workflow
+
+リリースノートを作成するときは以下の手順で実行する:
+
+```bash
+# 最新タグと1つ前のタグを確認
+git tag --sort=-version:refname | head -3
+
+# 2タグ間のコミットを取得（例: v1.3.1..v1.4.0）
+git log <prev-tag>..<latest-tag> --pretty=format:"%h %s %b" --no-merges
+```
+
+取得したコミットを以下3カテゴリに分類して箇条書きで `RELEASE_NOTES.md` に追記する:
+- **機能追加**: `feat:` / `add:` プレフィックスのコミット
+- **調整**: `update:` / `docs:` / UI・ラベル変更など
+- **バグフィックス**: `fix:` プレフィックスのコミット
+
 ## Changelog
 
 | Version | Changes |
