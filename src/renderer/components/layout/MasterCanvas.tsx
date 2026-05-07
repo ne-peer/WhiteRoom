@@ -31,7 +31,7 @@ export const MasterCanvas: React.FC = () => {
     return unsubscribe
   }, [])
 
-  // Escapeキーでフルスクリーン解除
+  // Escapeキーでフルスクリーン解除 / スペースキーでタイマー操作
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && useAppStore.getState().fullscreen) {
@@ -39,6 +39,18 @@ export const MasterCanvas: React.FC = () => {
         const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
         useAppStore.getState().setFullscreen(false)
         api?.setFullscreen(false)
+      }
+      if (e.key === ' ' && !e.repeat) {
+        const tag = (e.target as HTMLElement).tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+        e.preventDefault()
+        const { timer, setTimer } = useAppStore.getState()
+        if (!timer.enabled) return
+        if (timer.running) {
+          setTimer({ running: false })
+        } else {
+          setTimer({ running: true })
+        }
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -108,7 +120,16 @@ export const MasterCanvas: React.FC = () => {
         {cells.map(cell => (
           <div key={cell.id} className={styles.emptyCellHintSlot}>
             {(!cell.folder || cell.folder.images.length === 0) && (
-              <span className={styles.emptyCellHint}>{t('dropImageOrFolderHere')}</span>
+              <div className={styles.emptyCellContent}>
+                <span className={styles.emptyCellHint}>{t('dropImageOrFolderHere')}</span>
+                <div className={styles.emptyCellTips}>
+                  <div className={styles.emptyCellTipsTitle}>Tips:</div>
+                  <ul className={styles.emptyCellTipsList}>
+                    <li>{t('tipScrollToNavigate')}</li>
+                    <li>{t('tipSpaceTimer')}</li>
+                  </ul>
+                </div>
+              </div>
             )}
           </div>
         ))}
