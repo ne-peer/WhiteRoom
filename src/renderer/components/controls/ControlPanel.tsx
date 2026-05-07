@@ -5,17 +5,19 @@ import { EffectsPanel } from '../effects/EffectsPanel'
 import { TimerControls } from '../timer/TimerControls'
 import { ProfileControls } from './ProfileControls'
 import { AppearanceControls } from './AppearanceControls'
+import { TextReaderPanel } from '../reader/TextReaderPanel'
 import { useTranslation } from '../../i18n'
 import styles from './ControlPanel.module.css'
 
-type Tab = 'grid' | 'effects' | 'timer' | 'appearance' | 'profile'
+type Tab = 'grid' | 'effects' | 'timer' | 'appearance' | 'profile' | 'textreader'
 
-const TABS: { id: Tab; labelKey: 'tabGrid' | 'tabEffects' | 'tabTimer' | 'tabAppearance' | 'tabProfile'; icon: string }[] = [
+const TABS: { id: Tab; labelKey: 'tabGrid' | 'tabEffects' | 'tabTimer' | 'tabAppearance' | 'tabProfile' | 'tabTextReader'; icon: string }[] = [
   { id: 'grid',       labelKey: 'tabGrid',       icon: '▦' },
   { id: 'effects',    labelKey: 'tabEffects',    icon: '✦' },
   { id: 'timer',      labelKey: 'tabTimer',      icon: '◷' },
   { id: 'appearance', labelKey: 'tabAppearance', icon: '◈' },
   { id: 'profile',    labelKey: 'tabProfile',    icon: '☁' },
+  { id: 'textreader', labelKey: 'tabTextReader', icon: '📖' },
 ]
 
 type ControlPanelProps = {
@@ -54,6 +56,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
         {activeTab === 'timer'      && <TimerControls />}
         {activeTab === 'appearance' && <AppearanceControls />}
         {activeTab === 'profile'    && <ProfileControls />}
+        {activeTab === 'textreader' && <TextReaderPanel />}
       </div>
     </div>
   )

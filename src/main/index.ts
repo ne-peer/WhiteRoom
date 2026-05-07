@@ -8,6 +8,7 @@ import type {
   SaveProfileResult,
   LoadProfileResult,
   OpenFolderResult,
+  OpenTextFileResult,
   UiLanguage,
 } from '../shared/types'
 
@@ -32,6 +33,8 @@ const DIALOG_TEXT = {
     overlayImageTitle: '直前オーバレイ画像を選択',
     saveProfileTitle: 'プロファイルを保存',
     loadProfileTitle: 'プロファイルを読み込む',
+    textFileTitle: 'テキストファイルを選択',
+    textFileFilter: 'テキストファイル',
   },
   en: {
     imageFolderTitle: 'Select Image Folder',
@@ -41,6 +44,8 @@ const DIALOG_TEXT = {
     overlayImageTitle: 'Select Pre-timer Overlay Image',
     saveProfileTitle: 'Save Profile',
     loadProfileTitle: 'Load Profile',
+    textFileTitle: 'Select Text File',
+    textFileFilter: 'Text Files',
   },
 } satisfies Record<UiLanguage, Record<string, string>>
 
@@ -331,6 +336,30 @@ ipcMain.handle('open-devtools', async () => {
 
 ipcMain.handle('list-system-fonts', async (): Promise<string[]> => {
   return listSystemFonts()
+})
+
+// テキストファイル選択＆読み込み
+ipcMain.handle('open-text-file', async (_event, language?: UiLanguage): Promise<OpenTextFileResult> => {
+  const text = getDialogText(language)
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: text.textFileFilter, extensions: ['txt'] }],
+    title: text.textFileTitle,
+  })
+  if (result.canceled || !result.filePaths[0]) {
+    return { canceled: true }
+  }
+  const filePath = result.filePaths[0]
+  try {
+    const buf = readFileSync(filePath)
+    // UTF-8 BOM 除去
+    let fileText = buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF
+      ? buf.slice(3).toString('utf-8')
+      : buf.toString('utf-8')
+    return { canceled: false, filePath, text: fileText }
+  } catch {
+    return { canceled: true }
+  }
 })
 
 // ===== アプリ起動 =====

@@ -1,0 +1,264 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* ===== テキストウィンドウ ===== */
+
+.window {
+  position: absolute;
+  background: rgba(12, 12, 30, 0.90);
+  border: 2px solid rgba(160, 160, 220, 0.65);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 0 30px rgba(0, 0, 0, 0.95),
+    0 0 3px rgba(120, 120, 255, 0.25);
+  display: flex;
+  flex-direction: column;
+  pointer-events: all;
+}
+
+.positionBottom {
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+  border-radius: 8px;
+}
+
+.positionTop {
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  border-radius: 8px;
+}
+
+.positionLeft {
+  top: 12px;
+  left: 12px;
+  bottom: 12px;
+  width: 35%;
+  min-width: 200px;
+  border-radius: 8px;
+}
+
+.positionRight {
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 35%;
+  min-width: 200px;
+  border-radius: 8px;
+}
+
+/* ===== テキスト表示エリア ===== */
+
+.textArea {
+  flex: 1;
+  padding: 16px 20px 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.textContent {
+  font-weight: normal;
+  color: #f0f0f0;
+  text-shadow:
+    0 0 12px rgba(0, 0, 0, 1),
+    1px 1px 0 rgba(0, 0, 0, 0.95),
+    -1px -1px 0 rgba(0, 0, 0, 0.95),
+    1px -1px 0 rgba(0, 0, 0, 0.95),
+    -1px 1px 0 rgba(0, 0, 0, 0.95);
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  line-height: 1.8;
+  letter-spacing: 0.04em;
+}
+
+.textContentVertical {
+  writing-mode: vertical-rl;
+  line-height: 2;
+}
+
+/* ページ末尾カーソル */
+.cursor {
+  display: inline;
+  animation: blink 0.9s ease-in-out infinite;
+  color: rgba(180, 180, 255, 0.95);
+  text-shadow:
+    0 0 8px rgba(120, 120, 255, 0.8),
+    0 0 2px rgba(0, 0, 0, 1);
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ===== コントロールバー ===== */
+
+.controlBar {
+  height: 38px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-top: 1px solid rgba(160, 160, 220, 0.20);
+  flex-shrink: 0;
+}
+
+.pageInfo {
+  color: rgba(140, 140, 190, 0.85);
+  font-size: 12px;
+  margin-right: auto;
+  letter-spacing: 0.03em;
+  user-select: none;
+}
+
+.controlBtn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(200, 200, 240, 0.90);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  user-select: none;
+  min-width: 30px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.controlBtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(180, 180, 255, 0.35);
+}
+
+.controlBtn:active {
+  background: rgba(255, 255, 255, 0.20);
+}
+
+.controlBtnActive {
+  background: rgba(80, 80, 220, 0.30);
+  border-color: rgba(130, 130, 255, 0.55);
+  color: #aaaaff;
+}
+
+.speedBtnActive {
+  background: rgba(220, 140, 40, 0.28);
+  border-color: rgba(255, 180, 80, 0.55);
+  color: #ffcc88;
+}
+
+.controlDivider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.10);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+/* ===== ログビュー ===== */
+
+.logOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 28, 0.97);
+  display: flex;
+  flex-direction: column;
+  pointer-events: all;
+  z-index: 110;
+}
+
+.logHeader {
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(160, 160, 220, 0.20);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.logTitle {
+  color: rgba(180, 180, 240, 0.90);
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+.logCloseBtn {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(200, 200, 240, 0.90);
+  border-radius: 4px;
+  padding: 1px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.logCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.logContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 120, 200, 0.4) transparent;
+}
+
+.logContent::-webkit-scrollbar {
+  width: 6px;
+}
+
+.logContent::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.logContent::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 200, 0.4);
+  border-radius: 3px;
+}
+
+.logPage {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(160, 160, 220, 0.14);
+  border-radius: 4px;
+  color: rgba(200, 200, 240, 0.65);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.7;
+  cursor: pointer;
+  transition: background 0.10s, border-color 0.10s, color 0.10s;
+  position: relative;
+}
+
+.logPage:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(160, 160, 220, 0.28);
+  color: rgba(220, 220, 255, 0.80);
+}
+
+.logPageCurrent {
+  border-color: rgba(120, 120, 255, 0.55);
+  background: rgba(80, 80, 200, 0.12);
+  color: #e8e8ff;
+}
+
+.logPageNum {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 10px;
+  color: rgba(140, 140, 200, 0.55);
+  user-select: none;
+}

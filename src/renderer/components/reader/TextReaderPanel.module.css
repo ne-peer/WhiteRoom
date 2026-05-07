@@ -1,0 +1,138 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fileSection {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fileName {
+  font-size: 11px;
+  color: rgba(180, 180, 220, 0.75);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.fileNameEmpty {
+  color: rgba(140, 140, 170, 0.50);
+  font-style: italic;
+}
+
+.openBtn {
+  background: rgba(80, 80, 200, 0.25);
+  border: 1px solid rgba(120, 120, 255, 0.40);
+  color: rgba(190, 190, 255, 0.95);
+  border-radius: 5px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  text-align: center;
+}
+
+.openBtn:hover {
+  background: rgba(80, 80, 200, 0.38);
+  border-color: rgba(150, 150, 255, 0.60);
+}
+
+.openBtn:active {
+  background: rgba(80, 80, 200, 0.50);
+}
+
+.closeBtn {
+  background: rgba(200, 60, 60, 0.18);
+  border: 1px solid rgba(255, 100, 100, 0.30);
+  color: rgba(255, 150, 150, 0.90);
+  border-radius: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s;
+  text-align: center;
+}
+
+.closeBtn:hover {
+  background: rgba(200, 60, 60, 0.28);
+}
+
+.shortcutHelp {
+  font-size: 10px;
+  color: rgba(130, 130, 170, 0.60);
+  line-height: 1.5;
+  padding: 0 2px;
+}
+
+.select {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(220, 220, 255, 0.90);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.select:focus {
+  border-color: rgba(120, 120, 255, 0.50);
+}
+
+.select option {
+  background: #1a1a2e;
+  color: #ddd;
+}
+
+.numberInput {
+  width: 80px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(220, 220, 255, 0.90);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 12px;
+  outline: none;
+}
+
+.numberInput:focus {
+  border-color: rgba(120, 120, 255, 0.50);
+}
+
+.unit {
+  font-size: 11px;
+  color: rgba(160, 160, 200, 0.70);
+  margin-left: 4px;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+}
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.slider {
+  flex: 1;
+  accent-color: rgba(120, 120, 255, 0.85);
+  cursor: pointer;
+}
+
+.sliderValue {
+  font-size: 11px;
+  color: rgba(160, 160, 200, 0.85);
+  min-width: 32px;
+  text-align: right;
+}
