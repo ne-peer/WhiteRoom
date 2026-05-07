@@ -43,10 +43,12 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "WhiteRoom for Windows_v${version}.${ext}"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "artifactName": "WhiteRoom for Mac_${arch}_v${version}.${ext}"
     },
     "linux": {
       "target": "AppImage"
