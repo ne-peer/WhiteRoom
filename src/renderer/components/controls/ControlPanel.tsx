@@ -18,16 +18,20 @@ const TABS: { id: Tab; labelKey: 'tabGrid' | 'tabEffects' | 'tabTimer' | 'tabApp
   { id: 'profile',    labelKey: 'tabProfile',    icon: '☁' },
 ]
 
-export const ControlPanel: React.FC = () => {
+type ControlPanelProps = {
+  floating?: boolean
+}
+
+export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) => {
   const [activeTab, setActiveTab] = useState<Tab>('grid')
   const selectedCell = useAppStore(selectSelectedCell)
   const showControls = useAppStore(s => s.showControls)
   const { t } = useTranslation()
 
-  if (!showControls) return null
+  if (!showControls && !floating) return null
 
   return (
-    <div className={styles.panel}>
+    <div className={`${styles.panel} ${floating ? styles.panelFloating : ''}`}>
       {/* タブナビゲーション */}
       <div className={styles.tabs}>
         {TABS.map(tab => (
