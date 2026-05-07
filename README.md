@@ -1,6 +1,11 @@
-# WhiteRoom
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ne-peer/WhiteRoom/total?style=flat&color=FF6496)
 
-様々なビジュアルエフェクトを付与できるマルチカラムスライドショー対応の画像ビューア
+<div>
+   <h1 align="center">WhiteRoom</h1> 
+   <p align="center">ビジュアルエフェクトを付与できるマルチカラム対応画像ビューア<br>A multi-column image viewer that lets you apply visual effects.</p>
+</div>
+
+&nbsp;
 
 ## 使い方
 
