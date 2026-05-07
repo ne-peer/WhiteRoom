@@ -158,3 +158,7 @@ src/
   "fullscreen": false
 }
 ```
+
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ne-peer/WhiteRoom/total?style=flat&logoColor=%23FF6496)
+
+https://img.shields.io/badge/%2Fgithub%2Fdownloads%2Fne-peer%2FWhiteRoom%2Ftotal?style=flat&logoColor=%23FF6496

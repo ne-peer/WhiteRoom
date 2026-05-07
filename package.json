@@ -31,6 +31,9 @@
   "build": {
     "appId": "com.whiteroom.app",
     "productName": "WhiteRoom",
+    "directories": {
+      "buildResources": "build"
+    },
     "files": [
       "out/**/*",
       "dist/renderer/**/*",
@@ -43,14 +46,17 @@
       }
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": "nsis",
       "artifactName": "WhiteRoom for Windows_v${version}.${ext}"
     },
     "mac": {
+      "icon": "build/icon.icns",
       "target": "dmg",
       "artifactName": "WhiteRoom for Mac_${arch}_v${version}.${ext}"
     },
     "linux": {
+      "icon": "build/icon.png",
       "target": "AppImage"
     }
   }
