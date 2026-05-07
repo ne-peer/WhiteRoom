@@ -192,11 +192,10 @@ export type AppActions = {
   removeColumn: () => void
   addRow: () => void
   removeRow: () => void
-  addCellByDrop: () => void  // D&Dで列を追加
-
   // セル操作
   setCellFolder: (cellId: string, folder: CellFolder) => void
   resetCellFolder: (cellId: string) => void
+  resetAllCellFolders: () => void
   setAllCellsFolder: (folder: CellFolder) => void
   setCellImageFit: (cellId: string, imageFit: ImageFitMode) => void
   setAllCellsImageFit: (imageFit: ImageFitMode) => void
@@ -309,11 +308,6 @@ export const useAppStore = create<AppStore>()(
       s.cells = s.cells.filter(c => c.row < newRows)
     }),
 
-    addCellByDrop: () => {
-      const { grid, addColumn } = get()
-      if (grid.cols < 15) addColumn()
-    },
-
     // ===== セル操作 =====
 
     setCellFolder: (cellId, folder) => set(s => {
@@ -330,6 +324,13 @@ export const useAppStore = create<AppStore>()(
         cell.folder = null
         cell.currentImageIndex = 0
       }
+    }),
+
+    resetAllCellFolders: () => set(s => {
+      s.cells.forEach(cell => {
+        cell.folder = null
+        cell.currentImageIndex = 0
+      })
     }),
 
     setAllCellsFolder: (folder) => set(s => {

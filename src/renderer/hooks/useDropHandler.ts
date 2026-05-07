@@ -17,7 +17,7 @@ function getApi(): IpcApi {
 export function useDropHandler(
   setCellImageRenderer: (cellId: string, imagePath: string) => void
 ) {
-  const { cells, addCellByDrop, setCellFolder, setCellImage: setCellImageStore, grid } = useAppStore()
+  const { cells, setCellFolder, setCellImage: setCellImageStore, grid } = useAppStore()
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -42,7 +42,6 @@ export function useDropHandler(
             clientX,
             clientY,
             cells,
-            addCellByDrop,
             setCellFolder,
             setCellImageRenderer,
             setCellImageStore,
@@ -69,7 +68,6 @@ export function useDropHandler(
           clientX,
           clientY,
           cells,
-          addCellByDrop,
           setCellFolder,
           setCellImageRenderer,
           setCellImageStore,
@@ -79,7 +77,7 @@ export function useDropHandler(
         break
       }
     }
-  }, [cells, addCellByDrop, setCellFolder, setCellImageStore, grid, setCellImageRenderer])
+  }, [cells, setCellFolder, setCellImageStore, grid, setCellImageRenderer])
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -96,14 +94,13 @@ function assignFolderToCell(
   clientX: number,
   clientY: number,
   cells: ReturnType<typeof useAppStore.getState>['cells'],
-  addCellByDrop: () => void,
   setCellFolder: (cellId: string, folder: CellFolder) => void,
   setCellImageRenderer: (cellId: string, imagePath: string) => void,
   setCellImageStore: (cellId: string, index: number) => void,
   grid: ReturnType<typeof useAppStore.getState>['grid'],
   startImagePath: string | undefined,
 ) {
-  const cellId = getAvailableCellIdAtDropPosition(canvasRect, clientX, clientY, cells, grid, addCellByDrop)
+  const cellId = getCellIdAtPosition(canvasRect, clientX, clientY, cells, grid)
   if (!cellId) return
 
   const folder: CellFolder = {
@@ -122,28 +119,6 @@ function assignFolderToCell(
 
   const displayPath = images[startIndex]
   if (displayPath) setCellImageRenderer(cellId, displayPath)
-}
-
-function getAvailableCellIdAtDropPosition(
-  canvasRect: DOMRect,
-  clientX: number,
-  clientY: number,
-  cells: ReturnType<typeof useAppStore.getState>['cells'],
-  grid: ReturnType<typeof useAppStore.getState>['grid'],
-  addCellByDrop: () => void,
-): string | null {
-  const targetCellId = getCellIdAtPosition(canvasRect, clientX, clientY, cells, grid)
-  const targetCell = targetCellId ? cells.find(c => c.id === targetCellId) : null
-
-  if (targetCell && !targetCell.folder) {
-    return targetCell.id
-  }
-
-  addCellByDrop()
-  const updated = useAppStore.getState()
-  const newCol = updated.grid.cols - 1
-  const newCell = updated.cells.find(c => c.col === newCol && c.row === 0)
-  return newCell?.id ?? null
 }
 
 function getCellIdAtPosition(
