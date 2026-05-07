@@ -3,7 +3,7 @@ import { immer } from 'zustand/middleware/immer'
 import type {
   AppProfile, Cell, CellEffects, CellFolder, GridLayout,
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
-  TextEffect, UiLanguage,
+  TextEffect, UiLanguage, TextReaderConfig,
 } from '../../shared/types'
 
 // ===== デフォルト値 =====
@@ -129,6 +129,26 @@ export const DEFAULT_TIMER: TimerConfig = {
   preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY },
 }
 
+export const DEFAULT_TEXT_READER_CONFIG: TextReaderConfig = {
+  windowPosition: 'bottom',
+  textDirection: 'horizontal',
+  fontFamily: 'Meiryo',
+  fontSize: 20,
+  charIntervalMs: 50,
+  pageAdvanceSpeed: 'normal',
+  backgroundOpacity: 70,
+  overlayOnImage: true,
+}
+
+function getInitialTextReaderConfig(): TextReaderConfig {
+  if (typeof window === 'undefined') return { ...DEFAULT_TEXT_READER_CONFIG }
+  try {
+    const stored = window.localStorage.getItem('whiteroom.textReaderConfig')
+    if (stored) return { ...DEFAULT_TEXT_READER_CONFIG, ...JSON.parse(stored) as Partial<TextReaderConfig> }
+  } catch { /* ignore */ }
+  return { ...DEFAULT_TEXT_READER_CONFIG }
+}
+
 const DEFAULT_LANGUAGE: UiLanguage = 'ja'
 
 function getInitialLanguage(): UiLanguage {
@@ -183,6 +203,18 @@ export type AppState = {
   effectColumnSyncNonce: number
   effectColumnSyncCol: number | null
   applyEffectChangesToAllColumns: boolean
+
+  // テキストリーダー
+  textReader: {
+    config: TextReaderConfig
+    visible: boolean
+    filePath: string | null
+    rawSegments: string[]
+    currentPageIndex: number
+    isAutoAdvancing: boolean
+    autoSpeedMultiplier: 1 | 2 | 3
+    showLog: boolean
+  }
 }
 
 export type AppActions = {
@@ -241,6 +273,16 @@ export type AppActions = {
   exportProfile: (name: string) => AppProfile
   importProfile: (profile: AppProfile) => void
   resetProfile: () => void
+
+  // テキストリーダー
+  setTextReaderConfig: (config: Partial<TextReaderConfig>) => void
+  setTextReaderVisible: (visible: boolean) => void
+  loadTextReaderFile: (filePath: string, text: string) => void
+  closeTextReader: () => void
+  setTextReaderPage: (index: number) => void
+  setTextReaderAutoAdvancing: (flag: boolean) => void
+  setTextReaderSpeedMultiplier: (multiplier: 1 | 2 | 3) => void
+  setTextReaderShowLog: (flag: boolean) => void
 }
 
 export type AppStore = AppState & AppActions
@@ -270,6 +312,16 @@ export const useAppStore = create<AppStore>()(
     effectColumnSyncNonce: 0,
     effectColumnSyncCol: null,
     applyEffectChangesToAllColumns: true,
+    textReader: {
+      config: getInitialTextReaderConfig(),
+      visible: false,
+      filePath: null,
+      rawSegments: [],
+      currentPageIndex: 0,
+      isAutoAdvancing: false,
+      autoSpeedMultiplier: 1,
+      showLog: false,
+    },
 
     // ===== グリッド操作 =====
 
@@ -568,6 +620,57 @@ export const useAppStore = create<AppStore>()(
       s.showNavigationBar = true
       s.selectedCellId = cells[0]?.id ?? null
       s.applyEffectChangesToAllColumns = true
+    }),
+
+    // ===== テキストリーダー =====
+
+    setTextReaderConfig: (config) => set(s => {
+      Object.assign(s.textReader.config, config)
+      try {
+        window.localStorage.setItem('whiteroom.textReaderConfig', JSON.stringify(s.textReader.config))
+      } catch { /* ignore */ }
+    }),
+
+    setTextReaderVisible: (visible) => set(s => {
+      s.textReader.visible = visible
+    }),
+
+    loadTextReaderFile: (filePath, text) => set(s => {
+      const segments = text
+        .split(/\n{2,}/u)
+        .map(seg => seg.trim())
+        .filter(seg => seg.length > 0)
+      s.textReader.filePath = filePath
+      s.textReader.rawSegments = segments
+      s.textReader.currentPageIndex = 0
+      s.textReader.visible = true
+      s.textReader.isAutoAdvancing = false
+      s.textReader.showLog = false
+    }),
+
+    closeTextReader: () => set(s => {
+      s.textReader.visible = false
+      s.textReader.filePath = null
+      s.textReader.rawSegments = []
+      s.textReader.currentPageIndex = 0
+      s.textReader.isAutoAdvancing = false
+      s.textReader.showLog = false
+    }),
+
+    setTextReaderPage: (index) => set(s => {
+      s.textReader.currentPageIndex = index
+    }),
+
+    setTextReaderAutoAdvancing: (flag) => set(s => {
+      s.textReader.isAutoAdvancing = flag
+    }),
+
+    setTextReaderSpeedMultiplier: (multiplier) => set(s => {
+      s.textReader.autoSpeedMultiplier = multiplier
+    }),
+
+    setTextReaderShowLog: (flag) => set(s => {
+      s.textReader.showLog = flag
     }),
   })})
 )

@@ -7,6 +7,7 @@ import { TimerOverlay } from '../timer/TimerOverlay'
 import { TimerEndFlashOverlay } from '../timer/TimerEndFlashOverlay'
 import { TimerPreOverlay } from '../timer/TimerPreOverlay'
 import { CellNavigationOverlay } from './CellNavigationOverlay'
+import { TextReaderWindow, calcReaderAutoHeight, READER_WINDOW_MARGIN } from '../reader/TextReaderWindow'
 import { useTranslation } from '../../i18n'
 import styles from './MasterCanvas.module.css'
 
@@ -15,8 +16,33 @@ export const MasterCanvas: React.FC = () => {
   const showControls = useAppStore(s => s.showControls)
   const grid = useAppStore(s => s.grid)
   const cells = useAppStore(s => s.cells)
+  const textReaderVisible = useAppStore(s => s.textReader.visible)
+  const textReaderConfig = useAppStore(s => s.textReader.config)
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null)
   const { t } = useTranslation()
+
+  const canvasShrinkStyle = React.useMemo((): React.CSSProperties => {
+    if (!textReaderVisible || (textReaderConfig.overlayOnImage ?? true)) return {}
+    const { windowPosition, fontSize } = textReaderConfig
+    const margin2 = READER_WINDOW_MARGIN * 2
+    if (windowPosition === 'bottom') {
+      const h = calcReaderAutoHeight(fontSize)
+      return { height: `calc(100vh - ${h + margin2}px)` }
+    }
+    if (windowPosition === 'top') {
+      const h = calcReaderAutoHeight(fontSize)
+      const offset = h + margin2
+      return { top: `${offset}px`, height: `calc(100vh - ${offset}px)` }
+    }
+    if (windowPosition === 'right') {
+      return { width: `calc(65% - ${margin2}px)` }
+    }
+    if (windowPosition === 'left') {
+      const offset = `calc(35% + ${margin2}px)`
+      return { left: offset, width: `calc(65% - ${margin2}px)` }
+    }
+    return {}
+  }, [textReaderVisible, textReaderConfig])
 
   const { setCellImage } = usePixiStage(containerRef)
   const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
@@ -106,6 +132,7 @@ export const MasterCanvas: React.FC = () => {
     <div
       ref={containerRef}
       className={`${styles.canvas} ${showControls ? styles.withPanel : ''}`}
+      style={canvasShrinkStyle}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
@@ -140,6 +167,7 @@ export const MasterCanvas: React.FC = () => {
       <TimerPreOverlay />
       <TimerEndFlashOverlay />
       <TimerOverlay />
+      <TextReaderWindow />
       {/* セルナビゲーションオーバーレイ（前/次画像ボタン） */}
       <CellNavigationOverlay hoveredCellId={hoveredCellId} />
     </div>

@@ -233,6 +233,22 @@ export type AppProfile = {
   fullscreen: boolean
 }
 
+// ===== テキストリーダー =====
+
+export type TextReaderWindowPosition = 'top' | 'bottom' | 'left' | 'right'
+export type TextReaderPageAdvanceSpeed = 'slow' | 'normal' | 'fast'
+
+export type TextReaderConfig = {
+  windowPosition: TextReaderWindowPosition
+  textDirection: 'horizontal' | 'vertical'
+  fontFamily: string
+  fontSize: 20 | 28 | 36
+  charIntervalMs: number
+  pageAdvanceSpeed: TextReaderPageAdvanceSpeed
+  backgroundOpacity: number  // 0-100
+  overlayOnImage: boolean    // false=画像エリアを縮小して重ならないように表示
+}
+
 // ===== IPC チャンネル型 =====
 
 export type OpenFolderResult = {
@@ -272,6 +288,12 @@ export type LoadProfileResult = {
   error?: string
 }
 
+export type OpenTextFileResult = {
+  canceled: boolean
+  filePath?: string
+  text?: string
+}
+
 export type IpcApi = {
   openFolder: (language?: UiLanguage) => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
@@ -286,5 +308,6 @@ export type IpcApi = {
   setFullscreen: (flag: boolean) => Promise<void>
   openDevTools: () => Promise<void>
   listSystemFonts: () => Promise<string[]>
+  openTextFile: (language?: UiLanguage) => Promise<OpenTextFileResult>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void
 }
