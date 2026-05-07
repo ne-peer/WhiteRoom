@@ -18,7 +18,9 @@
 本アプリはApple Developer証明書による署名がないため、そのままではmacOSのGatekeeperにブロックされます。  
 初回のみ、以下のいずれかの方法で開いてください。
 
-**方法1: ターミナルで隔離フラグを解除する（推奨）**
+#### 方法1: ターミナルで隔離フラグを解除する
+
+**※コマンドの末尾はDLしたバージョンにあわせて書き換えてください！**
 
 ```bash
 xattr -d com.apple.quarantine ~/Downloads/WhiteRoom.for.Mac_arm64_v*.dmg
@@ -26,7 +28,7 @@ xattr -d com.apple.quarantine ~/Downloads/WhiteRoom.for.Mac_arm64_v*.dmg
 
 その後、通常どおりDMGを開いてアプリをApplicationsフォルダにドラッグしてください。
 
-**方法2: 右クリックで開く**
+#### 方法2: 右クリックで開く**
 
 1. ダウンロードしたDMGをFinderで右クリック（または Control+クリック）
 2. 「開く」を選択
