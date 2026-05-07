@@ -15,6 +15,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     running: false,
     elapsedSec: 0,
     totalSec: 0,
+    effectCompletionLeadSec: 3,
     baseElapsedSec: 0,
     baseTimeMs: 0,
   })
@@ -210,6 +211,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       running: timer.running,
       elapsedSec: timer.elapsedSec,
       totalSec: timer.totalSec,
+      effectCompletionLeadSec: timer.effectCompletionLeadSec,
       baseElapsedSec: timer.elapsedSec,
       baseTimeMs: performance.now(),
     }
@@ -233,6 +235,7 @@ function getSmoothTimerProgress(
     running: boolean
     elapsedSec: number
     totalSec: number
+    effectCompletionLeadSec: number
     baseElapsedSec: number
     baseTimeMs: number
   },
@@ -243,12 +246,14 @@ function getSmoothTimerProgress(
     state.enabled !== timer.enabled ||
     state.running !== timer.running ||
     state.elapsedSec !== timer.elapsedSec ||
-    state.totalSec !== timer.totalSec
+    state.totalSec !== timer.totalSec ||
+    state.effectCompletionLeadSec !== timer.effectCompletionLeadSec
   ) {
     state.enabled = timer.enabled
     state.running = timer.running
     state.elapsedSec = timer.elapsedSec
     state.totalSec = timer.totalSec
+    state.effectCompletionLeadSec = timer.effectCompletionLeadSec
     state.baseElapsedSec = timer.elapsedSec
     state.baseTimeMs = nowMs
   }
@@ -258,7 +263,8 @@ function getSmoothTimerProgress(
     ? state.baseElapsedSec + (nowMs - state.baseTimeMs) / 1000
     : timer.elapsedSec
 
-  return clamp(elapsedSec / timer.totalSec, 0, 1)
+  const effectiveDuration = Math.max(1, timer.totalSec - (timer.effectCompletionLeadSec ?? 0))
+  return clamp(elapsedSec / effectiveDuration, 0, 1)
 }
 
 function layoutCells(

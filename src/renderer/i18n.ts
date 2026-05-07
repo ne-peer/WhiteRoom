@@ -163,8 +163,11 @@ export const translations = {
     applyAssetAll: 'アセットエフェクト設定を全カラムへ反映',
     timerSync: 'タイマー同期',
     timerSyncHelp: 'タイマー開始時を0%・終了時を100%として、エフェクト強度をタイマー経過に合わせて変化させます',
+    effectOptionsSection: 'エフェクトオプション',
     timerSyncSection: 'タイマー同期',
     enableAllTimerSync: 'すべてのエフェクトをタイマー同期',
+    effectCompletionTiming: '適用完了タイミング',
+    secondsBefore: '秒前',
 
     timerSettings: 'タイマー設定',
     display: '表示',
@@ -350,8 +353,11 @@ export const translations = {
     applyAssetAll: 'Apply asset effect settings to all columns',
     timerSync: 'Timer sync',
     timerSyncHelp: 'Scales effect intensity from 0% at timer start to 100% at timer end.',
+    effectOptionsSection: 'Effect Options',
     timerSyncSection: 'Timer Sync',
     enableAllTimerSync: 'Sync all effects to timer',
+    effectCompletionTiming: 'Effect completion timing',
+    secondsBefore: 'sec before end',
 
     timerSettings: 'Timer Settings',
     display: 'Display',

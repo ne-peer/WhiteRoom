@@ -89,6 +89,19 @@ export const TimerControls: React.FC = () => {
         )}
       </Section>
 
+      <Section title={t('effectOptionsSection')}>
+        <Row label={t('effectCompletionTiming')}>
+          <Slider
+            value={timer.effectCompletionLeadSec}
+            min={0}
+            max={30}
+            step={1}
+            unit={t('secondsBefore')}
+            onChange={v => setTimer({ effectCompletionLeadSec: Math.round(clamp(v, 0, 30)) })}
+          />
+        </Row>
+      </Section>
+
       <Section title={t('timerSyncSection')}>
         <Button
           variant="secondary"
