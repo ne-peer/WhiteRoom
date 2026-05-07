@@ -233,7 +233,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     <div>
       <div style={{ marginBottom: 12 }}>
         <Button small variant="secondary" onClick={applyEffectPreset1}>
-          サンプルプリセット
+          {t('samplePreset')}
         </Button>
       </div>
 

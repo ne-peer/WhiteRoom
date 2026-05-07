@@ -98,6 +98,7 @@ export const translations = {
 
     selectCellForEffectsLine1: 'キャンバス上のセルをクリックして',
     selectCellForEffectsLine2: 'エフェクトを編集',
+    samplePreset: 'サンプルプリセット',
     colorOverlay: '色調オーバーレイ',
     color: '色',
     colorFilter: 'カラーフィルタ',
@@ -296,6 +297,7 @@ export const translations = {
 
     selectCellForEffectsLine1: 'Click a cell on the canvas',
     selectCellForEffectsLine2: 'to edit effects',
+    samplePreset: 'Sample preset',
     colorOverlay: 'Color Overlay',
     color: 'Color',
     colorFilter: 'Color filter',
