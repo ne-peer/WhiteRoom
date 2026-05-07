@@ -22,7 +22,7 @@ const POSITION_OPTIONS: { value: TimerPosition; labelKey: 'topLeft' | 'topCenter
 ]
 
 export const TimerControls: React.FC = () => {
-  const { setTimer, selectedCellId, enableAllTimerSyncForSelectedCell } = useAppStore()
+  const { setTimer, selectedCellId, enableAllTimerSyncForSelectedCell, disableAllTimerSyncForSelectedCell } = useAppStore()
   const { timer, start, pause, reset } = useTimer()
   const { t } = useTranslation()
 
@@ -94,14 +94,6 @@ export const TimerControls: React.FC = () => {
       </Section>
 
       <Section title={t('timerSyncSection')}>
-        <Button
-          variant="secondary"
-          onClick={enableAllTimerSyncForSelectedCell}
-          disabled={!selectedCellId}
-        >
-          {t('enableAllTimerSync')}
-        </Button>
-        <div style={{ marginTop: 10 }}>
         <Row label={t('effectCompletionTiming')}>
           <Slider
             value={timer.effectCompletionLeadSec}
@@ -112,6 +104,23 @@ export const TimerControls: React.FC = () => {
             onChange={v => setTimer({ effectCompletionLeadSec: Math.round(clamp(v, 0, 30)) })}
           />
         </Row>
+        <div style={{ marginTop: 10 }}>
+          <Button
+            variant="secondary"
+            onClick={enableAllTimerSyncForSelectedCell}
+            disabled={!selectedCellId}
+          >
+            {t('enableAllTimerSync')}
+          </Button>
+        </div>
+        <div style={{ marginTop: 6 }}>
+          <Button
+            variant="secondary"
+            onClick={disableAllTimerSyncForSelectedCell}
+            disabled={!selectedCellId}
+          >
+            {t('disableAllTimerSync')}
+          </Button>
         </div>
       </Section>
 
