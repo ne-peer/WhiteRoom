@@ -46,7 +46,10 @@ export const MasterCanvas: React.FC = () => {
         e.preventDefault()
         const { timer, setTimer } = useAppStore.getState()
         if (!timer.enabled) return
-        if (timer.running) {
+        const isEnded = !timer.running && timer.elapsedSec >= timer.totalSec && timer.elapsedSec > 0
+        if (isEnded) {
+          setTimer({ running: false, elapsedSec: 0 })
+        } else if (timer.running) {
           setTimer({ running: false })
         } else {
           setTimer({ running: true })

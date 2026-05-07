@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import styles from './TimerPreOverlay.module.css'
 
@@ -6,22 +6,83 @@ function toFileUrl(filePath: string): string {
   return 'file:///' + filePath.replace(/\\/g, '/')
 }
 
+const POST_END_HOLD_MS = 3000
+const POST_END_FADE_MS = 1000
+
 export const TimerPreOverlay: React.FC = () => {
   const timer = useAppStore(s => s.timer)
   const { preOverlay } = timer
 
+  const wasRunningRef = useRef(timer.running)
+  const [postEndVisible, setPostEndVisible] = useState(false)
+  const [postEndFading, setPostEndFading] = useState(false)
+  const holdTimerRef = useRef<number | null>(null)
+  const hideTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const endedNow =
+      timer.enabled &&
+      wasRunningRef.current &&
+      !timer.running &&
+      timer.totalSec > 0 &&
+      timer.elapsedSec >= timer.totalSec
+
+    wasRunningRef.current = timer.running
+
+    if (timer.elapsedSec === 0) {
+      if (holdTimerRef.current !== null) { window.clearTimeout(holdTimerRef.current); holdTimerRef.current = null }
+      if (hideTimerRef.current !== null) { window.clearTimeout(hideTimerRef.current); hideTimerRef.current = null }
+      setPostEndVisible(false)
+      setPostEndFading(false)
+      return
+    }
+
+    if (endedNow && preOverlay.enabled && preOverlay.imagePath) {
+      if (holdTimerRef.current !== null) { window.clearTimeout(holdTimerRef.current); holdTimerRef.current = null }
+      if (hideTimerRef.current !== null) { window.clearTimeout(hideTimerRef.current); hideTimerRef.current = null }
+      setPostEndVisible(true)
+      setPostEndFading(false)
+      holdTimerRef.current = window.setTimeout(() => {
+        holdTimerRef.current = null
+        setPostEndFading(true)
+        hideTimerRef.current = window.setTimeout(() => {
+          hideTimerRef.current = null
+          setPostEndVisible(false)
+          setPostEndFading(false)
+        }, POST_END_FADE_MS)
+      }, POST_END_HOLD_MS)
+    }
+  }, [timer.enabled, timer.running, timer.elapsedSec, timer.totalSec, preOverlay.enabled, preOverlay.imagePath])
+
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current !== null) window.clearTimeout(holdTimerRef.current)
+      if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current)
+    }
+  }, [])
+
   if (!preOverlay.enabled || !preOverlay.imagePath) return null
 
-  const remainingSec = Math.max(0, timer.totalSec - timer.elapsedSec)
-  const isTimerEnded = !timer.running && timer.elapsedSec >= timer.totalSec && timer.elapsedSec > 0
-  const isInPrePeriod = timer.enabled && remainingSec <= preOverlay.displayStartSec && timer.elapsedSec > 0
+  if (postEndVisible) {
+    const opacity = postEndFading ? 0 : preOverlay.endOpacity / 100
+    return (
+      <div
+        className={styles.overlay}
+        style={{ opacity, transition: postEndFading ? `opacity ${POST_END_FADE_MS / 1000}s linear` : 'none' }}
+      >
+        <img src={toFileUrl(preOverlay.imagePath)} className={styles.image} alt="" draggable={false} />
+      </div>
+    )
+  }
 
-  if (!isInPrePeriod && !isTimerEnded) return null
+  const remainingSec = Math.max(0, timer.totalSec - timer.elapsedSec)
+  const isTimerCompleted = timer.elapsedSec >= timer.totalSec && timer.elapsedSec > 0
+  const isInPrePeriod = timer.enabled && !isTimerCompleted && remainingSec <= preOverlay.displayStartSec && timer.elapsedSec > 0
+
+  if (!isInPrePeriod) return null
 
   let progress: number
-  if (isTimerEnded) {
-    progress = 1
-  } else if (preOverlay.displayStartSec > 0) {
+  if (preOverlay.displayStartSec > 0) {
     progress = Math.max(0, Math.min(1, (preOverlay.displayStartSec - remainingSec) / preOverlay.displayStartSec))
   } else {
     progress = 1
