@@ -191,6 +191,7 @@ export type TimerConfig = {
   running: boolean
   position: TimerPosition
   showBackground: boolean
+  effectCompletionLeadSec: number
   endFlash: TimerEndFlashConfig
 }
 

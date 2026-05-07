@@ -110,6 +110,7 @@ export const DEFAULT_TIMER: TimerConfig = {
   running: false,
   position: 'bottom-center',
   showBackground: false,
+  effectCompletionLeadSec: 3,
   endFlash: {
     enabled: true,
     color: { r: 255, g: 255, b: 255 },
