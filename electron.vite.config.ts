@@ -1,6 +1,26 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
+import { resolve, join, extname } from 'path'
+import { readdirSync } from 'fs'
+
+function scanAssetEffectFolders(): { name: string; count: number }[] {
+  const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
+  const basePath = join(__dirname, 'assets', 'asset-effect')
+  try {
+    return readdirSync(basePath, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => {
+        const count = readdirSync(join(basePath, e.name))
+          .filter(f => IMAGE_EXTENSIONS.includes(extname(f).toLowerCase()))
+          .length
+        return { name: e.name, count }
+      })
+      .filter(f => f.count > 0)
+      .sort((a, b) => a.name.localeCompare(b.name))
+  } catch {
+    return []
+  }
+}
 
 export default defineConfig({
   main: {
@@ -28,6 +48,9 @@ export default defineConfig({
       }
     },
     plugins: [react()],
+    define: {
+      __ASSET_EFFECT_FOLDERS__: JSON.stringify(scanAssetEffectFolders()),
+    },
     resolve: {
       alias: {
         '@renderer': resolve(__dirname, 'src/renderer'),

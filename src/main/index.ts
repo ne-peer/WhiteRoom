@@ -61,13 +61,12 @@ function readImagePaths(folderPath: string): string[] {
 
 function getAssetEffectBasePath(): string | null {
   const candidates = [
+    join(process.resourcesPath, 'asset-effect'),
     join(app.getAppPath(), 'assets', 'asset-effect'),
     join(process.cwd(), 'assets', 'asset-effect'),
   ]
-  return candidates.find((candidate, index) =>
-    candidates.indexOf(candidate) === index &&
-    existsSync(candidate) &&
-    statSync(candidate).isDirectory()
+  return candidates.find(candidate =>
+    existsSync(candidate) && statSync(candidate).isDirectory()
   ) ?? null
 }
 
