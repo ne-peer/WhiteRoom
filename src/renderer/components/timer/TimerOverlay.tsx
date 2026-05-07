@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useTimer } from '../../hooks/useTimer'
+import { useTranslation } from '../../i18n'
 import type { TimerPosition } from '../../../shared/types'
 import styles from './TimerOverlay.module.css'
 
@@ -24,13 +25,18 @@ function formatTime(sec: number): string {
 }
 
 export const TimerOverlay: React.FC = () => {
-  const { timer, progress, start, pause } = useTimer()
+  const { timer, progress, start, pause, reset } = useTimer()
+  const { t } = useTranslation()
   const [hovered, setHovered] = useState(false)
 
   if (!timer.enabled) return null
 
   const posStyle = positionStyles[timer.position]
   const remaining = timer.totalSec - timer.elapsedSec
+  const isEnded = !timer.running && timer.elapsedSec >= timer.totalSec && timer.elapsedSec > 0
+
+  const handleBtnClick = isEnded ? reset : (timer.running ? pause : start)
+  const btnLabel = isEnded ? t('reset') : (timer.running ? t('pause') : t('start'))
 
   return (
     <div
@@ -49,9 +55,9 @@ export const TimerOverlay: React.FC = () => {
       {hovered && (
         <button
           className={styles.controlBtn}
-          onClick={timer.running ? pause : start}
+          onClick={handleBtnClick}
         >
-          {timer.running ? 'Stop' : 'Start'}
+          {btnLabel}
         </button>
       )}
     </div>
