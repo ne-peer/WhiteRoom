@@ -93,7 +93,14 @@ export const TimerControls: React.FC = () => {
         )}
       </Section>
 
-      <Section title={t('effectOptionsSection')}>
+      <Section title={t('timerSyncSection')}>
+        <Button
+          variant="secondary"
+          onClick={enableAllTimerSyncForSelectedCell}
+          disabled={!selectedCellId}
+        >
+          {t('enableAllTimerSync')}
+        </Button>
         <Row label={t('effectCompletionTiming')}>
           <Slider
             value={timer.effectCompletionLeadSec}
@@ -104,16 +111,6 @@ export const TimerControls: React.FC = () => {
             onChange={v => setTimer({ effectCompletionLeadSec: Math.round(clamp(v, 0, 30)) })}
           />
         </Row>
-      </Section>
-
-      <Section title={t('timerSyncSection')}>
-        <Button
-          variant="secondary"
-          onClick={enableAllTimerSyncForSelectedCell}
-          disabled={!selectedCellId}
-        >
-          {t('enableAllTimerSync')}
-        </Button>
       </Section>
 
       <Section title={t('timerPreOverlaySection')}>
