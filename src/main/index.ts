@@ -29,6 +29,7 @@ const DIALOG_TEXT = {
     imageFileFilter: '画像ファイル',
     assetImageTitle: 'アセット画像を選択（透過PNG推奨）',
     assetFolderTitle: 'アセットフォルダを選択',
+    overlayImageTitle: '直前オーバレイ画像を選択',
     saveProfileTitle: 'プロファイルを保存',
     loadProfileTitle: 'プロファイルを読み込む',
   },
@@ -37,6 +38,7 @@ const DIALOG_TEXT = {
     imageFileFilter: 'Image Files',
     assetImageTitle: 'Select Asset Image (transparent PNG recommended)',
     assetFolderTitle: 'Select Asset Folder',
+    overlayImageTitle: 'Select Pre-timer Overlay Image',
     saveProfileTitle: 'Save Profile',
     loadProfileTitle: 'Load Profile',
   },
@@ -202,6 +204,20 @@ ipcMain.handle('open-asset', async (_event, language?: UiLanguage) => {
     properties: ['openFile'],
     filters: [{ name: text.imageFileFilter, extensions: ['png', 'webp', 'gif'] }],
     title: text.assetImageTitle
+  })
+  if (result.canceled || !result.filePaths[0]) {
+    return { canceled: true }
+  }
+  return { canceled: false, filePath: result.filePaths[0] }
+})
+
+// 直前オーバレイ画像選択
+ipcMain.handle('open-overlay-image', async (_event, language?: UiLanguage) => {
+  const text = getDialogText(language)
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: text.imageFileFilter, extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif'] }],
+    title: text.overlayImageTitle
   })
   if (result.canceled || !result.filePaths[0]) {
     return { canceled: true }
