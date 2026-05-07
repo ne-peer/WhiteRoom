@@ -103,6 +103,14 @@ export const DEFAULT_EFFECTS: CellEffects = {
   } satisfies TextEffect,
 }
 
+export const DEFAULT_TIMER_PRE_OVERLAY: TimerConfig['preOverlay'] = {
+  enabled: false,
+  imagePath: null,
+  displayStartSec: 10,
+  startOpacity: 0,
+  endOpacity: 80,
+}
+
 export const DEFAULT_TIMER: TimerConfig = {
   enabled: false,
   totalSec: 60,
@@ -118,6 +126,7 @@ export const DEFAULT_TIMER: TimerConfig = {
     count: 3,
     intervalSec: 0.5,
   },
+  preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY },
 }
 
 const DEFAULT_LANGUAGE: UiLanguage = 'ja'
@@ -520,6 +529,7 @@ export const useAppStore = create<AppStore>()(
         ...DEFAULT_TIMER,
         ...profile.timer,
         endFlash: { ...DEFAULT_TIMER.endFlash, ...profile.timer?.endFlash },
+        preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY, ...profile.timer?.preOverlay },
       }
       s.fullscreen = profile.fullscreen
       s.showNavigationBar = true

@@ -5,6 +5,10 @@ import { Section, Row, Toggle, NumberInput, Select, Button, ColorPicker, Slider 
 import { useTranslation } from '../../i18n'
 import type { TimerPosition } from '../../../shared/types'
 
+function getApi() {
+  return (window as unknown as { api: import('../../../shared/types').IpcApi }).api
+}
+
 const POSITION_OPTIONS: { value: TimerPosition; labelKey: 'topLeft' | 'topCenter' | 'topRight' | 'middleLeft' | 'middleCenter' | 'middleRight' | 'bottomLeft' | 'bottomCenter' | 'bottomRight' }[] = [
   { value: 'top-left', labelKey: 'topLeft' },
   { value: 'top-center', labelKey: 'topCenter' },
@@ -110,6 +114,70 @@ export const TimerControls: React.FC = () => {
         >
           {t('enableAllTimerSync')}
         </Button>
+      </Section>
+
+      <Section title={t('timerPreOverlaySection')}>
+        <Row label={t('enabled')}>
+          <Toggle
+            value={timer.preOverlay.enabled}
+            onChange={v => setTimer({ preOverlay: { ...timer.preOverlay, enabled: v } })}
+          />
+        </Row>
+        {timer.preOverlay.enabled && (
+          <>
+            <Row label={t('preOverlayImage')}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    const language = useAppStore.getState().language
+                    const result = await getApi().openOverlayImage(language)
+                    if (!result.canceled && result.filePath) {
+                      setTimer({ preOverlay: { ...timer.preOverlay, imagePath: result.filePath } })
+                    }
+                  }}
+                >
+                  {t('selectImage')}
+                </Button>
+                {timer.preOverlay.imagePath && (
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
+                    {timer.preOverlay.imagePath.split(/[\\/]/).pop()}
+                  </div>
+                )}
+              </div>
+            </Row>
+            <Row label={t('preOverlayDisplayStart')}>
+              <Slider
+                value={timer.preOverlay.displayStartSec}
+                min={1}
+                max={timer.totalSec}
+                step={1}
+                unit={t('secondsBefore')}
+                onChange={v => setTimer({ preOverlay: { ...timer.preOverlay, displayStartSec: Math.round(clamp(v, 1, timer.totalSec)) } })}
+              />
+            </Row>
+            <Row label={t('preOverlayStartOpacity')}>
+              <Slider
+                value={timer.preOverlay.startOpacity}
+                min={0}
+                max={100}
+                step={1}
+                unit="%"
+                onChange={v => setTimer({ preOverlay: { ...timer.preOverlay, startOpacity: clamp(v, 0, 100) } })}
+              />
+            </Row>
+            <Row label={t('preOverlayEndOpacity')}>
+              <Slider
+                value={timer.preOverlay.endOpacity}
+                min={0}
+                max={100}
+                step={1}
+                unit="%"
+                onChange={v => setTimer({ preOverlay: { ...timer.preOverlay, endOpacity: clamp(v, 0, 100) } })}
+              />
+            </Row>
+          </>
+        )}
       </Section>
 
       <Section title={t('timerEndFlashSection')}>

@@ -193,6 +193,7 @@ export type TimerConfig = {
   showBackground: boolean
   effectCompletionLeadSec: number
   endFlash: TimerEndFlashConfig
+  preOverlay: TimerPreOverlayConfig
 }
 
 export type TimerEndFlashConfig = {
@@ -201,6 +202,14 @@ export type TimerEndFlashConfig = {
   maxTransparency: number
   count: number
   intervalSec: number
+}
+
+export type TimerPreOverlayConfig = {
+  enabled: boolean
+  imagePath: string | null
+  displayStartSec: number  // タイマー終了x秒前から表示開始
+  startOpacity: number     // 表示開始時の不透明度 (0-100)
+  endOpacity: number       // 表示完了時の不透明度 (0-100)
 }
 
 // ===== グリッド全体 =====
@@ -268,6 +277,7 @@ export type IpcApi = {
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
   getPathForFile: (file: File) => string
   openAsset: (language?: UiLanguage) => Promise<OpenAssetResult>
+  openOverlayImage: (language?: UiLanguage) => Promise<OpenAssetResult>
   openAssetFolder: (language?: UiLanguage) => Promise<OpenAssetResult>
   listAssetEffectFolders: () => Promise<AssetEffectFoldersResult>
   readImageAsBase64: (filePath: string) => Promise<string>
