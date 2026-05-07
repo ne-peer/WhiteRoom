@@ -36,6 +36,12 @@
       "dist/renderer/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "assets/asset-effect",
+        "to": "asset-effect"
+      }
+    ],
     "win": {
       "target": "nsis"
     },

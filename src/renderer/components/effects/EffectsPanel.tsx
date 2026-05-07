@@ -214,8 +214,9 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     }
   }
 
-  const handleSelectAssetEffectFolder = (folderPath: string) => {
-    const folder = assetEffectFolders.find(item => item.path === folderPath)
+  const handleSelectAssetEffectFolder = (folderName: string) => {
+    if (!folderName) return
+    const folder = assetEffectFolders.find(item => item.name === folderName)
     if (!folder) return
     set('dynamicAsset', {
       assetPath: folder.images[0],
@@ -223,13 +224,10 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       assetFolderPath: folder.path,
     })
   }
-  const assetEffectFolderPlaceholder = assetEffectFolders.length > 0
+  const assetEffectFolderPlaceholder = __ASSET_EFFECT_FOLDERS__.length > 0
     ? (language === 'ja' ? 'フォルダを選択' : 'Select folder')
     : (language === 'ja' ? 'assets/asset-effect にフォルダがありません' : 'No folders in assets/asset-effect')
   const assetEffectFolderLabel = language === 'ja' ? 'プリセットアセット' : 'Preset asset'
-  const assetEffectFolderHelp = language === 'ja'
-    ? '/assets/asset-effectにフォルダを追加すると、リストから選択できるようになります'
-    : 'Add folders to /assets/asset-effect to make them selectable from this list.'
 
   return (
     <div>
@@ -720,25 +718,23 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <>
             <Row label={assetEffectFolderLabel}>
               <Select
-                value={assetEffectFolders.some(folder => folder.path === effects.dynamicAsset.assetFolderPath)
-                  ? effects.dynamicAsset.assetFolderPath ?? ''
-                  : ''}
+                value={(() => {
+                  const currentName = effects.dynamicAsset.assetFolderPath?.split(/[/\\]/).pop() ?? ''
+                  return __ASSET_EFFECT_FOLDERS__.some(f => f.name === currentName) ? currentName : ''
+                })()}
                 options={[
                   {
                     value: '',
                     label: assetEffectFolderPlaceholder,
                   },
-                  ...assetEffectFolders.map(folder => ({
-                    value: folder.path,
-                    label: `${folder.name} (${formatCount(language, folder.images.length, t('imagesUnit'))})`,
+                  ...__ASSET_EFFECT_FOLDERS__.map(folder => ({
+                    value: folder.name,
+                    label: `${folder.name} (${formatCount(language, folder.count, t('imagesUnit'))})`,
                   })),
                 ]}
                 onChange={handleSelectAssetEffectFolder}
               />
             </Row>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 8, wordBreak: 'break-all' }}>
-              {assetEffectFolderHelp}
-            </div>
             <div style={{ marginBottom: 8 }}>
               <Button variant="secondary" onClick={handleOpenAsset}>
                 {t('selectAssetImage')}
