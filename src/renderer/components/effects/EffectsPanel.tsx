@@ -225,7 +225,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     })
   }
   const assetEffectFolderPlaceholder = __ASSET_EFFECT_FOLDERS__.length > 0
-    ? (language === 'ja' ? 'フォルダを選択' : 'Select folder')
+    ? (language === 'ja' ? '未選択' : 'Select folder')
     : (language === 'ja' ? 'assets/asset-effect にフォルダがありません' : 'No folders in assets/asset-effect')
   const assetEffectFolderLabel = language === 'ja' ? 'プリセットアセット' : 'Preset asset'
 
