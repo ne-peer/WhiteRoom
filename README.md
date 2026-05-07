@@ -4,8 +4,33 @@
 
 ## 使い方
 
-以下からバージョンを選んで.exeファイルをダウンロードしてください。（現在Windows用のみ）
+以下からバージョンを選んでダウンロードしてください。
 - https://github.com/ne-peer/WhiteRoom/releases
+
+| OS | ファイル |
+|---|---|
+| Windows | `.exe` |
+| macOS (Apple Silicon) | `_arm64_.dmg` |
+| macOS (Intel) | `_x64_.dmg` |
+
+### macOSでの注意事項
+
+本アプリはApple Developer証明書による署名がないため、そのままではmacOSのGatekeeperにブロックされます。  
+初回のみ、以下のいずれかの方法で開いてください。
+
+**方法1: ターミナルで隔離フラグを解除する（推奨）**
+
+```bash
+xattr -d com.apple.quarantine ~/Downloads/WhiteRoom.for.Mac_arm64_v*.dmg
+```
+
+その後、通常どおりDMGを開いてアプリをApplicationsフォルダにドラッグしてください。
+
+**方法2: 右クリックで開く**
+
+1. ダウンロードしたDMGをFinderで右クリック（または Control+クリック）
+2. 「開く」を選択
+3. 警告ダイアログで「開く」をクリック
 
 ## 機能
 
