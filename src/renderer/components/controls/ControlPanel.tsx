@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useAppStore, selectSelectedCell } from '../../stores/appStore'
 import { GridControls } from './GridControls'
 import { EffectsPanel } from '../effects/EffectsPanel'
@@ -11,13 +11,16 @@ import styles from './ControlPanel.module.css'
 
 type Tab = 'grid' | 'effects' | 'timer' | 'appearance' | 'profile' | 'textreader'
 
-const TABS: { id: Tab; labelKey: 'tabGrid' | 'tabEffects' | 'tabTimer' | 'tabAppearance' | 'tabProfile' | 'tabTextReader'; icon: string }[] = [
+const MAIN_TABS: { id: Tab; labelKey: 'tabGrid' | 'tabEffects' | 'tabTimer' | 'tabTextReader'; icon: string }[] = [
   { id: 'grid',       labelKey: 'tabGrid',       icon: '▦' },
   { id: 'effects',    labelKey: 'tabEffects',    icon: '✦' },
   { id: 'timer',      labelKey: 'tabTimer',      icon: '◷' },
+  { id: 'textreader', labelKey: 'tabTextReader', icon: '📖' },
+]
+
+const MENU_TABS: { id: Tab; labelKey: 'tabAppearance' | 'tabProfile'; icon: string }[] = [
   { id: 'appearance', labelKey: 'tabAppearance', icon: '◈' },
   { id: 'profile',    labelKey: 'tabProfile',    icon: '☁' },
-  { id: 'textreader', labelKey: 'tabTextReader', icon: '📖' },
 ]
 
 type ControlPanelProps = {
@@ -26,27 +29,79 @@ type ControlPanelProps = {
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) => {
   const [activeTab, setActiveTab] = useState<Tab>('grid')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
   const selectedCell = useAppStore(selectSelectedCell)
   const showControls = useAppStore(s => s.showControls)
   const { t } = useTranslation()
 
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [menuOpen])
+
   if (!showControls && !floating) return null
+
+  const isMenuTabActive = MENU_TABS.some(tab => tab.id === activeTab)
+
+  const handleMenuTabSelect = (id: Tab) => {
+    setActiveTab(id)
+    setMenuOpen(false)
+  }
+
+  const activeMenuTab = MENU_TABS.find(tab => tab.id === activeTab)
 
   return (
     <div className={`${styles.panel} ${floating ? styles.panelFloating : ''}`}>
-      {/* タブナビゲーション */}
-      <div className={styles.tabs}>
-        {TABS.map(tab => (
+      {/* タブナビゲーション — ラッパーで overflow visible を確保 */}
+      <div className={styles.tabsContainer} ref={menuRef}>
+        <div className={styles.tabs}>
+          {MAIN_TABS.map(tab => (
+            <button
+              key={tab.id}
+              className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+              title={t(tab.labelKey)}
+            >
+              <span className={styles.tabIcon}>{tab.icon}</span>
+              <span className={styles.tabLabel}>{t(tab.labelKey)}</span>
+            </button>
+          ))}
+
+          {/* ハンバーガーメニュー */}
           <button
-            key={tab.id}
-            className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-            title={t(tab.labelKey)}
+            className={`${styles.tab} ${styles.menuTrigger} ${isMenuTabActive ? styles.tabActive : ''}`}
+            onClick={() => setMenuOpen(v => !v)}
+            title="外観 / プロファイル"
           >
-            <span className={styles.tabIcon}>{tab.icon}</span>
-            <span className={styles.tabLabel}>{t(tab.labelKey)}</span>
+            <span className={styles.tabIcon}>≡</span>
+            <span className={styles.tabLabel}>
+              {activeMenuTab ? t(activeMenuTab.labelKey) : 'その他'}
+            </span>
           </button>
-        ))}
+        </div>
+
+        {/* ドロップダウン — tabs の外・tabsContainer 内で overflow: visible */}
+        {menuOpen && (
+          <div className={styles.menuDropdown}>
+            {MENU_TABS.map(tab => (
+              <button
+                key={tab.id}
+                className={`${styles.menuItem} ${activeTab === tab.id ? styles.menuItemActive : ''}`}
+                onClick={() => handleMenuTabSelect(tab.id)}
+              >
+                <span className={styles.menuItemIcon}>{tab.icon}</span>
+                <span>{t(tab.labelKey)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* コンテンツ */}
