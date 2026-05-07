@@ -23,7 +23,10 @@ const App: React.FC = () => {
       const revealX = window.innerWidth - EDGE_REVEAL_THRESHOLD
       const keepVisibleX = window.innerWidth - CONTROL_PANEL_WIDTH - FLOAT_HIDE_MARGIN
 
+      const overReader = !!(event.target as Element | null)?.closest?.('[data-reader-window]')
+
       setShowFloatingControls(current => {
+        if (overReader) return false
         if (event.clientX >= revealX) return true
         if (current && event.clientX >= keepVisibleX) return true
         return false

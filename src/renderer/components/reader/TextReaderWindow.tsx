@@ -287,7 +287,7 @@ export const TextReaderWindow: React.FC = () => {
     <div className={styles.overlay} style={overlayStyle}>
       {/* ログビュー */}
       {showLog && (
-        <div className={styles.logOverlay}>
+        <div data-reader-window className={styles.logOverlay}>
           <div className={styles.logHeader}>
             <span className={styles.logTitle}>テキストログ</span>
             <button className={styles.logCloseBtn} onClick={() => setTextReaderShowLog(false)}>× 閉じる</button>
@@ -310,7 +310,7 @@ export const TextReaderWindow: React.FC = () => {
       )}
 
       {/* メインテキストウィンドウ */}
-      <div ref={windowRef} className={`${styles.window} ${windowPositionClass}`} style={windowStyle}>
+      <div ref={windowRef} data-reader-window className={`${styles.window} ${windowPositionClass}`} style={windowStyle}>
         {/* テキスト表示エリア */}
         <div ref={textAreaRef} className={styles.textArea}>
           <div
@@ -336,7 +336,7 @@ export const TextReaderWindow: React.FC = () => {
             onClick={() => setTextReaderAutoAdvancing(!isAutoAdvancing)}
             title="自動ページ送り"
           >
-            {isAutoAdvancing ? '⏸' : '▶▶'}
+            Auto
           </button>
 
           <button

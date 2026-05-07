@@ -34,12 +34,15 @@
   }
 }
 
+.tabsContainer {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .tabs {
   display: flex;
   flex-direction: row;
   border-bottom: 1px solid rgba(255,255,255,0.08);
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 
 .tab {
@@ -87,4 +90,60 @@
   padding: 16px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
+.menuTrigger {
+  flex-shrink: 0;
+  min-width: 48px;
+}
+
+.menuDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: rgba(18, 18, 26, 0.98);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 0 0 6px 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 300;
+  min-width: 130px;
+  overflow: hidden;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  cursor: pointer;
+  color: rgba(255,255,255,0.65);
+  font-size: 13px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.menuItem:first-child {
+  border-top: none;
+}
+
+.menuItem:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.95);
+}
+
+.menuItemActive {
+  color: #ff6eb4 !important;
+  background: rgba(255,110,180,0.08);
+}
+
+.menuItemIcon {
+  font-size: 15px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
 }
