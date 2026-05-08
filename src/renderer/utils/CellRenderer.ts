@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, SlideShowTransition } from '../../shared/types'
+import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, ShakeEffect, SlideShowTransition } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -61,6 +61,12 @@ export class CellRenderer {
   private breathingDirectionX = 1
   private breathingDirectionY = 1
   private breathingScalePhase = 0
+  private shakeKey: string | null = null
+  private shakeOffsetY = 0
+  private shakeLoopDirection = -1
+  private shakeOnceSegmentIndex = 0
+  private shakeAfterimages: { sprite: PIXI.Sprite; ageSec: number; durationSec: number }[] = []
+  private shakeAfterimageElapsedSec = 0
   private activeSlideTransition: {
     incoming: PIXI.Sprite
     outgoing: PIXI.Sprite
@@ -208,6 +214,8 @@ export class CellRenderer {
       this.clearTransitionSprite()
       this.swapImageSprite(null, null)
       this.clearDynamicBackground()
+      this.resetShakeMotion()
+      this.clearShakeAfterimages()
       this.refreshEcho()
       this.refreshBlurRegion()
       return
@@ -234,6 +242,7 @@ export class CellRenderer {
         this.swapDynamicBackgroundSprite(new PIXI.Sprite(texture))
       }
       this.positionImageSprite(sprite)
+      this.resetShakeMotion()
       this.refreshEcho()
       this.refreshBlurRegion()
       return
@@ -245,6 +254,7 @@ export class CellRenderer {
   updateEffects(effects: CellEffects) {
     this.latestEffects = effects
     this.updateBreathing(effects.breathing)
+    this.updateShake(effects.shake)
     this.updateColorOverlay(effects)
     this.updateBlur(effects)
     this.updateColorAdjustment(effects.colorOverlay)
@@ -270,6 +280,7 @@ export class CellRenderer {
       effects.blur.gradualDurationSec * 1000,
       effects.echo.durationSec * 1000,
       (effects.breathing?.scaleDurationSec ?? 1) * 1000,
+      this.getShakeCycleDurationMs(effects.shake),
       textDurationMs,
       1000
     )
@@ -279,6 +290,7 @@ export class CellRenderer {
     this.colorAdjustGsapTween?.kill()
     this.echoGsapTween?.kill()
     this.resetBreathingMotion(withRandomDelay)
+    this.resetShakeMotion()
     if (this.effectResetTimeoutId !== null) {
       clearTimeout(this.effectResetTimeoutId)
       this.effectResetTimeoutId = null
@@ -292,6 +304,7 @@ export class CellRenderer {
     this.colorAdjustAnimationKey = null
     this.echoAnimationKey = null
     this.breathingKey = null
+    this.shakeKey = null
     this.textSystem.stop()
     if (delay > 0) {
       const timeoutId = window.setTimeout(() => {
@@ -426,6 +439,9 @@ export class CellRenderer {
 
   tick(delta: number, effects: CellEffects) {
     this.tickBreathing(delta, effects.breathing)
+    this.tickShake(delta, effects.shake)
+    this.applyImageMotionTransform()
+    this.updateShakeAfterimages(delta)
     this.syncRadialBlurClones()
     this.syncEchoToImage()
     this.particleSystem.update(
@@ -450,6 +466,7 @@ export class CellRenderer {
     }
     this.particleSystem.destroy()
     this.textSystem.destroy()
+    this.clearShakeAfterimages()
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.container.destroy({ children: true })
@@ -465,6 +482,7 @@ export class CellRenderer {
     if (!oldSprite) {
       this.swapImageSprite(sprite, url)
       this.positionImageSprite(sprite)
+      this.resetShakeMotion()
       this.refreshEcho()
       this.refreshBlurRegion()
       return
@@ -480,6 +498,7 @@ export class CellRenderer {
 
     this.positionImageSprite(oldSprite)
     this.positionImageSprite(sprite)
+    this.resetShakeMotion()
 
     const duration = Math.max(0.05, transitionDurationMs / 1000)
     this.startDynamicBackgroundTransition(sprite.texture, transition, duration)
@@ -797,7 +816,7 @@ export class CellRenderer {
   }
 
   private positionImageSprite(sprite: PIXI.Sprite) {
-    const { offsetX, offsetY, scaleMultiplier } = this.getBreathingTransform()
+    const { offsetX, offsetY, scaleMultiplier } = this.getImageMotionTransform()
     this.positionSprite(sprite, offsetX, offsetY, scaleMultiplier)
   }
 
@@ -941,17 +960,43 @@ export class CellRenderer {
     if (!wasEnabled) this.resetBreathingMotion(false)
   }
 
-  private getBreathingTransform() {
+  private getImageMotionTransform() {
     const breathing = this.latestEffects?.breathing
-    if (!breathing?.enabled) {
-      return { offsetX: 0, offsetY: 0, scaleMultiplier: 1 }
-    }
+    const shake = this.latestEffects?.shake
+    const breathingEnabled = breathing?.enabled ?? false
 
     return {
-      offsetX: this.breathingOffsetX,
-      offsetY: this.breathingOffsetY,
-      scaleMultiplier: breathing.scaleEnabled ? this.getBreathingScaleMultiplier() : 1,
+      offsetX: breathingEnabled ? this.breathingOffsetX : 0,
+      offsetY: (breathingEnabled ? this.breathingOffsetY : 0) + (shake?.enabled ? this.shakeOffsetY : 0),
+      scaleMultiplier: breathingEnabled && breathing?.scaleEnabled ? this.getBreathingScaleMultiplier() : 1,
     }
+  }
+
+  private updateShake(shake?: ShakeEffect) {
+    const key = shake
+      ? [
+          shake.enabled,
+          shake.mode,
+          shake.amplitudeFactor,
+          shake.speedFactor,
+          shake.loopAmplitudePx,
+          shake.loopSpeedPxPerSec,
+          shake.afterimageEnabled,
+          shake.afterimageDurationSec,
+        ].join(':')
+      : 'disabled'
+
+    if (this.shakeKey === key) return
+    const wasEnabled = this.shakeKey !== null && this.shakeKey !== 'disabled'
+    this.shakeKey = key
+
+    if (!shake?.enabled) {
+      this.resetShakeMotion()
+      if (wasEnabled) this.repositionImage()
+      return
+    }
+
+    this.resetShakeMotion()
   }
 
   private getBreathingScaleMultiplier() {
@@ -1014,6 +1059,150 @@ export class CellRenderer {
     this.positionSprite(this.imageSprite, this.breathingOffsetX, this.breathingOffsetY, scaleMultiplier)
   }
 
+  private tickShake(delta: number, shake?: ShakeEffect) {
+    if (!this.imageSprite || !shake?.enabled) return
+
+    const dtSec = Math.max(0, delta) / 60
+    if (shake.mode === 'loop') {
+      const amplitude = Math.max(0, shake.loopAmplitudePx)
+      const speed = Math.max(0, shake.loopSpeedPxPerSec)
+      if (amplitude <= 0 || speed <= 0) {
+        this.shakeOffsetY = 0
+        return
+      }
+
+      this.shakeOffsetY += this.shakeLoopDirection * speed * dtSec
+      if (this.shakeOffsetY <= -amplitude) {
+        this.shakeOffsetY = -amplitude
+        this.shakeLoopDirection = 1
+      } else if (this.shakeOffsetY >= amplitude) {
+        this.shakeOffsetY = amplitude
+        this.shakeLoopDirection = -1
+      }
+      this.maybeCreateShakeAfterimage(dtSec, shake)
+      return
+    }
+
+    if (this.shakeOnceSegmentIndex >= SHAKE_ONCE_KEYFRAMES.length - 1) {
+      this.shakeOffsetY = 0
+      return
+    }
+
+    const factor = Math.max(0, shake.amplitudeFactor)
+    if (factor <= 0) {
+      this.shakeOffsetY = 0
+      this.shakeOnceSegmentIndex = SHAKE_ONCE_KEYFRAMES.length - 1
+      return
+    }
+    const speedFactor = Math.max(0.1, shake.speedFactor)
+    const target = SHAKE_ONCE_KEYFRAMES[this.shakeOnceSegmentIndex + 1] * factor
+    const direction = Math.sign(target - this.shakeOffsetY)
+    const baseSpeed = this.shakeOnceSegmentIndex === 0 ? SHAKE_ONCE_LIFT_SPEED_PX_PER_SEC : SHAKE_ONCE_BOUNCE_SPEED_PX_PER_SEC
+    const step = baseSpeed * speedFactor * dtSec
+
+    if (direction === 0 || Math.abs(target - this.shakeOffsetY) <= step) {
+      this.shakeOffsetY = target
+      this.shakeOnceSegmentIndex += 1
+      if (this.shakeOnceSegmentIndex >= SHAKE_ONCE_KEYFRAMES.length - 1) {
+        this.shakeOffsetY = 0
+      }
+    } else {
+      this.shakeOffsetY += direction * step
+    }
+
+    if (this.shakeOnceSegmentIndex < SHAKE_ONCE_KEYFRAMES.length - 1) {
+      this.maybeCreateShakeAfterimage(dtSec, shake)
+    }
+  }
+
+  private applyImageMotionTransform() {
+    if (!this.imageSprite) return
+
+    if (this.activeSlideTransition) {
+      this.applySlideTransitionPositions()
+      return
+    }
+
+    if (this.activeZoomTransition) {
+      this.applyZoomTransitionTransforms()
+      return
+    }
+
+    if (this.imageTransitionTween) {
+      this.applyBreathingTransform(this.imageSprite, 1)
+      if (this.transitionSprite) this.applyBreathingTransform(this.transitionSprite, 1)
+      return
+    }
+
+    this.positionImageSprite(this.imageSprite)
+  }
+
+  private resetShakeMotion() {
+    this.shakeOffsetY = 0
+    this.shakeLoopDirection = -1
+    this.shakeOnceSegmentIndex = 0
+    this.shakeAfterimageElapsedSec = 0
+  }
+
+  private getShakeCycleDurationMs(shake?: ShakeEffect) {
+    if (!shake?.enabled) return 0
+    if (shake.mode === 'loop') return 1000
+
+    const factor = Math.max(0, shake.amplitudeFactor)
+    const speedFactor = Math.max(0.1, shake.speedFactor)
+    let durationSec = 0
+    for (let i = 0; i < SHAKE_ONCE_KEYFRAMES.length - 1; i += 1) {
+      const distance = Math.abs(SHAKE_ONCE_KEYFRAMES[i + 1] - SHAKE_ONCE_KEYFRAMES[i]) * factor
+      const speed = (i === 0 ? SHAKE_ONCE_LIFT_SPEED_PX_PER_SEC : SHAKE_ONCE_BOUNCE_SPEED_PX_PER_SEC) * speedFactor
+      durationSec += speed > 0 ? distance / speed : 0
+    }
+    return durationSec * 1000
+  }
+
+  private maybeCreateShakeAfterimage(dtSec: number, shake: ShakeEffect) {
+    if (!shake.afterimageEnabled || !this.imageSprite) return
+
+    this.shakeAfterimageElapsedSec += dtSec
+    if (this.shakeAfterimageElapsedSec < SHAKE_AFTERIMAGE_INTERVAL_SEC) return
+    this.shakeAfterimageElapsedSec = 0
+
+    const durationSec = clamp(shake.afterimageDurationSec, 0.05, 3)
+    const sprite = new PIXI.Sprite(this.imageSprite.texture)
+    sprite.anchor.set(0.5)
+    sprite.x = this.imageSprite.x
+    sprite.y = this.imageSprite.y
+    sprite.scale.copyFrom(this.imageSprite.scale)
+    sprite.rotation = this.imageSprite.rotation
+    sprite.alpha = 0.32
+    this.imageLayer.addChildAt(sprite, 0)
+    this.shakeAfterimages.push({ sprite, ageSec: 0, durationSec })
+  }
+
+  private updateShakeAfterimages(delta: number) {
+    if (this.shakeAfterimages.length === 0) return
+
+    const dtSec = Math.max(0, delta) / 60
+    for (let i = this.shakeAfterimages.length - 1; i >= 0; i -= 1) {
+      const item = this.shakeAfterimages[i]
+      item.ageSec += dtSec
+      const progress = clamp(item.ageSec / item.durationSec, 0, 1)
+      item.sprite.alpha = 0.32 * (1 - progress)
+      if (progress >= 1) {
+        this.imageLayer.removeChild(item.sprite)
+        item.sprite.destroy({ texture: false })
+        this.shakeAfterimages.splice(i, 1)
+      }
+    }
+  }
+
+  private clearShakeAfterimages() {
+    this.shakeAfterimages.forEach(item => {
+      this.imageLayer.removeChild(item.sprite)
+      item.sprite.destroy({ texture: false })
+    })
+    this.shakeAfterimages = []
+  }
+
   private resetBreathingMotion(randomize: boolean) {
     const breathing = this.latestEffects?.breathing
     const timerP = (breathing?.timerSync && this.timerEnabled) ? this.timerProgress : 1
@@ -1058,15 +1247,15 @@ export class CellRenderer {
   }
 
   private applyBreathingTransform(sprite: PIXI.Sprite, extraScaleMultiplier: number) {
-    const breathingScale = this.latestEffects?.breathing?.scaleEnabled ? this.getBreathingScaleMultiplier() : 1
-    sprite.x = this.width / 2 + this.breathingOffsetX
-    sprite.y = this.height / 2 + this.breathingOffsetY
-    sprite.scale.set(this.getImageScale(sprite.texture.width, sprite.texture.height) * breathingScale * extraScaleMultiplier)
+    const transform = this.getImageMotionTransform()
+    sprite.x = this.width / 2 + transform.offsetX
+    sprite.y = this.height / 2 + transform.offsetY
+    sprite.scale.set(this.getImageScale(sprite.texture.width, sprite.texture.height) * transform.scaleMultiplier * extraScaleMultiplier)
   }
 
   private applySlideTransitionPositions() {
     if (!this.activeSlideTransition) return
-    const transform = this.getBreathingTransform()
+    const transform = this.getImageMotionTransform()
     const centerX = this.width / 2 + transform.offsetX
     const centerY = this.height / 2 + transform.offsetY
     const {
@@ -1602,6 +1791,11 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
   const t = clamp((value - edge0) / (edge1 - edge0), 0, 1)
   return t * t * (3 - 2 * t)
 }
+
+const SHAKE_ONCE_KEYFRAMES = [0, -40, 20, -20, 10, -10, 5, 0] as const
+const SHAKE_ONCE_LIFT_SPEED_PX_PER_SEC = 60
+const SHAKE_ONCE_BOUNCE_SPEED_PX_PER_SEC = 180
+const SHAKE_AFTERIMAGE_INTERVAL_SEC = 0.05
 
 function toFileUrl(src: string): string {
   if (src.startsWith('file://') || src.startsWith('http') || src.startsWith('data:')) {

@@ -120,6 +120,17 @@ export type BreathingEffect = {
   scaleDurationSec: number
 }
 
+export type ShakeEffect = {
+  enabled: boolean
+  mode: 'once' | 'loop'
+  amplitudeFactor: number
+  speedFactor: number
+  loopAmplitudePx: number
+  loopSpeedPxPerSec: number
+  afterimageEnabled: boolean
+  afterimageDurationSec: number
+}
+
 export type AssetDrawPattern = 'rising' | 'emergence'
 
 export type AssetParticle = {
@@ -174,6 +185,7 @@ export type CellEffects = {
   blur: BlurEffect
   echo: EchoEffect
   breathing: BreathingEffect
+  shake: ShakeEffect
   dynamicAsset: DynamicAssetEffect
   textEffect: TextEffect
 }

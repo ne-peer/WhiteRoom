@@ -66,6 +66,16 @@ const EFFECT_PRESET_1: CellEffects = {
     scaleEnabled: true,
     scaleDurationSec: 8,
   },
+  shake: {
+    enabled: false,
+    mode: 'once',
+    amplitudeFactor: 1,
+    speedFactor: 1,
+    loopAmplitudePx: 20,
+    loopSpeedPxPerSec: 80,
+    afterimageEnabled: false,
+    afterimageDurationSec: 0.35,
+  },
   dynamicAsset: {
     enabled: true,
     pattern: 'rising',
@@ -175,6 +185,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     vignette: { ...DEFAULT_EFFECTS.vignette, ...rawEffects.vignette },
     blur: { ...DEFAULT_EFFECTS.blur, ...rawEffects.blur },
     breathing: { ...DEFAULT_EFFECTS.breathing, ...rawEffects.breathing },
+    shake: { ...DEFAULT_EFFECTS.shake, ...rawEffects.shake },
     dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...rawEffects.dynamicAsset },
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...rawEffects.textEffect },
   }
@@ -187,6 +198,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect(selectedCellId, 'blur', structuredClone(EFFECT_PRESET_1.blur))
     setCellEffect(selectedCellId, 'echo', structuredClone(EFFECT_PRESET_1.echo))
     setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_1.breathing))
+    setCellEffect(selectedCellId, 'shake', structuredClone(EFFECT_PRESET_1.shake))
     setCellEffect(selectedCellId, 'dynamicAsset', structuredClone(EFFECT_PRESET_1.dynamicAsset))
     setCellEffect(selectedCellId, 'textEffect', structuredClone(EFFECT_PRESET_1.textEffect))
   }
@@ -597,6 +609,91 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
+      <Section title={t('shakeEffect')}>
+        <Row label={t('enabled')}>
+          <Toggle value={effects.shake.enabled} onChange={v => set('shake', { enabled: v })} />
+        </Row>
+        {effects.shake.enabled && (
+          <>
+            <Row label={t('shakeMode')}>
+              <Select
+                value={effects.shake.mode}
+                options={[
+                  { value: 'once', label: t('shakeModeOnce') },
+                  { value: 'loop', label: t('shakeModeLoop') },
+                ]}
+                onChange={v => set('shake', { mode: v === 'loop' ? 'loop' : 'once' })}
+              />
+            </Row>
+            {effects.shake.mode === 'once' ? (
+              <>
+                <Row label={t('distanceFactor')}>
+                  <NumberInput
+                    value={effects.shake.amplitudeFactor}
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    unit="x"
+                    onChange={v => set('shake', { amplitudeFactor: v })}
+                  />
+                </Row>
+                <Row label={t('speedFactor')}>
+                  <NumberInput
+                    value={effects.shake.speedFactor}
+                    min={0.1}
+                    max={5}
+                    step={0.1}
+                    unit="x"
+                    onChange={v => set('shake', { speedFactor: v })}
+                  />
+                </Row>
+              </>
+            ) : (
+              <>
+                <Row label={t('verticalRange')}>
+                  <Slider
+                    value={effects.shake.loopAmplitudePx}
+                    min={0}
+                    max={120}
+                    step={1}
+                    unit="px"
+                    onChange={v => set('shake', { loopAmplitudePx: v })}
+                  />
+                </Row>
+                <Row label={t('moveSpeed')}>
+                  <NumberInput
+                    value={effects.shake.loopSpeedPxPerSec}
+                    min={0}
+                    max={600}
+                    step={1}
+                    unit="px/s"
+                    onChange={v => set('shake', { loopSpeedPxPerSec: v })}
+                  />
+                </Row>
+              </>
+            )}
+            <Row label={t('afterimage')}>
+              <Toggle
+                value={effects.shake.afterimageEnabled}
+                onChange={v => set('shake', { afterimageEnabled: v })}
+              />
+            </Row>
+            {effects.shake.afterimageEnabled && (
+              <Row label={t('afterimageDuration')}>
+                <NumberInput
+                  value={effects.shake.afterimageDurationSec}
+                  min={0.05}
+                  max={3}
+                  step={0.05}
+                  unit={t('seconds')}
+                  onChange={v => set('shake', { afterimageDurationSec: v })}
+                />
+              </Row>
+            )}
+          </>
+        )}
+      </Section>
+
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         <div style={{ order: 2 }}>
       <Section title={t('textEffect')}>
@@ -856,7 +953,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <Button
             variant="secondary"
             onClick={restartEffectsWithRandomTiming}
-            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled)}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled || c.effects.shake?.enabled)}
             title={t('restartRandomTimingTip')}
           >
             {t('restartRandomTiming')}
