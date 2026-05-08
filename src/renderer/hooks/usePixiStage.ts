@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import * as PIXI from 'pixi.js'
 import { useAppStore } from '../stores/appStore'
-import { CellRenderer } from '../utils/CellRenderer'
+import { CellRenderer, configureRemoteImageLoading } from '../utils/CellRenderer'
 
 type CellRendererMap = Map<string, CellRenderer>
 
@@ -100,6 +100,15 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     if (!app) return
     layoutCells(app, cellRenderersRef.current, store)
   }, [store.grid, store.cells.length, store.blankColor, store.blankBackground])
+
+  useEffect(() => {
+    const message = store.language === 'en'
+      ? 'Pixiv image loading was stopped because this app session reached the 10 unique-image limit. Restart WhiteRoom to reset it.'
+      : 'このアプリ起動中のpixiv画像読み込みが上限（異なる画像10件）に達したため、pixiv画像の読み込みを停止しました。WhiteRoomを再起動するとリセットされます。'
+    configureRemoteImageLoading(
+      () => store.showAppNotification(message, 'warning')
+    )
+  }, [store.language, store.showAppNotification])
 
   const imageKey = store.cells
     .map(c => `${c.id}:${c.folder?.id ?? ''}:${c.currentImageIndex}:${store.cellTagOverrides[c.id] ?? ''}`)

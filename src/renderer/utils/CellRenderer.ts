@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, SlideShowTransition } from '../../shared/types'
+import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, SlideShowTransition } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -215,7 +215,9 @@ export class CellRenderer {
 
     let texture: PIXI.Texture
     try {
-      texture = await PIXI.Assets.load(url)
+      const loadableUrl = await toLoadableImageUrl(url)
+      if (this.requestedImageSrc !== url || requestToken !== this.imageRequestToken) return
+      texture = await PIXI.Assets.load(loadableUrl)
     } catch {
       if (this.requestedImageSrc === url) this.requestedImageSrc = null
       return
@@ -1607,4 +1609,44 @@ function toFileUrl(src: string): string {
   }
   const normalized = src.replace(/\\/g, '/')
   return normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`
+}
+
+const remoteImageDataUrlCache = new Map<string, string>()
+const remoteImageDataUrlInFlight = new Map<string, Promise<string>>()
+let remoteImageLimitNotifier: ((message: string) => void) | null = null
+
+export function configureRemoteImageLoading(
+  limitNotifier: ((message: string) => void) | null
+): void {
+  remoteImageLimitNotifier = limitNotifier
+}
+
+function isHttpImageUrl(src: string): boolean {
+  return /^https?:\/\//i.test(src)
+}
+
+async function toLoadableImageUrl(url: string): Promise<string> {
+  if (!isHttpImageUrl(url)) return url
+  const cached = remoteImageDataUrlCache.get(url)
+  if (cached) return cached
+  const inFlight = remoteImageDataUrlInFlight.get(url)
+  if (inFlight) return inFlight
+
+  const api = (window as unknown as { api?: IpcApi }).api
+  if (!api?.loadRemoteImageAsDataUrl) return url
+
+  const request = api.loadRemoteImageAsDataUrl(url)
+    .then(result => {
+      if (result.limitExceeded) {
+        remoteImageLimitNotifier?.(result.error ?? 'Pixiv image limit reached for this app session')
+      }
+      if (!result.success || !result.dataUrl) throw new Error(result.error ?? 'Remote image load failed')
+      remoteImageDataUrlCache.set(url, result.dataUrl)
+      return result.dataUrl
+    })
+    .finally(() => {
+      remoteImageDataUrlInFlight.delete(url)
+    })
+  remoteImageDataUrlInFlight.set(url, request)
+  return request
 }

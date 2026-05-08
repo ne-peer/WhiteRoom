@@ -6,7 +6,7 @@ import type {
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
   TagEntry, TextEffect, UiLanguage, TextReaderConfig,
 } from '../../shared/types'
-import { parseTextFile, insertOrReplaceTagBefore, buildRichTagLine, buildSimpleTagLine } from '../utils/storyboardParser'
+import { parseTextFile, insertOrReplaceTagBefore, resolveStoryboardImageReference } from '../utils/storyboardParser'
 
 // ===== デフォルト値 =====
 
@@ -223,6 +223,7 @@ export type AppState = {
   effectColumnSyncNonce: number
   effectColumnSyncCol: number | null
   applyEffectChangesToAllColumns: boolean
+  appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error' } | null
 
   // セルのタグ一時上書き（profile対象外・セッション専用）
   cellTagOverrides: Record<string, string | null>  // cellId → override image path
@@ -305,6 +306,8 @@ export type AppActions = {
   toggleControls: () => void
   setLoading: (flag: boolean) => void
   setLanguage: (language: UiLanguage) => void
+  showAppNotification: (text: string, type?: 'info' | 'warning' | 'error') => void
+  clearAppNotification: (id?: number) => void
 
   // プロファイル
   exportProfile: (name: string) => AppProfile
@@ -362,6 +365,7 @@ export const useAppStore = create<AppStore>()(
     effectColumnSyncNonce: 0,
     effectColumnSyncCol: null,
     applyEffectChangesToAllColumns: true,
+    appNotification: null,
     cellTagOverrides: {},
     textReader: {
       config: getInitialTextReaderConfig(),
@@ -639,6 +643,15 @@ export const useAppStore = create<AppStore>()(
       window.localStorage.setItem('whiteroom.uiLanguage', language)
     }),
 
+    showAppNotification: (text, type = 'info') => set(s => {
+      s.appNotification = { id: Date.now(), text, type }
+    }),
+
+    clearAppNotification: (id) => set(s => {
+      if (id !== undefined && s.appNotification?.id !== id) return
+      s.appNotification = null
+    }),
+
     // ===== プロファイル =====
 
     exportProfile: (name) => {
@@ -799,7 +812,10 @@ export const useAppStore = create<AppStore>()(
 
       const plainEntry = current(entry)
       const { tag } = plainEntry
-      const image = tag.kind === 'simple' ? tag.image : tag.payload.image
+      const image = resolveStoryboardImageReference(
+        tag.kind === 'simple' ? tag.image : tag.payload.image,
+        s.textReader.filePath
+      )
       const effects = tag.kind === 'rich' ? tag.payload.effects : undefined
 
       // タイマーリセット（タグ優先）

@@ -3,9 +3,13 @@ import { dirname, join, extname } from 'path'
 import { tmpdir } from 'os'
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
+import { get as httpGet } from 'http'
+import { get as httpsGet } from 'https'
 import type {
   AppProfile,
   AssetEffectFoldersResult,
+  RemoteImageResult,
+  RemoteImageStatsResult,
   SaveProfileResult,
   LoadProfileResult,
   OpenFolderResult,
@@ -16,8 +20,13 @@ import type {
 } from '../shared/types'
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
+const MAX_REMOTE_IMAGE_BYTES = 25 * 1024 * 1024
+const MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP = 10
 const textReaderTempDirs = new Set<string>()
 let activeTextReaderTempDir: string | null = null
+const remoteImageDataUrlCache = new Map<string, RemoteImageResult>()
+const remoteImageInFlight = new Map<string, Promise<RemoteImageResult>>()
+const countedPixivImageUrls = new Set<string>()
 const FALLBACK_FONTS = [
   'Meiryo',
   'BIZ UDPGothic',
@@ -120,6 +129,170 @@ function createTextReaderTempFile(originalPath: string): string {
   textReaderTempDirs.add(dirPath)
   activeTextReaderTempDir = dirPath
   return tempFilePath
+}
+
+function getRemoteImageReferer(url: URL): string {
+  if (url.hostname.endsWith('pximg.net')) return 'https://www.pixiv.net/'
+  return `${url.protocol}//${url.hostname}/`
+}
+
+function isPixivHost(url: URL): boolean {
+  return url.hostname === 'pixiv.net' ||
+    url.hostname.endsWith('.pixiv.net') ||
+    url.hostname === 'pximg.net' ||
+    url.hostname.endsWith('.pximg.net')
+}
+
+function registerPixivImageUrl(url: URL): RemoteImageResult | null {
+  if (!isPixivHost(url)) return null
+  const key = url.toString()
+  if (countedPixivImageUrls.has(key)) return null
+  if (countedPixivImageUrls.size >= MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP) {
+    return {
+      success: false,
+      limitExceeded: true,
+      error: `Pixiv image limit reached for this app session (${MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP})`,
+    }
+  }
+  countedPixivImageUrls.add(key)
+  return null
+}
+
+function decodeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+}
+
+function extractMetaImageUrl(html: string): string | null {
+  const patterns = [
+    /<meta\s+[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i,
+    /<meta\s+[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["'][^>]*>/i,
+    /<meta\s+[^>]*property=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i,
+    /<meta\s+[^>]*content=["']([^"']+)["'][^>]*property=["']twitter:image["'][^>]*>/i,
+  ]
+  for (const pattern of patterns) {
+    const match = pattern.exec(html)
+    if (match?.[1]) return decodeHtmlAttribute(match[1])
+  }
+  return null
+}
+
+function downloadRemoteImageAsDataUrl(rawUrl: string, countPixivUrl: boolean, redirectCount = 0): Promise<RemoteImageResult> {
+  return new Promise((resolve) => {
+    if (redirectCount > 5) {
+      resolve({ success: false, error: 'Too many redirects' })
+      return
+    }
+
+    let url: URL
+    try {
+      url = new URL(rawUrl)
+    } catch {
+      resolve({ success: false, error: 'Invalid URL' })
+      return
+    }
+
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      resolve({ success: false, error: 'Unsupported URL protocol' })
+      return
+    }
+
+    const cached = remoteImageDataUrlCache.get(url.toString())
+    if (cached) {
+      resolve(cached)
+      return
+    }
+
+    const limited = countPixivUrl ? registerPixivImageUrl(url) : null
+    if (limited) {
+      resolve(limited)
+      return
+    }
+
+    const client = url.protocol === 'https:' ? httpsGet : httpGet
+    const request = client(url, {
+      headers: {
+        Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*,*/*;q=0.8',
+        Referer: getRemoteImageReferer(url),
+        'User-Agent': 'Mozilla/5.0 WhiteRoom/1.0',
+      },
+    }, (response) => {
+      const location = response.headers.location
+      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && location) {
+        response.resume()
+        if (redirectCount >= 5) {
+          resolve({ success: false, error: 'Too many redirects' })
+          return
+        }
+        const nextUrl = new URL(location, url).toString()
+        downloadRemoteImageAsDataUrl(nextUrl, true, redirectCount + 1).then(resolve)
+        return
+      }
+
+      const contentTypeHeader = response.headers['content-type']
+      const contentType = Array.isArray(contentTypeHeader) ? contentTypeHeader[0] : contentTypeHeader
+      if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+        response.resume()
+        resolve({ success: false, contentType, error: `HTTP ${response.statusCode ?? 'error'}` })
+        return
+      }
+      if (!contentType?.toLowerCase().startsWith('image/')) {
+        if (contentType?.toLowerCase().includes('text/html')) {
+          const chunks: Buffer[] = []
+          let total = 0
+          response.on('data', (chunk: Buffer) => {
+            total += chunk.length
+            if (total > 1024 * 1024) {
+              request.destroy(new Error('HTML page is too large'))
+              return
+            }
+            chunks.push(chunk)
+          })
+          response.on('end', () => {
+            const metaImageUrl = extractMetaImageUrl(Buffer.concat(chunks).toString('utf-8'))
+            if (!metaImageUrl) {
+              resolve({ success: false, contentType, error: 'URL did not return an image' })
+              return
+            }
+            downloadRemoteImageAsDataUrl(metaImageUrl, false, redirectCount + 1).then(result => {
+              if (result.success) remoteImageDataUrlCache.set(metaImageUrl, result)
+              resolve(result)
+            })
+          })
+          return
+        }
+        response.resume()
+        resolve({ success: false, contentType, error: 'URL did not return an image' })
+        return
+      }
+
+      const chunks: Buffer[] = []
+      let total = 0
+      response.on('data', (chunk: Buffer) => {
+        total += chunk.length
+        if (total > MAX_REMOTE_IMAGE_BYTES) {
+          request.destroy(new Error('Image is too large'))
+          return
+        }
+        chunks.push(chunk)
+      })
+      response.on('end', () => {
+        const data = Buffer.concat(chunks).toString('base64')
+        resolve({ success: true, contentType, dataUrl: `data:${contentType};base64,${data}` })
+      })
+    })
+
+    request.on('error', (error) => {
+      resolve({ success: false, error: error.message })
+    })
+    request.setTimeout(15000, () => {
+      request.destroy(new Error('Remote image request timed out'))
+    })
+  })
 }
 
 function cleanupTextReaderTempFilePath(tempFilePath: string): CleanupTextReaderTempFileResult {
@@ -429,6 +602,32 @@ ipcMain.handle('cleanup-text-reader-temp-file', async (_event, tempFilePath: str
     return cleanupTextReaderTempFilePath(tempFilePath)
   } catch (e: unknown) {
     return { success: false, error: String(e) }
+  }
+})
+
+ipcMain.handle('load-remote-image-data-url', async (_event, url: string): Promise<RemoteImageResult> => {
+  const cached = remoteImageDataUrlCache.get(url)
+  if (cached) return cached
+
+  const inFlight = remoteImageInFlight.get(url)
+  if (inFlight) return inFlight
+
+  const request = downloadRemoteImageAsDataUrl(url, true)
+    .then(result => {
+      if (result.success) remoteImageDataUrlCache.set(url, result)
+      return result
+    })
+    .finally(() => {
+      remoteImageInFlight.delete(url)
+    })
+  remoteImageInFlight.set(url, request)
+  return request
+})
+
+ipcMain.handle('get-remote-image-stats', async (): Promise<RemoteImageStatsResult> => {
+  return {
+    pixivUniqueImageCount: countedPixivImageUrls.size,
+    pixivUniqueImageLimit: MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP,
   }
 })
 

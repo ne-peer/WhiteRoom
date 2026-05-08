@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useTranslation } from '../../i18n'
 import type { IpcApi } from '../../../shared/types'
-import { buildRichTagLine } from '../../utils/storyboardParser'
+import { buildRichTagLine, createStoryboardImageReference } from '../../utils/storyboardParser'
 import styles from './StoryboardPanel.module.css'
 
 const APP_VERSION = '1.4.0'
@@ -28,6 +28,8 @@ export const StoryboardPanel: React.FC = () => {
   const { t } = useTranslation()
   const [progressEnabled, setProgressEnabled] = useState(false)
   const [progressPages, setProgressPages] = useState(5)
+  const [useRelativePath, setUseRelativePath] = useState(false)
+  const [imageReferenceInput, setImageReferenceInput] = useState('')
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
   const [pos, setPos] = useState(() => ({
     x: Math.max(12, window.innerWidth - 542),
@@ -84,8 +86,14 @@ export const StoryboardPanel: React.FC = () => {
     return cellTagOverrides[firstCell.id] ?? firstCell.folder?.images[firstCell.currentImageIndex] ?? null
   }
 
+  const getImageReferenceForTag = (): string | null => {
+    const rawImageReference = imageReferenceInput.trim() || getCurrentImagePath()
+    if (!rawImageReference) return null
+    return createStoryboardImageReference(rawImageReference, filePath, useRelativePath)
+  }
+
   const handleInsertImage = () => {
-    const imagePath = getCurrentImagePath()
+    const imagePath = getImageReferenceForTag()
     if (!imagePath) { showStatus(t('storyboardNoFile')); return }
     const segIdx = currentSegmentIndex
     if (segmentStartLines[segIdx] === undefined) { showStatus(t('storyboardNoFile')); return }
@@ -116,7 +124,7 @@ export const StoryboardPanel: React.FC = () => {
 
     const firstCell = cells[0]
     const effects = firstCell ? firstCell.effects : undefined
-    const imagePath = getCurrentImagePath()
+    const imagePath = getImageReferenceForTag()
     if (!imagePath || !effects) { showStatus(t('storyboardNoFile')); return }
 
     const tagLine = buildRichTagLine(
@@ -167,6 +175,24 @@ export const StoryboardPanel: React.FC = () => {
         </div>
 
         {/* エフェクト徐々に適用オプション */}
+        <div className={styles.imageRefSection}>
+          <input
+            className={styles.imageRefInput}
+            value={imageReferenceInput}
+            onChange={e => setImageReferenceInput(e.target.value)}
+            placeholder={t('storyboardImageReferencePlaceholder')}
+            spellCheck={false}
+          />
+          <label className={styles.checkLabel}>
+            <input
+              type="checkbox"
+              checked={useRelativePath}
+              onChange={e => setUseRelativePath(e.target.checked)}
+            />
+            {t('storyboardUseRelativePath')}
+          </label>
+        </div>
+
         <div className={styles.progressRow}>
           <label className={styles.checkLabel}>
             <input

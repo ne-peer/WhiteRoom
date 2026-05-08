@@ -85,6 +85,35 @@
   background: rgba(80, 140, 200, 0.50);
 }
 
+.imageRefSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+.imageRefInput {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(220, 220, 255, 0.90);
+  border-radius: 4px;
+  padding: 5px 6px;
+  font-size: 11px;
+  outline: none;
+}
+
+.imageRefInput:focus {
+  border-color: rgba(120, 200, 140, 0.50);
+}
+
+.imageRefInput::placeholder {
+  color: rgba(160, 160, 200, 0.55);
+}
+
 .saveBtn {
   background: rgba(80, 200, 120, 0.18);
   border-color: rgba(100, 220, 140, 0.35);

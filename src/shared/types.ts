@@ -237,10 +237,12 @@ export type AppProfile = {
 
 export type StoryboardSimpleTag = {
   kind: 'simple'
+  // Absolute path, text-file-relative path, file URL, data URL, or direct http(s) image URL.
   image: string
 }
 
 export type StoryboardRichTagPayload = {
+  // Absolute path, text-file-relative path, file URL, data URL, or direct http(s) image URL.
   image: string
   effects: Partial<CellEffects>
   progress?: { enabled: boolean; pages: number }
@@ -340,6 +342,19 @@ export type CleanupTextReaderTempFileResult = {
   error?: string
 }
 
+export type RemoteImageResult = {
+  success: boolean
+  dataUrl?: string
+  contentType?: string
+  limitExceeded?: boolean
+  error?: string
+}
+
+export type RemoteImageStatsResult = {
+  pixivUniqueImageCount: number
+  pixivUniqueImageLimit: number
+}
+
 export type IpcApi = {
   openFolder: (language?: UiLanguage) => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
@@ -358,5 +373,7 @@ export type IpcApi = {
   openTextFile: (language?: UiLanguage) => Promise<OpenTextFileResult>
   saveTextFile: (filePath: string, content: string) => Promise<SaveTextFileResult>
   cleanupTextReaderTempFile: (tempFilePath: string) => Promise<CleanupTextReaderTempFileResult>
+  loadRemoteImageAsDataUrl: (url: string) => Promise<RemoteImageResult>
+  getRemoteImageStats: () => Promise<RemoteImageStatsResult>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void
 }

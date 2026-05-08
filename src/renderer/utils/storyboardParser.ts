@@ -155,3 +155,91 @@ export function buildRichTagLine(
 export function buildSimpleTagLine(image: string): string {
   return `[[${image}]]`
 }
+
+export function isRemoteImageReference(src: string): boolean {
+  return /^https?:\/\//i.test(src) || src.startsWith('data:')
+}
+
+function fromFileUrl(src: string): string {
+  if (!src.toLowerCase().startsWith('file://')) return src
+  const withoutScheme = src.slice('file://'.length)
+  const normalized = withoutScheme.startsWith('/') && /^[a-zA-Z]:/.test(withoutScheme.slice(1))
+    ? withoutScheme.slice(1)
+    : withoutScheme
+  return decodeURIComponent(normalized)
+}
+
+function normalizePathSeparators(src: string): string {
+  return fromFileUrl(src.trim()).replace(/\\/g, '/')
+}
+
+function isAbsoluteLocalPath(src: string): boolean {
+  const normalized = normalizePathSeparators(src)
+  return /^[a-zA-Z]:\//.test(normalized) || normalized.startsWith('/')
+}
+
+function getPathDirectory(filePath: string): string {
+  const normalized = normalizePathSeparators(filePath)
+  const trimmed = normalized.replace(/\/+$/g, '')
+  const slash = trimmed.lastIndexOf('/')
+  if (slash <= 0) return trimmed
+  if (/^[a-zA-Z]:$/.test(trimmed.slice(0, slash))) return trimmed.slice(0, slash + 1)
+  return trimmed.slice(0, slash)
+}
+
+function splitPath(src: string): string[] {
+  return normalizePathSeparators(src).split('/').filter(Boolean)
+}
+
+function sameWindowsDrive(a: string, b: string): boolean {
+  const driveA = /^[a-zA-Z]:/.exec(a)?.[0].toLowerCase()
+  const driveB = /^[a-zA-Z]:/.exec(b)?.[0].toLowerCase()
+  return driveA !== undefined && driveA === driveB
+}
+
+function toRelativePath(targetPath: string, baseFilePath: string): string {
+  const target = normalizePathSeparators(targetPath)
+  const baseDir = getPathDirectory(baseFilePath)
+  if (!isAbsoluteLocalPath(target) || !isAbsoluteLocalPath(baseDir)) return targetPath
+
+  const targetHasDrive = /^[a-zA-Z]:\//.test(target)
+  const baseHasDrive = /^[a-zA-Z]:\//.test(baseDir)
+  if (targetHasDrive !== baseHasDrive) return targetPath
+  if (targetHasDrive && !sameWindowsDrive(target, baseDir)) return targetPath
+
+  const targetParts = splitPath(target)
+  const baseParts = splitPath(baseDir)
+  let common = 0
+  while (
+    common < targetParts.length &&
+    common < baseParts.length &&
+    targetParts[common]!.toLowerCase() === baseParts[common]!.toLowerCase()
+  ) {
+    common += 1
+  }
+
+  if (common === 0) return targetPath
+  const up = Array.from({ length: baseParts.length - common }, () => '..')
+  const down = targetParts.slice(common)
+  const relative = [...up, ...down].join('/')
+  return relative || '.'
+}
+
+export function createStoryboardImageReference(
+  image: string,
+  baseFilePath: string | null,
+  useRelativePath: boolean
+): string {
+  const trimmed = image.trim()
+  if (!trimmed || !useRelativePath || !baseFilePath || isRemoteImageReference(trimmed)) return trimmed
+  return toRelativePath(trimmed, baseFilePath)
+}
+
+export function resolveStoryboardImageReference(image: string, baseFilePath: string | null): string {
+  const trimmed = image.trim()
+  if (!trimmed || !baseFilePath || isRemoteImageReference(trimmed) || isAbsoluteLocalPath(trimmed)) {
+    return trimmed
+  }
+  const baseDir = getPathDirectory(baseFilePath)
+  return `${baseDir}/${normalizePathSeparators(trimmed)}`.replace(/\/{2,}/g, '/')
+}
