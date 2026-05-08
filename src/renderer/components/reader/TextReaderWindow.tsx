@@ -370,46 +370,54 @@ export const TextReaderWindow: React.FC = () => {
     !(config.overlayOnImage ?? true) ? { position: 'fixed', inset: 0 } : undefined
 
   const controlBar = (
-    <div className={`${styles.controlBar} ${config.windowPosition === 'top' ? styles.controlBarTop : ''}`}>
-      <span className={styles.pageInfo}>{currentPageIndex + 1} / {pages.length}</span>
+    <div
+      className={[
+        styles.controlBar,
+        config.windowPosition === 'top' ? styles.controlBarTop : '',
+        isSideWindow ? styles.controlBarSide : '',
+      ].filter(Boolean).join(' ')}
+    >
+      <div className={styles.controlGroup}>
+        <span className={styles.pageInfo}>{currentPageIndex + 1} / {pages.length}</span>
+      </div>
 
-      <button className={styles.controlBtn} onClick={goToPrevPage} title="前のページ (z/n)">◀</button>
-      <button className={styles.controlBtn} onClick={goToNextPage} title="次のページ (x/m)">▶</button>
+      <div className={styles.controlGroup}>
+        <button
+          className={`${styles.controlBtn} ${showLog ? styles.controlBtnActive : ''}`}
+          onClick={() => setTextReaderShowLog(!showLog)}
+          title="Text log"
+        >
+          ≡
+        </button>
+        <div className={styles.controlDivider} />
+        <button className={styles.controlBtn} onClick={goToPrevPage} title="Previous page (z/n)">&lt;</button>
+        <button className={styles.controlBtn} onClick={goToNextPage} title="Next page (x/m)">&gt;</button>
+      </div>
 
-      <div className={styles.controlDivider} />
+      <div className={styles.controlGroup}>
+        <button
+          className={`${styles.controlBtn} ${isAutoAdvancing ? styles.controlBtnActive : ''}`}
+          onClick={() => setTextReaderAutoAdvancing(!isAutoAdvancing)}
+          title="Auto page advance"
+        >
+          Auto
+        </button>
 
-      <button
-        className={`${styles.controlBtn} ${isAutoAdvancing ? styles.controlBtnActive : ''}`}
-        onClick={() => setTextReaderAutoAdvancing(!isAutoAdvancing)}
-        title="自動ページ送り"
-      >
-        Auto
-      </button>
-
-      <button
-        className={`${styles.controlBtn} ${autoSpeedMultiplier === 2 ? styles.speedBtnActive : ''}`}
-        onClick={() => handleSpeedMultiplier(2)}
-        title="×2 速度"
-      >
-        ×2
-      </button>
-      <button
-        className={`${styles.controlBtn} ${autoSpeedMultiplier === 3 ? styles.speedBtnActive : ''}`}
-        onClick={() => handleSpeedMultiplier(3)}
-        title="×3 速度"
-      >
-        ×3
-      </button>
-
-      <div className={styles.controlDivider} />
-
-      <button
-        className={`${styles.controlBtn} ${showLog ? styles.controlBtnActive : ''}`}
-        onClick={() => setTextReaderShowLog(!showLog)}
-        title="テキストログ"
-      >
-        ≡
-      </button>
+        <button
+          className={`${styles.controlBtn} ${autoSpeedMultiplier === 2 ? styles.speedBtnActive : ''}`}
+          onClick={() => handleSpeedMultiplier(2)}
+          title="x2 speed"
+        >
+          x2
+        </button>
+        <button
+          className={`${styles.controlBtn} ${autoSpeedMultiplier === 3 ? styles.speedBtnActive : ''}`}
+          onClick={() => handleSpeedMultiplier(3)}
+          title="x3 speed"
+        >
+          x3
+        </button>
+      </div>
     </div>
   )
 
@@ -420,7 +428,7 @@ export const TextReaderWindow: React.FC = () => {
         <div data-reader-window className={styles.logOverlay}>
           <div className={styles.logHeader}>
             <span className={styles.logTitle}>テキストログ</span>
-            <button className={styles.logCloseBtn} onClick={() => setTextReaderShowLog(false)}>× 閉じる</button>
+            <button className={styles.logCloseBtn} onClick={() => setTextReaderShowLog(false)}>Close</button>
           </div>
           <div className={styles.logContent}>
             {pages.map((page, i) => (

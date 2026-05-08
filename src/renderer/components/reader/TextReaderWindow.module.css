@@ -111,6 +111,17 @@
   overflow-y: hidden;
 }
 
+.controlBarSide {
+  height: auto;
+  min-height: 38px;
+  padding: 6px 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+  overflow: visible;
+}
+
 .controlBarTop {
   border-top: none;
   border-bottom: 1px solid rgba(160, 160, 220, 0.20);
@@ -119,10 +130,27 @@
 .pageInfo {
   color: rgba(140, 140, 190, 0.85);
   font-size: 12px;
-  margin-right: auto;
   letter-spacing: 0.03em;
   user-select: none;
   flex-shrink: 0;
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.controlGroup:first-child {
+  margin-right: auto;
+}
+
+.controlBarSide .controlGroup:first-child {
+  width: 100%;
+  justify-content: center;
+  margin-right: 0;
 }
 
 .controlBtn {
@@ -191,7 +219,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .logTitle {
