@@ -63,6 +63,12 @@
   background: rgba(200, 60, 60, 0.28);
 }
 
+.storyboardBtnActive {
+  background: rgba(80, 200, 120, 0.28) !important;
+  border-color: rgba(120, 255, 160, 0.50) !important;
+  color: rgba(160, 255, 190, 0.95) !important;
+}
+
 .shortcutHelp {
   font-size: 10px;
   color: rgba(130, 130, 170, 0.60);

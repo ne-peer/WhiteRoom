@@ -135,6 +135,70 @@ npx tsc --noEmit
 6. **Dynamic blank background**: it is a cloned image sprite with its own blur filter, not a CSS background
 7. **Text reader is not part of `AppProfile`**: it is UI/session state stored separately from exported profiles
 
+## Storyboard Tag Spec (`src/renderer/utils/storyboardParser.ts`)
+
+Text files loaded in the text reader can embed **storyboard tags** — special lines that trigger image/effect changes as the reader advances.
+
+### Tag Format
+
+Tags must occupy their own line. They are stripped from the display and associated with the **next clean paragraph** (segment) that follows them.
+
+**Type 1 — Simple (hand-written)**
+
+```
+[[C:\path\to\image.jpg]]
+```
+
+- Wrap an absolute image path in `[[` and `]]`
+- Switches the displayed image on all cells; no effect change
+
+**Type 2 — Rich (app-generated via Storyboard tool)**
+
+```
+[WR:1.4.0:{"image":"C:\\path\\image.jpg","effects":{...},"progress":{"enabled":true,"pages":5},"timer":{"enabled":false}}]
+```
+
+- Format: `[WR:<appVersion>:<JSON payload>]`
+- JSON schema:
+
+```typescript
+{
+  image: string                          // absolute path
+  effects: Partial<CellEffects>          // effects to apply to all cells
+  progress?: { enabled: boolean; pages: number }  // effect ramp-up
+  timer?: { enabled: boolean }           // auto-start timer
+}
+```
+
+### Runtime Behaviour
+
+| Event | Action |
+|---|---|
+| Page advances into a tagged segment | `applyTagToAllCells()` — sets `cellTagOverrides[cellId]` for image, merges `effects` into all cells |
+| Page retreats before all active tags | `restoreBaseline()` — restores snapshot taken at file load time |
+| `progress.enabled` | `storyboardEffectProgress` (0–1) increments each page advance; overrides timer sync in `applyTimerProgress()` |
+| `timer.enabled` | Timer resets and starts; if Auto-advance is running it suspends until timer completes |
+
+### Key Files
+
+| File | Role |
+|---|---|
+| `src/renderer/utils/storyboardParser.ts` | `parseTextFile()`, `insertOrReplaceTagBefore()`, `buildRichTagLine()` |
+| `src/renderer/stores/appStore.ts` | `tagEntries`, `baselineSnapshot`, `cellTagOverrides`, `storyboardEffectProgress`; actions `applyTagToAllCells`, `restoreBaseline`, `incrementActiveProgressPages`, `insertTagAtCurrentPosition` |
+| `src/renderer/components/reader/TextReaderWindow.tsx` | Per-page tag evaluation, rollback detection, timer-completion Auto resume |
+| `src/renderer/components/reader/StoryboardPanel.tsx` | UI: insert image tag, insert timer tag, save file |
+| `src/renderer/hooks/usePixiStage.ts` | `cellTagOverrides` → image key; `storyboardEffectProgress` overrides timer progress in ticker |
+
+### Storyboard Panel — Save File Naming
+
+```
+{original name}_WhiteRoom_{yyyymmdd-hhmmss}{ext}
+```
+
+### Gotcha: `structuredClone` inside immer `set()`
+
+The baseline snapshot is computed **outside** `set()` using `get()` before entering the immer draft, because `structuredClone` cannot serialize immer Proxy objects.
+
 ## TODO (unimplemented / still worth tracking)
 
 - Image load error handling: fallback UI for missing paths / unsupported formats is still minimal
@@ -190,3 +254,4 @@ Release note template:
 | v0.1.2 | Radial blur and vignette z-order fix (`vignetteLayer` added) |
 | v1.3.1 | Timer sync enhancements, preset asset packaging, pre-timer overlay improvements, fullscreen UI auto-hide |
 | v1.4.0 | Text reader improvements, hamburger tab UI, floating navigation when controls are hidden, packaging/doc updates |
+| v1.5.0 | Storyboard tag system: text-reader image sync, effect progress, timer auto-start, storyboard panel |

@@ -3,6 +3,7 @@ import { useAppStore } from '../../stores/appStore'
 import { useTranslation } from '../../i18n'
 import { Section, Row, Toggle } from '../controls/UIKit'
 import type { IpcApi, TextReaderWindowPosition, TextReaderPageAdvanceSpeed } from '../../../shared/types'
+import { StoryboardPanel } from './StoryboardPanel'
 import styles from './TextReaderPanel.module.css'
 
 export const TextReaderPanel: React.FC = () => {
@@ -11,11 +12,13 @@ export const TextReaderPanel: React.FC = () => {
   const visible = useAppStore(s => s.textReader.visible)
   const filePath = useAppStore(s => s.textReader.filePath)
   const rawSegments = useAppStore(s => s.textReader.rawSegments)
+  const storyboardOpen = useAppStore(s => s.textReader.storyboardOpen)
   const {
     setTextReaderConfig,
     setTextReaderVisible,
     loadTextReaderFile,
     closeTextReader,
+    setStoryboardOpen,
   } = useAppStore()
 
   const [systemFonts, setSystemFonts] = useState<string[]>([])
@@ -57,6 +60,9 @@ export const TextReaderPanel: React.FC = () => {
 
   return (
     <div className={styles.panel}>
+      {/* ストーリーボードパネル（フロート） */}
+      {storyboardOpen && <StoryboardPanel />}
+
       {/* ファイル読み込みセクション */}
       <Section title={t('textReaderSection')}>
         <div className={styles.fileSection}>
@@ -69,6 +75,15 @@ export const TextReaderPanel: React.FC = () => {
           {hasFile && (
             <button className={styles.closeBtn} onClick={closeTextReader}>
               {t('textReaderClose')}
+            </button>
+          )}
+          {hasFile && (
+            <button
+              className={`${styles.openBtn} ${storyboardOpen ? styles.storyboardBtnActive : ''}`}
+              onClick={() => setStoryboardOpen(!storyboardOpen)}
+              title={t('storyboardOpenTooltip')}
+            >
+              {t('storyboardOpen')}
             </button>
           )}
         </div>

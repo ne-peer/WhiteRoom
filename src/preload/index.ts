@@ -16,6 +16,7 @@ const api: IpcApi = {
   openDevTools: () => ipcRenderer.invoke('open-devtools'),
   listSystemFonts: () => ipcRenderer.invoke('list-system-fonts'),
   openTextFile: (language) => ipcRenderer.invoke('open-text-file', language),
+  saveTextFile: (filePath, content) => ipcRenderer.invoke('save-text-file', filePath, content),
   onFullscreenChange: (cb) => {
     const handler = (_: Electron.IpcRendererEvent, isFullscreen: boolean) => cb(isFullscreen)
     ipcRenderer.on('fullscreen-change', handler)

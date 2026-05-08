@@ -1,10 +1,11 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type {
-  AppProfile, Cell, CellEffects, CellFolder, GridLayout,
+  AppProfile, Cell, CellBaseline, CellEffects, CellFolder, GridLayout,
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
-  TextEffect, UiLanguage, TextReaderConfig,
+  TagEntry, TextEffect, UiLanguage, TextReaderConfig,
 } from '../../shared/types'
+import { parseTextFile, insertOrReplaceTagBefore, buildRichTagLine, buildSimpleTagLine } from '../utils/storyboardParser'
 
 // ===== デフォルト値 =====
 
@@ -204,16 +205,30 @@ export type AppState = {
   effectColumnSyncCol: number | null
   applyEffectChangesToAllColumns: boolean
 
+  // セルのタグ一時上書き（profile対象外・セッション専用）
+  cellTagOverrides: Record<string, string | null>  // cellId → override image path
+
   // テキストリーダー
   textReader: {
     config: TextReaderConfig
     visible: boolean
     filePath: string | null
+    rawFileText: string | null          // ファイル生テキスト（タグ込み）
     rawSegments: string[]
     currentPageIndex: number
     isAutoAdvancing: boolean
     autoSpeedMultiplier: 1 | 2 | 3
     showLog: boolean
+    // ストーリーボード関連
+    tagEntries: TagEntry[]
+    segmentStartLines: number[]         // cleanSegments[i] の rawFileText 内開始行
+    baselineSnapshot: CellBaseline[] | null
+    activeTagIndex: number | null       // 現在適用中の tagEntries インデックス
+    storyboardEffectProgress: number | null  // 0-1 or null（エフェクト徐々に適用）
+    activeProgressPages: number         // タグトリガー後のページ進行数
+    autoSuspendedForTimer: boolean      // タイマー待ち中に Auto を一時停止した
+    storyboardOpen: boolean             // ストーリーボードパネル表示中
+    currentSegmentIndex: number         // TextReaderWindow が計算した現在のセグメント
   }
 }
 
@@ -283,6 +298,19 @@ export type AppActions = {
   setTextReaderAutoAdvancing: (flag: boolean) => void
   setTextReaderSpeedMultiplier: (multiplier: 1 | 2 | 3) => void
   setTextReaderShowLog: (flag: boolean) => void
+  // ストーリーボード
+  applyTagToAllCells: (tagIndex: number) => void
+  restoreBaseline: () => void
+  setStoryboardEffectProgress: (progress: number | null) => void
+  incrementActiveProgressPages: () => void
+  setAutoSuspendedForTimer: (flag: boolean) => void
+  setStoryboardOpen: (open: boolean) => void
+  setCurrentSegmentIndex: (index: number) => void
+  insertTagAtCurrentPosition: (
+    tagLine: string,
+    segmentIndex: number,
+    onSave: (text: string) => void
+  ) => void
 }
 
 export type AppStore = AppState & AppActions
@@ -312,15 +340,26 @@ export const useAppStore = create<AppStore>()(
     effectColumnSyncNonce: 0,
     effectColumnSyncCol: null,
     applyEffectChangesToAllColumns: true,
+    cellTagOverrides: {},
     textReader: {
       config: getInitialTextReaderConfig(),
       visible: false,
       filePath: null,
+      rawFileText: null,
       rawSegments: [],
       currentPageIndex: 0,
       isAutoAdvancing: false,
       autoSpeedMultiplier: 1,
       showLog: false,
+      tagEntries: [],
+      segmentStartLines: [],
+      baselineSnapshot: null,
+      activeTagIndex: null,
+      storyboardEffectProgress: null,
+      activeProgressPages: 0,
+      autoSuspendedForTimer: false,
+      storyboardOpen: false,
+      currentSegmentIndex: 0,
     },
 
     // ===== グリッド操作 =====
@@ -635,26 +674,60 @@ export const useAppStore = create<AppStore>()(
       s.textReader.visible = visible
     }),
 
-    loadTextReaderFile: (filePath, text) => set(s => {
-      const segments = text
-        .split(/\n{2,}/u)
-        .map(seg => seg.trim())
-        .filter(seg => seg.length > 0)
-      s.textReader.filePath = filePath
-      s.textReader.rawSegments = segments
-      s.textReader.currentPageIndex = 0
-      s.textReader.visible = true
-      s.textReader.isAutoAdvancing = false
-      s.textReader.showLog = false
-    }),
+    loadTextReaderFile: (filePath, text) => {
+      // immer ドラフト外で非プロキシ状態からスナップショットを取得
+      const current = get()
+      const snapshot: CellBaseline[] = current.cells.map(cell => ({
+        cellId: cell.id,
+        overrideImage: current.cellTagOverrides[cell.id] ?? null,
+        effects: structuredClone(cell.effects),
+      }))
+      const parsed = parseTextFile(text)
+      set(s => {
+        s.textReader.filePath = filePath
+        s.textReader.rawFileText = text
+        s.textReader.rawSegments = parsed.cleanSegments
+        s.textReader.tagEntries = parsed.tagEntries
+        s.textReader.segmentStartLines = parsed.segmentStartLines
+        s.textReader.baselineSnapshot = snapshot
+        s.textReader.currentPageIndex = 0
+        s.textReader.visible = true
+        s.textReader.isAutoAdvancing = false
+        s.textReader.showLog = false
+        s.textReader.activeTagIndex = null
+        s.textReader.storyboardEffectProgress = null
+        s.textReader.activeProgressPages = 0
+        s.textReader.autoSuspendedForTimer = false
+      })
+    },
 
     closeTextReader: () => set(s => {
+      // ベースラインを復元してからクリア
+      if (s.textReader.baselineSnapshot) {
+        for (const bl of s.textReader.baselineSnapshot) {
+          const cell = s.cells.find(c => c.id === bl.cellId)
+          if (cell) cell.effects = structuredClone(bl.effects)
+          if (bl.overrideImage !== null) {
+            s.cellTagOverrides[bl.cellId] = bl.overrideImage
+          } else {
+            delete s.cellTagOverrides[bl.cellId]
+          }
+        }
+      }
       s.textReader.visible = false
       s.textReader.filePath = null
+      s.textReader.rawFileText = null
       s.textReader.rawSegments = []
+      s.textReader.tagEntries = []
+      s.textReader.segmentStartLines = []
+      s.textReader.baselineSnapshot = null
       s.textReader.currentPageIndex = 0
       s.textReader.isAutoAdvancing = false
       s.textReader.showLog = false
+      s.textReader.activeTagIndex = null
+      s.textReader.storyboardEffectProgress = null
+      s.textReader.activeProgressPages = 0
+      s.textReader.autoSuspendedForTimer = false
     }),
 
     setTextReaderPage: (index) => set(s => {
@@ -672,6 +745,124 @@ export const useAppStore = create<AppStore>()(
     setTextReaderShowLog: (flag) => set(s => {
       s.textReader.showLog = flag
     }),
+
+    // ===== ストーリーボード =====
+
+    applyTagToAllCells: (tagIndex) => set(s => {
+      const entry = s.textReader.tagEntries[tagIndex]
+      if (!entry) return
+
+      const { tag } = entry
+      const image = tag.kind === 'simple' ? tag.image : tag.payload.image
+      const effects = tag.kind === 'rich' ? tag.payload.effects : undefined
+
+      // タイマーリセット（タグ優先）
+      if (tag.kind === 'rich' && tag.payload.timer?.enabled) {
+        s.timer.elapsedSec = 0
+        s.timer.running = true
+        // Auto が動作中なら一時停止
+        if (s.textReader.isAutoAdvancing) {
+          s.textReader.isAutoAdvancing = false
+          s.textReader.autoSuspendedForTimer = true
+        }
+      } else {
+        // タイマーが動作中でもタグのエフェクト設定を優先
+        s.timer.running = false
+        s.timer.elapsedSec = 0
+      }
+
+      // 全セルに画像とエフェクトを適用
+      s.cells.forEach(cell => {
+        s.cellTagOverrides[cell.id] = image
+        if (effects) {
+          cell.effects = {
+            ...structuredClone(cell.effects),
+            ...structuredClone(effects as CellEffects),
+          }
+        }
+      })
+
+      // エフェクト進行率の初期化
+      const progress = tag.kind === 'rich' ? tag.payload.progress : undefined
+      s.textReader.activeTagIndex = tagIndex
+      s.textReader.activeProgressPages = 0
+      if (progress?.enabled) {
+        s.textReader.storyboardEffectProgress = 0
+      } else {
+        s.textReader.storyboardEffectProgress = null
+      }
+    }),
+
+    restoreBaseline: () => set(s => {
+      const snapshot = s.textReader.baselineSnapshot
+      if (!snapshot) return
+      for (const bl of snapshot) {
+        const cell = s.cells.find(c => c.id === bl.cellId)
+        if (cell) cell.effects = structuredClone(bl.effects)
+        if (bl.overrideImage !== null) {
+          s.cellTagOverrides[bl.cellId] = bl.overrideImage
+        } else {
+          delete s.cellTagOverrides[bl.cellId]
+        }
+      }
+      s.textReader.activeTagIndex = null
+      s.textReader.storyboardEffectProgress = null
+      s.textReader.activeProgressPages = 0
+      s.timer.running = false
+      s.timer.elapsedSec = 0
+    }),
+
+    setStoryboardEffectProgress: (progress) => set(s => {
+      s.textReader.storyboardEffectProgress = progress
+    }),
+
+    incrementActiveProgressPages: () => set(s => {
+      const entry = s.textReader.activeTagIndex !== null
+        ? s.textReader.tagEntries[s.textReader.activeTagIndex]
+        : null
+      if (!entry || entry.tag.kind !== 'rich') return
+      const prog = entry.tag.payload.progress
+      if (!prog?.enabled) return
+
+      s.textReader.activeProgressPages += 1
+      const ratio = Math.min(1, s.textReader.activeProgressPages / prog.pages)
+      s.textReader.storyboardEffectProgress = ratio
+    }),
+
+    setAutoSuspendedForTimer: (flag) => set(s => {
+      s.textReader.autoSuspendedForTimer = flag
+    }),
+
+    setStoryboardOpen: (open) => set(s => {
+      s.textReader.storyboardOpen = open
+    }),
+
+    setCurrentSegmentIndex: (index) => set(s => {
+      s.textReader.currentSegmentIndex = index
+    }),
+
+    insertTagAtCurrentPosition: (tagLine, segmentIndex, onSave) => {
+      const state = get()
+      const rawText = state.textReader.rawFileText
+      const startLines = state.textReader.segmentStartLines
+      if (!rawText) return
+
+      const startLine = startLines[segmentIndex]
+      if (startLine === undefined) return
+
+      const newText = insertOrReplaceTagBefore(rawText, startLine, tagLine)
+
+      // テキストを再解析してストアを更新
+      set(s => {
+        const parsed = parseTextFile(newText)
+        s.textReader.rawFileText = newText
+        s.textReader.rawSegments = parsed.cleanSegments
+        s.textReader.tagEntries = parsed.tagEntries
+        s.textReader.segmentStartLines = parsed.segmentStartLines
+      })
+
+      onSave(newText)
+    },
   })})
 )
 
