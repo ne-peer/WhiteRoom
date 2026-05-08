@@ -339,6 +339,16 @@ function layoutCells(
           state.setShakeTrailPositionPicking(false)
           return
         }
+        if (state.spiralRadialPositionPicking) {
+          const point = renderer.getNormalizedPointFromGlobal(event.global)
+          state.selectCell(cell.id)
+          state.setCellEffect(cell.id, 'spiral', {
+            radialCenterX: point.x,
+            radialCenterY: point.y,
+          })
+          state.setSpiralRadialPositionPicking(false)
+          return
+        }
         state.selectCell(cell.id)
       })
 

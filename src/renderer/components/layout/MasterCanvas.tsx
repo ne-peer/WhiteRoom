@@ -18,6 +18,7 @@ export const MasterCanvas: React.FC = () => {
   const cells = useAppStore(s => s.cells)
   const cellTagOverrides = useAppStore(s => s.cellTagOverrides)
   const shakeTrailPositionPicking = useAppStore(s => s.shakeTrailPositionPicking)
+  const spiralRadialPositionPicking = useAppStore(s => s.spiralRadialPositionPicking)
   const textReaderVisible = useAppStore(s => s.textReader.visible)
   const textReaderConfig = useAppStore(s => s.textReader.config)
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null)
@@ -138,7 +139,7 @@ export const MasterCanvas: React.FC = () => {
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const { grid, cells, shakeTrailPositionPicking } = useAppStore.getState()
+    const { grid, cells, shakeTrailPositionPicking, spiralRadialPositionPicking } = useAppStore.getState()
     const relX = e.clientX - rect.left
     const relY = e.clientY - rect.top
     const col = Math.max(0, Math.min(Math.floor(relX / (rect.width / grid.cols)), grid.cols - 1))
@@ -146,7 +147,7 @@ export const MasterCanvas: React.FC = () => {
     const cell = cells.find(c => c.col === col && c.row === row)
     setHoveredCellId(cell?.id ?? null)
 
-    if (!shakeTrailPositionPicking || !cell) {
+    if ((!shakeTrailPositionPicking && !spiralRadialPositionPicking) || !cell) {
       setPickGuide(null)
       return
     }
@@ -178,7 +179,7 @@ export const MasterCanvas: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className={`${styles.canvas} ${showControls ? styles.withPanel : ''} ${shakeTrailPositionPicking ? styles.pickMode : ''}`}
+      className={`${styles.canvas} ${showControls ? styles.withPanel : ''} ${(shakeTrailPositionPicking || spiralRadialPositionPicking) ? styles.pickMode : ''}`}
       style={canvasShrinkStyle}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -216,12 +217,12 @@ export const MasterCanvas: React.FC = () => {
         ))}
       </div>
       <TimerPreOverlay />
-      {shakeTrailPositionPicking && (
+      {(shakeTrailPositionPicking || spiralRadialPositionPicking) && (
         <div className={styles.pickHint}>
-          {t('shakeTrailPickHint')}
+          {spiralRadialPositionPicking ? t('spiralPickHint') : t('shakeTrailPickHint')}
         </div>
       )}
-      {shakeTrailPositionPicking && pickGuide && (
+      {(shakeTrailPositionPicking || spiralRadialPositionPicking) && pickGuide && (
         <div
           className={styles.pickGuide}
           style={{

@@ -217,7 +217,10 @@ export type CellEffects = {
     alpha: number
     radialEnabled: boolean
     radialMode: 'center' | 'periphery'
+    radialCenterX: number
+    radialCenterY: number
     radialSize: number
+    radialFadeStrength: number
     dynamic: boolean
     dynamicFrom: number
     dynamicTo: number

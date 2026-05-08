@@ -40,13 +40,16 @@ const EFFECT_PRESET_1: CellEffects = {
     color: { r: 255, g: 0, b: 128 },
     pattern: 'classic',
     dualColorEnabled: false,
-    secondaryColor: { r: 80, g: 220, b: 255 },
+    secondaryColor: { r: 82, g: 139, b: 255 },
     detail: 22,
     rotationSpeedDegPerSec: 30,
     alpha: 0.55,
     radialEnabled: false,
     radialMode: 'center',
+    radialCenterX: 0.5,
+    radialCenterY: 0.5,
     radialSize: 0.45,
+    radialFadeStrength: 1,
     dynamic: false,
     dynamicFrom: 0.2,
     dynamicTo: 0.8,
@@ -169,11 +172,14 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     disableAllTimerSyncForSelectedCell,
     shakeTrailPositionPicking,
     setShakeTrailPositionPicking,
+    spiralRadialPositionPicking,
+    setSpiralRadialPositionPicking,
   } = useAppStore()
   const { language, t } = useTranslation()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
   const [assetEffectFolders, setAssetEffectFolders] = useState<AssetEffectFolder[]>([])
   const [shakeTrailCenterAdjustOpen, setShakeTrailCenterAdjustOpen] = useState(false)
+  const [spiralCenterAdjustOpen, setSpiralCenterAdjustOpen] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -469,11 +475,49 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 g={effects.spiral.color.g}
                 b={effects.spiral.color.b}
                 onChange={(r, g, b) => set('spiral', { color: { r, g, b } })}
-                showAlpha={!effects.spiral.dynamic}
-                alpha={effects.spiral.alpha}
-                onAlphaChange={a => set('spiral', { alpha: a })}
+                showAlpha={false}
               />
             </div>
+            <Row label={t('spiralCenter')}>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <Button
+                  small
+                  variant={spiralRadialPositionPicking ? 'primary' : 'secondary'}
+                  onClick={() => setSpiralRadialPositionPicking(!spiralRadialPositionPicking)}
+                >
+                  {spiralRadialPositionPicking ? t('shakeTrailPickActive') : t('shakeTrailPickButton')}
+                </Button>
+                <Button
+                  small
+                  variant={spiralCenterAdjustOpen ? 'primary' : 'secondary'}
+                  onClick={() => setSpiralCenterAdjustOpen(v => !v)}
+                >
+                  {t('adjust')}
+                </Button>
+              </div>
+            </Row>
+            {spiralCenterAdjustOpen && (
+              <>
+                <Row label={t('spiralCenterX')}>
+                  <Slider
+                    value={Math.round((effects.spiral.radialCenterX ?? DEFAULT_EFFECTS.spiral.radialCenterX) * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('spiral', { radialCenterX: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('spiralCenterY')}>
+                  <Slider
+                    value={Math.round((effects.spiral.radialCenterY ?? DEFAULT_EFFECTS.spiral.radialCenterY) * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('spiral', { radialCenterY: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              </>
+            )}
             {effects.spiral.pattern === 'classic' && (
               <>
                 <Row label={t('spiralDualColor')}>
@@ -559,6 +603,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     min={5}
                     max={95}
                     onChange={v => set('spiral', { radialSize: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('radialFadeStrength')}>
+                  <Slider
+                    value={Math.round((effects.spiral.radialFadeStrength ?? DEFAULT_EFFECTS.spiral.radialFadeStrength) * 100)}
+                    min={1}
+                    max={150}
+                    onChange={v => set('spiral', { radialFadeStrength: v / 100 })}
                     unit="%"
                   />
                 </Row>

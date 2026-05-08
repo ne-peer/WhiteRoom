@@ -1993,7 +1993,9 @@ export class CellRenderer {
     }
     this.spiralGraphics.visible = true
     this.spiralLayer.visible = true
-    this.spiralGraphics.position.set(this.width * 0.5, this.height * 0.5)
+    const centerX = clamp(spiral.radialCenterX ?? 0.5, 0, 1)
+    const centerY = clamp(spiral.radialCenterY ?? 0.5, 0, 1)
+    this.spiralGraphics.position.set(this.width * centerX, this.height * centerY)
     this.redrawSpiral(spiral)
     this.updateSpiralRadialMask(spiral)
     if (spiral.dynamic && !spiral.dynamicTimerSync) {
@@ -2010,7 +2012,9 @@ export class CellRenderer {
     const rotationSpeedScale = spiral.pattern === 'vortex' ? 1 / 7 : 1
     this.spiralRotationRad += (spiral.rotationSpeedDegPerSec * rotationSpeedScale * Math.PI / 180) * dtSec
     this.spiralGraphics.rotation = this.spiralRotationRad
-    this.spiralGraphics.position.set(this.width * 0.5, this.height * 0.5)
+    const centerX = clamp(spiral.radialCenterX ?? 0.5, 0, 1)
+    const centerY = clamp(spiral.radialCenterY ?? 0.5, 0, 1)
+    this.spiralGraphics.position.set(this.width * centerX, this.height * centerY)
     if (spiral.dynamic && !spiral.dynamicTimerSync) {
       const durationSec = Math.max(0.1, spiral.dynamicDurationMs / 1000)
       this.spiralAlphaDynamicProgress += dtSec / durationSec
@@ -2080,12 +2084,21 @@ export class CellRenderer {
       this.width,
       this.height,
       spiral.radialMode,
+      spiral.radialCenterX ?? 0.5,
+      spiral.radialCenterY ?? 0.5,
       spiral.radialSize,
+      spiral.radialFadeStrength ?? 1,
     ].join(':')
     if (this.spiralMaskKey !== key) {
       this.clearSpiralMask()
       const keepCenter = spiral.radialMode === 'center'
-      this.spiralMaskSprite = this.createCenterPeripheryMaskSprite(keepCenter, spiral.radialSize)
+      this.spiralMaskSprite = this.createCenterPeripheryMaskSprite(
+        keepCenter,
+        spiral.radialSize,
+        spiral.radialCenterX ?? 0.5,
+        spiral.radialCenterY ?? 0.5,
+        spiral.radialFadeStrength ?? 1
+      )
       this.spiralMaskSprite.alpha = 0
       this.spiralLayer.addChild(this.spiralMaskSprite)
       this.spiralMaskFilter = new PIXI.MaskFilter({
@@ -2113,17 +2126,24 @@ export class CellRenderer {
     this.spiralLayer.visible = true
   }
 
-  private createCenterPeripheryMaskSprite(_keepCenter: boolean, sizeRatio: number): PIXI.Sprite {
+  private createCenterPeripheryMaskSprite(
+    _keepCenter: boolean,
+    sizeRatio: number,
+    centerXRatio = 0.5,
+    centerYRatio = 0.5,
+    fadeStrength = 1
+  ): PIXI.Sprite {
     const canvas = document.createElement('canvas')
     canvas.width = Math.ceil(this.width)
     canvas.height = Math.ceil(this.height)
     const ctx = canvas.getContext('2d')!
     const image = ctx.createImageData(canvas.width, canvas.height)
-    const cx = this.width * 0.5
-    const cy = this.height * 0.5
+    const cx = this.width * clamp(centerXRatio, 0, 1)
+    const cy = this.height * clamp(centerYRatio, 0, 1)
     const maxR = Math.sqrt(cx * cx + cy * cy)
     const cut = clamp(sizeRatio, 0.05, 0.95) * maxR
-    const feather = maxR * 0.03
+    const fade = clamp(fadeStrength, 0.01, 1.5)
+    const feather = Math.max(1, maxR * 0.03 / fade)
 
     for (let y = 0; y < canvas.height; y += 1) {
       for (let x = 0; x < canvas.width; x += 1) {

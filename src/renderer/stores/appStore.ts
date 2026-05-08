@@ -47,13 +47,16 @@ export const DEFAULT_EFFECTS: CellEffects = {
     color: { r: 255, g: 0, b: 128 },
     pattern: 'classic',
     dualColorEnabled: false,
-    secondaryColor: { r: 80, g: 220, b: 255 },
+    secondaryColor: { r: 82, g: 139, b: 255 },
     detail: 22,
     rotationSpeedDegPerSec: 30,
     alpha: 0.55,
     radialEnabled: false,
     radialMode: 'center',
+    radialCenterX: 0.5,
+    radialCenterY: 0.5,
     radialSize: 0.45,
+    radialFadeStrength: 1,
     dynamic: false,
     dynamicFrom: 0.2,
     dynamicTo: 0.8,
@@ -273,6 +276,7 @@ export type AppState = {
   effectColumnSyncCol: number | null
   applyEffectChangesToAllColumns: boolean
   shakeTrailPositionPicking: boolean
+  spiralRadialPositionPicking: boolean
   appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error' } | null
 
   // セルのタグ一時上書き（profile対象外・セッション専用）
@@ -331,6 +335,7 @@ export type AppActions = {
   disableAllTimerSyncForSelectedCell: () => void
   setApplyEffectChangesToAllColumns: (flag: boolean) => void
   setShakeTrailPositionPicking: (flag: boolean) => void
+  setSpiralRadialPositionPicking: (flag: boolean) => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -417,6 +422,7 @@ export const useAppStore = create<AppStore>()(
     effectColumnSyncCol: null,
     applyEffectChangesToAllColumns: true,
     shakeTrailPositionPicking: false,
+    spiralRadialPositionPicking: false,
     appNotification: null,
     cellTagOverrides: {},
     textReader: {
@@ -658,6 +664,10 @@ export const useAppStore = create<AppStore>()(
 
     setShakeTrailPositionPicking: (flag) => set(s => {
       s.shakeTrailPositionPicking = flag
+    }),
+
+    setSpiralRadialPositionPicking: (flag) => set(s => {
+      s.spiralRadialPositionPicking = flag
     }),
 
     // ===== 表示設定 =====
