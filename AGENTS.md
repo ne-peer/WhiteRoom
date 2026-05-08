@@ -156,12 +156,22 @@ Tags must occupy their own line. They are stripped from the display and fire whe
 
 ```typescript
 {
-  image: string                          // absolute path
+  image: string                          // absolute path, text-file-relative path, file/data URL, or http(s) image/page URL
   effects: Partial<CellEffects>          // effects to apply to all cells
   progress?: { enabled: boolean; pages: number }  // effect ramp-up over N pages
   timer?: { enabled: boolean }           // auto-start timer on trigger
 }
 ```
+
+### Remote Image Safety
+
+- Remote storyboard images are loaded through the main-process IPC path, then passed to PixiJS as data URLs.
+- Keep same-URL loads deduplicated with in-flight promise caches in both renderer and main. Multiple cells showing the same URL must produce at most one network request.
+- Successful remote image loads are cached for the app session. Re-entering the same tag must not re-request the image.
+- pixiv-family hosts (`pixiv.net` and `pximg.net`) are capped at 10 distinct image/page URLs per app session. The 11th distinct URL must be blocked before network access and surface a user-visible warning.
+- Do not reset the pixiv counter when changing or closing a text file; only app restart resets it.
+- Text tab must keep showing the current `pixiv requests: n/10` counter from main-process state.
+- Never add hard-coded sample pixiv artwork URLs or artwork IDs to code, tests, docs, or commit messages.
 
 ### Runtime Behaviour
 
