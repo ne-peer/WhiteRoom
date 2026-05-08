@@ -29,7 +29,10 @@ export const StoryboardPanel: React.FC = () => {
   const [progressEnabled, setProgressEnabled] = useState(false)
   const [progressPages, setProgressPages] = useState(5)
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
-  const [pos, setPos] = useState({ x: 0, y: 0 })
+  const [pos, setPos] = useState(() => ({
+    x: Math.max(12, window.innerWidth - 542),
+    y: 12,
+  }))
   const isDragging = useRef(false)
   const dragStartMouse = useRef({ x: 0, y: 0 })
   const dragStartPos = useRef({ x: 0, y: 0 })
@@ -144,7 +147,7 @@ export const StoryboardPanel: React.FC = () => {
   }
 
   return (
-    <div className={styles.panel} style={{ left: pos.x, top: pos.y }}>
+    <div className={styles.panel} style={{ left: pos.x, top: pos.y }} data-storyboard-window>
       <div className={styles.header} onMouseDown={handleHeaderMouseDown}>
         <span className={styles.title}>{t('storyboardTitle')}</span>
         <button className={styles.closeBtn} onClick={() => setStoryboardOpen(false)}>×</button>

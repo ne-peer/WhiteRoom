@@ -3,7 +3,6 @@ import { useAppStore } from '../../stores/appStore'
 import { useTranslation } from '../../i18n'
 import { Section, Row, Toggle } from '../controls/UIKit'
 import type { IpcApi, TextReaderWindowPosition, TextReaderPageAdvanceSpeed } from '../../../shared/types'
-import { StoryboardPanel } from './StoryboardPanel'
 import styles from './TextReaderPanel.module.css'
 
 export const TextReaderPanel: React.FC = () => {
@@ -60,9 +59,6 @@ export const TextReaderPanel: React.FC = () => {
 
   return (
     <div className={styles.panel}>
-      {/* ストーリーボードパネル（フロート） */}
-      {storyboardOpen && <StoryboardPanel />}
-
       {/* ファイル読み込みセクション */}
       <Section title={t('textReaderSection')}>
         <div className={styles.fileSection}>

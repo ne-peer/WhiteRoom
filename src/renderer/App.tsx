@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { MasterCanvas } from './components/layout/MasterCanvas'
 import { TopBar } from './components/layout/TopBar'
 import { ControlPanel } from './components/controls/ControlPanel'
+import { StoryboardPanel } from './components/reader/StoryboardPanel'
 import { useAppStore } from './stores/appStore'
 import './global.css'
 
@@ -11,6 +12,7 @@ const FLOAT_HIDE_MARGIN = 48
 
 const App: React.FC = () => {
   const showControls = useAppStore(s => s.showControls)
+  const storyboardOpen = useAppStore(s => s.textReader.storyboardOpen)
   const [showFloatingControls, setShowFloatingControls] = useState(false)
 
   useEffect(() => {
@@ -23,7 +25,7 @@ const App: React.FC = () => {
       const revealX = window.innerWidth - EDGE_REVEAL_THRESHOLD
       const keepVisibleX = window.innerWidth - CONTROL_PANEL_WIDTH - FLOAT_HIDE_MARGIN
 
-      const overReader = !!(event.target as Element | null)?.closest?.('[data-reader-window]')
+      const overReader = !!(event.target as Element | null)?.closest?.('[data-reader-window], [data-storyboard-window]')
 
       setShowFloatingControls(current => {
         if (overReader) return false
@@ -50,6 +52,7 @@ const App: React.FC = () => {
       <TopBar />
       <MasterCanvas />
       <ControlPanel floating={showFloatingControls} />
+      {storyboardOpen && <StoryboardPanel />}
     </div>
   )
 }
