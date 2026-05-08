@@ -80,6 +80,26 @@ export const NumberInput: React.FC<{
   </div>
 )
 
+export const TextInput: React.FC<{
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  disabled?: boolean
+  onEnter?: () => void
+}> = ({ value, onChange, placeholder, disabled, onEnter }) => (
+  <input
+    type="text"
+    className={styles.textInput}
+    value={value}
+    placeholder={placeholder}
+    disabled={disabled}
+    onChange={e => onChange(e.target.value)}
+    onKeyDown={e => {
+      if (e.key === 'Enter') onEnter?.()
+    }}
+  />
+)
+
 // ===== カラーピッカー =====
 export const ColorPicker: React.FC<{
   r: number; g: number; b: number

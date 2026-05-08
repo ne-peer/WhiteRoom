@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useAppStore } from '../../stores/appStore'
-import { Section, Row, Stepper, Button, Toggle, NumberInput, Select } from './UIKit'
+import { Section, Row, Stepper, Button, Toggle, NumberInput, Select, TextInput } from './UIKit'
 import { formatCount, useTranslation } from '../../i18n'
-import type { Cell } from '../../../shared/types'
+import type { Cell, IpcApi } from '../../../shared/types'
 
 export const GridControls: React.FC = () => {
   const {
@@ -22,14 +22,19 @@ export const GridControls: React.FC = () => {
     restartSlideshowsRandomly,
     resetCellFolder,
     resetAllCellFolders,
+    showAppNotification,
   } = useAppStore()
   const { language, t } = useTranslation()
+  const [remoteImageUrl, setRemoteImageUrl] = useState('')
+  const [remoteImageLoading, setRemoteImageLoading] = useState(false)
 
   const selectedCell = cells.find(c => c.id === selectedCellId)
 
+  const getApi = (): IpcApi => (window as unknown as { api: IpcApi }).api
+
   const handleOpenFolder = async () => {
     if (!selectedCellId) return
-    const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
+    const api = getApi()
     const result = await api.openFolder(language)
     if (result.canceled || !result.folderPath || !result.images) return
     setCellFolder(selectedCellId, {
@@ -37,6 +42,34 @@ export const GridControls: React.FC = () => {
       path: result.folderPath,
       images: result.images,
     })
+  }
+
+  const handleShowRemoteImage = async () => {
+    if (!selectedCellId || remoteImageLoading) return
+    const url = remoteImageUrl.trim()
+    if (!/^https?:\/\/\S+$/i.test(url)) {
+      showAppNotification(t('remoteImageInvalidUrl'), 'warning')
+      return
+    }
+
+    setRemoteImageLoading(true)
+    try {
+      const result = await getApi().loadRemoteImageAsDataUrl(url)
+      if (!result.success) {
+        showAppNotification(result.error ? `${t('remoteImageLoadFailed')}: ${result.error}` : t('remoteImageLoadFailed'), 'error')
+        return
+      }
+      setCellFolder(selectedCellId, {
+        id: `remote-image-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        source: 'remote-image',
+        path: url,
+        images: [url],
+      })
+    } catch (e: unknown) {
+      showAppNotification(`${t('remoteImageLoadFailed')}: ${String(e)}`, 'error')
+    } finally {
+      setRemoteImageLoading(false)
+    }
   }
 
   const transitionOptions = [
@@ -97,6 +130,24 @@ export const GridControls: React.FC = () => {
             <Button variant="primary" onClick={handleOpenFolder}>
               {t('selectFolder')}
             </Button>
+
+            <div style={{ display: 'flex', gap: 6, marginTop: 8, marginBottom: 8 }}>
+              <TextInput
+                value={remoteImageUrl}
+                onChange={setRemoteImageUrl}
+                placeholder={t('remoteImageUrlPlaceholder')}
+                disabled={remoteImageLoading}
+                onEnter={handleShowRemoteImage}
+              />
+              <Button
+                variant="secondary"
+                small
+                onClick={handleShowRemoteImage}
+                disabled={remoteImageLoading || remoteImageUrl.trim().length === 0}
+              >
+                {remoteImageLoading ? t('loading') : t('showRemoteImage')}
+              </Button>
+            </div>
 
             {selectedCell?.folder && (
               <div style={{ marginTop: 14 }}>

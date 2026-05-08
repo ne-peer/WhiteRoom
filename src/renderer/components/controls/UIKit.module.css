@@ -140,6 +140,32 @@
   border-color: #ff6eb4;
 }
 
+.textInput {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 12px;
+  outline: none;
+}
+
+.textInput:focus {
+  border-color: #ff6eb4;
+  box-shadow: 0 0 0 2px rgba(255,110,180,0.18);
+}
+
+.textInput::placeholder {
+  color: rgba(255,255,255,0.28);
+}
+
+.textInput:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .unit {
   font-size: 11px;
   color: rgba(255,255,255,0.4);

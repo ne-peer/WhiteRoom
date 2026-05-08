@@ -25,6 +25,7 @@ export type UiLanguage = 'ja' | 'en'
 
 export type CellFolder = {
   id: string
+  source?: 'folder' | 'remote-image'
   path: string
   images: string[]  // ファイルパス一覧
 }
