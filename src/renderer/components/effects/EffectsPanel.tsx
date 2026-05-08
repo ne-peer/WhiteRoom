@@ -144,6 +144,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const { language, t } = useTranslation()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
   const [assetEffectFolders, setAssetEffectFolders] = useState<AssetEffectFolder[]>([])
+  const [shakeTrailCenterAdjustOpen, setShakeTrailCenterAdjustOpen] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -751,14 +752,45 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   />
                 </Row>
                 <Row label={t('shakeTrailCenter')}>
-                  <Button
-                    small
-                    variant={shakeTrailPositionPicking ? 'primary' : 'secondary'}
-                    onClick={() => setShakeTrailPositionPicking(!shakeTrailPositionPicking)}
-                  >
-                    {shakeTrailPositionPicking ? t('shakeTrailPickActive') : t('shakeTrailPickButton')}
-                  </Button>
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <Button
+                      small
+                      variant={shakeTrailPositionPicking ? 'primary' : 'secondary'}
+                      onClick={() => setShakeTrailPositionPicking(!shakeTrailPositionPicking)}
+                    >
+                      {shakeTrailPositionPicking ? t('shakeTrailPickActive') : t('shakeTrailPickButton')}
+                    </Button>
+                    <Button
+                      small
+                      variant={shakeTrailCenterAdjustOpen ? 'primary' : 'secondary'}
+                      onClick={() => setShakeTrailCenterAdjustOpen(v => !v)}
+                    >
+                      {t('adjust')}
+                    </Button>
+                  </div>
                 </Row>
+                {shakeTrailCenterAdjustOpen && (
+                  <>
+                    <Row label={t('shakeTrailCenterX')}>
+                      <Slider
+                        value={Math.round((effects.shake.trailCenterX ?? DEFAULT_EFFECTS.shake.trailCenterX) * 100)}
+                        min={0}
+                        max={100}
+                        onChange={v => set('shake', { trailCenterX: v / 100 })}
+                        unit="%"
+                      />
+                    </Row>
+                    <Row label={t('shakeTrailCenterY')}>
+                      <Slider
+                        value={Math.round((effects.shake.trailCenterY ?? DEFAULT_EFFECTS.shake.trailCenterY) * 100)}
+                        min={0}
+                        max={100}
+                        onChange={v => set('shake', { trailCenterY: v / 100 })}
+                        unit="%"
+                      />
+                    </Row>
+                  </>
+                )}
                 <Row label={t('radialBlurSize')}>
                   <Slider
                     value={Math.round((effects.shake.trailSize ?? DEFAULT_EFFECTS.shake.trailSize) * 100)}
