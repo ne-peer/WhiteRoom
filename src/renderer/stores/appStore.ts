@@ -88,6 +88,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     trailDelaySec: 0.12,
     trailAlpha: 0.55,
     trailBlurStrength: 2,
+    trailCenterX: 0.5,
     trailCenterY: 0.5,
     trailSize: 0.7,
     trailHeight: 1,
@@ -242,6 +243,7 @@ export type AppState = {
   effectColumnSyncNonce: number
   effectColumnSyncCol: number | null
   applyEffectChangesToAllColumns: boolean
+  shakeTrailPositionPicking: boolean
   appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error' } | null
 
   // セルのタグ一時上書き（profile対象外・セッション専用）
@@ -299,6 +301,7 @@ export type AppActions = {
   enableAllTimerSyncForSelectedCell: () => void
   disableAllTimerSyncForSelectedCell: () => void
   setApplyEffectChangesToAllColumns: (flag: boolean) => void
+  setShakeTrailPositionPicking: (flag: boolean) => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -384,6 +387,7 @@ export const useAppStore = create<AppStore>()(
     effectColumnSyncNonce: 0,
     effectColumnSyncCol: null,
     applyEffectChangesToAllColumns: true,
+    shakeTrailPositionPicking: false,
     appNotification: null,
     cellTagOverrides: {},
     textReader: {
@@ -619,6 +623,10 @@ export const useAppStore = create<AppStore>()(
 
     setApplyEffectChangesToAllColumns: (flag) => set(s => {
       s.applyEffectChangesToAllColumns = flag
+    }),
+
+    setShakeTrailPositionPicking: (flag) => set(s => {
+      s.shakeTrailPositionPicking = flag
     }),
 
     // ===== 表示設定 =====

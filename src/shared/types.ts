@@ -135,6 +135,7 @@ export type ShakeEffect = {
   trailDelaySec: number
   trailAlpha: number
   trailBlurStrength: number
+  trailCenterX: number
   trailCenterY: number
   trailSize: number
   trailHeight: number

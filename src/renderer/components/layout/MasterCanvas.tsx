@@ -17,9 +17,18 @@ export const MasterCanvas: React.FC = () => {
   const grid = useAppStore(s => s.grid)
   const cells = useAppStore(s => s.cells)
   const cellTagOverrides = useAppStore(s => s.cellTagOverrides)
+  const shakeTrailPositionPicking = useAppStore(s => s.shakeTrailPositionPicking)
   const textReaderVisible = useAppStore(s => s.textReader.visible)
   const textReaderConfig = useAppStore(s => s.textReader.config)
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null)
+  const [pickGuide, setPickGuide] = useState<{
+    left: number
+    top: number
+    width: number
+    height: number
+    x: number
+    y: number
+  } | null>(null)
   const { t } = useTranslation()
 
   const canvasShrinkStyle = React.useMemo((): React.CSSProperties => {
@@ -129,16 +138,37 @@ export const MasterCanvas: React.FC = () => {
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const { grid, cells } = useAppStore.getState()
+    const { grid, cells, shakeTrailPositionPicking } = useAppStore.getState()
     const relX = e.clientX - rect.left
     const relY = e.clientY - rect.top
     const col = Math.max(0, Math.min(Math.floor(relX / (rect.width / grid.cols)), grid.cols - 1))
     const row = Math.max(0, Math.min(Math.floor(relY / (rect.height / grid.rows)), grid.rows - 1))
     const cell = cells.find(c => c.col === col && c.row === row)
     setHoveredCellId(cell?.id ?? null)
+
+    if (!shakeTrailPositionPicking || !cell) {
+      setPickGuide(null)
+      return
+    }
+
+    const left = Math.round((cell.col * rect.width) / grid.cols)
+    const top = Math.round((cell.row * rect.height) / grid.rows)
+    const nextLeft = Math.round(((cell.col + 1) * rect.width) / grid.cols)
+    const nextTop = Math.round(((cell.row + 1) * rect.height) / grid.rows)
+    setPickGuide({
+      left,
+      top,
+      width: nextLeft - left,
+      height: nextTop - top,
+      x: relX - left,
+      y: relY - top,
+    })
   }, [])
 
-  const handleMouseLeave = useCallback(() => setHoveredCellId(null), [])
+  const handleMouseLeave = useCallback(() => {
+    setHoveredCellId(null)
+    setPickGuide(null)
+  }, [])
 
   // ドラッグ中はナビゲーションオーバーレイを非表示（flushSync で同期的に DOM から除去し dragover 干渉を防ぐ）
   const handleDragEnter = useCallback(() => {
@@ -148,7 +178,7 @@ export const MasterCanvas: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className={`${styles.canvas} ${showControls ? styles.withPanel : ''}`}
+      className={`${styles.canvas} ${showControls ? styles.withPanel : ''} ${shakeTrailPositionPicking ? styles.pickMode : ''}`}
       style={canvasShrinkStyle}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -186,6 +216,25 @@ export const MasterCanvas: React.FC = () => {
         ))}
       </div>
       <TimerPreOverlay />
+      {shakeTrailPositionPicking && (
+        <div className={styles.pickHint}>
+          {t('shakeTrailPickHint')}
+        </div>
+      )}
+      {shakeTrailPositionPicking && pickGuide && (
+        <div
+          className={styles.pickGuide}
+          style={{
+            left: pickGuide.left,
+            top: pickGuide.top,
+            width: pickGuide.width,
+            height: pickGuide.height,
+          }}
+        >
+          <div className={styles.pickGuideV} style={{ left: pickGuide.x }} />
+          <div className={styles.pickGuideH} style={{ top: pickGuide.y }} />
+        </div>
+      )}
       <TimerEndFlashOverlay />
       <TimerOverlay />
       <TextReaderWindow />

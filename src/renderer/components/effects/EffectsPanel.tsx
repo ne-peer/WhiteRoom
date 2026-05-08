@@ -81,6 +81,7 @@ const EFFECT_PRESET_1: CellEffects = {
     trailDelaySec: 0.12,
     trailAlpha: 0.55,
     trailBlurStrength: 2,
+    trailCenterX: 0.5,
     trailCenterY: 0.5,
     trailSize: 0.7,
     trailHeight: 1,
@@ -137,6 +138,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     resetEffectsInSelectedColumn,
     enableAllTimerSyncForSelectedCell,
     disableAllTimerSyncForSelectedCell,
+    shakeTrailPositionPicking,
+    setShakeTrailPositionPicking,
   } = useAppStore()
   const { language, t } = useTranslation()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
@@ -747,14 +750,14 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     onChange={v => set('shake', { trailBlurStrength: v })}
                   />
                 </Row>
-                <Row label={t('radialBlurCenterY')}>
-                  <Slider
-                    value={Math.round((effects.shake.trailCenterY ?? DEFAULT_EFFECTS.shake.trailCenterY) * 100)}
-                    min={0}
-                    max={100}
-                    onChange={v => set('shake', { trailCenterY: v / 100 })}
-                    unit="%"
-                  />
+                <Row label={t('shakeTrailCenter')}>
+                  <Button
+                    small
+                    variant={shakeTrailPositionPicking ? 'primary' : 'secondary'}
+                    onClick={() => setShakeTrailPositionPicking(!shakeTrailPositionPicking)}
+                  >
+                    {shakeTrailPositionPicking ? t('shakeTrailPickActive') : t('shakeTrailPickButton')}
+                  </Button>
                 </Row>
                 <Row label={t('radialBlurSize')}>
                   <Slider

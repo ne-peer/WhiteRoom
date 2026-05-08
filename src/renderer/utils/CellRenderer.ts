@@ -1319,6 +1319,7 @@ export class CellRenderer {
     const guideKey = [
       this.width,
       this.height,
+      shake.trailCenterX ?? 0.5,
       shake.trailCenterY ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
@@ -1332,6 +1333,7 @@ export class CellRenderer {
       this.width,
       this.height,
       shake.trailBlurStrength ?? 2,
+      shake.trailCenterX ?? 0.5,
       shake.trailCenterY ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
@@ -1342,6 +1344,7 @@ export class CellRenderer {
     const sprite = new PIXI.Sprite(this.imageSprite.texture)
     sprite.anchor.set(0.5)
     const maskSprite = this.createEllipseMaskSprite(
+      shake.trailCenterX ?? 0.5,
       shake.trailCenterY ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
@@ -1458,10 +1461,11 @@ export class CellRenderer {
       this.guideLayer.addChild(this.shakeTrailGuideGraphics)
     }
 
+    const centerX = clamp(shake.trailCenterX ?? 0.5, 0, 1)
     const centerY = clamp(shake.trailCenterY ?? 0.5, 0, 1)
     const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
     const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
-    const cx = this.width / 2
+    const cx = this.width * centerX
     const cy = this.height * centerY
     const rx = Math.max(1, this.width * size * 0.5)
     const ry = Math.max(1, this.height * size * heightRatio * 0.5)
@@ -1955,13 +1959,13 @@ export class CellRenderer {
     return new PIXI.Sprite(texture)
   }
 
-  private createEllipseMaskSprite(centerYRatio: number, size: number, heightRatio: number, feather = 0.08): PIXI.Sprite {
+  private createEllipseMaskSprite(centerXRatio: number, centerYRatio: number, size: number, heightRatio: number, feather = 0.08): PIXI.Sprite {
     const canvas = document.createElement('canvas')
     canvas.width = Math.ceil(this.width)
     canvas.height = Math.ceil(this.height)
     const ctx = canvas.getContext('2d')!
     const image = ctx.createImageData(canvas.width, canvas.height)
-    const cx = this.width / 2
+    const cx = this.width * clamp(centerXRatio, 0, 1)
     const cy = this.height * clamp(centerYRatio, 0, 1)
     const rx = Math.max(1, this.width * clamp(size, 0.05, 3) * 0.5)
     const ry = Math.max(1, this.height * clamp(size, 0.05, 3) * clamp(heightRatio, 0.05, 3) * 0.5)
