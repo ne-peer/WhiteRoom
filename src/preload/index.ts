@@ -17,6 +17,7 @@ const api: IpcApi = {
   listSystemFonts: () => ipcRenderer.invoke('list-system-fonts'),
   openTextFile: (language) => ipcRenderer.invoke('open-text-file', language),
   saveTextFile: (filePath, content) => ipcRenderer.invoke('save-text-file', filePath, content),
+  cleanupTextReaderTempFile: (tempFilePath) => ipcRenderer.invoke('cleanup-text-reader-temp-file', tempFilePath),
   onFullscreenChange: (cb) => {
     const handler = (_: Electron.IpcRendererEvent, isFullscreen: boolean) => cb(isFullscreen)
     ipcRenderer.on('fullscreen-change', handler)

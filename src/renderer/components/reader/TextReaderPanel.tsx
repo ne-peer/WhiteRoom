@@ -12,6 +12,7 @@ export const TextReaderPanel: React.FC = () => {
   const filePath = useAppStore(s => s.textReader.filePath)
   const rawSegments = useAppStore(s => s.textReader.rawSegments)
   const storyboardOpen = useAppStore(s => s.textReader.storyboardOpen)
+  const tempFilePath = useAppStore(s => s.textReader.tempFilePath)
   const {
     setTextReaderConfig,
     setTextReaderVisible,
@@ -32,6 +33,15 @@ export const TextReaderPanel: React.FC = () => {
     const result = await api.openTextFile(language)
     if (!result.canceled && result.filePath && result.text !== undefined) {
       loadTextReaderFile(result.filePath, result.text, result.tempFilePath)
+    }
+  }
+
+  const handleCloseFile = async () => {
+    const api = (window as unknown as { api: IpcApi }).api
+    const closingTempFilePath = tempFilePath
+    closeTextReader()
+    if (closingTempFilePath) {
+      await api.cleanupTextReaderTempFile(closingTempFilePath)
     }
   }
 
@@ -69,7 +79,7 @@ export const TextReaderPanel: React.FC = () => {
             {t('textReaderOpenFile')}
           </button>
           {hasFile && (
-            <button className={styles.closeBtn} onClick={closeTextReader}>
+            <button className={styles.closeBtn} onClick={handleCloseFile}>
               {t('textReaderClose')}
             </button>
           )}

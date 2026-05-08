@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, session, Menu } from 'electron'
-import { join, extname } from 'path'
+import { dirname, join, extname } from 'path'
 import { tmpdir } from 'os'
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
@@ -11,6 +11,7 @@ import type {
   OpenFolderResult,
   OpenTextFileResult,
   SaveTextFileResult,
+  CleanupTextReaderTempFileResult,
   UiLanguage,
 } from '../shared/types'
 
@@ -119,6 +120,15 @@ function createTextReaderTempFile(originalPath: string): string {
   textReaderTempDirs.add(dirPath)
   activeTextReaderTempDir = dirPath
   return tempFilePath
+}
+
+function cleanupTextReaderTempFilePath(tempFilePath: string): CleanupTextReaderTempFileResult {
+  const dirPath = dirname(tempFilePath)
+  if (!textReaderTempDirs.has(dirPath)) {
+    return { success: false, error: 'Unknown text reader temp file' }
+  }
+  cleanupTextReaderTempDir(dirPath)
+  return { success: true }
 }
 
 function listWindowsFonts(): string[] {
@@ -407,6 +417,14 @@ ipcMain.handle('save-text-file', async (_event, filePath: string, content: strin
 })
 
 // ===== アプリ起動 =====
+
+ipcMain.handle('cleanup-text-reader-temp-file', async (_event, tempFilePath: string): Promise<CleanupTextReaderTempFileResult> => {
+  try {
+    return cleanupTextReaderTempFilePath(tempFilePath)
+  } catch (e: unknown) {
+    return { success: false, error: String(e) }
+  }
+})
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null)

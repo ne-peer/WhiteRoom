@@ -333,6 +333,11 @@ export type SaveTextFileResult = {
   error?: string
 }
 
+export type CleanupTextReaderTempFileResult = {
+  success: boolean
+  error?: string
+}
+
 export type IpcApi = {
   openFolder: (language?: UiLanguage) => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
@@ -349,5 +354,6 @@ export type IpcApi = {
   listSystemFonts: () => Promise<string[]>
   openTextFile: (language?: UiLanguage) => Promise<OpenTextFileResult>
   saveTextFile: (filePath: string, content: string) => Promise<SaveTextFileResult>
+  cleanupTextReaderTempFile: (tempFilePath: string) => Promise<CleanupTextReaderTempFileResult>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void
 }

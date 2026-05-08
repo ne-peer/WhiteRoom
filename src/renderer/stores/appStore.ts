@@ -714,7 +714,7 @@ export const useAppStore = create<AppStore>()(
       if (s.textReader.baselineSnapshot) {
         for (const bl of s.textReader.baselineSnapshot) {
           const cell = s.cells.find(c => c.id === bl.cellId)
-          if (cell) cell.effects = structuredClone(bl.effects)
+          if (cell) cell.effects = structuredClone(current(bl.effects))
           if (bl.overrideImage !== null) {
             s.cellTagOverrides[bl.cellId] = bl.overrideImage
           } else {
@@ -737,6 +737,8 @@ export const useAppStore = create<AppStore>()(
       s.textReader.storyboardEffectProgress = null
       s.textReader.activeProgressPages = 0
       s.textReader.autoSuspendedForTimer = false
+      s.textReader.storyboardOpen = false
+      s.textReader.currentSegmentIndex = 0
     }),
 
     setTextReaderPage: (index) => set(s => {
@@ -808,7 +810,7 @@ export const useAppStore = create<AppStore>()(
       if (!snapshot) return
       for (const bl of snapshot) {
         const cell = s.cells.find(c => c.id === bl.cellId)
-        if (cell) cell.effects = structuredClone(bl.effects)
+        if (cell) cell.effects = structuredClone(current(bl.effects))
         if (bl.overrideImage !== null) {
           s.cellTagOverrides[bl.cellId] = bl.overrideImage
         } else {
