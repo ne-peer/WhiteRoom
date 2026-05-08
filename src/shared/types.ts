@@ -130,6 +130,7 @@ export type ShakeEffect = {
   loopSpeedPxPerSec: number
   afterimageEnabled: boolean
   afterimageDurationSec: number
+  manualTriggerNonce: number
   trailEnabled: boolean
   trailDelaySec: number
   trailAlpha: number

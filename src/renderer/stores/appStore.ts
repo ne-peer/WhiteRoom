@@ -83,6 +83,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     loopSpeedPxPerSec: 80,
     afterimageEnabled: false,
     afterimageDurationSec: 0.35,
+    manualTriggerNonce: 0,
     trailEnabled: false,
     trailDelaySec: 0.12,
     trailAlpha: 0.55,

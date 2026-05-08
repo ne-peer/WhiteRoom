@@ -1019,6 +1019,7 @@ export class CellRenderer {
           shake.loopSpeedPxPerSec,
           shake.afterimageEnabled,
           shake.afterimageDurationSec,
+          shake.manualTriggerNonce ?? 0,
         ].join(':')
       : 'disabled'
 

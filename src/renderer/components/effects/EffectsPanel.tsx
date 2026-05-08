@@ -76,6 +76,7 @@ const EFFECT_PRESET_1: CellEffects = {
     loopSpeedPxPerSec: 80,
     afterimageEnabled: false,
     afterimageDurationSec: 0.35,
+    manualTriggerNonce: 0,
     trailEnabled: false,
     trailDelaySec: 0.12,
     trailAlpha: 0.55,
@@ -773,6 +774,17 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     unit="%"
                   />
                 </Row>
+                {effects.shake.mode === 'once' && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                    <Button
+                      small
+                      variant="secondary"
+                      onClick={() => set('shake', { manualTriggerNonce: (effects.shake.manualTriggerNonce ?? 0) + 1 })}
+                    >
+                      {t('shakeManualTrigger')}
+                    </Button>
+                  </div>
+                )}
               </>
             )}
           </>
