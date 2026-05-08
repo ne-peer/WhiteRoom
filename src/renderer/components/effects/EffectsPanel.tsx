@@ -679,7 +679,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   />
                 </Row>
                 <Row label={t('moveSpeed')}>
-                  <NumberInput
+                  <Slider
                     value={effects.shake.loopSpeedPxPerSec}
                     min={0}
                     max={600}
