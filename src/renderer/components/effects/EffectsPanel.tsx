@@ -35,6 +35,24 @@ const EFFECT_PRESET_1: CellEffects = {
     dynamicDurationMs: 3000,
     dynamicTimerSync: false,
   },
+  spiral: {
+    enabled: false,
+    color: { r: 255, g: 0, b: 128 },
+    pattern: 'classic',
+    dualColorEnabled: false,
+    secondaryColor: { r: 80, g: 220, b: 255 },
+    detail: 22,
+    rotationSpeedDegPerSec: 30,
+    alpha: 0.55,
+    radialEnabled: false,
+    radialMode: 'center',
+    radialSize: 0.45,
+    dynamic: false,
+    dynamicFrom: 0.2,
+    dynamicTo: 0.8,
+    dynamicDurationMs: 1200,
+    dynamicTimerSync: false,
+  },
   blur: {
     enabled: true,
     strength: 8,
@@ -207,6 +225,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     ...rawEffects,
     colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...rawEffects.colorOverlay },
     vignette: { ...DEFAULT_EFFECTS.vignette, ...rawEffects.vignette },
+    spiral: { ...DEFAULT_EFFECTS.spiral, ...rawEffects.spiral },
     blur: { ...DEFAULT_EFFECTS.blur, ...rawEffects.blur },
     flash: { ...DEFAULT_EFFECTS.flash, ...rawEffects.flash },
     breathing: { ...DEFAULT_EFFECTS.breathing, ...rawEffects.breathing },
@@ -220,6 +239,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const applyEffectPreset1 = () => {
     setCellEffect(selectedCellId, 'colorOverlay', structuredClone(EFFECT_PRESET_1.colorOverlay))
     setCellEffect(selectedCellId, 'vignette', structuredClone(EFFECT_PRESET_1.vignette))
+    setCellEffect(selectedCellId, 'spiral', structuredClone(EFFECT_PRESET_1.spiral))
     setCellEffect(selectedCellId, 'blur', structuredClone(EFFECT_PRESET_1.blur))
     setCellEffect(selectedCellId, 'echo', structuredClone(EFFECT_PRESET_1.echo))
     setCellEffect(selectedCellId, 'flash', structuredClone(EFFECT_PRESET_1.flash))
@@ -233,6 +253,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     c.col === selectedCell.col &&
     (
       (c.effects.vignette.enabled && c.effects.vignette.dynamic) ||
+      (c.effects.spiral?.enabled && c.effects.spiral?.dynamic) ||
       (c.effects.colorOverlay?.imageAdjustEnabled && c.effects.colorOverlay?.dynamicAdjust) ||
       (c.effects.blur.enabled && c.effects.blur.gradualEnabled) ||
       c.effects.echo.enabled
@@ -427,6 +448,159 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     value={effects.vignette.dynamicTimerSync ?? false}
                     onChange={v => set('vignette', { dynamicTimerSync: v })}
 
+                  />
+                </Row>
+              </>
+            )}
+          </>
+        )}
+      </Section>
+
+      <Section title={t('spiralEffect')}>
+        <Row label={t('enabled')}>
+          <Toggle value={effects.spiral.enabled} onChange={v => set('spiral', { enabled: v })} />
+        </Row>
+        {effects.spiral.enabled && (
+          <>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('color')}</div>
+            <div style={{ marginBottom: 10 }}>
+              <ColorPicker
+                r={effects.spiral.color.r}
+                g={effects.spiral.color.g}
+                b={effects.spiral.color.b}
+                onChange={(r, g, b) => set('spiral', { color: { r, g, b } })}
+                showAlpha={!effects.spiral.dynamic}
+                alpha={effects.spiral.alpha}
+                onAlphaChange={a => set('spiral', { alpha: a })}
+              />
+            </div>
+            {effects.spiral.pattern === 'classic' && (
+              <>
+                <Row label={t('spiralDualColor')}>
+                  <Toggle
+                    value={effects.spiral.dualColorEnabled}
+                    onChange={v => set('spiral', { dualColorEnabled: v })}
+                  />
+                </Row>
+                {effects.spiral.dualColorEnabled && (
+                  <>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('spiralSecondaryColor')}</div>
+                    <div style={{ marginBottom: 10 }}>
+                      <ColorPicker
+                        r={effects.spiral.secondaryColor.r}
+                        g={effects.spiral.secondaryColor.g}
+                        b={effects.spiral.secondaryColor.b}
+                        onChange={(r, g, b) => set('spiral', { secondaryColor: { r, g, b } })}
+                        showAlpha={false}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+            <Row label={t('spiralDetail')}>
+              <Slider
+                value={effects.spiral.detail}
+                min={6}
+                max={120}
+                onChange={v => set('spiral', { detail: v })}
+              />
+            </Row>
+            <Row label={t('spiralPattern')}>
+              <Select
+                value={effects.spiral.pattern ?? 'classic'}
+                options={[
+                  { value: 'classic', label: t('spiralPatternClassic') },
+                  { value: 'vortex', label: t('spiralPatternVortex') },
+                ]}
+                onChange={v => set('spiral', { pattern: v as 'classic' | 'vortex' })}
+              />
+            </Row>
+            <Row label={t('rotationSpeed')}>
+              <Slider
+                value={Math.round(effects.spiral.rotationSpeedDegPerSec)}
+                min={-1200}
+                max={1200}
+                step={10}
+                onChange={v => set('spiral', { rotationSpeedDegPerSec: Math.round(v / 10) * 10 })}
+                unit="deg/s"
+              />
+            </Row>
+            <Row label={t('opacity')}>
+              <Slider
+                value={Math.round(effects.spiral.alpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('spiral', { alpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label={t('radialOption')}>
+              <Toggle
+                value={effects.spiral.radialEnabled}
+                onChange={v => set('spiral', { radialEnabled: v })}
+              />
+            </Row>
+            {effects.spiral.radialEnabled && (
+              <>
+                <Row label={t('radialMode')}>
+                  <Select
+                    value={effects.spiral.radialMode}
+                    options={[
+                      { value: 'center', label: t('radialModeCenter') },
+                      { value: 'periphery', label: t('radialModePeriphery') },
+                    ]}
+                    onChange={v => set('spiral', { radialMode: v as 'center' | 'periphery' })}
+                  />
+                </Row>
+                <Row label={t('radialSize')}>
+                  <Slider
+                    value={Math.round(effects.spiral.radialSize * 100)}
+                    min={5}
+                    max={95}
+                    onChange={v => set('spiral', { radialSize: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              </>
+            )}
+            <Row label={t('dynamicApply')}>
+              <Toggle value={effects.spiral.dynamic} onChange={v => set('spiral', { dynamic: v })} />
+            </Row>
+            {effects.spiral.dynamic && (
+              <>
+                <Row label={t('startOpacity')}>
+                  <Slider
+                    value={Math.round(effects.spiral.dynamicFrom * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('spiral', { dynamicFrom: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('endOpacity')}>
+                  <Slider
+                    value={Math.round(effects.spiral.dynamicTo * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('spiral', { dynamicTo: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('changeDuration')}>
+                  <NumberInput
+                    value={effects.spiral.dynamicDurationMs / 1000}
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    unit={t('seconds')}
+                    onChange={v => set('spiral', { dynamicDurationMs: v * 1000 })}
+                  />
+                </Row>
+                <Row label={t('timerSync')}>
+                  <Toggle
+                    value={effects.spiral.dynamicTimerSync ?? false}
+                    onChange={v => set('spiral', { dynamicTimerSync: v })}
                   />
                 </Row>
               </>
@@ -1216,7 +1390,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <Button
             variant="secondary"
             onClick={restartEffectsWithRandomTiming}
-            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled || c.effects.shake?.enabled)}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.spiral?.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled || c.effects.shake?.enabled)}
             title={t('restartRandomTimingTip')}
           >
             {t('restartRandomTiming')}

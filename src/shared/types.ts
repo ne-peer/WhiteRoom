@@ -206,6 +206,24 @@ export type TextEffect = {
 export type CellEffects = {
   colorOverlay: ColorOverlayEffect
   vignette: VignetteEffect
+  spiral: {
+    enabled: boolean
+    color: { r: number; g: number; b: number }
+    pattern: 'classic' | 'vortex'
+    dualColorEnabled: boolean
+    secondaryColor: { r: number; g: number; b: number }
+    detail: number
+    rotationSpeedDegPerSec: number
+    alpha: number
+    radialEnabled: boolean
+    radialMode: 'center' | 'periphery'
+    radialSize: number
+    dynamic: boolean
+    dynamicFrom: number
+    dynamicTo: number
+    dynamicDurationMs: number
+    dynamicTimerSync: boolean
+  }
   blur: BlurEffect
   echo: EchoEffect
   flash: FlashEffect

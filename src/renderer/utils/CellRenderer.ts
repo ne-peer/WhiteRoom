@@ -21,6 +21,7 @@ export class CellRenderer {
   private particleContainer: PIXI.Container
   private textLayer: PIXI.Container
   private vignetteLayer: PIXI.Container
+  private spiralLayer: PIXI.Container
   private guideLayer: PIXI.Container
 
   private imageSprite: PIXI.Sprite | null = null
@@ -67,6 +68,12 @@ export class CellRenderer {
   private flashBaseOpacity = 1
   private vignetteSprite: PIXI.Sprite | null = null
   private vignetteTextureKey: string | null = null
+  private spiralGraphics: PIXI.Graphics
+  private spiralMaskSprite: PIXI.Sprite | null = null
+  private spiralMaskKey: string | null = null
+  private spiralMaskFilter: PIXI.MaskFilter | null = null
+  private spiralRotationRad = 0
+  private spiralAlphaDynamicProgress = 0
   private radialBlurLayers: PIXI.Container[] = []
   private radialBlurMaskSprites: PIXI.Sprite[] = []
   private radialBlurImageClones: PIXI.Sprite[] = []
@@ -169,6 +176,7 @@ export class CellRenderer {
     this.particleContainer = new PIXI.Container()
     this.textLayer = new PIXI.Container()
     this.vignetteLayer = new PIXI.Container()
+    this.spiralLayer = new PIXI.Container()
     this.guideLayer = new PIXI.Container()
     this.dynamicBackgroundMask = new PIXI.Graphics()
     this.imageMask = new PIXI.Graphics()
@@ -183,6 +191,7 @@ export class CellRenderer {
     this.container.addChild(this.particleContainer)
     this.container.addChild(this.textLayer)
     this.container.addChild(this.vignetteLayer)
+    this.container.addChild(this.spiralLayer)
     this.container.addChild(this.guideLayer)
     this.container.addChild(this.echoMask)
 
@@ -197,6 +206,8 @@ export class CellRenderer {
 
     this.colorOverlayGraphics = new PIXI.Graphics()
     this.overlayLayer.addChild(this.colorOverlayGraphics)
+    this.spiralGraphics = new PIXI.Graphics()
+    this.spiralLayer.addChild(this.spiralGraphics)
 
     this.particleSystem = new ParticleSystem(this.particleContainer)
     this.textSystem = new TextSystem(this.textLayer)
@@ -214,10 +225,12 @@ export class CellRenderer {
     this.refreshEcho()
     this.refreshShakeTrailRegion()
     this.rebuildVignette()
+    this.clearSpiralMask()
     this.refreshBlurRegion()
     this.setImageLayerFilters()
     this.textSystem.resizeMask(width, height)
     this.positionFlashOverlaySprite()
+    if (this.latestEffects) this.updateSpiral(this.latestEffects)
   }
 
   setImageFit(imageFit: ImageFitMode = 'cover') {
@@ -317,6 +330,7 @@ export class CellRenderer {
     this.updateBlur(effects)
     this.updateColorAdjustment(effects.colorOverlay)
     this.updateVignette(effects)
+    this.updateSpiral(effects)
     this.updateEcho(effects)
     this.updateFlash(effects)
     this.updateAsset(effects)
@@ -335,6 +349,7 @@ export class CellRenderer {
       : 0
     const durationMs = Math.max(
       effects.vignette.dynamicDurationMs,
+      effects.spiral.dynamicDurationMs,
       effects.colorOverlay.dynamicAdjustDurationMs,
       effects.blur.gradualDurationSec * 1000,
       effects.echo.durationSec * 1000,
@@ -363,6 +378,7 @@ export class CellRenderer {
     this.flashStartTween = null
     this.flashEndTween = null
     this.vignetteAnimationKey = null
+    this.spiralAlphaDynamicProgress = 0
     this.blurAnimationKey = null
     this.colorAdjustAnimationKey = null
     this.echoAnimationKey = null
@@ -392,6 +408,9 @@ export class CellRenderer {
       this.vignetteGsapTween = null
       this.vignetteAnimationKey = null
     }
+    if (effects.spiral.enabled && effects.spiral.dynamic) {
+      this.spiralAlphaDynamicProgress = 0
+    }
 
     if (effects.colorOverlay.imageAdjustEnabled && effects.colorOverlay.dynamicAdjust) {
       this.colorAdjustGsapTween?.kill()
@@ -413,6 +432,7 @@ export class CellRenderer {
 
     this.latestEffects = effects
     this.updateVignette(effects)
+    this.updateSpiral(effects)
     this.updateBlur(effects)
     this.updateColorAdjustment(effects.colorOverlay)
     this.updateEcho(effects)
@@ -432,6 +452,11 @@ export class CellRenderer {
 
     // 画像強調フィルタ（動的強調＋タイマー同期）
     const co = effects.colorOverlay
+    const spiral = effects.spiral
+    if (spiral.enabled && spiral.dynamic && spiral.dynamicTimerSync) {
+      this.applySpiralAlpha(effects, progress)
+    }
+
     if (co.imageAdjustEnabled && co.dynamicAdjust && co.dynamicAdjustTimerSync && this.colorMatrixFilter) {
       this.applyColorMatrix(co, progress)
     }
@@ -483,6 +508,10 @@ export class CellRenderer {
       const target = vig.dynamic ? vig.dynamicTo : vig.alpha
       this.vignetteSprite.alpha = target * scale
     }
+    if (effects.spiral.enabled && !(effects.spiral.dynamic && effects.spiral.dynamicTimerSync)) {
+      const target = effects.spiral.dynamic ? effects.spiral.dynamicTo : effects.spiral.alpha
+      this.spiralGraphics.alpha = clamp(target * scale, 0, 1)
+    }
 
     // カラーオーバーレイ
     if (effects.colorOverlay.enabled) {
@@ -514,6 +543,7 @@ export class CellRenderer {
     this.syncRadialBlurClones()
     this.syncEchoToImage()
     this.updateFlashCycle(delta)
+    this.tickSpiral(delta, effects)
     this.particleSystem.update(
       delta,
       this.width,
@@ -542,6 +572,7 @@ export class CellRenderer {
     this.clearFlashOverlay()
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
+    this.clearSpiralMask()
     this.container.destroy({ children: true })
   }
 
@@ -1950,6 +1981,165 @@ export class CellRenderer {
       this.vignetteSprite = null
     }
     this.vignetteTextureKey = null
+  }
+
+  private updateSpiral(effects: CellEffects) {
+    const spiral = effects.spiral
+    if (!spiral.enabled) {
+      this.spiralGraphics.visible = false
+      this.spiralGraphics.clear()
+      this.clearSpiralMask()
+      return
+    }
+    this.spiralGraphics.visible = true
+    this.spiralLayer.visible = true
+    this.spiralGraphics.position.set(this.width * 0.5, this.height * 0.5)
+    this.redrawSpiral(spiral)
+    this.updateSpiralRadialMask(spiral)
+    if (spiral.dynamic && !spiral.dynamicTimerSync) {
+      this.applySpiralAlpha(effects, (Math.sin(this.spiralAlphaDynamicProgress * Math.PI * 2) + 1) * 0.5)
+    } else {
+      this.applySpiralAlpha(effects, this.timerProgress)
+    }
+  }
+
+  private tickSpiral(delta: number, effects: CellEffects) {
+    const spiral = effects.spiral
+    if (!spiral.enabled || !this.spiralGraphics.visible) return
+    const dtSec = delta / 60
+    this.spiralRotationRad += (spiral.rotationSpeedDegPerSec * Math.PI / 180) * dtSec
+    this.spiralGraphics.rotation = this.spiralRotationRad
+    this.spiralGraphics.position.set(this.width * 0.5, this.height * 0.5)
+    if (spiral.dynamic && !spiral.dynamicTimerSync) {
+      const durationSec = Math.max(0.1, spiral.dynamicDurationMs / 1000)
+      this.spiralAlphaDynamicProgress += dtSec / durationSec
+      if (this.spiralAlphaDynamicProgress >= 1) this.spiralAlphaDynamicProgress -= Math.floor(this.spiralAlphaDynamicProgress)
+      const p = (Math.sin(this.spiralAlphaDynamicProgress * Math.PI * 2 - Math.PI * 0.5) + 1) * 0.5
+      this.applySpiralAlpha(effects, p)
+    }
+  }
+
+  private applySpiralAlpha(effects: CellEffects, progress: number) {
+    const spiral = effects.spiral
+    const p = clamp(progress, 0, 1)
+    if (spiral.dynamic) {
+      this.spiralGraphics.alpha = clamp(spiral.dynamicFrom + (spiral.dynamicTo - spiral.dynamicFrom) * p, 0, 1)
+      return
+    }
+    this.spiralGraphics.alpha = clamp(spiral.alpha, 0, 1)
+  }
+
+  private redrawSpiral(spiral: CellEffects['spiral']) {
+    const g = this.spiralGraphics
+    g.clear()
+    const primaryColor = (spiral.color.r << 16) | (spiral.color.g << 8) | spiral.color.b
+    const secondaryColor = (spiral.secondaryColor.r << 16) | (spiral.secondaryColor.g << 8) | spiral.secondaryColor.b
+    const maxRadius = Math.sqrt(this.width * this.width + this.height * this.height) * 0.6
+    const detail = clamp(spiral.detail, 6, 120)
+    const loops = spiral.pattern === 'vortex' ? detail * 0.15 : detail * 0.6
+    const a = maxRadius / (Math.PI * 2 * loops)
+    const arms = spiral.pattern === 'vortex' ? 14 : 1
+    const armPhaseStep = (Math.PI * 2) / arms
+    const lineWidth = spiral.pattern === 'vortex'
+      ? Math.max(2, Math.round(Math.min(this.width, this.height) * 0.02))
+      : Math.max(2, Math.round(Math.min(this.width, this.height) * 0.012))
+    const angleStep = spiral.pattern === 'vortex' ? 0.02 : 0.06
+    const maxAngle = Math.PI * 2 * loops
+    const drawSpiral = (color: number, basePhase = 0) => {
+      for (let arm = 0; arm < arms; arm += 1) {
+        const armPhase = arm * armPhaseStep + basePhase
+        let started = false
+        for (let theta = 0; theta <= maxAngle; theta += angleStep) {
+          const r = a * theta
+          const x = Math.cos(theta + armPhase) * r
+          const y = Math.sin(theta + armPhase) * r
+          if (!started) {
+            g.moveTo(x, y)
+            started = true
+          } else {
+            g.lineTo(x, y)
+          }
+        }
+      }
+      g.stroke({ color, width: lineWidth, alpha: 1, cap: 'round', join: 'round' })
+    }
+
+    drawSpiral(primaryColor, 0)
+    if (spiral.pattern === 'classic' && spiral.dualColorEnabled) {
+      drawSpiral(secondaryColor, Math.PI * 0.08)
+    }
+  }
+
+  private updateSpiralRadialMask(spiral: CellEffects['spiral']) {
+    if (!spiral.radialEnabled) {
+      this.clearSpiralMask()
+      return
+    }
+    const key = [
+      this.width,
+      this.height,
+      spiral.radialMode,
+      spiral.radialSize,
+    ].join(':')
+    if (this.spiralMaskKey !== key) {
+      this.clearSpiralMask()
+      const keepCenter = spiral.radialMode === 'center'
+      this.spiralMaskSprite = this.createCenterPeripheryMaskSprite(keepCenter, spiral.radialSize)
+      this.spiralMaskSprite.alpha = 0
+      this.spiralLayer.addChild(this.spiralMaskSprite)
+      this.spiralMaskFilter = new PIXI.MaskFilter({
+        sprite: this.spiralMaskSprite,
+        channel: 'alpha',
+      })
+      this.spiralMaskFilter.inverse = spiral.radialMode === 'periphery'
+      this.spiralLayer.filters = [this.spiralMaskFilter]
+      this.spiralLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      this.spiralMaskKey = key
+    }
+  }
+
+  private clearSpiralMask() {
+    this.spiralLayer.filters = []
+    this.spiralLayer.filterArea = undefined
+    this.spiralMaskFilter = null
+    if (this.spiralMaskSprite) {
+      this.spiralLayer.removeChild(this.spiralMaskSprite)
+      this.spiralMaskSprite.texture.destroy(true)
+      this.spiralMaskSprite.destroy()
+      this.spiralMaskSprite = null
+    }
+    this.spiralMaskKey = null
+    this.spiralLayer.visible = true
+  }
+
+  private createCenterPeripheryMaskSprite(_keepCenter: boolean, sizeRatio: number): PIXI.Sprite {
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.ceil(this.width)
+    canvas.height = Math.ceil(this.height)
+    const ctx = canvas.getContext('2d')!
+    const image = ctx.createImageData(canvas.width, canvas.height)
+    const cx = this.width * 0.5
+    const cy = this.height * 0.5
+    const maxR = Math.sqrt(cx * cx + cy * cy)
+    const cut = clamp(sizeRatio, 0.05, 0.95) * maxR
+    const feather = maxR * 0.03
+
+    for (let y = 0; y < canvas.height; y += 1) {
+      for (let x = 0; x < canvas.width; x += 1) {
+        const dx = x + 0.5 - cx
+        const dy = y + 0.5 - cy
+        const d = Math.sqrt(dx * dx + dy * dy)
+        let alpha01 = 1 - smoothstep(cut - feather, cut + feather, d)
+        alpha01 = clamp(alpha01, 0, 1)
+        const idx = (y * canvas.width + x) * 4
+        image.data[idx] = 255
+        image.data[idx + 1] = 255
+        image.data[idx + 2] = 255
+        image.data[idx + 3] = Math.round(alpha01 * 255)
+      }
+    }
+    ctx.putImageData(image, 0, 0)
+    return new PIXI.Sprite(PIXI.Texture.from(canvas))
   }
 
   private updateVignette(effects: CellEffects) {

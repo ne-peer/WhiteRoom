@@ -213,6 +213,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       if (cell.col !== effectColumnSyncCol) return
       const hasActiveTimedEffect =
         (cell.effects.vignette.enabled && cell.effects.vignette.dynamic) ||
+        (cell.effects.spiral.enabled && cell.effects.spiral.dynamic) ||
         (cell.effects.blur.enabled && cell.effects.blur.gradualEnabled) ||
         cell.effects.echo.enabled ||
         cell.effects.flash.enabled

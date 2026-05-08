@@ -42,6 +42,24 @@ export const DEFAULT_EFFECTS: CellEffects = {
     dynamicDurationMs: 1000,
     dynamicTimerSync: false,
   },
+  spiral: {
+    enabled: false,
+    color: { r: 255, g: 0, b: 128 },
+    pattern: 'classic',
+    dualColorEnabled: false,
+    secondaryColor: { r: 80, g: 220, b: 255 },
+    detail: 22,
+    rotationSpeedDegPerSec: 30,
+    alpha: 0.55,
+    radialEnabled: false,
+    radialMode: 'center',
+    radialSize: 0.45,
+    dynamic: false,
+    dynamicFrom: 0.2,
+    dynamicTo: 0.8,
+    dynamicDurationMs: 1200,
+    dynamicTimerSync: false,
+  },
   blur: {
     enabled: false,
     strength: 0,
@@ -609,6 +627,7 @@ export const useAppStore = create<AppStore>()(
       targetCells.forEach(cell => {
         cell.effects.colorOverlay.dynamicAdjustTimerSync = true
         cell.effects.vignette.dynamicTimerSync = true
+        cell.effects.spiral.dynamicTimerSync = true
         cell.effects.blur.gradualTimerSync = true
         cell.effects.echo.timerSync = true
         cell.effects.breathing.timerSync = true
@@ -624,6 +643,7 @@ export const useAppStore = create<AppStore>()(
       targetCells.forEach(cell => {
         cell.effects.colorOverlay.dynamicAdjustTimerSync = false
         cell.effects.vignette.dynamicTimerSync = false
+        cell.effects.spiral.dynamicTimerSync = false
         cell.effects.blur.gradualTimerSync = false
         cell.effects.echo.timerSync = false
         cell.effects.breathing.timerSync = false
@@ -721,6 +741,7 @@ export const useAppStore = create<AppStore>()(
           ...cell.effects,
           colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...cell.effects?.colorOverlay },
           vignette: { ...DEFAULT_EFFECTS.vignette, ...cell.effects?.vignette },
+          spiral: { ...DEFAULT_EFFECTS.spiral, ...cell.effects?.spiral },
           blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
           echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
           flash: { ...DEFAULT_EFFECTS.flash, ...cell.effects?.flash },
