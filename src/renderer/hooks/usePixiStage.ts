@@ -52,13 +52,19 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       appRef.current = app
 
       app.ticker.add((ticker) => {
-        const { cells, timer } = useAppStore.getState()
+        const state = useAppStore.getState()
+        const { cells, timer } = state
         const now = performance.now()
         const timerProgress = getSmoothTimerProgress(smoothTimerRef.current, timer, now)
+        const sbProgress = state.textReader.storyboardEffectProgress
+        // ストーリーボードエフェクト進行中はタイマー同期を上書き
+        const effectiveProgress = sbProgress !== null ? sbProgress : timerProgress
+        const progressEnabled = sbProgress !== null ? true : timer.enabled
+        const progressRunning = sbProgress !== null ? true : timer.running
         cells.forEach(cell => {
           const cr = cellRenderersRef.current.get(cell.id)
           if (!cr) return
-          cr.applyTimerProgress(cell.effects, timer.enabled, timer.running, timerProgress)
+          cr.applyTimerProgress(cell.effects, progressEnabled, progressRunning, effectiveProgress)
           cr.tick(ticker.deltaTime, cell.effects)
         })
       })
@@ -95,13 +101,18 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   }, [store.grid, store.cells.length, store.blankColor, store.blankBackground])
 
   const imageKey = store.cells
-    .map(c => `${c.id}:${c.folder?.id ?? ''}:${c.currentImageIndex}`)
+    .map(c => `${c.id}:${c.folder?.id ?? ''}:${c.currentImageIndex}:${store.cellTagOverrides[c.id] ?? ''}`)
     .join(',')
 
   useEffect(() => {
     store.cells.forEach(cell => {
       const cr = cellRenderersRef.current.get(cell.id)
       if (!cr) return
+      const overrideImage = store.cellTagOverrides[cell.id]
+      if (overrideImage) {
+        cr.setImage(overrideImage, 'fade', 350)
+        return
+      }
       if (!cell.folder) {
         cr.clearImage()
         return

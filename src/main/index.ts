@@ -9,6 +9,7 @@ import type {
   LoadProfileResult,
   OpenFolderResult,
   OpenTextFileResult,
+  SaveTextFileResult,
   UiLanguage,
 } from '../shared/types'
 
@@ -359,6 +360,16 @@ ipcMain.handle('open-text-file', async (_event, language?: UiLanguage): Promise<
     return { canceled: false, filePath, text: fileText }
   } catch {
     return { canceled: true }
+  }
+})
+
+// テキストファイル保存
+ipcMain.handle('save-text-file', async (_event, filePath: string, content: string): Promise<SaveTextFileResult> => {
+  try {
+    writeFileSync(filePath, content, 'utf-8')
+    return { success: true }
+  } catch (e: unknown) {
+    return { success: false, error: String(e) }
   }
 })
 

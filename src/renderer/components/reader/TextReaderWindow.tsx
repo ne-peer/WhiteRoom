@@ -3,6 +3,7 @@ import { useAppStore } from '../../stores/appStore'
 import type { TextReaderPageAdvanceSpeed } from '../../../shared/types'
 import styles from './TextReaderWindow.module.css'
 
+
 const PAGE_ADVANCE_DELAYS: Record<TextReaderPageAdvanceSpeed, number> = {
   slow: 6000,
   normal: 3000,
@@ -109,11 +110,19 @@ export const TextReaderWindow: React.FC = () => {
   const isAutoAdvancing = useAppStore(s => s.textReader.isAutoAdvancing)
   const autoSpeedMultiplier = useAppStore(s => s.textReader.autoSpeedMultiplier)
   const showLog = useAppStore(s => s.textReader.showLog)
+  const tagEntries = useAppStore(s => s.textReader.tagEntries)
+  const autoSuspendedForTimer = useAppStore(s => s.textReader.autoSuspendedForTimer)
+  const timer = useAppStore(s => s.timer)
   const {
     setTextReaderPage,
     setTextReaderAutoAdvancing,
     setTextReaderSpeedMultiplier,
     setTextReaderShowLog,
+    applyTagToAllCells,
+    restoreBaseline,
+    incrementActiveProgressPages,
+    setAutoSuspendedForTimer,
+    setCurrentSegmentIndex,
   } = useAppStore()
 
   const textAreaRef = useRef<HTMLDivElement>(null)
@@ -136,17 +145,24 @@ export const TextReaderWindow: React.FC = () => {
     return () => obs.disconnect()
   }, [visible])
 
-  // rawSegments をページ配列に変換
-  const pages = useMemo(() => {
-    if (rawSegments.length === 0) return []
+  // rawSegments をページ配列に変換（segmentPageStarts も算出）
+  const { pages, segmentPageStarts } = useMemo(() => {
+    if (rawSegments.length === 0) return { pages: [] as string[], segmentPageStarts: [] as number[] }
     const { width, height } = textAreaSize
-    if (width === 0 || height === 0) return rawSegments
+    if (width === 0 || height === 0) {
+      return {
+        pages: rawSegments,
+        segmentPageStarts: rawSegments.map((_, i) => i),
+      }
+    }
     const allPages: string[] = []
+    const starts: number[] = []
     for (const seg of rawSegments) {
       if (seg.length === 0) continue
+      starts.push(allPages.length)
       allPages.push(...splitSegmentToPages(seg, width, height, config.fontSize, config.textDirection))
     }
-    return allPages.length > 0 ? allPages : []
+    return { pages: allPages.length > 0 ? allPages : [], segmentPageStarts: starts }
   }, [rawSegments, textAreaSize, config.fontSize, config.textDirection])
 
   const currentPage = pages[currentPageIndex] ?? ''
@@ -155,6 +171,61 @@ export const TextReaderWindow: React.FC = () => {
 
   const pagesRef = useRef(pages)
   pagesRef.current = pages
+
+  const segmentPageStartsRef = useRef(segmentPageStarts)
+  segmentPageStartsRef.current = segmentPageStarts
+
+  // ページ変更時のタグ評価・ロールバック
+  const prevPageIndexRef = useRef<number>(-1)
+  useEffect(() => {
+    if (!visible || tagEntries.length === 0 || segmentPageStarts.length === 0) return
+    const prev = prevPageIndexRef.current
+    prevPageIndexRef.current = currentPageIndex
+
+    // 現在ページに対応するセグメントを特定（最後の segmentPageStarts[i] <= currentPageIndex）
+    let currentSegIdx = -1
+    for (let i = 0; i < segmentPageStarts.length; i++) {
+      if ((segmentPageStarts[i] ?? 0) <= currentPageIndex) currentSegIdx = i
+      else break
+    }
+
+    // 現在セグメントに対して有効な最後のタグを探す
+    let newTagIndex: number | null = null
+    for (let i = 0; i < tagEntries.length; i++) {
+      const e = tagEntries[i]!
+      if (e.segmentIndex <= currentSegIdx) newTagIndex = i
+    }
+
+    const storeState = useAppStore.getState()
+    const currentTagIndex = storeState.textReader.activeTagIndex
+
+    setCurrentSegmentIndex(currentSegIdx)
+
+    if (newTagIndex !== currentTagIndex) {
+      if (newTagIndex === null) {
+        restoreBaseline()
+      } else {
+        // ページが前進してタグが変わった場合のみ進行ページをインクリメント
+        if (currentTagIndex !== null && newTagIndex === currentTagIndex && currentPageIndex > prev) {
+          incrementActiveProgressPages()
+        } else {
+          applyTagToAllCells(newTagIndex)
+        }
+      }
+    } else if (newTagIndex !== null && currentPageIndex > prev) {
+      // 同じタグのまま前進 → エフェクト進行率を更新
+      incrementActiveProgressPages()
+    }
+  }, [currentPageIndex, visible, tagEntries, segmentPageStarts]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // タイマー完了後に Auto を再開
+  useEffect(() => {
+    if (!autoSuspendedForTimer) return
+    if (timer.enabled && !timer.running && timer.elapsedSec >= timer.totalSec) {
+      setAutoSuspendedForTimer(false)
+      setTextReaderAutoAdvancing(true)
+    }
+  }, [timer.running, timer.elapsedSec, autoSuspendedForTimer]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ページ変更・設定変更時にアニメーションをリセット＆開始
   useEffect(() => {

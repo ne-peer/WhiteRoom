@@ -233,6 +233,39 @@ export type AppProfile = {
   fullscreen: boolean
 }
 
+// ===== ストーリーボードタグ =====
+
+export type StoryboardSimpleTag = {
+  kind: 'simple'
+  image: string
+}
+
+export type StoryboardRichTagPayload = {
+  image: string
+  effects: Partial<CellEffects>
+  progress?: { enabled: boolean; pages: number }
+  timer?: { enabled: boolean }
+}
+
+export type StoryboardRichTag = {
+  kind: 'rich'
+  version: string
+  payload: StoryboardRichTagPayload
+}
+
+export type StoryboardTag = StoryboardSimpleTag | StoryboardRichTag
+
+export type TagEntry = {
+  segmentIndex: number   // トリガーする cleanSegments のインデックス
+  tag: StoryboardTag
+}
+
+export type CellBaseline = {
+  cellId: string
+  overrideImage: string | null
+  effects: CellEffects
+}
+
 // ===== テキストリーダー =====
 
 export type TextReaderWindowPosition = 'top' | 'bottom' | 'left' | 'right'
@@ -294,6 +327,11 @@ export type OpenTextFileResult = {
   text?: string
 }
 
+export type SaveTextFileResult = {
+  success: boolean
+  error?: string
+}
+
 export type IpcApi = {
   openFolder: (language?: UiLanguage) => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
@@ -309,5 +347,6 @@ export type IpcApi = {
   openDevTools: () => Promise<void>
   listSystemFonts: () => Promise<string[]>
   openTextFile: (language?: UiLanguage) => Promise<OpenTextFileResult>
+  saveTextFile: (filePath: string, content: string) => Promise<SaveTextFileResult>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void
 }

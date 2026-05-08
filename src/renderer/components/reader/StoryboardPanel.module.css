@@ -1,0 +1,170 @@
+.panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(10, 10, 28, 0.96);
+  border: 1px solid rgba(120, 200, 140, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  color: rgba(220, 220, 255, 0.92);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(80, 200, 120, 0.12);
+  border-bottom: 1px solid rgba(120, 200, 140, 0.25);
+  user-select: none;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(160, 255, 190, 0.95);
+  letter-spacing: 0.02em;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: rgba(200, 200, 220, 0.60);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.12s;
+}
+
+.closeBtn:hover {
+  color: rgba(255, 120, 120, 0.90);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.btnRow {
+  display: flex;
+}
+
+.actionBtn {
+  flex: 1;
+  background: rgba(80, 140, 200, 0.22);
+  border: 1px solid rgba(100, 160, 255, 0.35);
+  color: rgba(190, 220, 255, 0.95);
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.actionBtn:hover {
+  background: rgba(80, 140, 200, 0.35);
+  border-color: rgba(120, 180, 255, 0.55);
+}
+
+.actionBtn:active {
+  background: rgba(80, 140, 200, 0.50);
+}
+
+.saveBtn {
+  background: rgba(80, 200, 120, 0.18);
+  border-color: rgba(100, 220, 140, 0.35);
+  color: rgba(160, 255, 190, 0.95);
+}
+
+.saveBtn:hover {
+  background: rgba(80, 200, 120, 0.30);
+  border-color: rgba(120, 240, 160, 0.55);
+}
+
+.progressRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+}
+
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(190, 190, 230, 0.85);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkLabel input[type='checkbox'] {
+  accent-color: rgba(120, 200, 140, 0.85);
+  cursor: pointer;
+}
+
+.progressInputRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 20px;
+}
+
+.numberInput {
+  width: 56px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(220, 220, 255, 0.90);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  outline: none;
+}
+
+.numberInput:focus {
+  border-color: rgba(120, 200, 140, 0.50);
+}
+
+.unit {
+  font-size: 11px;
+  color: rgba(160, 160, 200, 0.65);
+}
+
+.divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 0 -2px;
+}
+
+.statusMsg {
+  font-size: 11px;
+  color: rgba(160, 255, 190, 0.90);
+  text-align: center;
+  padding: 2px 0;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tip {
+  font-size: 10px;
+  color: rgba(130, 130, 170, 0.55);
+  padding: 6px 12px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  line-height: 1.5;
+}
