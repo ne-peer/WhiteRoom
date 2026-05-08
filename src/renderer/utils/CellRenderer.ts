@@ -34,6 +34,37 @@ export class CellRenderer {
   private echoMask: PIXI.Graphics
   private colorOverlayGraphics: PIXI.Graphics
   private echoSprite: PIXI.Sprite | null = null
+  private flashOverlaySprite: PIXI.Sprite | null = null
+  private flashOverlayVisible = false
+  private flashElapsedSec = 0
+  private flashCycleDurationSec = 0
+  private flashTextureKey: string | null = null
+  private flashTextureLoadingKey: string | null = null
+  private flashTextureRequestNonce = 0
+  private flashCurrentShowNonce = 0
+  private flashCurrentHideNonce = 0
+  private flashStartTween: gsap.core.Tween | null = null
+  private flashEndTween: gsap.core.Tween | null = null
+  private flashStartProxy:
+    | {
+        incomingOffsetX: number
+        incomingOffsetY: number
+        outgoingOffsetX: number
+        outgoingOffsetY: number
+        incomingScaleMultiplier: number
+      }
+    | null = null
+  private flashEndProxy:
+    | {
+        incomingOffsetX: number
+        incomingOffsetY: number
+        outgoingOffsetX: number
+        outgoingOffsetY: number
+        outgoingScaleMultiplier: number
+      }
+    | null = null
+  private flashOverlayEffect: import('../../shared/types').FlashEffect | null = null
+  private flashBaseOpacity = 1
   private vignetteSprite: PIXI.Sprite | null = null
   private vignetteTextureKey: string | null = null
   private radialBlurLayers: PIXI.Container[] = []
@@ -186,6 +217,7 @@ export class CellRenderer {
     this.refreshBlurRegion()
     this.setImageLayerFilters()
     this.textSystem.resizeMask(width, height)
+    this.positionFlashOverlaySprite()
   }
 
   setImageFit(imageFit: ImageFitMode = 'cover') {
@@ -286,6 +318,7 @@ export class CellRenderer {
     this.updateColorAdjustment(effects.colorOverlay)
     this.updateVignette(effects)
     this.updateEcho(effects)
+    this.updateFlash(effects)
     this.updateAsset(effects)
     this.updateText(effects)
   }
@@ -315,6 +348,8 @@ export class CellRenderer {
     this.blurGsapTween?.kill()
     this.colorAdjustGsapTween?.kill()
     this.echoGsapTween?.kill()
+    this.flashStartTween?.kill()
+    this.flashEndTween?.kill()
     this.resetBreathingMotion(withRandomDelay)
     this.resetShakeMotion()
     if (this.effectResetTimeoutId !== null) {
@@ -325,10 +360,13 @@ export class CellRenderer {
     this.blurGsapTween = null
     this.colorAdjustGsapTween = null
     this.echoGsapTween = null
+    this.flashStartTween = null
+    this.flashEndTween = null
     this.vignetteAnimationKey = null
     this.blurAnimationKey = null
     this.colorAdjustAnimationKey = null
     this.echoAnimationKey = null
+    this.clearFlashOverlay()
     this.breathingKey = null
     this.shakeKey = null
     this.textSystem.stop()
@@ -378,6 +416,7 @@ export class CellRenderer {
     this.updateBlur(effects)
     this.updateColorAdjustment(effects.colorOverlay)
     this.updateEcho(effects)
+    this.updateFlash(effects)
   }
 
   applyTimerProgress(effects: CellEffects, enabled: boolean, running: boolean, progress: number) {
@@ -474,6 +513,7 @@ export class CellRenderer {
     this.updateShakeAfterimages(delta)
     this.syncRadialBlurClones()
     this.syncEchoToImage()
+    this.updateFlashCycle(delta)
     this.particleSystem.update(
       delta,
       this.width,
@@ -499,6 +539,7 @@ export class CellRenderer {
     this.clearShakeAfterimages()
     this.clearShakeTrail()
     this.clearShakeTrailGuide()
+    this.clearFlashOverlay()
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.container.destroy({ children: true })
@@ -1662,6 +1703,243 @@ export class CellRenderer {
       this.echoLayer.removeChild(this.echoSprite)
       this.echoSprite.destroy({ texture: false })
       this.echoSprite = null
+    }
+  }
+
+  private async updateFlash(effects: CellEffects) {
+    const flash = effects.flash
+    this.flashOverlayEffect = flash
+    this.flashBaseOpacity = clamp(flash.opacity ?? 1, 0, 1)
+    this.flashCycleDurationSec = Math.max(
+      0.2,
+      (flash.displayDurationSec ?? 1) +
+      Math.max(0, flash.endTransitionDurationSec ?? 0) +
+      Math.max(0, flash.intervalSec ?? 0)
+    )
+    if (!flash.enabled || !flash.imagePath) {
+      this.clearFlashOverlay()
+      return
+    }
+
+    const textureKey = toFileUrl(flash.imagePath)
+    if (this.flashTextureKey !== textureKey || !this.flashOverlaySprite) {
+      const nonce = ++this.flashTextureRequestNonce
+      this.flashTextureLoadingKey = textureKey
+      try {
+        const loadableUrl = await toLoadableImageUrl(textureKey)
+        if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) return
+        const texture = await PIXI.Assets.load(loadableUrl)
+        if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) return
+        this.ensureFlashOverlaySprite(texture)
+        this.flashTextureKey = textureKey
+        this.flashElapsedSec = 0
+      } catch {
+        // ignore
+      }
+      return
+    }
+  }
+
+  private ensureFlashOverlaySprite(texture: PIXI.Texture) {
+    if (!this.flashOverlaySprite) {
+      this.flashOverlaySprite = new PIXI.Sprite(texture)
+      this.flashOverlaySprite.anchor.set(0.5)
+      this.flashOverlaySprite.alpha = 0
+      this.flashOverlaySprite.visible = false
+      this.overlayLayer.addChild(this.flashOverlaySprite)
+    } else {
+      this.flashOverlaySprite.texture = texture
+    }
+    this.flashOverlaySprite.alpha = this.flashBaseOpacity
+    this.positionFlashOverlaySprite()
+  }
+
+  private positionFlashOverlaySprite(offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
+    if (!this.flashOverlaySprite) return
+    const texW = this.flashOverlaySprite.texture.width
+    const texH = this.flashOverlaySprite.texture.height
+    const scale = this.getImageScale(texW, texH) * scaleMultiplier
+    this.flashOverlaySprite.scale.set(scale)
+    this.flashOverlaySprite.x = this.width / 2 + offsetX
+    this.flashOverlaySprite.y = this.height / 2 + offsetY
+  }
+
+  private updateFlashCycle(delta: number) {
+    const flash = this.flashOverlayEffect
+    if (!flash?.enabled || !flash.imagePath || !this.flashOverlaySprite) return
+    const dtSec = Math.max(0, delta) / 60
+    this.flashElapsedSec += dtSec
+    while (this.flashElapsedSec >= this.flashCycleDurationSec) {
+      this.flashElapsedSec -= this.flashCycleDurationSec
+      this.flashCurrentShowNonce += 1
+      this.flashCurrentHideNonce += 1
+      this.startFlashShow(this.flashCurrentShowNonce)
+    }
+    const shouldBeVisible = this.flashElapsedSec < Math.max(0.2, flash.displayDurationSec ?? 1)
+    if (shouldBeVisible !== this.flashOverlayVisible) {
+      if (shouldBeVisible) {
+        this.flashCurrentShowNonce += 1
+        this.startFlashShow(this.flashCurrentShowNonce)
+      } else {
+        this.flashCurrentHideNonce += 1
+        this.startFlashHide(this.flashCurrentHideNonce)
+      }
+    }
+    if (this.flashOverlayVisible) this.syncFlashOverlayToImage()
+  }
+
+  private startFlashShow(nonce: number) {
+    const flash = this.flashOverlayEffect
+    const sprite = this.flashOverlaySprite
+    if (!flash || !sprite) return
+    this.flashOverlayVisible = true
+    this.flashEndTween?.kill()
+    this.flashEndTween = null
+    this.flashStartTween?.kill()
+    this.flashStartTween = null
+    sprite.visible = true
+    sprite.alpha = this.flashBaseOpacity
+    this.positionFlashOverlaySprite()
+    if (flash.startTransition === 'none') return
+    const duration = Math.max(0.05, flash.startTransitionDurationSec)
+    const proxy = {
+      incomingOffsetX: 0,
+      incomingOffsetY: 0,
+      outgoingOffsetX: 0,
+      outgoingOffsetY: 0,
+      incomingScaleMultiplier: flash.startTransition === 'zoom-in' ? 1.12 : 0.88,
+    }
+    if (flash.startTransition === 'fade') {
+      sprite.alpha = 0
+      this.flashStartTween = gsap.to(sprite, { alpha: this.flashBaseOpacity, duration, ease: 'sine.out' })
+      return
+    }
+    if (flash.startTransition === 'slide-left' || flash.startTransition === 'slide-right' || flash.startTransition === 'slide-up' || flash.startTransition === 'slide-down') {
+      proxy.incomingOffsetX = flash.startTransition === 'slide-left' ? this.width : flash.startTransition === 'slide-right' ? -this.width : 0
+      proxy.incomingOffsetY = flash.startTransition === 'slide-up' ? this.height : flash.startTransition === 'slide-down' ? -this.height : 0
+      this.positionFlashOverlaySprite(proxy.incomingOffsetX, proxy.incomingOffsetY, 1)
+      this.flashStartProxy = proxy
+      this.flashStartTween = gsap.to(proxy, {
+        incomingOffsetX: 0,
+        incomingOffsetY: 0,
+        duration,
+        ease: 'sine.out',
+        onUpdate: () => {
+          if (nonce !== this.flashCurrentShowNonce || !this.flashOverlayVisible || !this.flashOverlaySprite) return
+          this.positionFlashOverlaySprite(proxy.incomingOffsetX, proxy.incomingOffsetY, 1)
+        },
+      })
+      return
+    }
+    this.flashStartProxy = proxy
+    this.flashStartTween = gsap.to(proxy, {
+      incomingScaleMultiplier: 1,
+      duration,
+      ease: 'sine.out',
+      onUpdate: () => {
+        if (nonce !== this.flashCurrentShowNonce || !this.flashOverlayVisible || !this.flashOverlaySprite) return
+        this.positionFlashOverlaySprite(0, 0, proxy.incomingScaleMultiplier)
+      },
+    })
+  }
+
+  private startFlashHide(nonce: number) {
+    const flash = this.flashOverlayEffect
+    const sprite = this.flashOverlaySprite
+    if (!flash || !sprite) return
+    this.flashOverlayVisible = false
+    this.flashStartTween?.kill()
+    this.flashStartTween = null
+    this.flashEndTween?.kill()
+    this.flashEndTween = null
+    const finish = () => {
+      if (nonce !== this.flashCurrentHideNonce || this.flashOverlayVisible || !this.flashOverlaySprite) return
+      this.flashOverlaySprite.visible = false
+      this.flashOverlaySprite.alpha = 0
+      this.positionFlashOverlaySprite()
+    }
+    if (flash.endTransition === 'none') {
+      finish()
+      return
+    }
+    const duration = Math.max(0.05, flash.endTransitionDurationSec)
+    if (flash.endTransition === 'fade') {
+      this.flashEndTween = gsap.to(sprite, { alpha: 0, duration, ease: 'sine.out', onComplete: finish })
+      return
+    }
+    if (flash.endTransition === 'slide-left' || flash.endTransition === 'slide-right' || flash.endTransition === 'slide-up' || flash.endTransition === 'slide-down') {
+      const proxy = {
+        incomingOffsetX: 0,
+        incomingOffsetY: 0,
+        outgoingOffsetX: flash.endTransition === 'slide-left' ? -this.width * 0.25 : flash.endTransition === 'slide-right' ? this.width * 0.25 : 0,
+        outgoingOffsetY: flash.endTransition === 'slide-up' ? -this.height * 0.25 : flash.endTransition === 'slide-down' ? this.height * 0.25 : 0,
+        outgoingScaleMultiplier: 1,
+      }
+      this.flashEndProxy = proxy
+      this.flashEndTween = gsap.to(proxy, {
+        outgoingOffsetX: proxy.outgoingOffsetX,
+        outgoingOffsetY: proxy.outgoingOffsetY,
+        duration,
+        ease: 'sine.out',
+        onUpdate: () => {
+          if (nonce !== this.flashCurrentHideNonce || this.flashOverlayVisible || !this.flashOverlaySprite) return
+          this.flashOverlaySprite.alpha = Math.max(0, this.flashBaseOpacity * (1 - (this.flashEndTween?.progress() ?? 0)))
+          this.positionFlashOverlaySprite(proxy.outgoingOffsetX, proxy.outgoingOffsetY, 1)
+        },
+        onComplete: finish,
+      })
+      return
+    }
+    const proxy = {
+      incomingOffsetX: 0,
+      incomingOffsetY: 0,
+      outgoingOffsetX: 0,
+      outgoingOffsetY: 0,
+      outgoingScaleMultiplier: flash.endTransition === 'zoom-in' ? 1.12 : 0.88,
+    }
+    this.flashEndProxy = proxy
+    this.flashEndTween = gsap.to(proxy, {
+      outgoingScaleMultiplier: flash.endTransition === 'zoom-in' ? 1.2 : 0.8,
+      duration,
+      ease: 'sine.out',
+      onUpdate: () => {
+        if (nonce !== this.flashCurrentHideNonce || this.flashOverlayVisible || !this.flashOverlaySprite) return
+        this.flashOverlaySprite.alpha = Math.max(0, this.flashBaseOpacity * (1 - (this.flashEndTween?.progress() ?? 0)))
+        this.positionFlashOverlaySprite(0, 0, proxy.outgoingScaleMultiplier)
+      },
+      onComplete: finish,
+    })
+  }
+
+  private syncFlashOverlayToImage() {
+    if (!this.flashOverlaySprite || !this.flashOverlayVisible) return
+    if (this.flashStartProxy) {
+      this.positionFlashOverlaySprite(this.flashStartProxy.incomingOffsetX, this.flashStartProxy.incomingOffsetY, this.flashStartProxy.incomingScaleMultiplier)
+      return
+    }
+    if (this.flashEndProxy) {
+      this.positionFlashOverlaySprite(this.flashEndProxy.outgoingOffsetX, this.flashEndProxy.outgoingOffsetY, this.flashEndProxy.outgoingScaleMultiplier)
+      return
+    }
+    this.positionFlashOverlaySprite()
+  }
+
+  private clearFlashOverlay() {
+    this.flashStartTween?.kill()
+    this.flashEndTween?.kill()
+    this.flashStartTween = null
+    this.flashEndTween = null
+    this.flashStartProxy = null
+    this.flashEndProxy = null
+    this.flashOverlayVisible = false
+    this.flashElapsedSec = 0
+    this.flashTextureKey = null
+    this.flashTextureLoadingKey = null
+    this.flashOverlayEffect = null
+    if (this.flashOverlaySprite) {
+      this.overlayLayer.removeChild(this.flashOverlaySprite)
+      this.flashOverlaySprite.destroy({ texture: false })
+      this.flashOverlaySprite = null
     }
   }
 

@@ -112,6 +112,20 @@ export type EchoEffect = {
   timerSync: boolean        // タイマー同期
 }
 
+export type FlashStartTransition = SlideShowTransition
+
+export type FlashEffect = {
+  enabled: boolean
+  imagePath: string | null
+  opacity: number
+  displayDurationSec: number
+  intervalSec: number
+  startTransition: FlashStartTransition
+  startTransitionDurationSec: number
+  endTransition: SlideShowTransition
+  endTransitionDurationSec: number
+}
+
 export type BreathingEffect = {
   enabled: boolean
   speedPxPerSec: number
@@ -194,6 +208,7 @@ export type CellEffects = {
   vignette: VignetteEffect
   blur: BlurEffect
   echo: EchoEffect
+  flash: FlashEffect
   breathing: BreathingEffect
   shake: ShakeEffect
   dynamicAsset: DynamicAssetEffect

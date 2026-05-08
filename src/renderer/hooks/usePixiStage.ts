@@ -214,7 +214,8 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       const hasActiveTimedEffect =
         (cell.effects.vignette.enabled && cell.effects.vignette.dynamic) ||
         (cell.effects.blur.enabled && cell.effects.blur.gradualEnabled) ||
-        cell.effects.echo.enabled
+        cell.effects.echo.enabled ||
+        cell.effects.flash.enabled
       if (!hasActiveTimedEffect) return
 
       const cr = cellRenderersRef.current.get(cell.id)

@@ -59,6 +59,17 @@ const EFFECT_PRESET_1: CellEffects = {
     endScale: 1.12,
     timerSync: false,
   },
+  flash: {
+    enabled: false,
+    imagePath: null,
+    opacity: 1,
+    displayDurationSec: 1,
+    intervalSec: 1,
+    startTransition: 'none',
+    startTransitionDurationSec: 0.6,
+    endTransition: 'fade',
+    endTransitionDurationSec: 0.6,
+  },
   breathing: {
     enabled: true,
     speedPxPerSec: 8,
@@ -197,6 +208,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...rawEffects.colorOverlay },
     vignette: { ...DEFAULT_EFFECTS.vignette, ...rawEffects.vignette },
     blur: { ...DEFAULT_EFFECTS.blur, ...rawEffects.blur },
+    flash: { ...DEFAULT_EFFECTS.flash, ...rawEffects.flash },
     breathing: { ...DEFAULT_EFFECTS.breathing, ...rawEffects.breathing },
     shake: { ...DEFAULT_EFFECTS.shake, ...rawEffects.shake },
     dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...rawEffects.dynamicAsset },
@@ -210,6 +222,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect(selectedCellId, 'vignette', structuredClone(EFFECT_PRESET_1.vignette))
     setCellEffect(selectedCellId, 'blur', structuredClone(EFFECT_PRESET_1.blur))
     setCellEffect(selectedCellId, 'echo', structuredClone(EFFECT_PRESET_1.echo))
+    setCellEffect(selectedCellId, 'flash', structuredClone(EFFECT_PRESET_1.flash))
     setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_1.breathing))
     setCellEffect(selectedCellId, 'shake', structuredClone(EFFECT_PRESET_1.shake))
     setCellEffect(selectedCellId, 'dynamicAsset', structuredClone(EFFECT_PRESET_1.dynamicAsset))
@@ -237,6 +250,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     const result = await window.api.openAssetFolder(language)
     if (!result.canceled && result.folderPath && result.images && result.images.length > 0) {
       set('dynamicAsset', { assetPath: result.images[0], assetPaths: result.images, assetFolderPath: result.folderPath })
+    }
+  }
+  const handleOpenFlashImage = async () => {
+    const result = await window.api.openOverlayImage(language)
+    if (!result.canceled && result.filePath) {
+      set('flash', { imagePath: result.filePath })
     }
   }
 
@@ -932,6 +951,118 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 step={100}
                 unit="ms"
                 onChange={v => set('textEffect', { intervalMs: v })}
+              />
+            </Row>
+          </>
+        )}
+      </Section>
+
+      <Section title={t('flashEffect')}>
+        <Row label={t('enabled')}>
+          <Toggle value={effects.flash.enabled} onChange={v => set('flash', { enabled: v })} />
+        </Row>
+        {effects.flash.enabled && (
+          <>
+            <Row label={t('flashImage')}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+                <Button variant="secondary" onClick={handleOpenFlashImage}>
+                  {t('selectImage')}
+                </Button>
+                {effects.flash.imagePath && (
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
+                    {effects.flash.imagePath.split(/[\\/]/).pop()}
+                  </div>
+                )}
+              </div>
+            </Row>
+            <Row label={t('flashStartTransition')}>
+              <Select
+                value={effects.flash.startTransition}
+                options={[
+                  { value: 'none', label: t('transitionNone') },
+                  { value: 'fade', label: t('transitionFade') },
+                  { value: 'slide-left', label: t('transitionSlideLeft') },
+                  { value: 'slide-right', label: t('transitionSlideRight') },
+                  { value: 'slide-up', label: t('transitionSlideUp') },
+                  { value: 'slide-down', label: t('transitionSlideDown') },
+                  { value: 'zoom-in', label: t('transitionZoomIn') },
+                  { value: 'zoom-out', label: t('transitionZoomOut') },
+                ]}
+                onChange={v => set('flash', { startTransition: v as import('../../../shared/types').FlashStartTransition })}
+              />
+            </Row>
+            <Row label={t('drawSpeed')}>
+              {effects.flash.startTransition === 'none' ? (
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>-</div>
+              ) : (
+                <Slider
+                  value={effects.flash.startTransitionDurationSec}
+                  min={0.2}
+                  max={5}
+                  step={0.1}
+                  unit={t('seconds')}
+                  onChange={v => set('flash', { startTransitionDurationSec: v })}
+                />
+              )}
+            </Row>
+            <Row label={t('flashEndTransition')}>
+              <Select
+                value={effects.flash.endTransition}
+                options={[
+                  { value: 'none', label: t('transitionNone') },
+                  { value: 'fade', label: t('transitionFade') },
+                  { value: 'slide-left', label: t('transitionSlideLeft') },
+                  { value: 'slide-right', label: t('transitionSlideRight') },
+                  { value: 'slide-up', label: t('transitionSlideUp') },
+                  { value: 'slide-down', label: t('transitionSlideDown') },
+                  { value: 'zoom-in', label: t('transitionZoomIn') },
+                  { value: 'zoom-out', label: t('transitionZoomOut') },
+                ]}
+                onChange={v => set('flash', { endTransition: v as import('../../../shared/types').SlideShowTransition })}
+              />
+            </Row>
+            <Row label={t('opacity')}>
+              <Slider
+                value={Math.round(effects.flash.opacity * 100)}
+                min={0}
+                max={100}
+                step={1}
+                unit="%"
+                onChange={v => set('flash', { opacity: v / 100 })}
+              />
+            </Row>
+            <Row label={t('drawSpeed')}>
+              {effects.flash.endTransition === 'none' ? (
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>-</div>
+              ) : (
+                <Slider
+                  value={effects.flash.endTransitionDurationSec}
+                  min={0.2}
+                  max={5}
+                  step={0.1}
+                  unit={t('seconds')}
+                  onChange={v => set('flash', { endTransitionDurationSec: v })}
+                />
+              )}
+            </Row>
+            <Row label={t('displayDuration')}>
+              <Slider
+                value={effects.flash.displayDurationSec}
+                min={0.2}
+                max={5}
+                step={0.2}
+                unit={t('seconds')}
+                onChange={v => set('flash', { displayDurationSec: v })}
+              />
+            </Row>
+            <Row label={t('displayInterval')}>
+              <Slider
+                value={effects.flash.intervalSec}
+                min={0}
+                max={60}
+                step={1}
+                unit={t('seconds')}
+                onChange={v => set('flash', { intervalSec: v })}
               />
             </Row>
           </>
