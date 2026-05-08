@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useTranslation } from '../../i18n'
 import type { IpcApi } from '../../../shared/types'
@@ -29,6 +29,35 @@ export const StoryboardPanel: React.FC = () => {
   const [progressEnabled, setProgressEnabled] = useState(false)
   const [progressPages, setProgressPages] = useState(5)
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
+  const [pos, setPos] = useState({ x: 0, y: 0 })
+  const isDragging = useRef(false)
+  const dragStartMouse = useRef({ x: 0, y: 0 })
+  const dragStartPos = useRef({ x: 0, y: 0 })
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return
+      setPos({
+        x: dragStartPos.current.x + e.clientX - dragStartMouse.current.x,
+        y: dragStartPos.current.y + e.clientY - dragStartMouse.current.y,
+      })
+    }
+    const onMouseUp = () => { isDragging.current = false }
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
+
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    isDragging.current = true
+    dragStartMouse.current = { x: e.clientX, y: e.clientY }
+    dragStartPos.current = { x: pos.x, y: pos.y }
+    e.preventDefault()
+  }
 
   const filePath = useAppStore(s => s.textReader.filePath)
   const currentSegmentIndex = useAppStore(s => s.textReader.currentSegmentIndex)
@@ -115,8 +144,8 @@ export const StoryboardPanel: React.FC = () => {
   }
 
   return (
-    <div className={styles.panel}>
-      <div className={styles.header}>
+    <div className={styles.panel} style={{ left: pos.x, top: pos.y }}>
+      <div className={styles.header} onMouseDown={handleHeaderMouseDown}>
         <span className={styles.title}>{t('storyboardTitle')}</span>
         <button className={styles.closeBtn} onClick={() => setStoryboardOpen(false)}>×</button>
       </div>

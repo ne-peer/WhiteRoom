@@ -2,7 +2,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
+  width: 230px;
   z-index: 100;
   background: rgba(10, 10, 28, 0.96);
   border: 1px solid rgba(120, 200, 140, 0.35);
@@ -23,6 +23,11 @@
   background: rgba(80, 200, 120, 0.12);
   border-bottom: 1px solid rgba(120, 200, 140, 0.25);
   user-select: none;
+  cursor: grab;
+}
+
+.header:active {
+  cursor: grabbing;
 }
 
 .title {

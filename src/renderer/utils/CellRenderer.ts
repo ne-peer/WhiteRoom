@@ -92,6 +92,10 @@ export class CellRenderer {
   private timerEnabled = false
   private timerRunning = false
 
+  // ストーリーボード進行スケール（null = 非アクティブ）
+  private storyboardScale: number | null = null
+  private storyboardScaleActive = false
+
   constructor(cellId: string, width: number, height: number) {
     this.cellId = cellId
     this.width = width
@@ -366,6 +370,56 @@ export class CellRenderer {
     // テキスト・アセット・エコー・ブリージングはtimerProgressを参照する各メソッドで反映
     this.textSystem.setTimerProgress(progress)
     this.particleSystem.setTimerProgress(progress)
+
+    // タイマー同期なし効果へのストーリーボードスケール適用
+    this.applyStoryboardScaleToEffects(effects)
+  }
+
+  // ストーリーボード進行スケールの設定（tickerから毎フレーム呼び出す）
+  setStoryboardScale(scale: number | null) {
+    if (!this.storyboardScaleActive && scale !== null) {
+      // 開始: GSAP停止・アニメーションキーリセット（次のupdateEffectsでGSAPスキップ）
+      this.storyboardScaleActive = true
+      this.vignetteGsapTween?.kill()
+      this.vignetteGsapTween = null
+      this.blurGsapTween?.kill()
+      this.blurGsapTween = null
+    } else if (this.storyboardScaleActive && scale === null) {
+      // 終了: キーリセットで次のupdateEffects呼び出し時にGSAP再起動
+      this.storyboardScaleActive = false
+      this.vignetteAnimationKey = null
+      this.blurAnimationKey = null
+    }
+    this.storyboardScale = scale
+  }
+
+  private applyStoryboardScaleToEffects(effects: CellEffects) {
+    const scale = this.storyboardScale
+    if (scale === null) return
+
+    // ビネット（timerSync 以外）
+    const vig = effects.vignette
+    if (vig.enabled && this.vignetteSprite?.visible && !(vig.dynamic && vig.dynamicTimerSync)) {
+      const target = vig.dynamic ? vig.dynamicTo : vig.alpha
+      this.vignetteSprite.alpha = target * scale
+    }
+
+    // カラーオーバーレイ
+    if (effects.colorOverlay.enabled) {
+      this.colorOverlayGraphics.alpha = scale
+    }
+
+    // ブラー（timerSync 以外）
+    const blur = effects.blur
+    if (blur.enabled && !(blur.gradualEnabled && blur.gradualTimerSync)) {
+      const target = blur.gradualEnabled ? blur.gradualEndStrength : blur.strength
+      const s = target * scale
+      if (this.radialBlurFilters.length > 0) {
+        this.radialBlurFilters.forEach(({ filter, multiplier }) => { filter.strength = s * multiplier })
+      } else if (this.blurFilter) {
+        this.blurFilter.strength = s
+      }
+    }
   }
 
   tick(delta: number, effects: CellEffects) {
@@ -1183,6 +1237,10 @@ export class CellRenderer {
             this.vignetteSprite.alpha = vig.dynamicFrom + (vig.dynamicTo - vig.dynamicFrom) * this.timerProgress
           }
         }
+      } else if (this.storyboardScaleActive) {
+        // ストーリーボードモード: GSAPをスキップ（applyStoryboardScaleToEffects が制御）
+        this.vignetteGsapTween?.kill()
+        this.vignetteGsapTween = null
       } else {
         const animationKey = [
           vig.dynamicFrom,
@@ -1214,7 +1272,9 @@ export class CellRenderer {
         this.vignetteGsapTween = null
       }
       this.vignetteAnimationKey = null
-      this.vignetteSprite.alpha = vig.alpha
+      if (!this.storyboardScaleActive) {
+        this.vignetteSprite.alpha = vig.alpha
+      }
     }
   }
 
@@ -1288,6 +1348,11 @@ export class CellRenderer {
       // タイマー同期: GSAPなし、timerProgressで直接強度設定
       const strength = blur.gradualStartStrength + (blur.gradualEndStrength - blur.gradualStartStrength) * this.timerProgress
       blurFilters.forEach(({ filter, multiplier }) => { filter.strength = strength * multiplier })
+      return
+    }
+
+    if (this.storyboardScaleActive) {
+      // ストーリーボードモード: GSAPをスキップ（applyStoryboardScaleToEffects が強度を制御）
       return
     }
 
