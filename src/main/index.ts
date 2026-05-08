@@ -181,6 +181,161 @@ function extractMetaImageUrl(html: string): string | null {
   return null
 }
 
+type PixivIllustPage = {
+  urls?: {
+    original?: string
+    regular?: string
+  }
+}
+
+type PixivIllustBody = {
+  urls?: {
+    original?: string
+    regular?: string
+  }
+}
+
+type PixivIllustResponse = {
+  error?: boolean
+  body?: PixivIllustBody
+}
+
+type PixivIllustPagesResponse = {
+  error?: boolean
+  body?: PixivIllustPage[]
+}
+
+function getPixivArtworkId(url: URL): string | null {
+  const artworkMatch = /^\/(?:en\/)?artworks\/(\d+)/.exec(url.pathname)
+  if (artworkMatch?.[1]) return artworkMatch[1]
+  const legacyId = url.searchParams.get('illust_id')
+  return legacyId && /^\d+$/.test(legacyId) ? legacyId : null
+}
+
+function getPixivArtworkPageIndex(url: URL): number {
+  const pageMatch = /[_?&]p(?:age)?=(\d+)/.exec(`${url.pathname}${url.search}${url.hash}`)
+  if (!pageMatch?.[1]) return 0
+  const page = Number.parseInt(pageMatch[1], 10)
+  return Number.isFinite(page) && page >= 0 ? page : 0
+}
+
+function getPximgOriginalCandidates(url: URL): string[] {
+  if (!url.hostname.endsWith('pximg.net')) return []
+  const normalizedPath = url.pathname.replace(/^\/c\/[^/]+\/(?=img-master\/img\/)/, '/')
+  if (!normalizedPath.includes('/img-master/img/')) return []
+
+  const originalBasePath = normalizedPath
+    .replace('/img-master/img/', '/img-original/img/')
+    .replace(/_(?:master|square|custom)\d+(?:_\d+)?(?=\.[^.\/]+$)/, '')
+
+  const originalBaseUrl = new URL(url.toString())
+  originalBaseUrl.pathname = originalBasePath
+  originalBaseUrl.search = ''
+  originalBaseUrl.hash = ''
+
+  const extMatch = /\.([^.\/]+)$/.exec(originalBasePath)
+  const currentExt = extMatch?.[1]?.toLowerCase()
+  const extensions = [currentExt, 'png', 'jpg', 'jpeg', 'webp']
+    .filter((ext): ext is string => Boolean(ext))
+    .filter((ext, index, list) => list.indexOf(ext) === index)
+
+  return extensions.map(ext => {
+    const candidate = new URL(originalBaseUrl.toString())
+    candidate.pathname = originalBasePath.replace(/\.[^.\/]+$/, `.${ext}`)
+    return candidate.toString()
+  })
+}
+
+function fetchText(url: URL, accept: string): Promise<{ statusCode?: number; contentType?: string; text?: string; error?: string }> {
+  return new Promise((resolve) => {
+    const client = url.protocol === 'https:' ? httpsGet : httpGet
+    const request = client(url, {
+      headers: {
+        Accept: accept,
+        Referer: getRemoteImageReferer(url),
+        'User-Agent': 'Mozilla/5.0 WhiteRoom/1.0',
+      },
+    }, (response) => {
+      const contentTypeHeader = response.headers['content-type']
+      const contentType = Array.isArray(contentTypeHeader) ? contentTypeHeader[0] : contentTypeHeader
+      if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+        response.resume()
+        resolve({ statusCode: response.statusCode, contentType, error: `HTTP ${response.statusCode ?? 'error'}` })
+        return
+      }
+      const chunks: Buffer[] = []
+      let total = 0
+      response.on('data', (chunk: Buffer) => {
+        total += chunk.length
+        if (total > 1024 * 1024) {
+          request.destroy(new Error('Response is too large'))
+          return
+        }
+        chunks.push(chunk)
+      })
+      response.on('end', () => {
+        resolve({ statusCode: response.statusCode, contentType, text: Buffer.concat(chunks).toString('utf-8') })
+      })
+    })
+    request.on('error', error => {
+      resolve({ error: error.message })
+    })
+    request.setTimeout(15000, () => {
+      request.destroy(new Error('Remote request timed out'))
+    })
+  })
+}
+
+async function fetchPixivOriginalCandidates(url: URL): Promise<string[]> {
+  const artworkId = getPixivArtworkId(url)
+  if (!artworkId) return []
+  const pageIndex = getPixivArtworkPageIndex(url)
+  const candidates: string[] = []
+
+  const pagesUrl = new URL(`https://www.pixiv.net/ajax/illust/${artworkId}/pages`)
+  const pagesResponse = await fetchText(pagesUrl, 'application/json,text/plain,*/*')
+  if (pagesResponse.text) {
+    try {
+      const parsed = JSON.parse(pagesResponse.text) as PixivIllustPagesResponse
+      const original = parsed.error === false ? parsed.body?.[pageIndex]?.urls?.original : undefined
+      const regular = parsed.error === false ? parsed.body?.[pageIndex]?.urls?.regular : undefined
+      if (original) candidates.push(original)
+      if (regular) candidates.push(...getPximgOriginalCandidates(new URL(regular)), regular)
+    } catch {
+      // Fall back to the single-illust endpoint below.
+    }
+  }
+
+  const illustUrl = new URL(`https://www.pixiv.net/ajax/illust/${artworkId}`)
+  const illustResponse = await fetchText(illustUrl, 'application/json,text/plain,*/*')
+  if (illustResponse.text) {
+    try {
+      const parsed = JSON.parse(illustResponse.text) as PixivIllustResponse
+      const original = parsed.error === false ? parsed.body?.urls?.original : undefined
+      const regular = parsed.error === false ? parsed.body?.urls?.regular : undefined
+      if (original) candidates.push(original)
+      if (regular) candidates.push(...getPximgOriginalCandidates(new URL(regular)), regular)
+    } catch {
+      // The normal HTML/OG image path remains as a final fallback.
+    }
+  }
+
+  return candidates.filter((candidate, index, list) => list.indexOf(candidate) === index)
+}
+
+async function tryPixivOriginalImage(rawUrl: string, url: URL, redirectCount: number): Promise<RemoteImageResult | null> {
+  const candidates = [
+    ...getPximgOriginalCandidates(url),
+    ...(url.hostname.endsWith('pixiv.net') ? await fetchPixivOriginalCandidates(url) : []),
+  ].filter(candidate => candidate !== rawUrl)
+
+  for (const candidate of candidates) {
+    const result = await downloadRemoteImageAsDataUrl(candidate, false, redirectCount + 1)
+    if (result.success) return result
+  }
+  return null
+}
+
 function downloadRemoteImageAsDataUrl(rawUrl: string, countPixivUrl: boolean, redirectCount = 0): Promise<RemoteImageResult> {
   return new Promise((resolve) => {
     if (redirectCount > 5) {
@@ -213,6 +368,26 @@ function downloadRemoteImageAsDataUrl(rawUrl: string, countPixivUrl: boolean, re
       return
     }
 
+    if (isPixivHost(url)) {
+      tryPixivOriginalImage(rawUrl, url, redirectCount).then(originalResult => {
+        if (originalResult) {
+          resolve(originalResult)
+          return
+        }
+        requestRemoteImage(url, redirectCount, resolve)
+      })
+      return
+    }
+
+    requestRemoteImage(url, redirectCount, resolve)
+  })
+}
+
+function requestRemoteImage(
+  url: URL,
+  redirectCount: number,
+  resolve: (value: RemoteImageResult) => void
+) {
     const client = url.protocol === 'https:' ? httpsGet : httpGet
     const request = client(url, {
       headers: {
@@ -292,7 +467,6 @@ function downloadRemoteImageAsDataUrl(rawUrl: string, countPixivUrl: boolean, re
     request.setTimeout(15000, () => {
       request.destroy(new Error('Remote image request timed out'))
     })
-  })
 }
 
 function cleanupTextReaderTempFilePath(tempFilePath: string): CleanupTextReaderTempFileResult {
