@@ -25,7 +25,7 @@
 
 #### 方法1: ターミナルで隔離フラグを解除する
 
-**※コマンドの末尾はDLしたバージョンにあわせて書き換えてください！**
+*※コマンドはファイル名にあわせて書き換えてください*
 
 ```bash
 xattr -d com.apple.quarantine ~/Downloads/WhiteRoom.for.Mac_arm64_v*.dmg
