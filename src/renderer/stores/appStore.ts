@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
+import { current } from 'immer'
 import type {
   AppProfile, Cell, CellBaseline, CellEffects, CellFolder, GridLayout,
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
@@ -752,7 +753,8 @@ export const useAppStore = create<AppStore>()(
       const entry = s.textReader.tagEntries[tagIndex]
       if (!entry) return
 
-      const { tag } = entry
+      const plainEntry = current(entry)
+      const { tag } = plainEntry
       const image = tag.kind === 'simple' ? tag.image : tag.payload.image
       const effects = tag.kind === 'rich' ? tag.payload.effects : undefined
 
@@ -776,9 +778,9 @@ export const useAppStore = create<AppStore>()(
         s.cellTagOverrides[cell.id] = image
         if (effects) {
           cell.effects = {
-            ...structuredClone(cell.effects),
-            ...structuredClone(effects as CellEffects),
-          }
+            ...current(cell.effects),
+            ...effects,
+          } as CellEffects
         }
       })
 
