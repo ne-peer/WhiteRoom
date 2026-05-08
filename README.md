@@ -1,4 +1,4 @@
-﻿![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ne-peer/WhiteRoom/total?style=flat&color=FF6496)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ne-peer/WhiteRoom/total?style=flat&color=FF6496)
 
 <div>
    <h1 align="center">WhiteRoom</h1> 
@@ -25,7 +25,7 @@
 
 #### 方法1: ターミナルで隔離フラグを解除する
 
-**※コマンドの末尾はDLしたバージョンにあわせて書き換えてください！**
+*※コマンドはファイル名にあわせて書き換えてください*
 
 ```bash
 xattr -d com.apple.quarantine ~/Downloads/WhiteRoom.for.Mac_arm64_v*.dmg
@@ -304,7 +304,3 @@ src/
 - `blankBackground` は現在の保存形式に含まれます。未指定で読み込んだ場合は `{ "mode": "color", "dynamicBlur": 30 }` が補完されます。
 - `cells[].slideshow`、`cells[].effects`、`timer.endFlash`、`timer.preOverlay` は読み込み時に既定値とマージされるため、旧バージョンの JSON で一部キーがなくても取り込み可能です。
 - `textReader` の設定や開いているテキストファイル状態は `AppProfile` には含まれず、プロファイル JSON には保存されません。
-
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ne-peer/WhiteRoom/total?style=flat&logoColor=%23FF6496)
-
-https://img.shields.io/badge/%2Fgithub%2Fdownloads%2Fne-peer%2FWhiteRoom%2Ftotal?style=flat&logoColor=%23FF6496
