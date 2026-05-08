@@ -115,6 +115,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     applyEffectsToAll,
     restartEffectsWithRandomTiming,
     syncActiveEffectsInSelectedColumn,
+    resetEffectsInSelectedColumn,
     enableAllTimerSyncForSelectedCell,
     disableAllTimerSyncForSelectedCell,
   } = useAppStore()
@@ -870,6 +871,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           >
             {t('syncColumnEffectTiming')}
           </Button>
+        </div>
+        <div style={{ marginTop: 6, textAlign: 'right' }}>
+          <button
+            type="button"
+            onClick={resetEffectsInSelectedColumn}
+            style={{
+              appearance: 'none',
+              border: 'none',
+              background: 'transparent',
+              color: 'rgba(180,72,72,0.72)',
+              cursor: 'pointer',
+              fontSize: 10,
+              padding: 0,
+              textAlign: 'right',
+            }}
+          >
+            {t('resetColumnEffects')}
+          </button>
         </div>
       </Section>
 

@@ -270,6 +270,7 @@ export type AppActions = {
   applyEffectsToAll: () => void
   restartEffectsWithRandomTiming: () => void
   syncActiveEffectsInSelectedColumn: () => void
+  resetEffectsInSelectedColumn: () => void
   enableAllTimerSyncForSelectedCell: () => void
   disableAllTimerSyncForSelectedCell: () => void
   setApplyEffectChangesToAllColumns: (flag: boolean) => void
@@ -545,6 +546,17 @@ export const useAppStore = create<AppStore>()(
       if (!selectedCell) return
       s.effectColumnSyncCol = selectedCell.col
       s.effectColumnSyncNonce += 1
+    }),
+
+    resetEffectsInSelectedColumn: () => set(s => {
+      const selectedCell = s.cells.find(c => c.id === s.selectedCellId)
+      if (!selectedCell) return
+      s.cells.forEach(cell => {
+        if (cell.col === selectedCell.col) {
+          cell.effects = structuredClone(DEFAULT_EFFECTS)
+        }
+      })
+      s.effectSyncNonce += 1
     }),
 
     enableAllTimerSyncForSelectedCell: () => set(s => {
