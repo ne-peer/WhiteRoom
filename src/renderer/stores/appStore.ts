@@ -135,6 +135,7 @@ export const DEFAULT_TEXT_READER_CONFIG: TextReaderConfig = {
   windowPosition: 'bottom',
   textDirection: 'horizontal',
   textWindowWidthPercent: 35,
+  textWindowMaxWidthPx: 3840,
   fontFamily: 'Meiryo',
   fontSize: 20,
   charIntervalMs: 50,
@@ -148,10 +149,14 @@ function normalizeTextReaderConfig(config: TextReaderConfig): TextReaderConfig {
   const widthPercent = Number.isFinite(config.textWindowWidthPercent)
     ? config.textWindowWidthPercent
     : DEFAULT_TEXT_READER_CONFIG.textWindowWidthPercent
+  const maxWidthPx = Number.isFinite(config.textWindowMaxWidthPx)
+    ? config.textWindowMaxWidthPx
+    : DEFAULT_TEXT_READER_CONFIG.textWindowMaxWidthPx
   return {
     ...config,
     textDirection: isTopOrBottom ? 'horizontal' : config.textDirection,
     textWindowWidthPercent: Math.max(20, Math.min(60, widthPercent)),
+    textWindowMaxWidthPx: Math.max(240, Math.min(3840, Math.round(maxWidthPx))),
   }
 }
 

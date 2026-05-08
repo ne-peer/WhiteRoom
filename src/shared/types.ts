@@ -275,6 +275,7 @@ export type TextReaderConfig = {
   windowPosition: TextReaderWindowPosition
   textDirection: 'horizontal' | 'vertical'
   textWindowWidthPercent: number
+  textWindowMaxWidthPx: number
   fontFamily: string
   fontSize: 20 | 28 | 36
   charIntervalMs: number

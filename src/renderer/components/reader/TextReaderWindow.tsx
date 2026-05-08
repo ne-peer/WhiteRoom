@@ -347,6 +347,9 @@ export const TextReaderWindow: React.FC = () => {
 
   const isVerticalWindow = config.windowPosition === 'top' || config.windowPosition === 'bottom'
   const autoHeight = isVerticalWindow ? calcReaderAutoHeight(config.fontSize) : undefined
+  const maxWidth = isVerticalWindow
+    ? `min(${config.textWindowMaxWidthPx}px, calc(100% - ${READER_WINDOW_MARGIN * 2}px))`
+    : undefined
   const isSideWindow = config.windowPosition === 'left' || config.windowPosition === 'right'
   const autoWidth = isSideWindow && config.textDirection === 'vertical'
     ? calcReaderAutoWidth(config.fontSize)
@@ -358,6 +361,7 @@ export const TextReaderWindow: React.FC = () => {
   const windowStyle: React.CSSProperties = {
     background: `rgba(12, 12, 30, ${(config.backgroundOpacity ?? 70) / 100})`,
     ...(autoHeight !== undefined ? { height: autoHeight } : {}),
+    ...(maxWidth !== undefined ? { left: '50%', right: 'auto', width: maxWidth, transform: 'translateX(-50%)' } : {}),
     ...(autoWidth !== undefined ? { width: autoWidth, minWidth: autoWidth } : {}),
     ...(configuredWidth !== undefined ? { width: configuredWidth } : {}),
   }

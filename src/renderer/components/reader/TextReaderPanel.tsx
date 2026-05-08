@@ -152,6 +152,32 @@ export const TextReaderPanel: React.FC = () => {
             </div>
           </Row>
         )}
+
+        {isTopOrBottom && (
+          <Row label={t('textReaderWindowMaxWidth')}>
+            <div className={styles.sliderInputRow}>
+              <input
+                type="range"
+                className={styles.slider}
+                min={240}
+                max={3840}
+                step={20}
+                value={config.textWindowMaxWidthPx}
+                onChange={e => setTextReaderConfig({ textWindowMaxWidthPx: Number(e.target.value) })}
+              />
+              <input
+                type="number"
+                className={styles.numberInput}
+                min={240}
+                max={3840}
+                step={20}
+                value={config.textWindowMaxWidthPx}
+                onChange={e => setTextReaderConfig({ textWindowMaxWidthPx: Number(e.target.value) })}
+              />
+              <span className={styles.unit}>px</span>
+            </div>
+          </Row>
+        )}
       </Section>
 
       {/* フォント設定 */}

@@ -130,6 +130,13 @@
   width: 100%;
 }
 
+.sliderInputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
 .slider {
   flex: 1;
   accent-color: rgba(120, 120, 255, 0.85);
