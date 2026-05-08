@@ -1371,7 +1371,7 @@ export class CellRenderer {
     const dtSec = Math.max(0, delta) / 60
     this.shakeTrailElapsedSec += dtSec
     this.shakeTrailSamples.push({ timeSec: this.shakeTrailElapsedSec, offsetY: this.shakeOffsetY })
-    const keepAfterSec = this.shakeTrailElapsedSec - clamp(shake.trailDelaySec ?? 0.12, 0.02, 1) - 0.25
+    const keepAfterSec = this.shakeTrailElapsedSec - clamp(shake.trailDelaySec ?? 0.12, 0.02, 0.5) - 0.25
     while (this.shakeTrailSamples.length > 2 && this.shakeTrailSamples[0].timeSec < keepAfterSec) {
       this.shakeTrailSamples.shift()
     }
@@ -1385,7 +1385,7 @@ export class CellRenderer {
     this.updateShakeTrail(shake)
     if (!this.shakeTrailSprite || !this.imageSprite) return
 
-    const delaySec = clamp(shake.trailDelaySec ?? 0.12, 0.02, 1)
+    const delaySec = clamp(shake.trailDelaySec ?? 0.12, 0.02, 0.5)
     const targetTimeSec = this.shakeTrailElapsedSec - delaySec
     const delayedOffsetY = this.getDelayedShakeOffset(targetTimeSec)
     const dtSec = Math.max(0, delta) / 60

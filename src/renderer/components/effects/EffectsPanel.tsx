@@ -720,10 +720,10 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   {t('shakeTrailHelp')}
                 </div>
                 <Row label={t('shakeTrailDelay')}>
-                  <NumberInput
+                  <Slider
                     value={effects.shake.trailDelaySec}
                     min={0.02}
-                    max={1}
+                    max={0.5}
                     step={0.01}
                     unit={t('seconds')}
                     onChange={v => set('shake', { trailDelaySec: v })}
