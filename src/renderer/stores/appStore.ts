@@ -214,6 +214,7 @@ export type AppState = {
     config: TextReaderConfig
     visible: boolean
     filePath: string | null
+    tempFilePath: string | null
     rawFileText: string | null          // ファイル生テキスト（タグ込み）
     rawSegments: string[]
     currentPageIndex: number
@@ -293,7 +294,7 @@ export type AppActions = {
   // テキストリーダー
   setTextReaderConfig: (config: Partial<TextReaderConfig>) => void
   setTextReaderVisible: (visible: boolean) => void
-  loadTextReaderFile: (filePath: string, text: string) => void
+  loadTextReaderFile: (filePath: string, text: string, tempFilePath?: string) => void
   closeTextReader: () => void
   setTextReaderPage: (index: number) => void
   setTextReaderAutoAdvancing: (flag: boolean) => void
@@ -346,6 +347,7 @@ export const useAppStore = create<AppStore>()(
       config: getInitialTextReaderConfig(),
       visible: false,
       filePath: null,
+      tempFilePath: null,
       rawFileText: null,
       rawSegments: [],
       currentPageIndex: 0,
@@ -679,7 +681,7 @@ export const useAppStore = create<AppStore>()(
       s.textReader.visible = visible
     }),
 
-    loadTextReaderFile: (filePath, text) => {
+    loadTextReaderFile: (filePath, text, tempFilePath) => {
       // immer ドラフト外で非プロキシ状態からスナップショットを取得
       const current = get()
       const snapshot: CellBaseline[] = current.cells.map(cell => ({
@@ -690,6 +692,7 @@ export const useAppStore = create<AppStore>()(
       const parsed = parseTextFile(text)
       set(s => {
         s.textReader.filePath = filePath
+        s.textReader.tempFilePath = tempFilePath ?? null
         s.textReader.rawFileText = text
         s.textReader.rawSegments = parsed.cleanSegments
         s.textReader.tagEntries = parsed.tagEntries
@@ -721,6 +724,7 @@ export const useAppStore = create<AppStore>()(
       }
       s.textReader.visible = false
       s.textReader.filePath = null
+      s.textReader.tempFilePath = null
       s.textReader.rawFileText = null
       s.textReader.rawSegments = []
       s.textReader.tagEntries = []

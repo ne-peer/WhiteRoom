@@ -63,6 +63,7 @@ export const StoryboardPanel: React.FC = () => {
   }
 
   const filePath = useAppStore(s => s.textReader.filePath)
+  const tempFilePath = useAppStore(s => s.textReader.tempFilePath)
   const currentSegmentIndex = useAppStore(s => s.textReader.currentSegmentIndex)
   const rawSegments = useAppStore(s => s.textReader.rawSegments)
   const segmentStartLines = useAppStore(s => s.textReader.segmentStartLines)
@@ -102,7 +103,7 @@ export const StoryboardPanel: React.FC = () => {
 
     const api = (window as unknown as { api: IpcApi }).api
     insertTagAtCurrentPosition(tagLine, segIdx, async (newText) => {
-      const path = filePath!
+      const path = tempFilePath ?? filePath!
       const result = await api.saveTextFile(path, newText)
       if (result.success) showStatus(t('storyboardInserted'))
       else showStatus(t('storyboardSaveFailed'))
@@ -128,7 +129,7 @@ export const StoryboardPanel: React.FC = () => {
 
     const api = (window as unknown as { api: IpcApi }).api
     insertTagAtCurrentPosition(tagLine, segIdx, async (newText) => {
-      const path = filePath!
+      const path = tempFilePath ?? filePath!
       const result = await api.saveTextFile(path, newText)
       if (result.success) showStatus(t('storyboardInserted'))
       else showStatus(t('storyboardSaveFailed'))

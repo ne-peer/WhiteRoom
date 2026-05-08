@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, session, Menu } from 'electron'
 import { join, extname } from 'path'
-import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from 'fs'
+import { tmpdir } from 'os'
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
 import type {
   AppProfile,
@@ -14,6 +15,8 @@ import type {
 } from '../shared/types'
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
+const textReaderTempDirs = new Set<string>()
+let activeTextReaderTempDir: string | null = null
 const FALLBACK_FONTS = [
   'Meiryo',
   'BIZ UDPGothic',
@@ -88,6 +91,34 @@ function normalizeFontName(name: string): string[] {
 function sortedUnique(values: string[]): string[] {
   return [...new Set(values)]
     .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+}
+
+function cleanupTextReaderTempDir(dirPath: string | null): void {
+  if (!dirPath) return
+  try {
+    rmSync(dirPath, { recursive: true, force: true })
+  } catch {
+    // ignore cleanup failures
+  }
+  textReaderTempDirs.delete(dirPath)
+  if (activeTextReaderTempDir === dirPath) activeTextReaderTempDir = null
+}
+
+function cleanupAllTextReaderTempDirs(): void {
+  for (const dirPath of [...textReaderTempDirs]) {
+    cleanupTextReaderTempDir(dirPath)
+  }
+}
+
+function createTextReaderTempFile(originalPath: string): string {
+  cleanupTextReaderTempDir(activeTextReaderTempDir)
+  const dirPath = mkdtempSync(join(tmpdir(), 'whiteroom-text-'))
+  const ext = extname(originalPath) || '.txt'
+  const tempFilePath = join(dirPath, `storyboard${ext}`)
+  copyFileSync(originalPath, tempFilePath)
+  textReaderTempDirs.add(dirPath)
+  activeTextReaderTempDir = dirPath
+  return tempFilePath
 }
 
 function listWindowsFonts(): string[] {
@@ -352,13 +383,15 @@ ipcMain.handle('open-text-file', async (_event, language?: UiLanguage): Promise<
   }
   const filePath = result.filePaths[0]
   try {
-    const buf = readFileSync(filePath)
+    const tempFilePath = createTextReaderTempFile(filePath)
+    const buf = readFileSync(tempFilePath)
     // UTF-8 BOM 除去
-    let fileText = buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF
+    const fileText = buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF
       ? buf.slice(3).toString('utf-8')
       : buf.toString('utf-8')
-    return { canceled: false, filePath, text: fileText }
+    return { canceled: false, filePath, tempFilePath, text: fileText }
   } catch {
+    cleanupTextReaderTempDir(activeTextReaderTempDir)
     return { canceled: true }
   }
 })
@@ -397,4 +430,8 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('before-quit', () => {
+  cleanupAllTextReaderTempDirs()
 })

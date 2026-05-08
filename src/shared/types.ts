@@ -324,6 +324,7 @@ export type LoadProfileResult = {
 export type OpenTextFileResult = {
   canceled: boolean
   filePath?: string
+  tempFilePath?: string
   text?: string
 }
 

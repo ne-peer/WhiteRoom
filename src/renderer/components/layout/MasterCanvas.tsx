@@ -91,6 +91,8 @@ export const MasterCanvas: React.FC = () => {
     const el = containerRef.current
     if (!el) return
     const onWheel = (e: WheelEvent) => {
+      const target = e.target as Element | null
+      if (target?.closest('[data-reader-window], [data-storyboard-window]')) return
       const rect = el.getBoundingClientRect()
       const { grid, cells, nextCellImage, prevCellImage } = useAppStore.getState()
       const relX = e.clientX - rect.left

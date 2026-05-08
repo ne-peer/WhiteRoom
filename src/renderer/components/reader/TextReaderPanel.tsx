@@ -31,7 +31,7 @@ export const TextReaderPanel: React.FC = () => {
     const api = (window as unknown as { api: IpcApi }).api
     const result = await api.openTextFile(language)
     if (!result.canceled && result.filePath && result.text !== undefined) {
-      loadTextReaderFile(result.filePath, result.text)
+      loadTextReaderFile(result.filePath, result.text, result.tempFilePath)
     }
   }
 
