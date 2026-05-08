@@ -100,6 +100,7 @@ export type BlurEffect = {
   radialIntensity: number   // 放射線状の強度係数 0.0 - 1.0
   radialCenterY: number     // 0.0 - 1.0
   radialSize: number        // 放射線状ブラー領域のサイズ係数
+  radialHeight: number
 }
 
 export type EchoEffect = {
@@ -129,6 +130,13 @@ export type ShakeEffect = {
   loopSpeedPxPerSec: number
   afterimageEnabled: boolean
   afterimageDurationSec: number
+  trailEnabled: boolean
+  trailDelaySec: number
+  trailAlpha: number
+  trailBlurStrength: number
+  trailCenterY: number
+  trailSize: number
+  trailHeight: number
 }
 
 export type AssetDrawPattern = 'rising' | 'emergence'

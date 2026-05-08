@@ -14,12 +14,14 @@ export class CellRenderer {
 
   private dynamicBackgroundLayer: PIXI.Container
   private imageLayer: PIXI.Container
+  private shakeTrailLayer: PIXI.Container
   private echoLayer: PIXI.Container
   private effectsLayer: PIXI.Container
   private overlayLayer: PIXI.Container
   private particleContainer: PIXI.Container
   private textLayer: PIXI.Container
   private vignetteLayer: PIXI.Container
+  private guideLayer: PIXI.Container
 
   private imageSprite: PIXI.Sprite | null = null
   private dynamicBackgroundSprite: PIXI.Sprite | null = null
@@ -37,6 +39,16 @@ export class CellRenderer {
   private radialBlurLayers: PIXI.Container[] = []
   private radialBlurMaskSprites: PIXI.Sprite[] = []
   private radialBlurImageClones: PIXI.Sprite[] = []
+  private shakeTrailSprite: PIXI.Sprite | null = null
+  private shakeTrailMaskSprite: PIXI.Sprite | null = null
+  private shakeTrailBlurFilter: PIXI.BlurFilter | null = null
+  private shakeTrailKey: string | null = null
+  private shakeTrailGuideKey: string | null = null
+  private shakeTrailGuideGraphics: PIXI.Graphics | null = null
+  private shakeTrailGuideRemainingSec = 0
+  private shakeTrailSamples: { timeSec: number; offsetY: number }[] = []
+  private shakeTrailElapsedSec = 0
+  private shakeTrailSmoothedOffsetY: number | null = null
   private particleSystem: ParticleSystem
   private textSystem: TextSystem
 
@@ -119,24 +131,28 @@ export class CellRenderer {
 
     this.dynamicBackgroundLayer = new PIXI.Container()
     this.imageLayer = new PIXI.Container()
+    this.shakeTrailLayer = new PIXI.Container()
     this.echoLayer = new PIXI.Container()
     this.effectsLayer = new PIXI.Container()
     this.overlayLayer = new PIXI.Container()
     this.particleContainer = new PIXI.Container()
     this.textLayer = new PIXI.Container()
     this.vignetteLayer = new PIXI.Container()
+    this.guideLayer = new PIXI.Container()
     this.dynamicBackgroundMask = new PIXI.Graphics()
     this.imageMask = new PIXI.Graphics()
     this.echoMask = new PIXI.Graphics()
 
     this.container.addChild(this.dynamicBackgroundLayer)
     this.container.addChild(this.imageLayer)
+    this.container.addChild(this.shakeTrailLayer)
     this.container.addChild(this.echoLayer)
     this.container.addChild(this.effectsLayer)
     this.container.addChild(this.overlayLayer)
     this.container.addChild(this.particleContainer)
     this.container.addChild(this.textLayer)
     this.container.addChild(this.vignetteLayer)
+    this.container.addChild(this.guideLayer)
     this.container.addChild(this.echoMask)
 
     this.dynamicBackgroundLayer.addChild(this.dynamicBackgroundMask)
@@ -165,6 +181,7 @@ export class CellRenderer {
     this.redrawImageMask()
     this.redrawEchoMask()
     this.refreshEcho()
+    this.refreshShakeTrailRegion()
     this.rebuildVignette()
     this.refreshBlurRegion()
     this.setImageLayerFilters()
@@ -176,6 +193,7 @@ export class CellRenderer {
     this.imageFit = imageFit
     this.repositionImage()
     this.refreshEcho()
+    this.refreshShakeTrailRegion()
     this.refreshBlurRegion()
   }
 
@@ -222,6 +240,7 @@ export class CellRenderer {
       this.clearDynamicBackground()
       this.resetShakeMotion()
       this.clearShakeAfterimages()
+      this.clearShakeTrail()
       this.refreshEcho()
       this.refreshBlurRegion()
       return
@@ -250,6 +269,7 @@ export class CellRenderer {
       this.positionImageSprite(sprite)
       this.resetShakeMotion()
       this.refreshEcho()
+      this.refreshShakeTrailRegion()
       this.refreshBlurRegion()
       return
     }
@@ -446,7 +466,10 @@ export class CellRenderer {
   tick(delta: number, effects: CellEffects) {
     this.tickBreathing(delta, effects.breathing)
     this.tickShake(delta, effects.shake)
+    this.recordShakeTrailSample(delta, effects.shake)
     this.applyImageMotionTransform()
+    this.syncShakeTrail(delta, effects.shake)
+    this.updateShakeTrailGuide(delta)
     this.createPendingShakeAfterimage(effects.shake)
     this.updateShakeAfterimages(delta)
     this.syncRadialBlurClones()
@@ -474,6 +497,8 @@ export class CellRenderer {
     this.particleSystem.destroy()
     this.textSystem.destroy()
     this.clearShakeAfterimages()
+    this.clearShakeTrail()
+    this.clearShakeTrailGuide()
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.container.destroy({ children: true })
@@ -491,6 +516,7 @@ export class CellRenderer {
       this.positionImageSprite(sprite)
       this.resetShakeMotion()
       this.refreshEcho()
+      this.refreshShakeTrailRegion()
       this.refreshBlurRegion()
       return
     }
@@ -521,6 +547,7 @@ export class CellRenderer {
       this.imageTransitionTween = null
       this.repositionImage()
       this.refreshEcho()
+      this.refreshShakeTrailRegion()
       this.refreshBlurRegion()
     }
 
@@ -614,6 +641,7 @@ export class CellRenderer {
         }
         this.positionImageSprite(sprite)
         this.refreshEcho()
+        this.refreshShakeTrailRegion()
         this.refreshBlurRegion()
     }
   }
@@ -622,6 +650,7 @@ export class CellRenderer {
     this.clearTransitionSprite()
     this.swapImageSprite(null, null)
     this.clearDynamicBackground()
+    this.clearShakeTrail()
     this.requestedImageSrc = null
   }
 
@@ -993,17 +1022,23 @@ export class CellRenderer {
         ].join(':')
       : 'disabled'
 
-    if (this.shakeKey === key) return
     const wasEnabled = this.shakeKey !== null && this.shakeKey !== 'disabled'
-    this.shakeKey = key
 
     if (!shake?.enabled) {
+      this.shakeKey = key
       this.resetShakeMotion()
+      this.clearShakeTrail()
+      this.clearShakeTrailGuide()
       if (wasEnabled) this.repositionImage()
       return
     }
 
+    this.updateShakeTrail(shake)
+
+    if (this.shakeKey === key) return
+    this.shakeKey = key
     this.resetShakeMotion()
+    this.updateShakeTrail(shake)
   }
 
   private getBreathingScaleMultiplier() {
@@ -1190,6 +1225,9 @@ export class CellRenderer {
     this.shakeLoopSegmentElapsedSec = 0
     this.shakeLoopSegmentStartY = 0
     this.shakeAfterimagePending = false
+    this.shakeTrailSamples = []
+    this.shakeTrailElapsedSec = 0
+    this.shakeTrailSmoothedOffsetY = null
   }
 
   private getShakeCycleDurationMs(shake?: ShakeEffect) {
@@ -1269,6 +1307,189 @@ export class CellRenderer {
       item.sprite.destroy({ texture: false })
     })
     this.shakeAfterimages = []
+  }
+
+  private updateShakeTrail(shake?: ShakeEffect) {
+    if (!shake?.enabled || !shake.trailEnabled || !this.imageSprite) {
+      this.clearShakeTrail()
+      return
+    }
+
+    const guideKey = [
+      this.width,
+      this.height,
+      shake.trailCenterY ?? 0.5,
+      shake.trailSize ?? 0.7,
+      shake.trailHeight ?? 1,
+    ].join(':')
+    const shouldShowGuide = this.shakeTrailGuideKey !== null && this.shakeTrailGuideKey !== guideKey
+    this.shakeTrailGuideKey = guideKey
+    if (shouldShowGuide) this.showShakeTrailGuide(shake)
+
+    const key = [
+      this.currentImageSrc,
+      this.width,
+      this.height,
+      shake.trailBlurStrength ?? 2,
+      shake.trailCenterY ?? 0.5,
+      shake.trailSize ?? 0.7,
+      shake.trailHeight ?? 1,
+    ].join(':')
+    if (this.shakeTrailKey === key && this.shakeTrailSprite) return
+
+    this.clearShakeTrail()
+    const sprite = new PIXI.Sprite(this.imageSprite.texture)
+    sprite.anchor.set(0.5)
+    const maskSprite = this.createEllipseMaskSprite(
+      shake.trailCenterY ?? 0.5,
+      shake.trailSize ?? 0.7,
+      shake.trailHeight ?? 1,
+      0.18
+    )
+    const maskFilter = new PIXI.MaskFilter({ sprite: maskSprite, channel: 'alpha' })
+    const blurFilter = new PIXI.BlurFilter({
+      strength: clamp(shake.trailBlurStrength ?? 2, 0, 12),
+      quality: 3,
+    })
+
+    this.shakeTrailLayer.addChild(sprite)
+    this.container.addChildAt(maskSprite, this.container.getChildIndex(this.shakeTrailLayer) + 1)
+    this.shakeTrailLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    this.shakeTrailLayer.filters = [blurFilter, maskFilter]
+    maskSprite.alpha = 0
+
+    this.shakeTrailSprite = sprite
+    this.shakeTrailMaskSprite = maskSprite
+    this.shakeTrailBlurFilter = blurFilter
+    this.shakeTrailKey = key
+    this.syncShakeTrail(0, shake)
+  }
+
+  private recordShakeTrailSample(delta: number, shake?: ShakeEffect) {
+    if (!shake?.enabled || !shake.trailEnabled) return
+    const dtSec = Math.max(0, delta) / 60
+    this.shakeTrailElapsedSec += dtSec
+    this.shakeTrailSamples.push({ timeSec: this.shakeTrailElapsedSec, offsetY: this.shakeOffsetY })
+    const keepAfterSec = this.shakeTrailElapsedSec - clamp(shake.trailDelaySec ?? 0.12, 0.02, 1) - 0.25
+    while (this.shakeTrailSamples.length > 2 && this.shakeTrailSamples[0].timeSec < keepAfterSec) {
+      this.shakeTrailSamples.shift()
+    }
+  }
+
+  private syncShakeTrail(delta: number, shake?: ShakeEffect) {
+    if (!shake?.enabled || !shake.trailEnabled) {
+      this.clearShakeTrail()
+      return
+    }
+    this.updateShakeTrail(shake)
+    if (!this.shakeTrailSprite || !this.imageSprite) return
+
+    const delaySec = clamp(shake.trailDelaySec ?? 0.12, 0.02, 1)
+    const targetTimeSec = this.shakeTrailElapsedSec - delaySec
+    const delayedOffsetY = this.getDelayedShakeOffset(targetTimeSec)
+    const dtSec = Math.max(0, delta) / 60
+    const smoothFactor = delta <= 0 ? 1 : 1 - Math.exp(-dtSec * 14)
+    this.shakeTrailSmoothedOffsetY = this.shakeTrailSmoothedOffsetY === null
+      ? delayedOffsetY
+      : lerp(this.shakeTrailSmoothedOffsetY, delayedOffsetY, smoothFactor)
+    const breathing = this.latestEffects?.breathing
+    const breathingEnabled = breathing?.enabled ?? false
+    const scaleMultiplier = breathingEnabled && breathing?.scaleEnabled ? this.getBreathingScaleMultiplier() : 1
+    this.shakeTrailSprite.texture = this.imageSprite.texture
+    this.positionSprite(
+      this.shakeTrailSprite,
+      breathingEnabled ? this.breathingOffsetX : 0,
+      (breathingEnabled ? this.breathingOffsetY : 0) + this.shakeTrailSmoothedOffsetY,
+      scaleMultiplier
+    )
+    this.shakeTrailSprite.alpha = clamp(shake.trailAlpha ?? 0.55, 0, 1)
+
+    if (delta === 0 && this.shakeTrailSamples.length === 0) {
+      this.shakeTrailSamples.push({ timeSec: this.shakeTrailElapsedSec, offsetY: this.shakeOffsetY })
+    }
+  }
+
+  private getDelayedShakeOffset(targetTimeSec: number) {
+    if (this.shakeTrailSamples.length === 0) return this.shakeOffsetY
+    if (targetTimeSec <= this.shakeTrailSamples[0].timeSec) return this.shakeTrailSamples[0].offsetY
+
+    for (let i = 1; i < this.shakeTrailSamples.length; i += 1) {
+      const prev = this.shakeTrailSamples[i - 1]
+      const next = this.shakeTrailSamples[i]
+      if (targetTimeSec <= next.timeSec) {
+        const span = next.timeSec - prev.timeSec
+        const p = span > 0 ? clamp((targetTimeSec - prev.timeSec) / span, 0, 1) : 1
+        return lerp(prev.offsetY, next.offsetY, p)
+      }
+    }
+
+    return this.shakeTrailSamples[this.shakeTrailSamples.length - 1].offsetY
+  }
+
+  private refreshShakeTrailRegion() {
+    if (!this.latestEffects) return
+    this.shakeTrailKey = null
+    this.updateShakeTrail(this.latestEffects.shake)
+  }
+
+  private clearShakeTrail() {
+    this.shakeTrailLayer.filters = []
+    this.shakeTrailLayer.filterArea = undefined
+    this.shakeTrailBlurFilter = null
+    if (this.shakeTrailSprite) {
+      this.shakeTrailLayer.removeChild(this.shakeTrailSprite)
+      this.shakeTrailSprite.destroy({ texture: false })
+      this.shakeTrailSprite = null
+    }
+    if (this.shakeTrailMaskSprite) {
+      this.container.removeChild(this.shakeTrailMaskSprite)
+      this.shakeTrailMaskSprite.texture.destroy(true)
+      this.shakeTrailMaskSprite.destroy()
+      this.shakeTrailMaskSprite = null
+    }
+    this.shakeTrailKey = null
+    this.shakeTrailSmoothedOffsetY = null
+  }
+
+  private showShakeTrailGuide(shake: ShakeEffect) {
+    if (!this.shakeTrailGuideGraphics) {
+      this.shakeTrailGuideGraphics = new PIXI.Graphics()
+      this.guideLayer.addChild(this.shakeTrailGuideGraphics)
+    }
+
+    const centerY = clamp(shake.trailCenterY ?? 0.5, 0, 1)
+    const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
+    const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
+    const cx = this.width / 2
+    const cy = this.height * centerY
+    const rx = Math.max(1, this.width * size * 0.5)
+    const ry = Math.max(1, this.height * size * heightRatio * 0.5)
+
+    this.shakeTrailGuideGraphics.clear()
+    this.shakeTrailGuideGraphics.ellipse(cx, cy, rx, ry)
+    this.shakeTrailGuideGraphics.fill({ color: 0x66ccff, alpha: 0.14 })
+    this.shakeTrailGuideGraphics.stroke({ color: 0xffffff, alpha: 0.92, width: 2 })
+    this.shakeTrailGuideGraphics.alpha = 1
+    this.shakeTrailGuideRemainingSec = 1
+  }
+
+  private updateShakeTrailGuide(delta: number) {
+    if (!this.shakeTrailGuideGraphics || this.shakeTrailGuideRemainingSec <= 0) return
+
+    const dtSec = Math.max(0, delta) / 60
+    this.shakeTrailGuideRemainingSec = Math.max(0, this.shakeTrailGuideRemainingSec - dtSec)
+    this.shakeTrailGuideGraphics.alpha = clamp(this.shakeTrailGuideRemainingSec / 0.25, 0, 1)
+    if (this.shakeTrailGuideRemainingSec <= 0) {
+      this.clearShakeTrailGuide()
+    }
+  }
+
+  private clearShakeTrailGuide() {
+    this.shakeTrailGuideRemainingSec = 0
+    if (!this.shakeTrailGuideGraphics) return
+    this.guideLayer.removeChild(this.shakeTrailGuideGraphics)
+    this.shakeTrailGuideGraphics.destroy()
+    this.shakeTrailGuideGraphics = null
   }
 
   private resetBreathingMotion(randomize: boolean) {
@@ -1554,6 +1775,7 @@ export class CellRenderer {
       blur.radialIntensity,
       blur.radialCenterY ?? 0.5,
       blur.radialSize ?? 1,
+      blur.radialHeight ?? 1,
     ].join(':')
 
     // キーが同じ場合は、既存のアニメーションを継続
@@ -1655,20 +1877,21 @@ export class CellRenderer {
     const pattern = blur.radialPattern ?? 'a'
     const centerY = clamp(blur.radialCenterY ?? 0.5, 0, 1)
     const radialSize = clamp(blur.radialSize ?? 1, 0.1, 3)
+    const radialHeight = clamp(blur.radialHeight ?? 1, 0.1, 3)
     const regions = pattern === 'b'
       ? [
           {
-            maskSprite: this.createRadialBandMaskSprite(0.5 * radialSize, 0.7 * radialSize, 1, 1, true, centerY),
+            maskSprite: this.createRadialBandMaskSprite(0.5 * radialSize * radialHeight, 0.7 * radialSize, radialHeight, 1, true, centerY),
             multiplier: Math.max(0, blur.radialIntensity),
           },
           {
-            maskSprite: this.createRadialBandMaskSprite(0.75 * radialSize, 0.85 * radialSize, 1, 1, true, centerY),
+            maskSprite: this.createRadialBandMaskSprite(0.75 * radialSize * radialHeight, 0.85 * radialSize, radialHeight, 1, true, centerY),
             multiplier: Math.max(0, blur.radialIntensity) * 2,
           },
         ]
       : [
           {
-            maskSprite: this.createRadialGradientMaskSprite(blur.radialIntensity, centerY, radialSize),
+            maskSprite: this.createRadialGradientMaskSprite(blur.radialIntensity, centerY, radialSize, radialHeight),
             multiplier: 1,
           },
         ]
@@ -1700,28 +1923,63 @@ export class CellRenderer {
     })
   }
 
-  private createRadialGradientMaskSprite(intensity: number, centerYRatio: number, size: number): PIXI.Sprite {
+  private createRadialGradientMaskSprite(intensity: number, centerYRatio: number, size: number, heightRatio: number): PIXI.Sprite {
     const canvas = document.createElement('canvas')
     canvas.width = Math.ceil(this.width)
     canvas.height = Math.ceil(this.height)
     const ctx = canvas.getContext('2d')!
+    const image = ctx.createImageData(canvas.width, canvas.height)
     const cx = this.width / 2
     const cy = this.height * centerYRatio
-    const maxRadius = Math.max(
-      Math.hypot(cx, cy),
-      Math.hypot(this.width - cx, cy),
-      Math.hypot(cx, this.height - cy),
-      Math.hypot(this.width - cx, this.height - cy)
-    )
+    const rx = Math.max(1, this.width * size * 0.5)
+    const ry = Math.max(1, this.height * size * heightRatio * 0.5)
+    const innerStop = clamp((1 - intensity) * size, 0, 0.9)
 
-    const innerStop = Math.max(0, Math.min(0.9, (1 - intensity) * size))
-    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxRadius)
-    gradient.addColorStop(0, `rgba(0,0,0,0)`)
-    gradient.addColorStop(innerStop, `rgba(0,0,0,0)`)
-    gradient.addColorStop(1, `rgba(255,255,255,1)`)
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    for (let y = 0; y < canvas.height; y += 1) {
+      for (let x = 0; x < canvas.width; x += 1) {
+        const dx = x + 0.5 - cx
+        const dy = y + 0.5 - cy
+        const distance = Math.sqrt((dx / rx) ** 2 + (dy / ry) ** 2)
+        const alpha = Math.round(smoothstep(innerStop, 1, distance) * 255)
+        const index = (y * canvas.width + x) * 4
+        image.data[index] = 255
+        image.data[index + 1] = 255
+        image.data[index + 2] = 255
+        image.data[index + 3] = alpha
+      }
+    }
 
+    ctx.putImageData(image, 0, 0)
+    const texture = PIXI.Texture.from(canvas)
+    return new PIXI.Sprite(texture)
+  }
+
+  private createEllipseMaskSprite(centerYRatio: number, size: number, heightRatio: number, feather = 0.08): PIXI.Sprite {
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.ceil(this.width)
+    canvas.height = Math.ceil(this.height)
+    const ctx = canvas.getContext('2d')!
+    const image = ctx.createImageData(canvas.width, canvas.height)
+    const cx = this.width / 2
+    const cy = this.height * clamp(centerYRatio, 0, 1)
+    const rx = Math.max(1, this.width * clamp(size, 0.05, 3) * 0.5)
+    const ry = Math.max(1, this.height * clamp(size, 0.05, 3) * clamp(heightRatio, 0.05, 3) * 0.5)
+
+    for (let y = 0; y < canvas.height; y += 1) {
+      for (let x = 0; x < canvas.width; x += 1) {
+        const dx = x + 0.5 - cx
+        const dy = y + 0.5 - cy
+        const distance = Math.sqrt((dx / rx) ** 2 + (dy / ry) ** 2)
+        const alpha = Math.round((1 - smoothstep(1 - feather, 1 + feather, distance)) * 255)
+        const index = (y * canvas.width + x) * 4
+        image.data[index] = 255
+        image.data[index + 1] = 255
+        image.data[index + 2] = 255
+        image.data[index + 3] = alpha
+      }
+    }
+
+    ctx.putImageData(image, 0, 0)
     const texture = PIXI.Texture.from(canvas)
     return new PIXI.Sprite(texture)
   }

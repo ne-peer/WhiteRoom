@@ -56,6 +56,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     radialIntensity: 0.8,
     radialCenterY: 0.5,
     radialSize: 1,
+    radialHeight: 1,
   },
   echo: {
     enabled: false,
@@ -82,6 +83,13 @@ export const DEFAULT_EFFECTS: CellEffects = {
     loopSpeedPxPerSec: 80,
     afterimageEnabled: false,
     afterimageDurationSec: 0.35,
+    trailEnabled: false,
+    trailDelaySec: 0.12,
+    trailAlpha: 0.55,
+    trailBlurStrength: 2,
+    trailCenterY: 0.5,
+    trailSize: 0.7,
+    trailHeight: 1,
   },
   dynamicAsset: {
     enabled: false,

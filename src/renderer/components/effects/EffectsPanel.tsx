@@ -49,6 +49,7 @@ const EFFECT_PRESET_1: CellEffects = {
     radialIntensity: 0.8,
     radialCenterY: 0.5,
     radialSize: 1,
+    radialHeight: 1,
   },
   echo: {
     enabled: true,
@@ -75,6 +76,13 @@ const EFFECT_PRESET_1: CellEffects = {
     loopSpeedPxPerSec: 80,
     afterimageEnabled: false,
     afterimageDurationSec: 0.35,
+    trailEnabled: false,
+    trailDelaySec: 0.12,
+    trailAlpha: 0.55,
+    trailBlurStrength: 2,
+    trailCenterY: 0.5,
+    trailSize: 0.7,
+    trailHeight: 1,
   },
   dynamicAsset: {
     enabled: true,
@@ -462,6 +470,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     unit="%"
                   />
                 </Row>
+                <Row label={t('radialBlurHeight')}>
+                  <Slider
+                    value={Math.round((effects.blur.radialHeight ?? DEFAULT_EFFECTS.blur.radialHeight) * 100)}
+                    min={25}
+                    max={200}
+                    onChange={v => set('blur', { radialHeight: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
               </>
             )}
             <Row label={t('gradualIncrease')}>
@@ -689,6 +706,74 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   onChange={v => set('shake', { afterimageDurationSec: v })}
                 />
               </Row>
+            )}
+            <Row label={t('shakeTrail')}>
+              <Toggle
+                value={effects.shake.trailEnabled}
+                onChange={v => set('shake', { trailEnabled: v })}
+              />
+            </Row>
+            {effects.shake.trailEnabled && (
+              <>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 8 }}>
+                  {t('shakeTrailHelp')}
+                </div>
+                <Row label={t('shakeTrailDelay')}>
+                  <NumberInput
+                    value={effects.shake.trailDelaySec}
+                    min={0.02}
+                    max={1}
+                    step={0.01}
+                    unit={t('seconds')}
+                    onChange={v => set('shake', { trailDelaySec: v })}
+                  />
+                </Row>
+                <Row label={t('shakeTrailOpacity')}>
+                  <Slider
+                    value={Math.round(effects.shake.trailAlpha * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('shake', { trailAlpha: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('shakeTrailBlur')}>
+                  <Slider
+                    value={effects.shake.trailBlurStrength ?? DEFAULT_EFFECTS.shake.trailBlurStrength}
+                    min={0}
+                    max={12}
+                    step={0.5}
+                    onChange={v => set('shake', { trailBlurStrength: v })}
+                  />
+                </Row>
+                <Row label={t('radialBlurCenterY')}>
+                  <Slider
+                    value={Math.round((effects.shake.trailCenterY ?? DEFAULT_EFFECTS.shake.trailCenterY) * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('shake', { trailCenterY: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('radialBlurSize')}>
+                  <Slider
+                    value={Math.round((effects.shake.trailSize ?? DEFAULT_EFFECTS.shake.trailSize) * 100)}
+                    min={25}
+                    max={150}
+                    onChange={v => set('shake', { trailSize: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('radialBlurHeight')}>
+                  <Slider
+                    value={Math.round((effects.shake.trailHeight ?? DEFAULT_EFFECTS.shake.trailHeight) * 100)}
+                    min={25}
+                    max={200}
+                    onChange={v => set('shake', { trailHeight: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              </>
             )}
           </>
         )}
