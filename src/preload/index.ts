@@ -13,6 +13,7 @@ const api: IpcApi = {
   saveProfile: (profile, language) => ipcRenderer.invoke('save-profile', profile, language),
   loadProfile: (language) => ipcRenderer.invoke('load-profile', language),
   setFullscreen: (flag) => ipcRenderer.invoke('set-fullscreen', flag),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
   openDevTools: () => ipcRenderer.invoke('open-devtools'),
   listSystemFonts: () => ipcRenderer.invoke('list-system-fonts'),
   openTextFile: (language) => ipcRenderer.invoke('open-text-file', language),

@@ -2,6 +2,12 @@
   "name": "whiteroom",
   "version": "1.4.0",
   "description": "Dynamic visual effects image viewer",
+  "author": "ne_peer",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ne-peer/WhiteRoom.git"
+  },
   "main": "out/main/index.js",
   "scripts": {
     "dev": "node scripts/electron-vite.cjs dev",

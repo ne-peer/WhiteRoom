@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, session, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, session, Menu, shell } from 'electron'
 import { dirname, join, extname } from 'path'
 import { tmpdir } from 'os'
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs'
@@ -369,6 +369,12 @@ ipcMain.handle('load-profile', async (_event, language?: UiLanguage): Promise<Lo
 ipcMain.handle('set-fullscreen', (_event, flag: boolean) => {
   const win = BrowserWindow.getFocusedWindow()
   if (win) win.setFullScreen(flag)
+})
+
+ipcMain.handle('open-external', async (_event, url: string) => {
+  if (url.startsWith('https://github.com/')) {
+    await shell.openExternal(url)
+  }
 })
 
 ipcMain.handle('open-devtools', async () => {
