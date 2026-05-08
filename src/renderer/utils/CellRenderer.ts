@@ -64,9 +64,15 @@ export class CellRenderer {
   private shakeKey: string | null = null
   private shakeOffsetY = 0
   private shakeLoopDirection = -1
-  private shakeOnceSegmentIndex = 0
+  private shakeOnceInitialized = false
+  private shakeOnceSegmentElapsedSec = 0
+  private shakeOnceSegmentStartY = 0
+  private shakeOnceSegmentTargetY = 0
+  private shakeOnceSegmentCount = 0
+  private shakeLoopSegmentElapsedSec = 0
+  private shakeLoopSegmentStartY = 0
   private shakeAfterimages: { sprite: PIXI.Sprite; ageSec: number; durationSec: number }[] = []
-  private shakeAfterimageElapsedSec = 0
+  private shakeAfterimagePending = false
   private activeSlideTransition: {
     incoming: PIXI.Sprite
     outgoing: PIXI.Sprite
@@ -441,6 +447,7 @@ export class CellRenderer {
     this.tickBreathing(delta, effects.breathing)
     this.tickShake(delta, effects.shake)
     this.applyImageMotionTransform()
+    this.createPendingShakeAfterimage(effects.shake)
     this.updateShakeAfterimages(delta)
     this.syncRadialBlurClones()
     this.syncEchoToImage()
@@ -1068,50 +1075,85 @@ export class CellRenderer {
       const speed = Math.max(0, shake.loopSpeedPxPerSec)
       if (amplitude <= 0 || speed <= 0) {
         this.shakeOffsetY = 0
+        this.shakeLoopSegmentElapsedSec = 0
+        this.shakeLoopSegmentStartY = 0
         return
       }
 
-      this.shakeOffsetY += this.shakeLoopDirection * speed * dtSec
-      if (this.shakeOffsetY <= -amplitude) {
-        this.shakeOffsetY = -amplitude
-        this.shakeLoopDirection = 1
-      } else if (this.shakeOffsetY >= amplitude) {
-        this.shakeOffsetY = amplitude
-        this.shakeLoopDirection = -1
-      }
-      this.maybeCreateShakeAfterimage(dtSec, shake)
-      return
-    }
+      const target = this.shakeLoopDirection < 0 ? -amplitude : amplitude
+      const distance = Math.abs(target - this.shakeLoopSegmentStartY)
+      const durationSec = distance > 0 ? distance / speed : 0
+      this.shakeLoopSegmentElapsedSec += dtSec
+      const progress = durationSec > 0 ? clamp(this.shakeLoopSegmentElapsedSec / durationSec, 0, 1) : 1
+      this.shakeOffsetY = lerp(this.shakeLoopSegmentStartY, target, easeInOutSine(progress))
 
-    if (this.shakeOnceSegmentIndex >= SHAKE_ONCE_KEYFRAMES.length - 1) {
-      this.shakeOffsetY = 0
+      if (progress >= 1 && this.shakeLoopDirection < 0) {
+        this.shakeOffsetY = target
+        this.shakeLoopDirection = 1
+        this.shakeLoopSegmentStartY = target
+        this.shakeLoopSegmentElapsedSec = 0
+        this.shakeAfterimagePending = true
+      } else if (progress >= 1) {
+        this.shakeOffsetY = target
+        this.shakeLoopDirection = -1
+        this.shakeLoopSegmentStartY = target
+        this.shakeLoopSegmentElapsedSec = 0
+        this.shakeAfterimagePending = true
+      }
       return
     }
 
     const factor = Math.max(0, shake.amplitudeFactor)
     if (factor <= 0) {
       this.shakeOffsetY = 0
-      this.shakeOnceSegmentIndex = SHAKE_ONCE_KEYFRAMES.length - 1
+      this.shakeOnceInitialized = true
       return
     }
-    const speedFactor = Math.max(0.1, shake.speedFactor)
-    const target = SHAKE_ONCE_KEYFRAMES[this.shakeOnceSegmentIndex + 1] * factor
-    const direction = Math.sign(target - this.shakeOffsetY)
-    const baseSpeed = this.shakeOnceSegmentIndex === 0 ? SHAKE_ONCE_LIFT_SPEED_PX_PER_SEC : SHAKE_ONCE_BOUNCE_SPEED_PX_PER_SEC
-    const step = baseSpeed * speedFactor * dtSec
 
-    if (direction === 0 || Math.abs(target - this.shakeOffsetY) <= step) {
-      this.shakeOffsetY = target
-      this.shakeOnceSegmentIndex += 1
-      if (this.shakeOnceSegmentIndex >= SHAKE_ONCE_KEYFRAMES.length - 1) {
+    if (!this.shakeOnceInitialized) {
+      const initialTarget = -SHAKE_ONCE_INITIAL_UP_PX * factor
+      if (Math.abs(initialTarget) < SHAKE_ONCE_STOP_THRESHOLD_PX) {
         this.shakeOffsetY = 0
+        this.shakeOnceInitialized = true
+        return
       }
-    } else {
-      this.shakeOffsetY += direction * step
+      this.startShakeOnceSegment(0, initialTarget)
+      this.shakeOnceInitialized = true
     }
 
-    if (this.shakeOnceSegmentIndex < SHAKE_ONCE_KEYFRAMES.length - 1) {
-      this.maybeCreateShakeAfterimage(dtSec, shake)
+    if (this.shakeOnceSegmentStartY === this.shakeOnceSegmentTargetY) return
+
+    const speedFactor = Math.max(0.1, shake.speedFactor)
+    const start = this.shakeOnceSegmentStartY
+    const target = this.shakeOnceSegmentTargetY
+    const distance = Math.abs(target - start)
+    const baseSpeed = start === 0 && target < 0 ? SHAKE_ONCE_INITIAL_LIFT_SPEED_PX_PER_SEC : SHAKE_ONCE_BOUNCE_SPEED_PX_PER_SEC
+    const segmentSpeed = getShakeOnceSegmentSpeed(baseSpeed, speedFactor, this.shakeOnceSegmentCount)
+    const durationSec = distance > 0 ? distance / segmentSpeed : 0
+    this.shakeOnceSegmentElapsedSec += dtSec
+    const progress = durationSec > 0 ? clamp(this.shakeOnceSegmentElapsedSec / durationSec, 0, 1) : 1
+    this.shakeOffsetY = lerp(start, target, easeInOutSine(progress))
+
+    if (progress >= 1) {
+      this.shakeOffsetY = target
+      this.shakeOnceSegmentElapsedSec = 0
+      if (target !== 0) {
+        this.shakeAfterimagePending = true
+      }
+      const nextTarget = getNextShakeOnceTarget(target)
+      if (Math.abs(nextTarget) < SHAKE_ONCE_STOP_THRESHOLD_PX) {
+        if (target === 0) {
+          this.shakeOnceSegmentStartY = 0
+          this.shakeOnceSegmentTargetY = 0
+          return
+        }
+        this.startShakeOnceSegment(target, 0)
+      } else {
+        this.startShakeOnceSegment(target, nextTarget)
+      }
+      if (this.shakeOnceSegmentStartY === this.shakeOnceSegmentTargetY) {
+        this.shakeOffsetY = 0
+      }
     }
   }
 
@@ -1140,8 +1182,14 @@ export class CellRenderer {
   private resetShakeMotion() {
     this.shakeOffsetY = 0
     this.shakeLoopDirection = -1
-    this.shakeOnceSegmentIndex = 0
-    this.shakeAfterimageElapsedSec = 0
+    this.shakeOnceInitialized = false
+    this.shakeOnceSegmentElapsedSec = 0
+    this.shakeOnceSegmentStartY = 0
+    this.shakeOnceSegmentTargetY = 0
+    this.shakeOnceSegmentCount = 0
+    this.shakeLoopSegmentElapsedSec = 0
+    this.shakeLoopSegmentStartY = 0
+    this.shakeAfterimagePending = false
   }
 
   private getShakeCycleDurationMs(shake?: ShakeEffect) {
@@ -1151,20 +1199,40 @@ export class CellRenderer {
     const factor = Math.max(0, shake.amplitudeFactor)
     const speedFactor = Math.max(0.1, shake.speedFactor)
     let durationSec = 0
-    for (let i = 0; i < SHAKE_ONCE_KEYFRAMES.length - 1; i += 1) {
-      const distance = Math.abs(SHAKE_ONCE_KEYFRAMES[i + 1] - SHAKE_ONCE_KEYFRAMES[i]) * factor
-      const speed = (i === 0 ? SHAKE_ONCE_LIFT_SPEED_PX_PER_SEC : SHAKE_ONCE_BOUNCE_SPEED_PX_PER_SEC) * speedFactor
+    let start = 0
+    let target = -SHAKE_ONCE_INITIAL_UP_PX * factor
+    if (Math.abs(target) < SHAKE_ONCE_STOP_THRESHOLD_PX) return 0
+    for (let i = 0; i < SHAKE_ONCE_MAX_SEGMENTS; i += 1) {
+      const distance = Math.abs(target - start)
+      const baseSpeed = start === 0 && target < 0 ? SHAKE_ONCE_INITIAL_LIFT_SPEED_PX_PER_SEC : SHAKE_ONCE_BOUNCE_SPEED_PX_PER_SEC
+      const speed = getShakeOnceSegmentSpeed(baseSpeed, speedFactor, i + 1)
       durationSec += speed > 0 ? distance / speed : 0
+      const nextTarget = getNextShakeOnceTarget(target)
+      if (Math.abs(nextTarget) < SHAKE_ONCE_STOP_THRESHOLD_PX) {
+        if (target !== 0) {
+          start = target
+          target = 0
+          continue
+        }
+        break
+      }
+      start = target
+      target = nextTarget
     }
     return durationSec * 1000
   }
 
-  private maybeCreateShakeAfterimage(dtSec: number, shake: ShakeEffect) {
-    if (!shake.afterimageEnabled || !this.imageSprite) return
+  private startShakeOnceSegment(startY: number, targetY: number) {
+    this.shakeOnceSegmentStartY = startY
+    this.shakeOnceSegmentTargetY = targetY
+    this.shakeOnceSegmentElapsedSec = 0
+    if (startY !== targetY) this.shakeOnceSegmentCount += 1
+  }
 
-    this.shakeAfterimageElapsedSec += dtSec
-    if (this.shakeAfterimageElapsedSec < SHAKE_AFTERIMAGE_INTERVAL_SEC) return
-    this.shakeAfterimageElapsedSec = 0
+  private createPendingShakeAfterimage(shake?: ShakeEffect) {
+    if (!this.shakeAfterimagePending) return
+    this.shakeAfterimagePending = false
+    if (!shake?.afterimageEnabled || !this.imageSprite) return
 
     const durationSec = clamp(shake.afterimageDurationSec, 0.05, 3)
     const sprite = new PIXI.Sprite(this.imageSprite.texture)
@@ -1173,8 +1241,8 @@ export class CellRenderer {
     sprite.y = this.imageSprite.y
     sprite.scale.copyFrom(this.imageSprite.scale)
     sprite.rotation = this.imageSprite.rotation
-    sprite.alpha = 0.32
-    this.imageLayer.addChildAt(sprite, 0)
+    sprite.alpha = SHAKE_AFTERIMAGE_START_ALPHA
+    this.imageLayer.addChild(sprite)
     this.shakeAfterimages.push({ sprite, ageSec: 0, durationSec })
   }
 
@@ -1186,7 +1254,7 @@ export class CellRenderer {
       const item = this.shakeAfterimages[i]
       item.ageSec += dtSec
       const progress = clamp(item.ageSec / item.durationSec, 0, 1)
-      item.sprite.alpha = 0.32 * (1 - progress)
+      item.sprite.alpha = SHAKE_AFTERIMAGE_START_ALPHA * (1 - progress)
       if (progress >= 1) {
         this.imageLayer.removeChild(item.sprite)
         item.sprite.destroy({ texture: false })
@@ -1792,10 +1860,33 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
   return t * t * (3 - 2 * t)
 }
 
-const SHAKE_ONCE_KEYFRAMES = [0, -40, 20, -20, 10, -10, 5, 0] as const
-const SHAKE_ONCE_LIFT_SPEED_PX_PER_SEC = 60
+function lerp(start: number, end: number, progress: number): number {
+  return start + (end - start) * progress
+}
+
+function easeInOutSine(x: number): number {
+  return -(Math.cos(Math.PI * x) - 1) / 2
+}
+
+function getNextShakeOnceTarget(currentTarget: number): number {
+  if (currentTarget < 0) return Math.abs(currentTarget) * SHAKE_ONCE_DECAY_RATIO
+  if (currentTarget > 0) return -Math.abs(currentTarget)
+  return 0
+}
+
+function getShakeOnceSegmentSpeed(baseSpeed: number, speedFactor: number, segmentCount: number): number {
+  const completedSegments = Math.max(0, segmentCount - 1)
+  return baseSpeed * speedFactor * Math.pow(SHAKE_ONCE_SPEED_DECAY_RATIO, completedSegments)
+}
+
+const SHAKE_ONCE_INITIAL_UP_PX = 40
+const SHAKE_ONCE_DECAY_RATIO = 0.6
+const SHAKE_ONCE_SPEED_DECAY_RATIO = 0.84
+const SHAKE_ONCE_STOP_THRESHOLD_PX = 6
+const SHAKE_ONCE_MAX_SEGMENTS = 32
+const SHAKE_ONCE_INITIAL_LIFT_SPEED_PX_PER_SEC = 80
 const SHAKE_ONCE_BOUNCE_SPEED_PX_PER_SEC = 180
-const SHAKE_AFTERIMAGE_INTERVAL_SEC = 0.05
+const SHAKE_AFTERIMAGE_START_ALPHA = 0.38
 
 function toFileUrl(src: string): string {
   if (src.startsWith('file://') || src.startsWith('http') || src.startsWith('data:')) {
