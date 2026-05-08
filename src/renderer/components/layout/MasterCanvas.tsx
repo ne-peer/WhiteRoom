@@ -7,7 +7,7 @@ import { TimerOverlay } from '../timer/TimerOverlay'
 import { TimerEndFlashOverlay } from '../timer/TimerEndFlashOverlay'
 import { TimerPreOverlay } from '../timer/TimerPreOverlay'
 import { CellNavigationOverlay } from './CellNavigationOverlay'
-import { TextReaderWindow, calcReaderAutoHeight, READER_WINDOW_MARGIN } from '../reader/TextReaderWindow'
+import { TextReaderWindow, calcReaderAutoHeight, calcReaderAutoWidth, READER_WINDOW_MARGIN } from '../reader/TextReaderWindow'
 import { useTranslation } from '../../i18n'
 import styles from './MasterCanvas.module.css'
 
@@ -23,7 +23,7 @@ export const MasterCanvas: React.FC = () => {
 
   const canvasShrinkStyle = React.useMemo((): React.CSSProperties => {
     if (!textReaderVisible || (textReaderConfig.overlayOnImage ?? true)) return {}
-    const { windowPosition, fontSize } = textReaderConfig
+    const { windowPosition, fontSize, textDirection, textWindowWidthPercent } = textReaderConfig
     const margin2 = READER_WINDOW_MARGIN * 2
     if (windowPosition === 'bottom') {
       const h = calcReaderAutoHeight(fontSize)
@@ -35,11 +35,19 @@ export const MasterCanvas: React.FC = () => {
       return { top: `${offset}px`, height: `calc(100vh - ${offset}px)` }
     }
     if (windowPosition === 'right') {
-      return { width: `calc(65% - ${margin2}px)` }
+      if (textDirection === 'vertical') {
+        const w = calcReaderAutoWidth(fontSize)
+        return { width: `calc(100vw - ${w + margin2}px)` }
+      }
+      return { width: `calc(${100 - textWindowWidthPercent}% - ${margin2}px)` }
     }
     if (windowPosition === 'left') {
-      const offset = `calc(35% + ${margin2}px)`
-      return { left: offset, width: `calc(65% - ${margin2}px)` }
+      if (textDirection === 'vertical') {
+        const w = calcReaderAutoWidth(fontSize)
+        return { left: `${w + margin2}px`, width: `calc(100vw - ${w + margin2}px)` }
+      }
+      const offset = `calc(${textWindowWidthPercent}% + ${margin2}px)`
+      return { left: offset, width: `calc(${100 - textWindowWidthPercent}% - ${margin2}px)` }
     }
     return {}
   }, [textReaderVisible, textReaderConfig])

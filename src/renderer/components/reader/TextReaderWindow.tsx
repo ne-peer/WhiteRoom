@@ -12,12 +12,18 @@ const PAGE_ADVANCE_DELAYS: Record<TextReaderPageAdvanceSpeed, number> = {
 
 export const READER_CONTROL_BAR_HEIGHT = 38
 export const READER_TEXT_AREA_PADDING_V = 24  // top 16px + bottom 8px
+export const READER_TEXT_AREA_PADDING_H = 40  // left 20px + right 20px
 export const READER_LINE_HEIGHT_RATIO = 1.8
+export const READER_VERTICAL_LINE_HEIGHT_RATIO = 2
 export const READER_WINDOW_MARGIN = 12
 export const READER_MAX_LINES = 3
 
 export function calcReaderAutoHeight(fontSize: number): number {
   return READER_CONTROL_BAR_HEIGHT + READER_TEXT_AREA_PADDING_V + Math.ceil(fontSize * READER_LINE_HEIGHT_RATIO * READER_MAX_LINES)
+}
+
+export function calcReaderAutoWidth(fontSize: number): number {
+  return READER_TEXT_AREA_PADDING_H + Math.ceil(fontSize * READER_VERTICAL_LINE_HEIGHT_RATIO * READER_MAX_LINES)
 }
 
 // 表示エリアに収まる文字数を計算（改行考慮）
@@ -30,7 +36,7 @@ function calcMaxCharsForArea(
 ): number {
   if (areaWidth <= 0 || areaHeight <= 0) return text.length
 
-  const lineHeight = fontSize * 1.8
+  const lineHeight = fontSize * (direction === 'vertical' ? READER_VERTICAL_LINE_HEIGHT_RATIO : READER_LINE_HEIGHT_RATIO)
   const charSize = fontSize
 
   if (direction === 'horizontal') {
@@ -341,10 +347,19 @@ export const TextReaderWindow: React.FC = () => {
 
   const isVerticalWindow = config.windowPosition === 'top' || config.windowPosition === 'bottom'
   const autoHeight = isVerticalWindow ? calcReaderAutoHeight(config.fontSize) : undefined
+  const isSideWindow = config.windowPosition === 'left' || config.windowPosition === 'right'
+  const autoWidth = isSideWindow && config.textDirection === 'vertical'
+    ? calcReaderAutoWidth(config.fontSize)
+    : undefined
+  const configuredWidth = isSideWindow && config.textDirection === 'horizontal'
+    ? `${config.textWindowWidthPercent}%`
+    : undefined
 
   const windowStyle: React.CSSProperties = {
     background: `rgba(12, 12, 30, ${(config.backgroundOpacity ?? 70) / 100})`,
     ...(autoHeight !== undefined ? { height: autoHeight } : {}),
+    ...(autoWidth !== undefined ? { width: autoWidth, minWidth: autoWidth } : {}),
+    ...(configuredWidth !== undefined ? { width: configuredWidth } : {}),
   }
 
   const handleSpeedMultiplier = (mult: 1 | 2 | 3) => {
@@ -353,6 +368,50 @@ export const TextReaderWindow: React.FC = () => {
 
   const overlayStyle: React.CSSProperties | undefined =
     !(config.overlayOnImage ?? true) ? { position: 'fixed', inset: 0 } : undefined
+
+  const controlBar = (
+    <div className={`${styles.controlBar} ${config.windowPosition === 'top' ? styles.controlBarTop : ''}`}>
+      <span className={styles.pageInfo}>{currentPageIndex + 1} / {pages.length}</span>
+
+      <button className={styles.controlBtn} onClick={goToPrevPage} title="前のページ (z/n)">◀</button>
+      <button className={styles.controlBtn} onClick={goToNextPage} title="次のページ (x/m)">▶</button>
+
+      <div className={styles.controlDivider} />
+
+      <button
+        className={`${styles.controlBtn} ${isAutoAdvancing ? styles.controlBtnActive : ''}`}
+        onClick={() => setTextReaderAutoAdvancing(!isAutoAdvancing)}
+        title="自動ページ送り"
+      >
+        Auto
+      </button>
+
+      <button
+        className={`${styles.controlBtn} ${autoSpeedMultiplier === 2 ? styles.speedBtnActive : ''}`}
+        onClick={() => handleSpeedMultiplier(2)}
+        title="×2 速度"
+      >
+        ×2
+      </button>
+      <button
+        className={`${styles.controlBtn} ${autoSpeedMultiplier === 3 ? styles.speedBtnActive : ''}`}
+        onClick={() => handleSpeedMultiplier(3)}
+        title="×3 速度"
+      >
+        ×3
+      </button>
+
+      <div className={styles.controlDivider} />
+
+      <button
+        className={`${styles.controlBtn} ${showLog ? styles.controlBtnActive : ''}`}
+        onClick={() => setTextReaderShowLog(!showLog)}
+        title="テキストログ"
+      >
+        ≡
+      </button>
+    </div>
+  )
 
   return (
     <div className={styles.overlay} style={overlayStyle}>
@@ -382,6 +441,8 @@ export const TextReaderWindow: React.FC = () => {
 
       {/* メインテキストウィンドウ */}
       <div ref={windowRef} data-reader-window className={`${styles.window} ${windowPositionClass}`} style={windowStyle}>
+        {config.windowPosition === 'top' && controlBar}
+
         {/* テキスト表示エリア */}
         <div ref={textAreaRef} className={styles.textArea}>
           <div
@@ -393,48 +454,7 @@ export const TextReaderWindow: React.FC = () => {
           </div>
         </div>
 
-        {/* コントロールバー */}
-        <div className={styles.controlBar}>
-          <span className={styles.pageInfo}>{currentPageIndex + 1} / {pages.length}</span>
-
-          <button className={styles.controlBtn} onClick={goToPrevPage} title="前のページ (z/n)">◀</button>
-          <button className={styles.controlBtn} onClick={goToNextPage} title="次のページ (x/m)">▶</button>
-
-          <div className={styles.controlDivider} />
-
-          <button
-            className={`${styles.controlBtn} ${isAutoAdvancing ? styles.controlBtnActive : ''}`}
-            onClick={() => setTextReaderAutoAdvancing(!isAutoAdvancing)}
-            title="自動ページ送り"
-          >
-            Auto
-          </button>
-
-          <button
-            className={`${styles.controlBtn} ${autoSpeedMultiplier === 2 ? styles.speedBtnActive : ''}`}
-            onClick={() => handleSpeedMultiplier(2)}
-            title="×2 速度"
-          >
-            ×2
-          </button>
-          <button
-            className={`${styles.controlBtn} ${autoSpeedMultiplier === 3 ? styles.speedBtnActive : ''}`}
-            onClick={() => handleSpeedMultiplier(3)}
-            title="×3 速度"
-          >
-            ×3
-          </button>
-
-          <div className={styles.controlDivider} />
-
-          <button
-            className={`${styles.controlBtn} ${showLog ? styles.controlBtnActive : ''}`}
-            onClick={() => setTextReaderShowLog(!showLog)}
-            title="テキストログ"
-          >
-            ≡
-          </button>
-        </div>
+        {config.windowPosition !== 'top' && controlBar}
       </div>
     </div>
   )

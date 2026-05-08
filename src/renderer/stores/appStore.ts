@@ -134,6 +134,7 @@ export const DEFAULT_TIMER: TimerConfig = {
 export const DEFAULT_TEXT_READER_CONFIG: TextReaderConfig = {
   windowPosition: 'bottom',
   textDirection: 'horizontal',
+  textWindowWidthPercent: 35,
   fontFamily: 'Meiryo',
   fontSize: 20,
   charIntervalMs: 50,
@@ -142,11 +143,23 @@ export const DEFAULT_TEXT_READER_CONFIG: TextReaderConfig = {
   overlayOnImage: true,
 }
 
+function normalizeTextReaderConfig(config: TextReaderConfig): TextReaderConfig {
+  const isTopOrBottom = config.windowPosition === 'top' || config.windowPosition === 'bottom'
+  const widthPercent = Number.isFinite(config.textWindowWidthPercent)
+    ? config.textWindowWidthPercent
+    : DEFAULT_TEXT_READER_CONFIG.textWindowWidthPercent
+  return {
+    ...config,
+    textDirection: isTopOrBottom ? 'horizontal' : config.textDirection,
+    textWindowWidthPercent: Math.max(20, Math.min(60, widthPercent)),
+  }
+}
+
 function getInitialTextReaderConfig(): TextReaderConfig {
   if (typeof window === 'undefined') return { ...DEFAULT_TEXT_READER_CONFIG }
   try {
     const stored = window.localStorage.getItem('whiteroom.textReaderConfig')
-    if (stored) return { ...DEFAULT_TEXT_READER_CONFIG, ...JSON.parse(stored) as Partial<TextReaderConfig> }
+    if (stored) return normalizeTextReaderConfig({ ...DEFAULT_TEXT_READER_CONFIG, ...JSON.parse(stored) as Partial<TextReaderConfig> })
   } catch { /* ignore */ }
   return { ...DEFAULT_TEXT_READER_CONFIG }
 }
@@ -675,6 +688,7 @@ export const useAppStore = create<AppStore>()(
 
     setTextReaderConfig: (config) => set(s => {
       Object.assign(s.textReader.config, config)
+      s.textReader.config = normalizeTextReaderConfig(s.textReader.config)
       try {
         window.localStorage.setItem('whiteroom.textReaderConfig', JSON.stringify(s.textReader.config))
       } catch { /* ignore */ }

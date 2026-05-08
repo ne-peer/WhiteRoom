@@ -107,6 +107,13 @@
   gap: 5px;
   border-top: 1px solid rgba(160, 160, 220, 0.20);
   flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.controlBarTop {
+  border-top: none;
+  border-bottom: 1px solid rgba(160, 160, 220, 0.20);
 }
 
 .pageInfo {
@@ -115,6 +122,7 @@
   margin-right: auto;
   letter-spacing: 0.03em;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .controlBtn {
@@ -133,6 +141,7 @@
   align-items: center;
   justify-content: center;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .controlBtn:hover {

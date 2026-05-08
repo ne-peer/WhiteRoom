@@ -274,6 +274,7 @@ export type TextReaderPageAdvanceSpeed = 'slow' | 'normal' | 'fast'
 export type TextReaderConfig = {
   windowPosition: TextReaderWindowPosition
   textDirection: 'horizontal' | 'vertical'
+  textWindowWidthPercent: number
   fontFamily: string
   fontSize: 20 | 28 | 36
   charIntervalMs: number

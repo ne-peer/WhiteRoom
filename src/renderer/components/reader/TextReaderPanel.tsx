@@ -47,6 +47,8 @@ export const TextReaderPanel: React.FC = () => {
 
   const fileName = filePath ? filePath.split(/[\\/]/).pop() ?? filePath : null
   const hasFile = rawSegments.length > 0
+  const isTopOrBottom = config.windowPosition === 'top' || config.windowPosition === 'bottom'
+  const isSideHorizontal = (config.windowPosition === 'left' || config.windowPosition === 'right') && config.textDirection === 'horizontal'
 
   const positionOptions: { value: TextReaderWindowPosition; label: string }[] = [
     { value: 'bottom', label: t('textReaderPositionBottom') },
@@ -130,9 +132,26 @@ export const TextReaderPanel: React.FC = () => {
             onChange={e => setTextReaderConfig({ textDirection: e.target.value as 'horizontal' | 'vertical' })}
           >
             <option value="horizontal">{t('horizontal')}</option>
-            <option value="vertical">{t('vertical')}</option>
+            {!isTopOrBottom && <option value="vertical">{t('vertical')}</option>}
           </select>
         </Row>
+
+        {isSideHorizontal && (
+          <Row label={t('textReaderWindowWidth')}>
+            <div className={styles.sliderRow}>
+              <input
+                type="range"
+                className={styles.slider}
+                min={20}
+                max={60}
+                step={5}
+                value={config.textWindowWidthPercent}
+                onChange={e => setTextReaderConfig({ textWindowWidthPercent: Number(e.target.value) })}
+              />
+              <span className={styles.sliderValue}>{config.textWindowWidthPercent}%</span>
+            </div>
+          </Row>
+        )}
       </Section>
 
       {/* フォント設定 */}
