@@ -282,6 +282,7 @@ export type AppActions = {
 
   // UI
   selectCell: (cellId: string | null) => void
+  setControlsVisible: (flag: boolean) => void
   toggleControls: () => void
   setLoading: (flag: boolean) => void
   setLanguage: (language: UiLanguage) => void
@@ -596,6 +597,8 @@ export const useAppStore = create<AppStore>()(
     // ===== UI =====
 
     selectCell: (cellId) => set(s => { s.selectedCellId = cellId }),
+
+    setControlsVisible: (flag) => set(s => { s.showControls = flag }),
 
     toggleControls: () => set(s => { s.showControls = !s.showControls }),
 

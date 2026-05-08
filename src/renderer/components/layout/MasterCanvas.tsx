@@ -60,15 +60,21 @@ export const MasterCanvas: React.FC = () => {
   // Escapeキーでフルスクリーン解除 / スペースキーでタイマー操作
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
+      const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable
       if (e.key === 'Escape' && useAppStore.getState().fullscreen) {
         e.preventDefault()
         const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
         useAppStore.getState().setFullscreen(false)
         api?.setFullscreen(false)
       }
+      if (e.key.toLowerCase() === 'u' && !e.repeat && !isEditable) {
+        e.preventDefault()
+        useAppStore.getState().toggleControls()
+      }
       if (e.key === ' ' && !e.repeat) {
-        const tag = (e.target as HTMLElement).tagName
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+        if (isEditable) return
         e.preventDefault()
         const { timer, setTimer } = useAppStore.getState()
         if (!timer.enabled) return
@@ -155,11 +161,15 @@ export const MasterCanvas: React.FC = () => {
               <div className={styles.emptyCellContent}>
                 <span className={styles.emptyCellHint}>{t('dropImageOrFolderHere')}</span>
                 <div className={styles.emptyCellTips}>
-                  <div className={styles.emptyCellTipsTitle}>Tips:</div>
-                  <ul className={styles.emptyCellTipsList}>
-                    <li>{t('tipScrollToNavigate')}</li>
-                    <li>{t('tipSpaceTimer')}</li>
-                  </ul>
+                  <div className={styles.emptyCellTipsGroup}>
+                    <div className={styles.emptyCellTipsTitle}>Shortcuts:</div>
+                    <ul className={styles.emptyCellTipsList}>
+                      <li>{t('shortcutImageControls')}</li>
+                      <li>{t('shortcutUiControls')}</li>
+                      <li>{t('shortcutTimerControls')}</li>
+                      <li>{t('shortcutTextReaderControls')}</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             )}

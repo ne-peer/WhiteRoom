@@ -6,7 +6,16 @@ import type { UiLanguage } from '../../../shared/types'
 import styles from './AppearanceControls.module.css'
 
 export const AppearanceControls: React.FC = () => {
-  const { blankColor, blankBackground, setBlankColor, setBlankBackground, fullscreen, setFullscreen } = useAppStore()
+  const {
+    blankColor,
+    blankBackground,
+    setBlankColor,
+    setBlankBackground,
+    fullscreen,
+    setFullscreen,
+    showControls,
+    setControlsVisible,
+  } = useAppStore()
   const { language, setLanguage, t } = useTranslation()
   const backgroundModeOptions = [
     { value: 'color', label: t('backgroundModeColor') },
@@ -97,7 +106,11 @@ export const AppearanceControls: React.FC = () => {
           <Row label={t('fullscreen')}>
             <Toggle value={fullscreen} onChange={handleFullscreen} />
           </Row>
+          <Row label={t('hideUi')}>
+            <Toggle value={!showControls} onChange={hide => setControlsVisible(!hide)} />
+          </Row>
         </Section>
+        <div className={styles.shortcutHelp}>{t('appearanceShortcutHelp')}</div>
       </div>
 
       <div className={styles.debugSection}>
