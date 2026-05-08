@@ -407,6 +407,7 @@ export const useAppStore = create<AppStore>()(
       if (cell) {
         cell.folder = folder
         cell.currentImageIndex = 0
+        delete s.cellTagOverrides[cellId]
       }
     }),
 
@@ -415,6 +416,7 @@ export const useAppStore = create<AppStore>()(
       if (cell) {
         cell.folder = null
         cell.currentImageIndex = 0
+        delete s.cellTagOverrides[cellId]
       }
     }),
 
@@ -422,6 +424,7 @@ export const useAppStore = create<AppStore>()(
       s.cells.forEach(cell => {
         cell.folder = null
         cell.currentImageIndex = 0
+        delete s.cellTagOverrides[cell.id]
       })
     }),
 
@@ -429,6 +432,7 @@ export const useAppStore = create<AppStore>()(
       s.cells.forEach(cell => {
         cell.folder = structuredClone(folder)
         cell.currentImageIndex = 0
+        delete s.cellTagOverrides[cell.id]
       })
     }),
 

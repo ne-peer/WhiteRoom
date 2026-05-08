@@ -64,6 +64,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
         cells.forEach(cell => {
           const cr = cellRenderersRef.current.get(cell.id)
           if (!cr) return
+          cr.setStoryboardScale(sbProgress)
           cr.applyTimerProgress(cell.effects, progressEnabled, progressRunning, effectiveProgress)
           cr.tick(ticker.deltaTime, cell.effects)
         })
