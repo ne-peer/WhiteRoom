@@ -2007,7 +2007,8 @@ export class CellRenderer {
     const spiral = effects.spiral
     if (!spiral.enabled || !this.spiralGraphics.visible) return
     const dtSec = delta / 60
-    this.spiralRotationRad += (spiral.rotationSpeedDegPerSec * Math.PI / 180) * dtSec
+    const rotationSpeedScale = spiral.pattern === 'vortex' ? 1 / 7 : 1
+    this.spiralRotationRad += (spiral.rotationSpeedDegPerSec * rotationSpeedScale * Math.PI / 180) * dtSec
     this.spiralGraphics.rotation = this.spiralRotationRad
     this.spiralGraphics.position.set(this.width * 0.5, this.height * 0.5)
     if (spiral.dynamic && !spiral.dynamicTimerSync) {
