@@ -16,6 +16,7 @@ export const MasterCanvas: React.FC = () => {
   const showControls = useAppStore(s => s.showControls)
   const grid = useAppStore(s => s.grid)
   const cells = useAppStore(s => s.cells)
+  const cellTagOverrides = useAppStore(s => s.cellTagOverrides)
   const textReaderVisible = useAppStore(s => s.textReader.visible)
   const textReaderConfig = useAppStore(s => s.textReader.config)
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null)
@@ -165,7 +166,7 @@ export const MasterCanvas: React.FC = () => {
       >
         {cells.map(cell => (
           <div key={cell.id} className={styles.emptyCellHintSlot}>
-            {(!cell.folder || cell.folder.images.length === 0) && (
+            {(!cell.folder || cell.folder.images.length === 0) && !cellTagOverrides[cell.id] && (
               <div className={styles.emptyCellContent}>
                 <span className={styles.emptyCellHint}>{t('dropImageOrFolderHere')}</span>
                 <div className={styles.emptyCellTips}>
