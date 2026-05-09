@@ -228,9 +228,15 @@ src/
 ├── shared/         # Shared type definitions (main/renderer)
 │   └── types.ts
 └── renderer/       # React + PixiJS frontend
+    ├── index.html
     ├── App.tsx
     ├── main.tsx
+    ├── appInfo.ts
+    ├── i18n.ts
     ├── global.css
+    ├── css.d.ts
+    ├── globals.d.ts
+    ├── window.d.ts
     ├── stores/
     │   └── appStore.ts       # Zustand global state
     ├── hooks/
@@ -242,8 +248,9 @@ src/
     │   └── pixiEffects.ts    # Effect utilities
     └── components/
         ├── layout/
-        │   ├── MasterCanvas  # PixiJS canvas host
-        │   └── TopBar        # Top toolbar
+        │   ├── MasterCanvas          # PixiJS canvas host
+        │   ├── TopBar                # Top toolbar
+        │   └── CellNavigationOverlay # Cell navigation overlay
         ├── controls/
         │   ├── ControlPanel  # Right-side panel
         │   ├── GridControls  # Grid/cell operations
@@ -252,7 +259,13 @@ src/
         │   └── ProfileControls
         ├── effects/
         │   └── EffectsPanel  # Effect settings
+        ├── reader/
+        │   ├── TextReaderPanel   # Text file controls panel
+        │   ├── TextReaderWindow  # Text display window
+        │   └── StoryboardPanel   # Storyboard editor panel
         └── timer/
-            ├── TimerOverlay  # Timer display
-            └── TimerControls # Timer settings
+            ├── TimerOverlay         # Timer display
+            ├── TimerControls        # Timer settings
+            ├── TimerPreOverlay      # Pre-timer overlay
+            └── TimerEndFlashOverlay # End flash overlay
 ```
