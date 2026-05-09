@@ -121,6 +121,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     trailEnabled: false,
     trailSecondStageEnabled: false,
     trailSecondStageSize: 0.62,
+    trailSecondStageDelayFactor: 1,
     trailDelaySec: 0.12,
     trailAlpha: 0.55,
     trailBlurStrength: 2,

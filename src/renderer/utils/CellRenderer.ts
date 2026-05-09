@@ -88,6 +88,7 @@ export class CellRenderer {
   private shakeTrailGuideKey: string | null = null
   private shakeTrailGuideGraphics: PIXI.Graphics | null = null
   private shakeTrailGuideRemainingSec = 0
+  private shakeTrailGuideMode: 'all' | 'second' = 'all'
   private shakeTrailSamples: { timeSec: number; offsetY: number }[] = []
   private shakeTrailFirstStageSamples: { timeSec: number; offsetY: number }[] = []
   private shakeTrailElapsedSec = 0
@@ -1100,6 +1101,7 @@ export class CellRenderer {
           shake.manualTriggerNonce ?? 0,
           shake.trailSecondStageEnabled ?? false,
           shake.trailSecondStageSize ?? 0.62,
+          shake.trailSecondStageDelayFactor ?? 1,
         ].join(':')
       : 'disabled'
 
@@ -1405,10 +1407,12 @@ export class CellRenderer {
       this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
+      shake.trailSecondStageEnabled ?? false,
+      shake.trailSecondStageSize ?? 0.62,
     ].join(':')
     const shouldShowGuide = this.shakeTrailGuideKey !== null && this.shakeTrailGuideKey !== guideKey
     this.shakeTrailGuideKey = guideKey
-    if (shouldShowGuide) this.showShakeTrailGuide(shake)
+    if (shouldShowGuide) this.showShakeTrailGuide(shake, shake.trailSecondStageEnabled ? 'second' : 'all')
 
     const key = [
       this.currentImageSrc,
@@ -1421,6 +1425,7 @@ export class CellRenderer {
       shake.trailHeight ?? 1,
       shake.trailSecondStageEnabled ?? false,
       shake.trailSecondStageSize ?? 0.62,
+      shake.trailSecondStageDelayFactor ?? 1,
     ].join(':')
     if (this.shakeTrailKey === key && this.shakeTrailSprite) return
 
@@ -1489,7 +1494,9 @@ export class CellRenderer {
     const dtSec = Math.max(0, delta) / 60
     this.shakeTrailElapsedSec += dtSec
     this.shakeTrailSamples.push({ timeSec: this.shakeTrailElapsedSec, offsetY: this.shakeOffsetY })
-    const keepAfterSec = this.shakeTrailElapsedSec - clamp(shake.trailDelaySec ?? 0.12, 0.01, 0.5) - 0.25
+    const delaySec = clamp(shake.trailDelaySec ?? 0.12, 0.01, 0.5)
+    const secondDelaySec = delaySec * clamp(shake.trailSecondStageDelayFactor ?? 1, 0.25, 3)
+    const keepAfterSec = this.shakeTrailElapsedSec - Math.max(delaySec, secondDelaySec) - 0.25
     while (this.shakeTrailSamples.length > 2 && this.shakeTrailSamples[0].timeSec < keepAfterSec) {
       this.shakeTrailSamples.shift()
     }
@@ -1531,7 +1538,8 @@ export class CellRenderer {
     this.shakeTrailSprite.alpha = clamp(shake.trailAlpha ?? 0.55, 0, 1)
 
     if (shake.trailSecondStageEnabled && this.shakeTrailSecondSprite) {
-      const secondTargetTimeSec = this.shakeTrailElapsedSec - delaySec
+      const secondDelaySec = delaySec * clamp(shake.trailSecondStageDelayFactor ?? 1, 0.25, 3)
+      const secondTargetTimeSec = this.shakeTrailElapsedSec - secondDelaySec
       const secondDelayedOffsetY = this.getDelayedShakeTrailFirstStageOffset(secondTargetTimeSec)
       this.shakeTrailSecondSmoothedOffsetY = this.shakeTrailSecondSmoothedOffsetY === null
         ? secondDelayedOffsetY
@@ -1625,25 +1633,36 @@ export class CellRenderer {
     this.shakeTrailFirstStageSamples = []
   }
 
-  private showShakeTrailGuide(shake: ShakeEffect) {
+  private showShakeTrailGuide(shake: ShakeEffect, mode: 'all' | 'second' = 'all') {
     if (!this.shakeTrailGuideGraphics) {
       this.shakeTrailGuideGraphics = new PIXI.Graphics()
       this.guideLayer.addChild(this.shakeTrailGuideGraphics)
     }
 
+    this.shakeTrailGuideMode = mode
     const centerX = clamp(this.latestEffects?.effectCenter?.x ?? 0.5, 0, 1)
     const centerY = clamp(this.latestEffects?.effectCenter?.y ?? 0.5, 0, 1)
     const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
     const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
+    const secondSize = size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
     const cx = this.width * centerX
     const cy = this.height * centerY
     const rx = Math.max(1, this.width * size * 0.5)
     const ry = Math.max(1, this.height * size * heightRatio * 0.5)
+    const secondRx = Math.max(1, this.width * secondSize * 0.5)
+    const secondRy = Math.max(1, this.height * secondSize * heightRatio * 0.5)
 
     this.shakeTrailGuideGraphics.clear()
-    this.shakeTrailGuideGraphics.ellipse(cx, cy, rx, ry)
-    this.shakeTrailGuideGraphics.fill({ color: 0x66ccff, alpha: 0.14 })
-    this.shakeTrailGuideGraphics.stroke({ color: 0xffffff, alpha: 0.92, width: 2 })
+    if (mode === 'all') {
+      this.shakeTrailGuideGraphics.ellipse(cx, cy, rx, ry)
+      this.shakeTrailGuideGraphics.fill({ color: 0x66ccff, alpha: 0.14 })
+      this.shakeTrailGuideGraphics.stroke({ color: 0xffffff, alpha: 0.92, width: 2 })
+    }
+    if (shake.trailSecondStageEnabled) {
+      this.shakeTrailGuideGraphics.ellipse(cx, cy, secondRx, secondRy)
+      this.shakeTrailGuideGraphics.fill({ color: 0xffcc66, alpha: mode === 'second' ? 0.22 : 0.16 })
+      this.shakeTrailGuideGraphics.stroke({ color: 0xffee99, alpha: 0.96, width: mode === 'second' ? 3 : 2 })
+    }
     this.shakeTrailGuideGraphics.alpha = 1
     this.shakeTrailGuideRemainingSec = 1
   }
@@ -1661,6 +1680,7 @@ export class CellRenderer {
 
   private clearShakeTrailGuide() {
     this.shakeTrailGuideRemainingSec = 0
+    this.shakeTrailGuideMode = 'all'
     if (!this.shakeTrailGuideGraphics) return
     this.guideLayer.removeChild(this.shakeTrailGuideGraphics)
     this.shakeTrailGuideGraphics.destroy()

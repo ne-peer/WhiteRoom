@@ -114,6 +114,7 @@ const EFFECT_PRESET_1: CellEffects = {
     trailEnabled: false,
     trailSecondStageEnabled: false,
     trailSecondStageSize: 0.62,
+    trailSecondStageDelayFactor: 1,
     trailDelaySec: 0.12,
     trailAlpha: 0.55,
     trailBlurStrength: 2,
@@ -1092,15 +1093,27 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   />
                 </Row>
                 {(effects.shake.trailSecondStageEnabled ?? DEFAULT_EFFECTS.shake.trailSecondStageEnabled) && (
-                  <Row label={t('shakeTrailSecondStageSize')}>
-                    <Slider
-                      value={Math.round((effects.shake.trailSecondStageSize ?? DEFAULT_EFFECTS.shake.trailSecondStageSize) * 100)}
-                      min={10}
-                      max={100}
-                      onChange={v => set('shake', { trailSecondStageSize: v / 100 })}
-                      unit="%"
-                    />
-                  </Row>
+                  <>
+                    <Row label={t('shakeTrailSecondStageSize')}>
+                      <Slider
+                        value={Math.round((effects.shake.trailSecondStageSize ?? DEFAULT_EFFECTS.shake.trailSecondStageSize) * 100)}
+                        min={10}
+                        max={100}
+                        onChange={v => set('shake', { trailSecondStageSize: v / 100 })}
+                        unit="%"
+                      />
+                    </Row>
+                    <Row label={t('shakeTrailSecondStageDelayFactor')}>
+                      <Slider
+                        value={Math.round((effects.shake.trailSecondStageDelayFactor ?? DEFAULT_EFFECTS.shake.trailSecondStageDelayFactor) * 100)}
+                        min={25}
+                        max={300}
+                        step={5}
+                        onChange={v => set('shake', { trailSecondStageDelayFactor: v / 100 })}
+                        unit="%"
+                      />
+                    </Row>
+                  </>
                 )}
                 <Row label={t('shakeTrailOpacity')}>
                   <Slider
