@@ -129,68 +129,15 @@ npx tsc --noEmit
 7. **Text reader is not part of `AppProfile`**: it is UI/session state stored separately from exported profiles
 8. **`structuredClone` inside immer `set()`**: compute snapshots outside `set()` using `get()` — immer draft Proxies cannot be structurally cloned
 
-## Storyboard Tag Spec (`src/renderer/utils/storyboardParser.ts`)
+## Storyboard Tag Spec
 
-Text files loaded in the text reader can embed **storyboard tags** — special lines that trigger image/effect changes as the reader advances.
+For the Text Reader storyboard tag system, read `docs/WR-Storyboard.md` before implementation.
 
-### Tag Format
-
-Tags must occupy their own line. They are stripped from the display and fire when the **next clean paragraph** first becomes visible.
-
-**Type 1 — Simple (hand-written)**
-
-```
-[[C:\path\to\image.jpg]]
-```
-
-- Switches the displayed image on all cells; no effect change
-
-**Type 2 — Rich (app-generated via Storyboard tool)**
-
-```
-[WR:1.4.0:{"image":"C:\\path\\image.jpg","effects":{...},"progress":{"enabled":true,"pages":5},"timer":{"enabled":false}}]
-```
-
-- Format: `[WR:<appVersion>:<JSON payload>]`
-- JSON schema:
-
-```typescript
-{
-  image: string                          // absolute path, text-file-relative path, file/data URL, or http(s) image/page URL
-  effects: Partial<CellEffects>          // effects to apply to all cells
-  progress?: { enabled: boolean; pages: number }  // effect ramp-up over N pages
-  timer?: { enabled: boolean }           // auto-start timer on trigger
-}
-```
-
-### Remote Image Safety
-
-- Remote storyboard images are loaded through the main-process IPC path, then passed to PixiJS as data URLs.
-- Keep same-URL loads deduplicated with in-flight promise caches in both renderer and main. Multiple cells showing the same URL must produce at most one network request.
-- Successful remote image loads are cached for the app session. Re-entering the same tag must not re-request the image.
-- pixiv-family hosts (`pixiv.net` and `pximg.net`) are capped at 10 distinct image/page URLs per app session. The 11th distinct URL must be blocked before network access and surface a user-visible warning.
-- Do not reset the pixiv counter when changing or closing a text file; only app restart resets it.
-- Text tab must keep showing the current `pixiv requests: n/10` counter from main-process state.
+- Tags are standalone lines that trigger image/effect changes when the next clean paragraph first becomes visible.
+- Rich tags use the format `[WR:<appVersion>:<JSON payload>]`.
+- Remote storyboard images must be loaded through main-process IPC, deduplicated, and session-cached.
+- pixiv-family hosts (`pixiv.net` and `pximg.net`) are capped at 10 distinct image/page URLs per app session.
 - Never add hard-coded sample pixiv artwork URLs or artwork IDs to code, tests, docs, or commit messages.
-
-### Runtime Behaviour
-
-| Event | Action |
-|---|---|
-| Page advances into a tagged segment | `applyTagToAllCells()` sets `cellTagOverrides[cellId]`, merges `effects` into all cells |
-| Page retreats before active tags | `restoreBaseline()` restores snapshot taken at file load |
-| `progress.enabled` | `storyboardEffectProgress` (0–1) increments each page; overrides timer sync in ticker |
-| `timer.enabled` | Timer resets and starts; Auto-advance suspends until timer completes |
-
-### Key Files
-
-| File | Role |
-|---|---|
-| `src/renderer/utils/storyboardParser.ts` | `parseTextFile()`, `insertOrReplaceTagBefore()`, `buildRichTagLine()` |
-| `src/renderer/stores/appStore.ts` | `tagEntries`, `baselineSnapshot`, `cellTagOverrides`, `storyboardEffectProgress`; actions `applyTagToAllCells`, `restoreBaseline`, `insertTagAtCurrentPosition` |
-| `src/renderer/components/reader/TextReaderWindow.tsx` | Per-page tag evaluation and rollback |
-| `src/renderer/components/reader/StoryboardPanel.tsx` | Insert image/timer tags, save file |
-| `src/renderer/hooks/usePixiStage.ts` | `cellTagOverrides` drives image override; `storyboardEffectProgress` overrides timer progress |
 
 ## Image Effect Profile Spec
 
@@ -200,6 +147,14 @@ For the planned per-image effect profile save/load feature, read `docs/WR-Effect
 - The local folder file is `whiteroom_effects.json`.
 - Saved image paths must be relative.
 - Text Reader / Storyboard activity suspends automatic application until the text file is closed.
+
+## Documentation Workflow
+
+When a new feature is added to this work instruction file, ask whether a feature specification should also be created under `docs/`.
+
+- Use the filename pattern `docs/WR-{FeatureName}.md`.
+- If the feature details are already complete in this file, migrating them directly into the docs file is acceptable.
+- Keep this file as the quick reference and the docs file as the canonical feature specification.
 
 ## TODO (unimplemented / still worth tracking)
 
