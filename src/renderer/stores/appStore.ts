@@ -237,15 +237,15 @@ function getInitialLanguage(): UiLanguage {
 }
 
 function normalizeShakePatch(
-  currentShake: CellEffects['shake'],
   value: Partial<CellEffects['shake']>
 ): Partial<CellEffects['shake']> {
   const patch = structuredClone(value)
-  const nextSecondStageSize = patch.trailSecondStageSize ?? currentShake.trailSecondStageSize
-  if (nextSecondStageSize > 1) {
-    patch.trailSecondStageSize = 1
-  } else if (nextSecondStageSize < 0.1) {
-    patch.trailSecondStageSize = 0.1
+  if (patch.trailSecondStageSize !== undefined) {
+    if (patch.trailSecondStageSize > 1) {
+      patch.trailSecondStageSize = 1
+    } else if (patch.trailSecondStageSize < 0.1) {
+      patch.trailSecondStageSize = 0.1
+    }
   }
   return patch
 }
@@ -601,12 +601,12 @@ export const useAppStore = create<AppStore>()(
       const cell = s.cells.find(c => c.id === cellId)
       if (!cell) return
       const patch = effectKey === 'shake'
-        ? normalizeShakePatch(cell.effects.shake, value)
+        ? normalizeShakePatch(value)
         : value
       if (s.applyEffectChangesToAllColumns) {
         s.cells.forEach(targetCell => {
           const targetPatch = effectKey === 'shake'
-            ? normalizeShakePatch(targetCell.effects.shake, value)
+            ? normalizeShakePatch(value)
             : structuredClone(value)
           Object.assign(targetCell.effects[effectKey], targetPatch)
         })
@@ -618,7 +618,7 @@ export const useAppStore = create<AppStore>()(
     setAllCellsEffect: (effectKey, value) => set(s => {
       s.cells.forEach(cell => {
         const patch = effectKey === 'shake'
-          ? normalizeShakePatch(cell.effects.shake, value)
+          ? normalizeShakePatch(value)
           : structuredClone(value)
         Object.assign(cell.effects[effectKey], patch)
       })

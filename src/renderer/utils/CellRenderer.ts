@@ -1534,7 +1534,7 @@ export class CellRenderer {
       secondLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
       secondLayer.filters = [secondBlurFilter, secondMaskFilter]
       secondMaskSprite.alpha = 0
-      this.container.addChildAt(secondLayer, this.container.getChildIndex(maskSprite) + 1)
+      this.container.addChildAt(secondLayer, this.container.getChildIndex(firstLayer))
       this.container.addChildAt(secondMaskSprite, this.container.getChildIndex(secondLayer) + 1)
 
       this.shakeTrailSecondLayer = secondLayer
