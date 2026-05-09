@@ -30,18 +30,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build & Package
+      - name: Build & Package (Windows Portable)
+        if: matrix.platform == 'win'
+        run: npm run build && npx electron-builder --win portable
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Package (macOS DMG)
+        if: matrix.platform == 'mac'
         run: npm run build && npm run package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Windows installer
+      - name: Upload Windows artifacts
         if: matrix.platform == 'win'
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          files: dist/*.exe
+          files: dist/*Portable*.exe
 
       - name: Upload macOS dmg
         if: matrix.platform == 'mac'

@@ -16,7 +16,6 @@
 |---|---|
 | Windows | `.exe` |
 | macOS (Apple Silicon) | `_arm64_.dmg` |
-| macOS (Intel) | `_x64_.dmg` |
 
 ### macOSでの注意事項
 
