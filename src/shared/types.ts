@@ -139,6 +139,8 @@ export type BreathingEffect = {
 export type ShakeEffect = {
   enabled: boolean
   mode: 'once' | 'loop'
+  repeatEnabled: boolean
+  repeatIntervalSec: number
   amplitudeFactor: number
   speedFactor: number
   loopAmplitudePx: number

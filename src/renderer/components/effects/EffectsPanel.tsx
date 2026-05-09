@@ -104,6 +104,8 @@ const EFFECT_PRESET_1: CellEffects = {
   shake: {
     enabled: false,
     mode: 'once',
+    repeatEnabled: false,
+    repeatIntervalSec: 3,
     amplitudeFactor: 1,
     speedFactor: 1,
     loopAmplitudePx: 20,
@@ -253,6 +255,8 @@ const EFFECT_PRESET_2: CellEffects = {
   shake: {
     enabled: true,
     mode: 'loop',
+    repeatEnabled: false,
+    repeatIntervalSec: 3,
     amplitudeFactor: 1,
     speedFactor: 1,
     loopAmplitudePx: 20,
@@ -1143,6 +1147,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             </Row>
             {effects.shake.mode === 'once' ? (
               <>
+                <Row label={t('shakeRepeat')}>
+                  <Toggle
+                    value={effects.shake.repeatEnabled}
+                    onChange={v => set('shake', { repeatEnabled: v })}
+                  />
+                </Row>
+                {effects.shake.repeatEnabled && (
+                  <Row label={t('shakeRepeatInterval')}>
+                    <NumberInput
+                      value={effects.shake.repeatIntervalSec}
+                      min={0.1}
+                      max={60}
+                      step={0.1}
+                      unit={t('seconds')}
+                      onChange={v => set('shake', { repeatIntervalSec: v })}
+                    />
+                  </Row>
+                )}
                 <Row label={t('distanceFactor')}>
                   <NumberInput
                     value={effects.shake.amplitudeFactor}

@@ -126,6 +126,7 @@ export class CellRenderer {
   private shakeOnceSegmentStartY = 0
   private shakeOnceSegmentTargetY = 0
   private shakeOnceSegmentCount = 0
+  private shakeRepeatElapsedSec = 0
   private shakeLoopSegmentElapsedSec = 0
   private shakeLoopSegmentStartY = 0
   private shakeAfterimages: { sprite: PIXI.Sprite; ageSec: number; durationSec: number }[] = []
@@ -1092,6 +1093,8 @@ export class CellRenderer {
       ? [
           shake.enabled,
           shake.mode,
+          shake.repeatEnabled,
+          shake.repeatIntervalSec,
           shake.amplitudeFactor,
           shake.speedFactor,
           shake.loopAmplitudePx,
@@ -1225,6 +1228,24 @@ export class CellRenderer {
       return
     }
 
+    if (shake.repeatEnabled && this.shakeOnceInitialized) {
+      this.shakeRepeatElapsedSec += dtSec
+    }
+
+    if (this.isShakeOnceIdle()) {
+      if (shake.repeatEnabled) {
+        const intervalSec = Math.max(0.1, shake.repeatIntervalSec)
+        if (this.shakeRepeatElapsedSec >= intervalSec) {
+          this.shakeRepeatElapsedSec %= intervalSec
+          this.restartShakeOnceMotion()
+        } else {
+          return
+        }
+      } else {
+        return
+      }
+    }
+
     if (!this.shakeOnceInitialized) {
       const initialTarget = -SHAKE_ONCE_INITIAL_UP_PX * factor
       if (Math.abs(initialTarget) < SHAKE_ONCE_STOP_THRESHOLD_PX) {
@@ -1234,6 +1255,7 @@ export class CellRenderer {
       }
       this.startShakeOnceSegment(0, initialTarget)
       this.shakeOnceInitialized = true
+      this.shakeRepeatElapsedSec = 0
     }
 
     if (this.shakeOnceSegmentStartY === this.shakeOnceSegmentTargetY) return
@@ -1302,6 +1324,7 @@ export class CellRenderer {
     this.shakeOnceSegmentStartY = 0
     this.shakeOnceSegmentTargetY = 0
     this.shakeOnceSegmentCount = 0
+    this.shakeRepeatElapsedSec = 0
     this.shakeLoopSegmentElapsedSec = 0
     this.shakeLoopSegmentStartY = 0
     this.shakeAfterimagePending = false
@@ -1347,6 +1370,20 @@ export class CellRenderer {
     this.shakeOnceSegmentTargetY = targetY
     this.shakeOnceSegmentElapsedSec = 0
     if (startY !== targetY) this.shakeOnceSegmentCount += 1
+  }
+
+  private isShakeOnceIdle() {
+    return this.shakeOnceInitialized && this.shakeOnceSegmentStartY === this.shakeOnceSegmentTargetY
+  }
+
+  private restartShakeOnceMotion() {
+    this.shakeOffsetY = 0
+    this.shakeOnceInitialized = false
+    this.shakeOnceSegmentElapsedSec = 0
+    this.shakeOnceSegmentStartY = 0
+    this.shakeOnceSegmentTargetY = 0
+    this.shakeOnceSegmentCount = 0
+    this.shakeAfterimagePending = false
   }
 
   private createPendingShakeAfterimage(shake?: ShakeEffect) {

@@ -111,6 +111,8 @@ export const DEFAULT_EFFECTS: CellEffects = {
   shake: {
     enabled: false,
     mode: 'once',
+    repeatEnabled: false,
+    repeatIntervalSec: 3,
     amplitudeFactor: 1,
     speedFactor: 1,
     loopAmplitudePx: 20,
