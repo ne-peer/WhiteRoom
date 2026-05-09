@@ -22,36 +22,51 @@
 CellRenderer.container
 |- [0] dynamicBackgroundLayer  - blurred copy of the current image when blankBackground.mode === 'dynamic'
 |- [1] imageLayer              - main image sprite (mask-clipped)
-|- [2] echoLayer               - echo trail sprite (mask-clipped)
-|- [3] effectsLayer            - blur target when blur.applyToAll = true
-|- [4] overlayLayer            - color overlay Graphics
-|- [5] particleContainer       - dynamic assets (ParticleSystem)
-|- [6] textLayer               - in-cell text effect (TextSystem)
-|- [7] vignetteLayer           - vignette sprite
-`- [8] echoMask                - mask graphics attached to the container
+|- [2] shakeTrailLayer         - masked delayed shake-trail sprites
+|- [3] echoLayer               - echo trail sprite (mask-clipped)
+|- [4] effectsLayer            - blur target when blur.applyToAll = true
+|- [5] overlayLayer            - color overlay Graphics
+|- [6] particleContainer       - dynamic assets (ParticleSystem)
+|- [7] textLayer               - in-cell text effect (TextSystem)
+|- [8] vignetteLayer           - vignette sprite
+|- [9] spiralLayer             - spiral Graphics and radial mask
+|- [10] guideLayer             - temporary radial/position guide Graphics
+`- [11] echoMask               - mask graphics attached to the container
 ```
 
 - Blur targets `imageLayer` or `effectsLayer` depending on `blur.applyToAll`
 - Radial blur builds cloned image layers and mask sprites inside `CellRenderer`
-- Timer UI, pre-overlay, end-flash, cell navigation overlay, and text reader window are React overlays with `position: absolute`, outside PixiJS
+- Shake, shake-trail, flash overlay, spiral, radial blur, vignette, particles, and in-cell text are owned by `CellRenderer`
+- Timer UI, pre-overlay, end-flash, cell navigation overlay, pick-mode guides, storyboard panel, and text reader window are React overlays with `position: absolute`, outside PixiJS
 
 ### State Flow
 
-Zustand (`src/renderer/stores/appStore.ts`) is the source of truth for grid, cells, timer, language, and text reader state.
+Zustand (`src/renderer/stores/appStore.ts`) is the source of truth for grid, cells, timer, language, text reader/storyboard state, image effect profile cache, and temporary storyboard image overrides.
 
-`usePixiStage.ts` reacts to store changes and calls `CellRenderer.setImage()`, `updateEffects()`, `resize()`, `resetEffectTiming()`, and `applyTimerProgress()`.
+`usePixiStage.ts` reacts to store changes and calls `CellRenderer.setImage()`, `clearImage()`, `setImageFit()`, `configureBlankBackground()`, `updateEffects()`, `resize()`, `resetEffectTiming()`, `resetVignetteBlurEchoTiming()`, `setStoryboardScale()`, and `applyTimerProgress()`.
+
+Storyboard image overrides are stored in `cellTagOverrides`; while `textReader.storyboardEffectProgress` is active it overrides timer-linked effect progress inside the Pixi ticker.
+
+Image effect profiles are cached by folder path in `imageEffectProfiles`. Automatic profile application is suspended while a Text Reader file is open so Storyboard tags stay authoritative.
 
 ### IPC Pattern
 
 `window.api.xxx()` -> `ipcRenderer.invoke()` / event subscription -> `ipcMain.handle()` (via preload)
 
-Current IPC covers folder selection, profile save/load, asset selection, preset asset folder listing, system font listing, text file loading, fullscreen control, and fullscreen change notifications.
+Current IPC covers folder selection/path reads, profile save/load, asset and overlay image selection, preset asset folder listing, local image base64 reads, system font listing, text file load/save and temp cleanup, image effect profile load/save, remote storyboard image loading with session cache/limits, fullscreen/window controls, external links/devtools, and fullscreen change notifications.
 
 ## Key Types (`src/shared/types.ts`)
 
 Always check and update shared types before adding features.
 
 ```typescript
+type CellFolder = {
+  id: string
+  source?: 'folder' | 'remote-image'
+  path: string
+  images: string[]
+}
+
 type Cell = {
   id: string
   col: number
@@ -64,11 +79,24 @@ type Cell = {
 }
 
 type CellEffects = {
+  effectCenter: {
+    x: number
+    y: number
+  }
   colorOverlay: ColorOverlayEffect
   vignette: VignetteEffect
+  spiral: {
+    enabled: boolean
+    pattern: 'classic' | 'vortex'
+    radialEnabled: boolean
+    dynamic: boolean
+    dynamicTimerSync: boolean
+  }
   blur: BlurEffect
   echo: EchoEffect
+  flash: FlashEffect
   breathing: BreathingEffect
+  shake: ShakeEffect
   dynamicAsset: DynamicAssetEffect
   textEffect: TextEffect
 }
@@ -95,6 +123,12 @@ type AppProfile = {
   cells: Cell[]
   timer: TimerConfig
   fullscreen: boolean
+}
+
+type ImageEffectProfileDocument = {
+  version: string
+  updatedAt: string
+  entries: Record<string, ImageEffectProfileEntry>
 }
 ```
 
@@ -141,12 +175,13 @@ For the Text Reader storyboard tag system, read `docs/WR-Storyboard.md` before i
 
 ## Image Effect Profile Spec
 
-For the planned per-image effect profile save/load feature, read `docs/WR-EffectProfile.md` before implementation.
+For the per-image effect profile save/load feature, read `docs/WR-EffectProfile.md` before implementation.
 
 - Effects are saved per image, not per cell or column.
 - The local folder file is `whiteroom_effects.json`.
 - Saved image paths must be relative.
 - Text Reader / Storyboard activity suspends automatic application until the text file is closed.
+- Remote URL images cannot be saved because there is no local target folder.
 
 ## Documentation Workflow
 
@@ -223,4 +258,8 @@ When instructed with `bump to v{x.x.x}` (for example, `bump to v1.5.1`), perform
 | v0.1.2 | Radial blur and vignette z-order fix (`vignetteLayer` added) |
 | v1.3.1 | Timer sync enhancements, preset asset packaging, pre-timer overlay improvements, fullscreen UI auto-hide |
 | v1.4.0 | Text reader improvements, hamburger tab UI, floating navigation when controls are hidden, packaging/doc updates |
-| v1.5.0 | Storyboard tag system: text-reader image sync, effect progress, timer auto-start, storyboard panel |
+| v1.4.1 | Storyboard tag system: text-reader image sync, effect progress, timer auto-start, storyboard panel; selected-column effect reset |
+| v1.4.2 | Remote URL storyboard images with pixiv-family session limits; text window max-width setting |
+| v1.5.0 | Shake, flash, and spiral effects; shared effect center controls; advanced shake trail controls |
+| v1.5.1 | One-shot shake repeat option and effect center picking improvements |
+| v1.5.2 | Per-image effect profiles, pick-mode circle height shortcuts, image navigation shortcuts, window size reset |
