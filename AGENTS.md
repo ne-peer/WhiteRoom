@@ -192,6 +192,15 @@ Tags must occupy their own line. They are stripped from the display and fire whe
 | `src/renderer/components/reader/StoryboardPanel.tsx` | Insert image/timer tags, save file |
 | `src/renderer/hooks/usePixiStage.ts` | `cellTagOverrides` drives image override; `storyboardEffectProgress` overrides timer progress |
 
+## Image Effect Profile Spec
+
+For the planned per-image effect profile save/load feature, read `docs/WR-EffectProfile.md` before implementation.
+
+- Effects are saved per image, not per cell or column.
+- The local folder file is `whiteroom_effects.json`.
+- Saved image paths must be relative.
+- Text Reader / Storyboard activity suspends automatic application until the text file is closed.
+
 ## TODO (unimplemented / still worth tracking)
 
 - Image load error handling: fallback UI for missing paths / unsupported formats is still minimal
