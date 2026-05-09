@@ -296,8 +296,8 @@ function layoutCells(
   state: ReturnType<typeof useAppStore.getState>
 ) {
   const { grid, cells, blankColor, blankBackground } = state
-  const totalW = app.canvas.clientWidth || app.screen.width
-  const totalH = app.canvas.clientHeight || app.screen.height
+  const totalW = app.screen.width
+  const totalH = app.screen.height
 
   app.renderer.background.color = 0x000000
 

@@ -38,6 +38,7 @@ export const MasterCanvas: React.FC = () => {
     x: number
     y: number
   } | null>(null)
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const { t } = useTranslation()
 
   const canvasShrinkStyle = React.useMemo((): React.CSSProperties => {
@@ -76,6 +77,10 @@ export const MasterCanvas: React.FC = () => {
   const pickingActive = shakeTrailPositionPicking || spiralRadialPositionPicking
   const selectedCell = cells.find(cell => cell.id === selectedCellId) ?? null
   const pickColumn = selectedCell?.col ?? 0
+  const guideCellSize = {
+    width: grid.cols > 0 ? canvasSize.width / grid.cols : 0,
+    height: grid.rows > 0 ? canvasSize.height / grid.rows : 0,
+  }
   const pickColumnOverlays = pickingActive
     ? cells.filter(cell => cell.col === pickColumn).map(cell => ({
       cell,
@@ -89,6 +94,19 @@ export const MasterCanvas: React.FC = () => {
     }
     window.addEventListener('mouseup', onMouseUp)
     return () => window.removeEventListener('mouseup', onMouseUp)
+  }, [])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const updateSize = () => {
+      const rect = el.getBoundingClientRect()
+      setCanvasSize({ width: rect.width, height: rect.height })
+    }
+    updateSize()
+    const observer = new ResizeObserver(updateSize)
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [])
 
   // フルスクリーン変更をElectronから受け取り
@@ -335,7 +353,7 @@ export const MasterCanvas: React.FC = () => {
                 gridRow: cell.row + 1,
               }}
             >
-              {toCircleGuides(cell.effects).map(guide => (
+              {toCircleGuides(cell.effects, guideCellSize).map(guide => (
                 <div
                   key={guide.kind}
                   className={`${styles.pickCircleGuideEllipse} ${toCircleGuideClassName(guide.kind)}`}
@@ -425,17 +443,20 @@ function toFreezeImageStyle(imageFit: ReturnType<typeof useAppStore.getState>['c
   return { width: '100%', height: '100%', objectFit: 'contain' }
 }
 
-function toCircleGuides(effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects']): { kind: CircleGuideKind; style: React.CSSProperties }[] {
+function toCircleGuides(
+  effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects'],
+  cellSize: { width: number; height: number }
+): { kind: CircleGuideKind; style: React.CSSProperties }[] {
   const guides: { kind: CircleGuideKind; style: React.CSSProperties }[] = []
 
   if (effects.blur?.radialEnabled) {
-    guides.push({ kind: 'radialBlur', style: toCircleGuideStyle(effects, 'radialBlur') })
+    guides.push({ kind: 'radialBlur', style: toCircleGuideStyle(effects, 'radialBlur', cellSize) })
   }
 
   if (effects.shake?.trailEnabled) {
-    guides.push({ kind: 'shakeTrail', style: toCircleGuideStyle(effects, 'shakeTrail') })
+    guides.push({ kind: 'shakeTrail', style: toCircleGuideStyle(effects, 'shakeTrail', cellSize) })
     if (effects.shake.trailSecondStageEnabled) {
-      guides.push({ kind: 'shakeTrailSecondStage', style: toCircleGuideStyle(effects, 'shakeTrailSecondStage') })
+      guides.push({ kind: 'shakeTrailSecondStage', style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize) })
     }
   }
 
@@ -444,7 +465,8 @@ function toCircleGuides(effects: ReturnType<typeof useAppStore.getState>['cells'
 
 function toCircleGuideStyle(
   effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects'],
-  kind: CircleGuideKind
+  kind: CircleGuideKind,
+  cellSize: { width: number; height: number }
 ): React.CSSProperties {
   const centerX = clamp(effects.effectCenter?.x ?? 0.5, 0, 1)
   const centerY = clamp(effects.effectCenter?.y ?? 0.5, 0, 1)
@@ -457,11 +479,14 @@ function toCircleGuideStyle(
   const height = kind === 'radialBlur'
     ? clamp(effects.blur?.radialHeight ?? 1, 0.05, 3)
     : clamp(effects.shake?.trailHeight ?? 1, 0.05, 3)
+  const basePercent = cellSize.width > 0
+    ? (Math.min(cellSize.width, cellSize.height) / cellSize.width) * 100
+    : 100
   return {
     left: `${centerX * 100}%`,
     top: `${centerY * 100}%`,
-    width: `${size * 100}%`,
-    height: `${size * height * 100}%`,
+    width: `${size * basePercent}%`,
+    aspectRatio: `${1} / ${height}`,
   }
 }
 

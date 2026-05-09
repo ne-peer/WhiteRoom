@@ -80,6 +80,7 @@ export class CellRenderer {
   private shakeTrailSprite: PIXI.Sprite | null = null
   private shakeTrailMaskSprite: PIXI.Sprite | null = null
   private shakeTrailBlurFilter: PIXI.BlurFilter | null = null
+  private shakeTrailFirstLayer: PIXI.Container | null = null
   private shakeTrailSecondLayer: PIXI.Container | null = null
   private shakeTrailSecondSprite: PIXI.Sprite | null = null
   private shakeTrailSecondMaskSprite: PIXI.Sprite | null = null
@@ -1493,12 +1494,15 @@ export class CellRenderer {
       quality: 3,
     })
 
-    this.shakeTrailLayer.addChild(sprite)
-    this.container.addChildAt(maskSprite, this.container.getChildIndex(this.shakeTrailLayer) + 1)
-    this.shakeTrailLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
-    this.shakeTrailLayer.filters = [blurFilter, maskFilter]
+    const firstLayer = new PIXI.Container()
+    firstLayer.addChild(sprite)
+    firstLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    firstLayer.filters = [blurFilter, maskFilter]
+    this.container.addChildAt(firstLayer, this.container.getChildIndex(this.shakeTrailLayer) + 1)
+    this.container.addChildAt(maskSprite, this.container.getChildIndex(firstLayer) + 1)
     maskSprite.alpha = 0
 
+    this.shakeTrailFirstLayer = firstLayer
     this.shakeTrailSprite = sprite
     this.shakeTrailMaskSprite = maskSprite
     this.shakeTrailBlurFilter = blurFilter
@@ -1524,7 +1528,7 @@ export class CellRenderer {
       secondLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
       secondLayer.filters = [secondBlurFilter, secondMaskFilter]
       secondMaskSprite.alpha = 0
-      this.container.addChildAt(secondLayer, this.container.getChildIndex(this.shakeTrailLayer) + 1)
+      this.container.addChildAt(secondLayer, this.container.getChildIndex(maskSprite) + 1)
       this.container.addChildAt(secondMaskSprite, this.container.getChildIndex(secondLayer) + 1)
 
       this.shakeTrailSecondLayer = secondLayer
@@ -1652,6 +1656,12 @@ export class CellRenderer {
     this.shakeTrailLayer.filterArea = undefined
     this.shakeTrailBlurFilter = null
     this.shakeTrailSecondBlurFilter = null
+    if (this.shakeTrailFirstLayer) {
+      this.container.removeChild(this.shakeTrailFirstLayer)
+      this.shakeTrailFirstLayer.destroy({ children: true })
+      this.shakeTrailFirstLayer = null
+      this.shakeTrailSprite = null
+    }
     if (this.shakeTrailSprite) {
       this.shakeTrailLayer.removeChild(this.shakeTrailSprite)
       this.shakeTrailSprite.destroy({ texture: false })
@@ -1698,10 +1708,11 @@ export class CellRenderer {
     const centerY = clamp(centerYRatio, 0, 1)
     const normalizedSize = clamp(size, 0.05, 3)
     const normalizedHeightRatio = clamp(heightRatio, 0.05, 3)
+    const baseSize = Math.min(this.width, this.height)
     const cx = this.width * centerX
     const cy = this.height * centerY
-    const rx = Math.max(1, this.width * normalizedSize * 0.5)
-    const ry = Math.max(1, this.height * normalizedSize * normalizedHeightRatio * 0.5)
+    const rx = Math.max(1, baseSize * normalizedSize * 0.5)
+    const ry = Math.max(1, baseSize * normalizedSize * normalizedHeightRatio * 0.5)
 
     this.shakeTrailGuideGraphics.clear()
     if (mode === 'radial') {
@@ -2633,10 +2644,11 @@ export class CellRenderer {
     canvas.height = Math.ceil(this.height)
     const ctx = canvas.getContext('2d')!
     const image = ctx.createImageData(canvas.width, canvas.height)
+    const baseSize = Math.min(this.width, this.height)
     const cx = this.width * clamp(centerXRatio, 0, 1)
     const cy = this.height * centerYRatio
-    const rx = Math.max(1, this.width * size * 0.5)
-    const ry = Math.max(1, this.height * size * heightRatio * 0.5)
+    const rx = Math.max(1, baseSize * size * 0.5)
+    const ry = Math.max(1, baseSize * size * heightRatio * 0.5)
     const innerStop = clamp((1 - intensity) * size, 0, 0.9)
 
     for (let y = 0; y < canvas.height; y += 1) {
@@ -2664,17 +2676,18 @@ export class CellRenderer {
     canvas.height = Math.ceil(this.height)
     const ctx = canvas.getContext('2d')!
     const image = ctx.createImageData(canvas.width, canvas.height)
+    const baseSize = Math.min(this.width, this.height)
     const cx = this.width * clamp(centerXRatio, 0, 1)
     const cy = this.height * clamp(centerYRatio, 0, 1)
-    const rx = Math.max(1, this.width * clamp(size, 0.05, 3) * 0.5)
-    const ry = Math.max(1, this.height * clamp(size, 0.05, 3) * clamp(heightRatio, 0.05, 3) * 0.5)
+    const rx = Math.max(1, baseSize * clamp(size, 0.05, 3) * 0.5)
+    const ry = Math.max(1, baseSize * clamp(size, 0.05, 3) * clamp(heightRatio, 0.05, 3) * 0.5)
 
     for (let y = 0; y < canvas.height; y += 1) {
       for (let x = 0; x < canvas.width; x += 1) {
         const dx = x + 0.5 - cx
         const dy = y + 0.5 - cy
         const distance = Math.sqrt((dx / rx) ** 2 + (dy / ry) ** 2)
-        const alpha = Math.round((1 - smoothstep(1 - feather, 1 + feather, distance)) * 255)
+        const alpha = Math.round((1 - smoothstep(1, 1 + feather, distance)) * 255)
         const index = (y * canvas.width + x) * 4
         image.data[index] = 255
         image.data[index + 1] = 255
@@ -2704,12 +2717,13 @@ export class CellRenderer {
     canvas.height = Math.ceil(this.height)
     const ctx = canvas.getContext('2d')!
     const image = ctx.createImageData(canvas.width, canvas.height)
+    const baseSize = Math.min(this.width, this.height)
     const cx = this.width * clamp(centerXRatio, 0, 1)
     const cy = this.height * centerYRatio
-    const innerRx = Math.max(1, this.width * innerWidthRatio * 0.5)
-    const innerRy = Math.max(1, this.height * innerHeightRatio * 0.5)
-    const outerRx = Math.max(1, this.width * outerWidthRatio * 0.5)
-    const outerRy = Math.max(1, this.height * outerHeightRatio * 0.5)
+    const innerRx = Math.max(1, baseSize * innerWidthRatio * 0.5)
+    const innerRy = Math.max(1, baseSize * innerHeightRatio * 0.5)
+    const outerRx = Math.max(1, baseSize * outerWidthRatio * 0.5)
+    const outerRy = Math.max(1, baseSize * outerHeightRatio * 0.5)
     const feather = 0.08
 
     for (let y = 0; y < canvas.height; y += 1) {
