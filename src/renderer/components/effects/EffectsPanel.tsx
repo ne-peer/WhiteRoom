@@ -643,6 +643,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('spiral', { radialEnabled: v })}
               />
             </Row>
+            <div style={{ marginTop: -2, marginBottom: 8, display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={scrollToEffectCenterSetting}
+                style={{
+                  fontSize: 11,
+                  lineHeight: 1.2,
+                  color: 'rgba(255,255,255,0.72)',
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: 999,
+                  padding: '2px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('shakeTrailCirclePositionAdjust')}
+              </button>
+            </div>
             {effects.spiral.radialEnabled && (
               <>
                 <Row label={t('radialMode')}>
@@ -741,6 +759,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 8 }}>
                   {t('radialBlurHelp')}
+                </div>
+                <div style={{ marginTop: -2, marginBottom: 8, display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={scrollToEffectCenterSetting}
+                    style={{
+                      fontSize: 11,
+                      lineHeight: 1.2,
+                      color: 'rgba(255,255,255,0.72)',
+                      background: 'transparent',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: 999,
+                      padding: '2px 8px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('shakeTrailCirclePositionAdjust')}
+                  </button>
                 </div>
                 <Row label={t('radialBlurPattern')}>
                   <Select
