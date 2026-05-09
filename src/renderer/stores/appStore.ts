@@ -21,6 +21,7 @@ export const DEFAULT_SLIDESHOW: Cell['slideshow'] = {
 }
 
 export const DEFAULT_EFFECTS: CellEffects = {
+  effectCenter: { x: 0.5, y: 0.5 },
   colorOverlay: {
     enabled: false,
     color: { r: 255, g: 0, b: 128 },
@@ -75,6 +76,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     radialEnabled: false,
     radialPattern: 'a',
     radialIntensity: 0.8,
+    radialCenterX: 0.5,
     radialCenterY: 0.5,
     radialSize: 1,
     radialHeight: 1,

@@ -329,23 +329,11 @@ function layoutCells(
 
       cr.container.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
         const state = useAppStore.getState()
-        if (state.shakeTrailPositionPicking) {
+        if (state.shakeTrailPositionPicking || state.spiralRadialPositionPicking) {
           const point = renderer.getNormalizedPointFromGlobal(event.global)
           state.selectCell(cell.id)
-          state.setCellEffect(cell.id, 'shake', {
-            trailCenterX: point.x,
-            trailCenterY: point.y,
-          })
+          state.setCellEffect(cell.id, 'effectCenter', { x: point.x, y: point.y })
           state.setShakeTrailPositionPicking(false)
-          return
-        }
-        if (state.spiralRadialPositionPicking) {
-          const point = renderer.getNormalizedPointFromGlobal(event.global)
-          state.selectCell(cell.id)
-          state.setCellEffect(cell.id, 'spiral', {
-            radialCenterX: point.x,
-            radialCenterY: point.y,
-          })
           state.setSpiralRadialPositionPicking(false)
           return
         }

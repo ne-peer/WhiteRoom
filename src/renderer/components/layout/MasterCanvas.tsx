@@ -219,7 +219,7 @@ export const MasterCanvas: React.FC = () => {
       <TimerPreOverlay />
       {(shakeTrailPositionPicking || spiralRadialPositionPicking) && (
         <div className={styles.pickHint}>
-          {spiralRadialPositionPicking ? t('spiralPickHint') : t('shakeTrailPickHint')}
+          {t('effectCenterSetting')}
         </div>
       )}
       {(shakeTrailPositionPicking || spiralRadialPositionPicking) && pickGuide && (

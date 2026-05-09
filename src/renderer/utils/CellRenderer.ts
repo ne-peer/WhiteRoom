@@ -1391,8 +1391,8 @@ export class CellRenderer {
     const guideKey = [
       this.width,
       this.height,
-      shake.trailCenterX ?? 0.5,
-      shake.trailCenterY ?? 0.5,
+      this.latestEffects?.effectCenter?.x ?? 0.5,
+      this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
     ].join(':')
@@ -1405,8 +1405,8 @@ export class CellRenderer {
       this.width,
       this.height,
       shake.trailBlurStrength ?? 2,
-      shake.trailCenterX ?? 0.5,
-      shake.trailCenterY ?? 0.5,
+      this.latestEffects?.effectCenter?.x ?? 0.5,
+      this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
     ].join(':')
@@ -1416,8 +1416,8 @@ export class CellRenderer {
     const sprite = new PIXI.Sprite(this.imageSprite.texture)
     sprite.anchor.set(0.5)
     const maskSprite = this.createEllipseMaskSprite(
-      shake.trailCenterX ?? 0.5,
-      shake.trailCenterY ?? 0.5,
+      this.latestEffects?.effectCenter?.x ?? 0.5,
+      this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
       0.18
@@ -1533,8 +1533,8 @@ export class CellRenderer {
       this.guideLayer.addChild(this.shakeTrailGuideGraphics)
     }
 
-    const centerX = clamp(shake.trailCenterX ?? 0.5, 0, 1)
-    const centerY = clamp(shake.trailCenterY ?? 0.5, 0, 1)
+    const centerX = clamp(this.latestEffects?.effectCenter?.x ?? 0.5, 0, 1)
+    const centerY = clamp(this.latestEffects?.effectCenter?.y ?? 0.5, 0, 1)
     const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
     const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
     const cx = this.width * centerX
@@ -1993,8 +1993,8 @@ export class CellRenderer {
     }
     this.spiralGraphics.visible = true
     this.spiralLayer.visible = true
-    const centerX = clamp(spiral.radialCenterX ?? 0.5, 0, 1)
-    const centerY = clamp(spiral.radialCenterY ?? 0.5, 0, 1)
+    const centerX = clamp(effects.effectCenter?.x ?? 0.5, 0, 1)
+    const centerY = clamp(effects.effectCenter?.y ?? 0.5, 0, 1)
     this.spiralGraphics.position.set(this.width * centerX, this.height * centerY)
     this.redrawSpiral(spiral)
     this.updateSpiralRadialMask(spiral)
@@ -2012,8 +2012,8 @@ export class CellRenderer {
     const rotationSpeedScale = spiral.pattern === 'vortex' ? 1 / 7 : 1
     this.spiralRotationRad += (spiral.rotationSpeedDegPerSec * rotationSpeedScale * Math.PI / 180) * dtSec
     this.spiralGraphics.rotation = this.spiralRotationRad
-    const centerX = clamp(spiral.radialCenterX ?? 0.5, 0, 1)
-    const centerY = clamp(spiral.radialCenterY ?? 0.5, 0, 1)
+    const centerX = clamp(effects.effectCenter?.x ?? 0.5, 0, 1)
+    const centerY = clamp(effects.effectCenter?.y ?? 0.5, 0, 1)
     this.spiralGraphics.position.set(this.width * centerX, this.height * centerY)
     if (spiral.dynamic && !spiral.dynamicTimerSync) {
       const durationSec = Math.max(0.1, spiral.dynamicDurationMs / 1000)
@@ -2080,12 +2080,14 @@ export class CellRenderer {
       this.clearSpiralMask()
       return
     }
+    const centerX = this.latestEffects?.effectCenter?.x ?? 0.5
+    const centerY = this.latestEffects?.effectCenter?.y ?? 0.5
     const key = [
       this.width,
       this.height,
       spiral.radialMode,
-      spiral.radialCenterX ?? 0.5,
-      spiral.radialCenterY ?? 0.5,
+      centerX,
+      centerY,
       spiral.radialSize,
       spiral.radialFadeStrength ?? 1,
     ].join(':')
@@ -2095,8 +2097,8 @@ export class CellRenderer {
       this.spiralMaskSprite = this.createCenterPeripheryMaskSprite(
         keepCenter,
         spiral.radialSize,
-        spiral.radialCenterX ?? 0.5,
-        spiral.radialCenterY ?? 0.5,
+        centerX,
+        centerY,
         spiral.radialFadeStrength ?? 1
       )
       this.spiralMaskSprite.alpha = 0
@@ -2255,6 +2257,8 @@ export class CellRenderer {
   private updateBlur(effects: CellEffects) {
     const blur = effects.blur
 
+    const centerX = effects.effectCenter?.x ?? 0.5
+    const centerY = effects.effectCenter?.y ?? 0.5
     // 設定キーを生成
     const blurKey = [
       blur.enabled,
@@ -2267,7 +2271,8 @@ export class CellRenderer {
       blur.radialEnabled,
       blur.radialPattern ?? 'a',
       blur.radialIntensity,
-      blur.radialCenterY ?? 0.5,
+      centerX,
+      centerY,
       blur.radialSize ?? 1,
       blur.radialHeight ?? 1,
     ].join(':')
@@ -2297,7 +2302,7 @@ export class CellRenderer {
     }
 
     if (blur.radialEnabled) {
-      this.buildRadialGradientBlur(blur)
+      this.buildRadialGradientBlur(blur, centerX, centerY)
       if (this.radialBlurLayers.length === 0) return
       this.applyGradualBlur(this.radialBlurFilters, blur)
       return
@@ -2364,28 +2369,29 @@ export class CellRenderer {
     })
   }
 
-  private buildRadialGradientBlur(blur: BlurEffect) {
+  private buildRadialGradientBlur(blur: BlurEffect, centerXRatio: number, centerYRatio: number) {
     if (!this.imageSprite) return
 
     const insertIndex = this.container.getChildIndex(this.overlayLayer)
     const pattern = blur.radialPattern ?? 'a'
-    const centerY = clamp(blur.radialCenterY ?? 0.5, 0, 1)
+    const centerX = clamp(centerXRatio, 0, 1)
+    const centerY = clamp(centerYRatio, 0, 1)
     const radialSize = clamp(blur.radialSize ?? 1, 0.1, 3)
     const radialHeight = clamp(blur.radialHeight ?? 1, 0.1, 3)
     const regions = pattern === 'b'
       ? [
           {
-            maskSprite: this.createRadialBandMaskSprite(0.5 * radialSize * radialHeight, 0.7 * radialSize, radialHeight, 1, true, centerY),
+            maskSprite: this.createRadialBandMaskSprite(0.5 * radialSize * radialHeight, 0.7 * radialSize, radialHeight, 1, true, centerX, centerY),
             multiplier: Math.max(0, blur.radialIntensity),
           },
           {
-            maskSprite: this.createRadialBandMaskSprite(0.75 * radialSize * radialHeight, 0.85 * radialSize, radialHeight, 1, true, centerY),
+            maskSprite: this.createRadialBandMaskSprite(0.75 * radialSize * radialHeight, 0.85 * radialSize, radialHeight, 1, true, centerX, centerY),
             multiplier: Math.max(0, blur.radialIntensity) * 2,
           },
         ]
       : [
           {
-            maskSprite: this.createRadialGradientMaskSprite(blur.radialIntensity, centerY, radialSize, radialHeight),
+            maskSprite: this.createRadialGradientMaskSprite(blur.radialIntensity, centerX, centerY, radialSize, radialHeight),
             multiplier: 1,
           },
         ]
@@ -2417,13 +2423,13 @@ export class CellRenderer {
     })
   }
 
-  private createRadialGradientMaskSprite(intensity: number, centerYRatio: number, size: number, heightRatio: number): PIXI.Sprite {
+  private createRadialGradientMaskSprite(intensity: number, centerXRatio: number, centerYRatio: number, size: number, heightRatio: number): PIXI.Sprite {
     const canvas = document.createElement('canvas')
     canvas.width = Math.ceil(this.width)
     canvas.height = Math.ceil(this.height)
     const ctx = canvas.getContext('2d')!
     const image = ctx.createImageData(canvas.width, canvas.height)
-    const cx = this.width / 2
+    const cx = this.width * clamp(centerXRatio, 0, 1)
     const cy = this.height * centerYRatio
     const rx = Math.max(1, this.width * size * 0.5)
     const ry = Math.max(1, this.height * size * heightRatio * 0.5)
@@ -2484,6 +2490,7 @@ export class CellRenderer {
     outerHeightRatio: number,
     outerWidthRatio: number,
     extendsToEdge = false,
+    centerXRatio = 0.5,
     centerYRatio = 0.5,
     softenInnerEdge = true,
     softenOuterEdge = true
@@ -2493,7 +2500,7 @@ export class CellRenderer {
     canvas.height = Math.ceil(this.height)
     const ctx = canvas.getContext('2d')!
     const image = ctx.createImageData(canvas.width, canvas.height)
-    const cx = this.width / 2
+    const cx = this.width * clamp(centerXRatio, 0, 1)
     const cy = this.height * centerYRatio
     const innerRx = Math.max(1, this.width * innerWidthRatio * 0.5)
     const innerRy = Math.max(1, this.height * innerHeightRatio * 0.5)
