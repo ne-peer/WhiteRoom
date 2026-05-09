@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore, DEFAULT_EFFECTS } from '../../stores/appStore'
 import { Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select } from '../controls/UIKit'
 import { formatCount, useTranslation } from '../../i18n'
@@ -181,6 +181,9 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const [systemFonts, setSystemFonts] = useState<string[]>([])
   const [assetEffectFolders, setAssetEffectFolders] = useState<AssetEffectFolder[]>([])
   const [effectCenterAdjustOpen, setEffectCenterAdjustOpen] = useState(false)
+  const [effectCenterHighlightTick, setEffectCenterHighlightTick] = useState(0)
+  const effectCenterSectionRef = useRef<HTMLDivElement | null>(null)
+  const effectCenterHighlightTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -297,6 +300,34 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       assetFolderPath: folder.path,
     })
   }
+  const scrollToEffectCenterSetting = () => {
+    effectCenterSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (effectCenterHighlightTimerRef.current !== null) {
+      window.clearInterval(effectCenterHighlightTimerRef.current)
+      effectCenterHighlightTimerRef.current = null
+    }
+    let tick = 0
+    setEffectCenterHighlightTick(1)
+    effectCenterHighlightTimerRef.current = window.setInterval(() => {
+      tick += 1
+      if (tick >= 8) {
+        if (effectCenterHighlightTimerRef.current !== null) {
+          window.clearInterval(effectCenterHighlightTimerRef.current)
+          effectCenterHighlightTimerRef.current = null
+        }
+        setEffectCenterHighlightTick(0)
+        return
+      }
+      setEffectCenterHighlightTick(tick + 1)
+    }, 220)
+  }
+  useEffect(() => {
+    return () => {
+      if (effectCenterHighlightTimerRef.current !== null) {
+        window.clearInterval(effectCenterHighlightTimerRef.current)
+      }
+    }
+  }, [])
   const assetEffectFolderPlaceholder = __ASSET_EFFECT_FOLDERS__.length > 0
     ? (language === 'ja' ? '未選択' : 'Select folder')
     : (language === 'ja' ? 'assets/asset-effect にフォルダがありません' : 'No folders in assets/asset-effect')
@@ -320,7 +351,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', wordBreak: 'break-all' }}>
           {t('applyEffectChangesToAllColumnsHelp')}
         </div>
-        <div style={{ marginTop: 8 }}>
+        <div
+          ref={effectCenterSectionRef}
+          style={{
+            marginTop: 8,
+            padding: '6px 8px',
+            borderRadius: 8,
+            border: effectCenterHighlightTick > 0 && effectCenterHighlightTick % 2 === 1
+              ? '1px solid rgba(140, 220, 255, 0.55)'
+              : '1px solid transparent',
+            background: effectCenterHighlightTick > 0 && effectCenterHighlightTick % 2 === 1
+              ? 'rgba(80, 180, 255, 0.12)'
+              : 'transparent',
+            boxShadow: effectCenterHighlightTick > 0 && effectCenterHighlightTick % 2 === 1
+              ? '0 0 0 1px rgba(120, 210, 255, 0.25), 0 0 16px rgba(120, 210, 255, 0.15)'
+              : 'none',
+            transition: 'background 180ms ease, border-color 180ms ease, box-shadow 180ms ease',
+          }}
+        >
           <Row label={t('effectCenterSetting')}>
             <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <Button
@@ -969,6 +1017,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 8 }}>
                   {t('shakeTrailHelp')}
+                </div>
+                <div style={{ marginTop: -2, marginBottom: 8, display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={scrollToEffectCenterSetting}
+                    style={{
+                      fontSize: 11,
+                      lineHeight: 1.2,
+                      color: 'rgba(255,255,255,0.72)',
+                      background: 'transparent',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: 999,
+                      padding: '2px 8px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {t('shakeTrailCirclePositionAdjust')}
+                  </button>
                 </div>
                 <Row label={t('shakeTrailDelay')}>
                   <Slider
