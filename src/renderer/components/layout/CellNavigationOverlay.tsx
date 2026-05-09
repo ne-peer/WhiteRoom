@@ -76,23 +76,29 @@ export const CellNavigationOverlay: React.FC<Props> = ({ hoveredCellId }) => {
           <>
             <button
               className={styles.navBtn}
+              title={t('imageNavPrevShortcutTip')}
+              aria-label={t('imageNavPrevShortcutTip')}
               onDragOver={stopDrag}
               onClick={e => {
                 e.stopPropagation()
                 prevCellImage(hoveredCellId)
               }}
             >
-              ‹
+              <span aria-hidden="true">&lt;</span>
+              <span className={styles.shortcutTip}>{t('imageNavPrevShortcutTip')}</span>
             </button>
             <button
               className={styles.navBtn}
+              title={t('imageNavNextShortcutTip')}
+              aria-label={t('imageNavNextShortcutTip')}
               onDragOver={stopDrag}
               onClick={e => {
                 e.stopPropagation()
                 nextCellImage(hoveredCellId, true)
               }}
             >
-              ›
+              <span aria-hidden="true">&gt;</span>
+              <span className={styles.shortcutTip}>{t('imageNavNextShortcutTip')}</span>
             </button>
           </>
         )}

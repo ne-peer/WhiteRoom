@@ -296,10 +296,10 @@ export const TextReaderWindow: React.FC = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-      if (e.key === 'z' || e.key === 'n') {
+      if (e.key === 'n') {
         e.preventDefault()
         goToPrevPage()
-      } else if (e.key === 'x' || e.key === 'm') {
+      } else if (e.key === 'm') {
         e.preventDefault()
         goToNextPage()
       } else if (e.key === 'Escape') {
@@ -394,8 +394,8 @@ export const TextReaderWindow: React.FC = () => {
           ≡
         </button>
         <div className={styles.controlDivider} />
-        <button className={styles.controlBtn} onClick={goToPrevPage} title="Previous page (z/n)">&lt;</button>
-        <button className={styles.controlBtn} onClick={goToNextPage} title="Next page (x/m)">&gt;</button>
+        <button className={styles.controlBtn} onClick={goToPrevPage} title="Previous page (n)">&lt;</button>
+        <button className={styles.controlBtn} onClick={goToNextPage} title="Next page (m)">&gt;</button>
       </div>
 
       <div className={styles.controlGroup}>

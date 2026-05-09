@@ -207,6 +207,21 @@ export const MasterCanvas: React.FC = () => {
         setPickPreviewCenter(null)
         setPickGuide(null)
       }
+      if (!e.repeat && !isEditable && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'x')) {
+        const state = useAppStore.getState()
+        const targetIds = [hoveredCellId, state.selectedCellId].filter((id): id is string => Boolean(id))
+        const cell = targetIds
+          .map(id => state.cells.find(c => c.id === id) ?? null)
+          .find(c => c?.folder && c.folder.images.length > 1)
+        if (cell?.folder && cell.folder.images.length > 1) {
+          e.preventDefault()
+          if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'z') {
+            state.prevCellImage(cell.id)
+          } else {
+            state.nextCellImage(cell.id, true)
+          }
+        }
+      }
       if (e.key === ' ' && !e.repeat) {
         if (isEditable) return
         e.preventDefault()
@@ -224,7 +239,7 @@ export const MasterCanvas: React.FC = () => {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [hoveredCellId])
 
   // マウスホイールで画像ナビゲーション（non-passiveで preventDefault を使用）
   useEffect(() => {
