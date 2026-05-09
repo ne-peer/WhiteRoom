@@ -11,6 +11,8 @@ import { TextReaderWindow, calcReaderAutoHeight, calcReaderAutoWidth, READER_WIN
 import { useTranslation } from '../../i18n'
 import styles from './MasterCanvas.module.css'
 
+type CircleGuideKind = 'radialBlur' | 'shakeTrail' | 'shakeTrailSecondStage'
+
 export const MasterCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const trailSizeDragRef = useRef<{
@@ -333,10 +335,13 @@ export const MasterCanvas: React.FC = () => {
                 gridRow: cell.row + 1,
               }}
             >
-              <div
-                className={styles.pickCircleGuideEllipse}
-                style={toCircleGuideStyle(cell.effects)}
-              />
+              {toCircleGuides(cell.effects).map(guide => (
+                <div
+                  key={guide.kind}
+                  className={`${styles.pickCircleGuideEllipse} ${toCircleGuideClassName(guide.kind)}`}
+                  style={guide.style}
+                />
+              ))}
             </div>
           ))}
         </div>
@@ -401,15 +406,48 @@ function toFreezeImageStyle(imageFit: ReturnType<typeof useAppStore.getState>['c
   return { width: '100%', height: '100%', objectFit: 'contain' }
 }
 
-function toCircleGuideStyle(effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects']): React.CSSProperties {
+function toCircleGuides(effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects']): { kind: CircleGuideKind; style: React.CSSProperties }[] {
+  const guides: { kind: CircleGuideKind; style: React.CSSProperties }[] = []
+
+  if (effects.blur?.radialEnabled) {
+    guides.push({ kind: 'radialBlur', style: toCircleGuideStyle(effects, 'radialBlur') })
+  }
+
+  if (effects.shake?.trailEnabled) {
+    guides.push({ kind: 'shakeTrail', style: toCircleGuideStyle(effects, 'shakeTrail') })
+    if (effects.shake.trailSecondStageEnabled) {
+      guides.push({ kind: 'shakeTrailSecondStage', style: toCircleGuideStyle(effects, 'shakeTrailSecondStage') })
+    }
+  }
+
+  return guides
+}
+
+function toCircleGuideStyle(
+  effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects'],
+  kind: CircleGuideKind
+): React.CSSProperties {
   const centerX = clamp(effects.effectCenter?.x ?? 0.5, 0, 1)
   const centerY = clamp(effects.effectCenter?.y ?? 0.5, 0, 1)
-  const size = clamp(effects.shake?.trailSize ?? 0.7, 0.05, 3)
-  const height = clamp(effects.shake?.trailHeight ?? 1, 0.05, 3)
+  const shakeSize = clamp(effects.shake?.trailSize ?? 0.7, 0.05, 3)
+  const size = kind === 'radialBlur'
+    ? clamp(effects.blur?.radialSize ?? 1, 0.05, 3)
+    : kind === 'shakeTrailSecondStage'
+      ? shakeSize * clamp(effects.shake?.trailSecondStageSize ?? 0.62, 0.1, 1)
+      : shakeSize
+  const height = kind === 'radialBlur'
+    ? clamp(effects.blur?.radialHeight ?? 1, 0.05, 3)
+    : clamp(effects.shake?.trailHeight ?? 1, 0.05, 3)
   return {
     left: `${centerX * 100}%`,
     top: `${centerY * 100}%`,
     width: `${size * 100}%`,
     height: `${size * height * 100}%`,
   }
+}
+
+function toCircleGuideClassName(kind: CircleGuideKind): string {
+  if (kind === 'radialBlur') return styles.pickCircleGuideEllipseRadialBlur
+  if (kind === 'shakeTrailSecondStage') return styles.pickCircleGuideEllipseSecondStage
+  return styles.pickCircleGuideEllipseShakeTrail
 }

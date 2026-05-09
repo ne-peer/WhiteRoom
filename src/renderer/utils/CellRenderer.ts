@@ -85,10 +85,12 @@ export class CellRenderer {
   private shakeTrailSecondMaskSprite: PIXI.Sprite | null = null
   private shakeTrailSecondBlurFilter: PIXI.BlurFilter | null = null
   private shakeTrailKey: string | null = null
-  private shakeTrailGuideKey: string | null = null
+  private radialBlurGuideKey: string | null = null
+  private shakeTrailFirstGuideKey: string | null = null
+  private shakeTrailSecondGuideKey: string | null = null
   private shakeTrailGuideGraphics: PIXI.Graphics | null = null
   private shakeTrailGuideRemainingSec = 0
-  private shakeTrailGuideMode: 'all' | 'second' = 'all'
+  private shakeTrailGuideMode: 'radial' | 'first' | 'second' = 'first'
   private shakeTrailSamples: { timeSec: number; offsetY: number }[] = []
   private shakeTrailFirstStageSamples: { timeSec: number; offsetY: number }[] = []
   private shakeTrailElapsedSec = 0
@@ -1434,19 +1436,31 @@ export class CellRenderer {
       return
     }
 
-    const guideKey = [
+    const firstGuideKey = [
       this.width,
       this.height,
       this.latestEffects?.effectCenter?.x ?? 0.5,
       this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
+    ].join(':')
+    const secondGuideKey = [
+      this.width,
+      this.height,
+      this.latestEffects?.effectCenter?.x ?? 0.5,
+      this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSecondStageEnabled ?? false,
       shake.trailSecondStageSize ?? 0.62,
     ].join(':')
-    const shouldShowGuide = this.shakeTrailGuideKey !== null && this.shakeTrailGuideKey !== guideKey
-    this.shakeTrailGuideKey = guideKey
-    if (shouldShowGuide) this.showShakeTrailGuide(shake, shake.trailSecondStageEnabled ? 'second' : 'all')
+    const shouldShowFirstGuide = this.shakeTrailFirstGuideKey !== null && this.shakeTrailFirstGuideKey !== firstGuideKey
+    const shouldShowSecondGuide = Boolean(shake.trailSecondStageEnabled) && this.shakeTrailSecondGuideKey !== null && this.shakeTrailSecondGuideKey !== secondGuideKey
+    this.shakeTrailFirstGuideKey = firstGuideKey
+    this.shakeTrailSecondGuideKey = secondGuideKey
+    if (shouldShowSecondGuide) {
+      this.showShakeTrailGuide(shake, 'second')
+    } else if (shouldShowFirstGuide) {
+      this.showShakeTrailGuide(shake, 'first')
+    }
 
     const key = [
       this.currentImageSrc,
@@ -1667,38 +1681,60 @@ export class CellRenderer {
     this.shakeTrailFirstStageSamples = []
   }
 
-  private showShakeTrailGuide(shake: ShakeEffect, mode: 'all' | 'second' = 'all') {
+  private showCircleGuide(
+    mode: 'radial' | 'first' | 'second',
+    centerXRatio: number,
+    centerYRatio: number,
+    size: number,
+    heightRatio: number
+  ) {
     if (!this.shakeTrailGuideGraphics) {
       this.shakeTrailGuideGraphics = new PIXI.Graphics()
       this.guideLayer.addChild(this.shakeTrailGuideGraphics)
     }
 
     this.shakeTrailGuideMode = mode
-    const centerX = clamp(this.latestEffects?.effectCenter?.x ?? 0.5, 0, 1)
-    const centerY = clamp(this.latestEffects?.effectCenter?.y ?? 0.5, 0, 1)
-    const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
-    const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
-    const secondSize = size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+    const centerX = clamp(centerXRatio, 0, 1)
+    const centerY = clamp(centerYRatio, 0, 1)
+    const normalizedSize = clamp(size, 0.05, 3)
+    const normalizedHeightRatio = clamp(heightRatio, 0.05, 3)
     const cx = this.width * centerX
     const cy = this.height * centerY
-    const rx = Math.max(1, this.width * size * 0.5)
-    const ry = Math.max(1, this.height * size * heightRatio * 0.5)
-    const secondRx = Math.max(1, this.width * secondSize * 0.5)
-    const secondRy = Math.max(1, this.height * secondSize * heightRatio * 0.5)
+    const rx = Math.max(1, this.width * normalizedSize * 0.5)
+    const ry = Math.max(1, this.height * normalizedSize * normalizedHeightRatio * 0.5)
 
     this.shakeTrailGuideGraphics.clear()
-    if (mode === 'all') {
+    if (mode === 'radial') {
+      this.shakeTrailGuideGraphics.ellipse(cx, cy, rx, ry)
+      this.shakeTrailGuideGraphics.fill({ color: 0x60ff88, alpha: 0.12 })
+      this.shakeTrailGuideGraphics.stroke({ color: 0x9cffb2, alpha: 0.96, width: 3 })
+    }
+    if (mode === 'first') {
       this.shakeTrailGuideGraphics.ellipse(cx, cy, rx, ry)
       this.shakeTrailGuideGraphics.fill({ color: 0x66ccff, alpha: 0.14 })
-      this.shakeTrailGuideGraphics.stroke({ color: 0xffffff, alpha: 0.92, width: 2 })
+      this.shakeTrailGuideGraphics.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
     }
-    if (shake.trailSecondStageEnabled) {
-      this.shakeTrailGuideGraphics.ellipse(cx, cy, secondRx, secondRy)
-      this.shakeTrailGuideGraphics.fill({ color: 0xffcc66, alpha: mode === 'second' ? 0.22 : 0.16 })
-      this.shakeTrailGuideGraphics.stroke({ color: 0xffee99, alpha: 0.96, width: mode === 'second' ? 3 : 2 })
+    if (mode === 'second') {
+      this.shakeTrailGuideGraphics.ellipse(cx, cy, rx, ry)
+      this.shakeTrailGuideGraphics.fill({ color: 0xffe266, alpha: 0.22 })
+      this.shakeTrailGuideGraphics.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
     }
     this.shakeTrailGuideGraphics.alpha = 1
     this.shakeTrailGuideRemainingSec = 1
+  }
+
+  private showShakeTrailGuide(shake: ShakeEffect, mode: 'first' | 'second' = 'first') {
+    const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
+    const guideSize = mode === 'second'
+      ? size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+      : size
+    this.showCircleGuide(
+      mode,
+      this.latestEffects?.effectCenter?.x ?? 0.5,
+      this.latestEffects?.effectCenter?.y ?? 0.5,
+      guideSize,
+      shake.trailHeight ?? 1
+    )
   }
 
   private updateShakeTrailGuide(delta: number) {
@@ -1714,7 +1750,7 @@ export class CellRenderer {
 
   private clearShakeTrailGuide() {
     this.shakeTrailGuideRemainingSec = 0
-    this.shakeTrailGuideMode = 'all'
+    this.shakeTrailGuideMode = 'first'
     if (!this.shakeTrailGuideGraphics) return
     this.guideLayer.removeChild(this.shakeTrailGuideGraphics)
     this.shakeTrailGuideGraphics.destroy()
@@ -2413,6 +2449,21 @@ export class CellRenderer {
     const centerX = effects.effectCenter?.x ?? 0.5
     const centerY = effects.effectCenter?.y ?? 0.5
     // 設定キーを生成
+    const radialGuideKey = [
+      this.width,
+      this.height,
+      centerX,
+      centerY,
+      blur.radialEnabled,
+      blur.radialSize ?? 1,
+      blur.radialHeight ?? 1,
+    ].join(':')
+    const shouldShowRadialGuide = Boolean(blur.radialEnabled) && this.radialBlurGuideKey !== null && this.radialBlurGuideKey !== radialGuideKey
+    this.radialBlurGuideKey = radialGuideKey
+    if (shouldShowRadialGuide) {
+      this.showCircleGuide('radial', centerX, centerY, blur.radialSize ?? 1, blur.radialHeight ?? 1)
+    }
+
     const blurKey = [
       blur.enabled,
       blur.strength,

@@ -66,10 +66,25 @@
 .pickCircleGuideEllipse {
   position: absolute;
   transform: translate(-50%, -50%);
-  border: 2px solid rgba(255, 255, 255, 0.96);
   border-radius: 50%;
+}
+
+.pickCircleGuideEllipseRadialBlur {
+  border: 2px solid rgba(156, 255, 178, 0.96);
+  background: rgba(96, 255, 136, 0.12);
+  box-shadow: 0 0 7px rgba(96, 255, 136, 0.68);
+}
+
+.pickCircleGuideEllipseShakeTrail {
+  border: 2px solid rgba(178, 232, 255, 0.96);
   background: rgba(102, 204, 255, 0.14);
-  box-shadow: 0 0 6px rgba(102, 204, 255, 0.72);
+  box-shadow: 0 0 7px rgba(102, 204, 255, 0.72);
+}
+
+.pickCircleGuideEllipseSecondStage {
+  border: 2px solid rgba(255, 244, 154, 0.96);
+  background: rgba(255, 226, 102, 0.15);
+  box-shadow: 0 0 7px rgba(255, 226, 102, 0.72);
 }
 
 .pickHint {

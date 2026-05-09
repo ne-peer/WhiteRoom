@@ -236,6 +236,20 @@ function getInitialLanguage(): UiLanguage {
   return stored === 'en' || stored === 'ja' ? stored : DEFAULT_LANGUAGE
 }
 
+function normalizeShakePatch(
+  currentShake: CellEffects['shake'],
+  value: Partial<CellEffects['shake']>
+): Partial<CellEffects['shake']> {
+  const patch = structuredClone(value)
+  const nextSecondStageSize = patch.trailSecondStageSize ?? currentShake.trailSecondStageSize
+  if (nextSecondStageSize > 1) {
+    patch.trailSecondStageSize = 1
+  } else if (nextSecondStageSize < 0.1) {
+    patch.trailSecondStageSize = 0.1
+  }
+  return patch
+}
+
 function createCell(col: number, row: number): Cell {
   return {
     id: `cell-${col}-${row}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -586,17 +600,28 @@ export const useAppStore = create<AppStore>()(
     setCellEffect: (cellId, effectKey, value) => set(s => {
       const cell = s.cells.find(c => c.id === cellId)
       if (!cell) return
+      const patch = effectKey === 'shake'
+        ? normalizeShakePatch(cell.effects.shake, value)
+        : value
       if (s.applyEffectChangesToAllColumns) {
         s.cells.forEach(targetCell => {
-          Object.assign(targetCell.effects[effectKey], structuredClone(value))
+          const targetPatch = effectKey === 'shake'
+            ? normalizeShakePatch(targetCell.effects.shake, value)
+            : structuredClone(value)
+          Object.assign(targetCell.effects[effectKey], targetPatch)
         })
         return
       }
-      Object.assign(cell.effects[effectKey], value)
+      Object.assign(cell.effects[effectKey], patch)
     }),
 
     setAllCellsEffect: (effectKey, value) => set(s => {
-      s.cells.forEach(cell => Object.assign(cell.effects[effectKey], structuredClone(value)))
+      s.cells.forEach(cell => {
+        const patch = effectKey === 'shake'
+          ? normalizeShakePatch(cell.effects.shake, value)
+          : structuredClone(value)
+        Object.assign(cell.effects[effectKey], patch)
+      })
     }),
 
     applyEffectsToAll: () => {
