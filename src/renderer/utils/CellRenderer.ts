@@ -1473,14 +1473,14 @@ export class CellRenderer {
     const key = [
       this.width,
       this.height,
-      shake.trailBlurStrength ?? 2,
+      shake.trailBlurStrength ?? 0,
       this.latestEffects?.effectCenter?.x ?? 0.5,
       this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
       shake.trailSecondStageEnabled ?? false,
       shake.trailSecondStageSize ?? 0.62,
-      shake.trailSecondStageDelayFactor ?? 1,
+      shake.trailSecondStageDelayFactor ?? 0.25,
     ].join(':')
     if (this.shakeTrailKey === key && this.shakeTrailSprite) return
 
@@ -1496,7 +1496,7 @@ export class CellRenderer {
     )
     const maskFilter = new PIXI.MaskFilter({ sprite: maskSprite, channel: 'alpha' })
     const blurFilter = new PIXI.BlurFilter({
-      strength: clamp(shake.trailBlurStrength ?? 2, 0, 12),
+      strength: clamp(shake.trailBlurStrength ?? 0, 0, 12),
       quality: 3,
     })
 
@@ -1526,7 +1526,7 @@ export class CellRenderer {
       )
       const secondMaskFilter = new PIXI.MaskFilter({ sprite: secondMaskSprite, channel: 'alpha' })
       const secondBlurFilter = new PIXI.BlurFilter({
-        strength: clamp((shake.trailBlurStrength ?? 2) * 0.6, 0, 12),
+        strength: clamp((shake.trailBlurStrength ?? 0) * 0.6, 0, 12),
         quality: 3,
       })
 
@@ -1553,8 +1553,8 @@ export class CellRenderer {
     const dtSec = Math.max(0, delta) / 60
     this.shakeTrailElapsedSec += dtSec
     this.shakeTrailSamples.push({ timeSec: this.shakeTrailElapsedSec, offsetY: this.shakeOffsetY })
-    const delaySec = clamp(shake.trailDelaySec ?? 0.12, 0.01, 0.5)
-    const secondDelaySec = delaySec * clamp(shake.trailSecondStageDelayFactor ?? 1, 0.25, 3)
+    const delaySec = clamp(shake.trailDelaySec ?? 0.01, 0.01, 0.5)
+    const secondDelaySec = delaySec * clamp(shake.trailSecondStageDelayFactor ?? 0.25, 0.25, 3)
     const keepAfterSec = this.shakeTrailElapsedSec - Math.max(delaySec, secondDelaySec) - 0.25
     while (this.shakeTrailSamples.length > 2 && this.shakeTrailSamples[0].timeSec < keepAfterSec) {
       this.shakeTrailSamples.shift()
@@ -1572,7 +1572,7 @@ export class CellRenderer {
     this.updateShakeTrail(shake)
     if (!this.shakeTrailSprite || !this.imageSprite) return
 
-    const delaySec = clamp(shake.trailDelaySec ?? 0.12, 0.01, 0.5)
+    const delaySec = clamp(shake.trailDelaySec ?? 0.01, 0.01, 0.5)
     const targetTimeSec = this.shakeTrailElapsedSec - delaySec
     const delayedOffsetY = this.getDelayedShakeOffset(targetTimeSec)
     const dtSec = Math.max(0, delta) / 60
@@ -1594,10 +1594,10 @@ export class CellRenderer {
       (breathingEnabled ? this.breathingOffsetY : 0) + this.shakeTrailSmoothedOffsetY,
       scaleMultiplier
     )
-    this.shakeTrailSprite.alpha = clamp(shake.trailAlpha ?? 0.55, 0, 1)
+    this.shakeTrailSprite.alpha = clamp(shake.trailAlpha ?? 0.8, 0, 1)
 
     if (shake.trailSecondStageEnabled && this.shakeTrailSecondSprite) {
-      const secondDelaySec = delaySec * clamp(shake.trailSecondStageDelayFactor ?? 1, 0.25, 3)
+      const secondDelaySec = delaySec * clamp(shake.trailSecondStageDelayFactor ?? 0.25, 0.25, 3)
       const secondTargetTimeSec = this.shakeTrailElapsedSec - secondDelaySec
       const secondDelayedOffsetY = this.getDelayedShakeTrailFirstStageOffset(secondTargetTimeSec)
       this.shakeTrailSecondSmoothedOffsetY = this.shakeTrailSecondSmoothedOffsetY === null
@@ -1610,7 +1610,7 @@ export class CellRenderer {
         (breathingEnabled ? this.breathingOffsetY : 0) + this.shakeTrailSecondSmoothedOffsetY,
         scaleMultiplier
       )
-      this.shakeTrailSecondSprite.alpha = clamp((shake.trailAlpha ?? 0.55) + 0.12, 0, 1)
+      this.shakeTrailSecondSprite.alpha = clamp((shake.trailAlpha ?? 0.8) + 0.12, 0, 1)
     }
 
     if (delta === 0 && this.shakeTrailSamples.length === 0) {
