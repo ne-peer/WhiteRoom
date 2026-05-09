@@ -340,12 +340,12 @@ export class CellRenderer {
     this.startImageTransition(sprite, url, transition, transitionDurationMs)
   }
 
-  updateEffects(effects: CellEffects) {
+  updateEffects(effects: CellEffects, showCircleGuides = false) {
     this.latestEffects = effects
     this.updateBreathing(effects.breathing)
-    this.updateShake(effects.shake)
+    this.updateShake(effects.shake, showCircleGuides)
     this.updateColorOverlay(effects)
-    this.updateBlur(effects)
+    this.updateBlur(effects, showCircleGuides)
     this.updateColorAdjustment(effects.colorOverlay)
     this.updateVignette(effects)
     this.updateSpiral(effects)
@@ -1098,7 +1098,7 @@ export class CellRenderer {
     }
   }
 
-  private updateShake(shake?: ShakeEffect) {
+  private updateShake(shake?: ShakeEffect, showCircleGuides = false) {
     const key = shake
       ? [
           shake.enabled,
@@ -1126,12 +1126,12 @@ export class CellRenderer {
       return
     }
 
-    this.updateShakeTrail(shake)
+    this.updateShakeTrail(shake, showCircleGuides)
 
     if (this.shakeKey === key) return
     this.shakeKey = key
     this.resetShakeMotion()
-    this.updateShakeTrail(shake)
+    this.updateShakeTrail(shake, showCircleGuides)
   }
 
   private getBreathingScaleMultiplier() {
@@ -1438,7 +1438,7 @@ export class CellRenderer {
     this.shakeAfterimages = []
   }
 
-  private updateShakeTrail(shake?: ShakeEffect) {
+  private updateShakeTrail(shake?: ShakeEffect, showCircleGuides = false) {
     if (!shake?.enabled || !shake.trailEnabled || !this.imageSprite) {
       this.clearShakeTrail()
       return
@@ -1460,8 +1460,8 @@ export class CellRenderer {
       shake.trailSecondStageEnabled ?? false,
       shake.trailSecondStageSize ?? 0.62,
     ].join(':')
-    const shouldShowFirstGuide = this.shakeTrailFirstGuideKey !== null && this.shakeTrailFirstGuideKey !== firstGuideKey
-    const shouldShowSecondGuide = Boolean(shake.trailSecondStageEnabled) && this.shakeTrailSecondGuideKey !== null && this.shakeTrailSecondGuideKey !== secondGuideKey
+    const shouldShowFirstGuide = showCircleGuides && this.shakeTrailFirstGuideKey !== null && this.shakeTrailFirstGuideKey !== firstGuideKey
+    const shouldShowSecondGuide = showCircleGuides && Boolean(shake.trailSecondStageEnabled) && this.shakeTrailSecondGuideKey !== null && this.shakeTrailSecondGuideKey !== secondGuideKey
     this.shakeTrailFirstGuideKey = firstGuideKey
     this.shakeTrailSecondGuideKey = secondGuideKey
     if (shouldShowSecondGuide) {
@@ -2486,7 +2486,7 @@ export class CellRenderer {
     }
   }
 
-  private updateBlur(effects: CellEffects) {
+  private updateBlur(effects: CellEffects, showCircleGuides = false) {
     const blur = effects.blur
 
     const centerX = effects.effectCenter?.x ?? 0.5
@@ -2501,7 +2501,7 @@ export class CellRenderer {
       blur.radialSize ?? 1,
       blur.radialHeight ?? 1,
     ].join(':')
-    const shouldShowRadialGuide = Boolean(blur.radialEnabled) && this.radialBlurGuideKey !== null && this.radialBlurGuideKey !== radialGuideKey
+    const shouldShowRadialGuide = showCircleGuides && Boolean(blur.radialEnabled) && this.radialBlurGuideKey !== null && this.radialBlurGuideKey !== radialGuideKey
     this.radialBlurGuideKey = radialGuideKey
     if (shouldShowRadialGuide) {
       this.showCircleGuide('radial', centerX, centerY, blur.radialSize ?? 1, blur.radialHeight ?? 1)
@@ -2597,8 +2597,8 @@ export class CellRenderer {
       if (blur.radialEnabled && this.imageSprite) {
         this.radialBlurImageClones.forEach(clone => {
           if (clone.texture !== this.imageSprite!.texture) {
-          clone.texture = this.imageSprite!.texture
-        }
+            clone.texture = this.imageSprite!.texture
+          }
           this.copySpriteTransform(this.imageSprite!, clone)
         })
       }

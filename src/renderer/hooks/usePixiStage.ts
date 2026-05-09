@@ -10,6 +10,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   const cellRenderersRef = useRef<CellRendererMap>(new Map())
   const slideshowTimersRef = useRef<Map<string, number>>(new Map())
   const lastRandomRestartNonceRef = useRef(0)
+  const lastEffectGuideNonceRef = useRef(0)
   const smoothTimerRef = useRef({
     enabled: false,
     running: false,
@@ -133,14 +134,16 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   }, [imageKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    const showCircleGuides = store.effectGuideNonce !== lastEffectGuideNonceRef.current
     store.cells.forEach(cell => {
       const cr = cellRenderersRef.current.get(cell.id)
       if (cr) {
         cr.setImageFit(cell.imageFit ?? 'cover')
-        cr.updateEffects(cell.effects)
+        cr.updateEffects(cell.effects, showCircleGuides)
       }
     })
-  }, [store.cells])
+    lastEffectGuideNonceRef.current = store.effectGuideNonce
+  }, [store.cells, store.effectGuideNonce])
 
 
   useEffect(() => {

@@ -348,6 +348,7 @@ export type AppState = {
   slideshowRestartNonce: number
   effectSyncNonce: number
   effectRandomNonce: number
+  effectGuideNonce: number
   effectColumnSyncNonce: number
   effectColumnSyncCol: number | null
   applyEffectChangesToAllColumns: boolean
@@ -498,6 +499,7 @@ export const useAppStore = create<AppStore>()(
     slideshowRestartNonce: 0,
     effectSyncNonce: 0,
     effectRandomNonce: 0,
+    effectGuideNonce: 0,
     effectColumnSyncNonce: 0,
     effectColumnSyncCol: null,
     applyEffectChangesToAllColumns: true,
@@ -676,9 +678,11 @@ export const useAppStore = create<AppStore>()(
             : structuredClone(value)
           Object.assign(targetCell.effects[effectKey], targetPatch)
         })
+        s.effectGuideNonce += 1
         return
       }
       Object.assign(cell.effects[effectKey], patch)
+      s.effectGuideNonce += 1
     }),
 
     setAllCellsEffect: (effectKey, value) => set(s => {
@@ -688,6 +692,7 @@ export const useAppStore = create<AppStore>()(
           : structuredClone(value)
         Object.assign(cell.effects[effectKey], patch)
       })
+      s.effectGuideNonce += 1
     }),
 
     applyEffectsToAll: () => {
