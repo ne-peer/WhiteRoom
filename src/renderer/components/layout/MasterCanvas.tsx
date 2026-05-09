@@ -355,19 +355,19 @@ export const MasterCanvas: React.FC = () => {
       {pickingActive && (
         <div className={styles.pickLegend}>
           <div className={`${styles.pickLegendItem} ${styles.pickLegendGreen}`}>
-            <span>グリーン</span>
+            <span>{t('pickLegendGreen')}</span>
             <span className={styles.pickLegendSeparator}>-</span>
-            <span>ブラーエリアサイズ</span>
+            <span>{t('pickLegendBlurAreaSize')}</span>
           </div>
           <div className={`${styles.pickLegendItem} ${styles.pickLegendBlue}`}>
-            <span>ブルー</span>
+            <span>{t('pickLegendBlue')}</span>
             <span className={styles.pickLegendSeparator}>-</span>
-            <span>シェイクエリアサイズ</span>
+            <span>{t('pickLegendShakeAreaSize')}</span>
           </div>
           <div className={`${styles.pickLegendItem} ${styles.pickLegendYellow}`}>
-            <span>イエロー</span>
+            <span>{t('pickLegendYellow')}</span>
             <span className={styles.pickLegendSeparator}>-</span>
-            <span>シェイク追従遅延エリア</span>
+            <span>{t('pickLegendShakeTrailDelayArea')}</span>
           </div>
         </div>
       )}
