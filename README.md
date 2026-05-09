@@ -9,7 +9,7 @@
 
 ## 使い方
 
-以下からバージョンを選んでダウンロードしてください。
+以下から最新版をダウンロードしてください。
 - https://github.com/ne-peer/WhiteRoom/releases
 
 | OS | ファイル |
