@@ -238,6 +238,19 @@ Release note template:
 - xxx
 ```
 
+## Version Bump Workflow
+
+When instructed with `bump to v{x.x.x}` (for example, `bump to v1.5.1`), perform the full release bump workflow below:
+
+1. Pull from the remote first to update the repository.
+2. Confirm the current checkout is at `HEAD` after pulling.
+3. Read commit messages between `HEAD` and the previous latest version tag, then update `RELEASE_NOTES.md`.
+4. Update `package.json` `version` to the requested version without the leading `v` (for example, `1.5.1`).
+5. Run `npm i` to synchronize `package-lock.json`.
+6. Commit the resulting changes with the exact commit message `bump to v{x.x.x}`.
+7. Create tag `v{x.x.x}` at the current commit.
+8. Push both the repository commit and the tag to the remote.
+
 ## Changelog
 
 | Version | Changes |
