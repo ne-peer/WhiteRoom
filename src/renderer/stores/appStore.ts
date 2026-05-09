@@ -4,7 +4,7 @@ import { current } from 'immer'
 import type {
   AppProfile, Cell, CellBaseline, CellEffects, CellFolder, GridLayout,
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
-  TagEntry, TextEffect, UiLanguage, TextReaderConfig,
+  ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig,
 } from '../../shared/types'
 import { parseTextFile, insertOrReplaceTagBefore, resolveStoryboardImageReference } from '../utils/storyboardParser'
 
@@ -230,6 +230,12 @@ function getInitialTextReaderConfig(): TextReaderConfig {
 
 const DEFAULT_LANGUAGE: UiLanguage = 'ja'
 
+function getImageEffectProfileSuspendedMessage(language: UiLanguage): string {
+  return language === 'en'
+    ? 'Image effect profile auto-apply is suspended while the Text Reader is open.'
+    : 'テキストリーダーを開いている間、画像別エフェクトの自動適用を停止します。'
+}
+
 function getInitialLanguage(): UiLanguage {
   if (typeof window === 'undefined') return DEFAULT_LANGUAGE
   const stored = window.localStorage.getItem('whiteroom.uiLanguage')
@@ -261,6 +267,55 @@ function createCell(col: number, row: number): Cell {
     slideshow: { ...DEFAULT_SLIDESHOW },
     effects: structuredClone(DEFAULT_EFFECTS),
   }
+}
+
+function normalizePathSeparators(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+$/g, '')
+}
+
+function getRelativeImageProfileKey(folderPath: string, imagePath: string): string | null {
+  const folder = normalizePathSeparators(folderPath)
+  const image = normalizePathSeparators(imagePath)
+  const prefix = `${folder}/`
+  if (!image.toLowerCase().startsWith(prefix.toLowerCase())) return null
+  return image.slice(prefix.length)
+}
+
+function mergeEffectsWithDefaults(effects: Partial<CellEffects> | undefined): CellEffects {
+  return {
+    ...structuredClone(DEFAULT_EFFECTS),
+    ...effects,
+    effectCenter: { ...DEFAULT_EFFECTS.effectCenter, ...effects?.effectCenter },
+    colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...effects?.colorOverlay },
+    vignette: { ...DEFAULT_EFFECTS.vignette, ...effects?.vignette },
+    spiral: { ...DEFAULT_EFFECTS.spiral, ...effects?.spiral },
+    blur: { ...DEFAULT_EFFECTS.blur, ...effects?.blur },
+    echo: { ...DEFAULT_EFFECTS.echo, ...effects?.echo },
+    flash: { ...DEFAULT_EFFECTS.flash, ...effects?.flash },
+    breathing: { ...DEFAULT_EFFECTS.breathing, ...effects?.breathing },
+    shake: { ...DEFAULT_EFFECTS.shake, ...effects?.shake },
+    dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...effects?.dynamicAsset },
+    textEffect: { ...DEFAULT_EFFECTS.textEffect, ...effects?.textEffect },
+  }
+}
+
+function applyImageEffectProfileToCell(state: AppState, cell: Cell): boolean {
+  if (state.imageEffectProfileAutoApplySuspended) return false
+  if (!cell.folder || cell.folder.source === 'remote-image') return false
+  if (state.cellTagOverrides[cell.id]) return false
+
+  const imagePath = cell.folder.images[cell.currentImageIndex]
+  if (!imagePath) return false
+
+  const key = getRelativeImageProfileKey(cell.folder.path, imagePath)
+  if (!key) return false
+
+  const profile = state.imageEffectProfiles[cell.folder.path]
+  const entry = profile?.entries[key]
+  if (!entry) return false
+
+  cell.effects = mergeEffectsWithDefaults(entry.effects)
+  return true
 }
 
 function buildCells(cols: number, rows: number): Cell[] {
@@ -299,6 +354,8 @@ export type AppState = {
   shakeTrailPositionPicking: boolean
   spiralRadialPositionPicking: boolean
   appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error' } | null
+  imageEffectProfiles: Record<string, ImageEffectProfileDocument | null>
+  imageEffectProfileAutoApplySuspended: boolean
 
   // セルのタグ一時上書き（profile対象外・セッション専用）
   cellTagOverrides: Record<string, string | null>  // cellId → override image path
@@ -385,6 +442,8 @@ export type AppActions = {
   setLanguage: (language: UiLanguage) => void
   showAppNotification: (text: string, type?: 'info' | 'warning' | 'error') => void
   clearAppNotification: (id?: number) => void
+  setImageEffectProfile: (folderPath: string, profile: ImageEffectProfileDocument | null) => void
+  applyImageEffectProfileForCell: (cellId: string) => void
 
   // プロファイル
   exportProfile: (name: string) => AppProfile
@@ -445,6 +504,8 @@ export const useAppStore = create<AppStore>()(
     shakeTrailPositionPicking: false,
     spiralRadialPositionPicking: false,
     appNotification: null,
+    imageEffectProfiles: {},
+    imageEffectProfileAutoApplySuspended: false,
     cellTagOverrides: {},
     textReader: {
       config: getInitialTextReaderConfig(),
@@ -513,6 +574,7 @@ export const useAppStore = create<AppStore>()(
         cell.folder = folder
         cell.currentImageIndex = 0
         delete s.cellTagOverrides[cellId]
+        if (applyImageEffectProfileToCell(s, cell)) s.effectSyncNonce += 1
       }
     }),
 
@@ -538,6 +600,7 @@ export const useAppStore = create<AppStore>()(
         cell.folder = structuredClone(folder)
         cell.currentImageIndex = 0
         delete s.cellTagOverrides[cell.id]
+        if (applyImageEffectProfileToCell(s, cell)) s.effectSyncNonce += 1
       })
     }),
 
@@ -557,6 +620,7 @@ export const useAppStore = create<AppStore>()(
       if (cell && cell.folder) {
         const len = cell.folder.images.length
         cell.currentImageIndex = ((index % len) + len) % len
+        if (applyImageEffectProfileToCell(s, cell)) s.effectSyncNonce += 1
       }
     }),
 
@@ -570,6 +634,7 @@ export const useAppStore = create<AppStore>()(
       } else {
         cell.currentImageIndex = (cell.currentImageIndex + 1) % len
       }
+      if (applyImageEffectProfileToCell(s, cell)) s.effectSyncNonce += 1
     }),
 
     prevCellImage: (cellId) => set(s => {
@@ -578,6 +643,7 @@ export const useAppStore = create<AppStore>()(
       const len = cell.folder.images.length
       if (len === 0) return
       cell.currentImageIndex = ((cell.currentImageIndex - 1) + len) % len
+      if (applyImageEffectProfileToCell(s, cell)) s.effectSyncNonce += 1
     }),
 
     setCellSlideshow: (cellId, config) => set(s => {
@@ -754,6 +820,23 @@ export const useAppStore = create<AppStore>()(
 
     // ===== プロファイル =====
 
+    setImageEffectProfile: (folderPath, profile) => set(s => {
+      s.imageEffectProfiles[folderPath] = profile
+      let applied = false
+      s.cells.forEach(cell => {
+        if (cell.folder?.path === folderPath) {
+          applied = applyImageEffectProfileToCell(s, cell) || applied
+        }
+      })
+      if (applied) s.effectSyncNonce += 1
+    }),
+
+    applyImageEffectProfileForCell: (cellId) => set(s => {
+      const cell = s.cells.find(c => c.id === cellId)
+      if (!cell) return
+      if (applyImageEffectProfileToCell(s, cell)) s.effectSyncNonce += 1
+    }),
+
     exportProfile: (name) => {
       const s = get()
       const profile: AppProfile = {
@@ -802,6 +885,8 @@ export const useAppStore = create<AppStore>()(
       s.fullscreen = profile.fullscreen
       s.showNavigationBar = true
       s.selectedCellId = null
+      s.imageEffectProfiles = {}
+      s.imageEffectProfileAutoApplySuspended = false
     }),
 
     resetProfile: () => set(s => {
@@ -815,6 +900,8 @@ export const useAppStore = create<AppStore>()(
       s.showNavigationBar = true
       s.selectedCellId = cells[0]?.id ?? null
       s.applyEffectChangesToAllColumns = true
+      s.imageEffectProfiles = {}
+      s.imageEffectProfileAutoApplySuspended = false
     }),
 
     // ===== テキストリーダー =====
@@ -856,6 +943,12 @@ export const useAppStore = create<AppStore>()(
         s.textReader.storyboardEffectProgress = null
         s.textReader.activeProgressPages = 0
         s.textReader.autoSuspendedForTimer = false
+        s.imageEffectProfileAutoApplySuspended = true
+        s.appNotification = {
+          id: Date.now(),
+          text: getImageEffectProfileSuspendedMessage(s.language),
+          type: 'info',
+        }
       })
     },
 
@@ -889,6 +982,12 @@ export const useAppStore = create<AppStore>()(
       s.textReader.autoSuspendedForTimer = false
       s.textReader.storyboardOpen = false
       s.textReader.currentSegmentIndex = 0
+      s.imageEffectProfileAutoApplySuspended = false
+      let applied = false
+      s.cells.forEach(cell => {
+        applied = applyImageEffectProfileToCell(s, cell) || applied
+      })
+      if (applied) s.effectSyncNonce += 1
     }),
 
     setTextReaderPage: (index) => set(s => {

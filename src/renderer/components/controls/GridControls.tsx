@@ -23,6 +23,7 @@ export const GridControls: React.FC = () => {
     resetCellFolder,
     resetAllCellFolders,
     showAppNotification,
+    setImageEffectProfile,
   } = useAppStore()
   const { language, t } = useTranslation()
   const [remoteImageUrl, setRemoteImageUrl] = useState('')
@@ -42,6 +43,13 @@ export const GridControls: React.FC = () => {
       path: result.folderPath,
       images: result.images,
     })
+    const profileResult = await api.loadImageEffectProfile(result.folderPath)
+    if (profileResult.success) {
+      setImageEffectProfile(result.folderPath, profileResult.profile ?? null)
+    } else {
+      showAppNotification(`${t('imageEffectProfileLoadFailed')}: ${profileResult.error ?? ''}`, 'warning')
+      setImageEffectProfile(result.folderPath, null)
+    }
   }
 
   const handleShowRemoteImage = async () => {

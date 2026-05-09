@@ -40,3 +40,19 @@
 .navBtn:active {
   background: rgba(255, 255, 255, 0.15);
 }
+
+.saveBtn {
+  background: rgba(38, 104, 70, 0.48);
+  color: rgba(205, 244, 222, 0.78);
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.saveBtn:hover {
+  background: rgba(55, 132, 90, 0.62);
+  color: rgba(225, 255, 237, 0.94);
+}
+
+.saveBtn:active {
+  background: rgba(68, 150, 103, 0.72);
+}

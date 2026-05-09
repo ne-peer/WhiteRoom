@@ -406,6 +406,31 @@ export type SaveTextFileResult = {
   error?: string
 }
 
+export type ImageEffectProfileEntry = {
+  image: string
+  effects: Partial<CellEffects>
+}
+
+export type ImageEffectProfileDocument = {
+  version: string
+  updatedAt: string
+  entries: Record<string, ImageEffectProfileEntry>
+}
+
+export type LoadImageEffectProfileResult = {
+  success: boolean
+  profile?: ImageEffectProfileDocument
+  exists: boolean
+  error?: string
+}
+
+export type SaveImageEffectProfileResult = {
+  success: boolean
+  profile?: ImageEffectProfileDocument
+  filePath?: string
+  error?: string
+}
+
 export type CleanupTextReaderTempFileResult = {
   success: boolean
   error?: string
@@ -441,6 +466,12 @@ export type IpcApi = {
   listSystemFonts: () => Promise<string[]>
   openTextFile: (language?: UiLanguage) => Promise<OpenTextFileResult>
   saveTextFile: (filePath: string, content: string) => Promise<SaveTextFileResult>
+  loadImageEffectProfile: (folderPath: string) => Promise<LoadImageEffectProfileResult>
+  saveImageEffectProfile: (
+    folderPath: string,
+    imagePath: string,
+    effects: Partial<CellEffects>
+  ) => Promise<SaveImageEffectProfileResult>
   cleanupTextReaderTempFile: (tempFilePath: string) => Promise<CleanupTextReaderTempFileResult>
   loadRemoteImageAsDataUrl: (url: string) => Promise<RemoteImageResult>
   getRemoteImageStats: () => Promise<RemoteImageStatsResult>

@@ -17,7 +17,15 @@ function getApi(): IpcApi {
 export function useDropHandler(
   setCellImageRenderer: (cellId: string, imagePath: string) => void
 ) {
-  const { cells, setCellFolder, setCellImage: setCellImageStore, grid } = useAppStore()
+  const {
+    cells,
+    setCellFolder,
+    setCellImage: setCellImageStore,
+    grid,
+    setImageEffectProfile,
+    showAppNotification,
+    language,
+  } = useAppStore()
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -48,6 +56,7 @@ export function useDropHandler(
             grid,
             undefined
           )
+          await loadImageEffectProfileForFolder(result.folderPath, setImageEffectProfile, showAppNotification, language)
           break
         }
       }
@@ -74,10 +83,11 @@ export function useDropHandler(
           grid,
           filePath
         )
+        await loadImageEffectProfileForFolder(result.folderPath, setImageEffectProfile, showAppNotification, language)
         break
       }
     }
-  }, [cells, setCellFolder, setCellImageStore, grid, setCellImageRenderer])
+  }, [cells, setCellFolder, setCellImageStore, grid, setCellImageRenderer, setImageEffectProfile, showAppNotification, language])
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -85,6 +95,24 @@ export function useDropHandler(
   }, [])
 
   return { handleDrop, handleDragOver }
+}
+
+async function loadImageEffectProfileForFolder(
+  folderPath: string,
+  setImageEffectProfile: ReturnType<typeof useAppStore.getState>['setImageEffectProfile'],
+  showAppNotification: ReturnType<typeof useAppStore.getState>['showAppNotification'],
+  language: ReturnType<typeof useAppStore.getState>['language']
+) {
+  const result = await getApi().loadImageEffectProfile(folderPath)
+  if (result.success) {
+    setImageEffectProfile(folderPath, result.profile ?? null)
+    return
+  }
+  const message = language === 'en'
+    ? 'Failed to load image effect settings'
+    : '画像別エフェクト設定の読み込みに失敗しました'
+  showAppNotification(`${message}: ${result.error ?? ''}`, 'warning')
+  setImageEffectProfile(folderPath, null)
 }
 
 function assignFolderToCell(

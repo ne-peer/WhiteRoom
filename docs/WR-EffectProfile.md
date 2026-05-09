@@ -61,8 +61,7 @@ The implementation should prefer a maintainable JSON object like this:
 
 ```json
 {
-  "version": 1,
-  "appVersion": "1.5.1",
+  "version": "1.5.1",
   "updatedAt": "2026-05-09T00:00:00.000Z",
   "entries": {
     "image01.jpg": {
@@ -72,6 +71,8 @@ The implementation should prefer a maintainable JSON object like this:
   }
 }
 ```
+
+`version` records the WhiteRoom app version that last wrote the file.
 
 Each entry should be compatible with the Storyboard rich tag payload concept:
 

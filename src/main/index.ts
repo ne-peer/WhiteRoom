@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, session, Menu, shell } from 'electron'
-import { dirname, join, extname } from 'path'
+import { dirname, join, extname, isAbsolute, relative } from 'path'
 import { tmpdir } from 'os'
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs'
 import { execFileSync } from 'child_process'
@@ -10,6 +10,9 @@ import type {
   AssetEffectFoldersResult,
   RemoteImageResult,
   RemoteImageStatsResult,
+  ImageEffectProfileDocument,
+  LoadImageEffectProfileResult,
+  SaveImageEffectProfileResult,
   SaveProfileResult,
   LoadProfileResult,
   OpenFolderResult,
@@ -20,6 +23,7 @@ import type {
 } from '../shared/types'
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
+const IMAGE_EFFECT_PROFILE_FILE = 'whiteroom_effects.json'
 const MAX_REMOTE_IMAGE_BYTES = 25 * 1024 * 1024
 const MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP = 10
 const textReaderTempDirs = new Set<string>()
@@ -76,6 +80,88 @@ function readImagePaths(folderPath: string): string[] {
     .filter(isImageFile)
     .map(f => join(folderPath, f))
     .sort()
+}
+
+function toProfileImageKey(folderPath: string, imagePath: string): string | null {
+  const rel = relative(folderPath, imagePath)
+  if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null
+  return rel.replace(/\\/g, '/')
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function normalizeImageEffectProfile(raw: unknown): ImageEffectProfileDocument {
+  const entries: ImageEffectProfileDocument['entries'] = {}
+  if (isRecord(raw) && isRecord(raw.entries)) {
+    for (const [key, value] of Object.entries(raw.entries)) {
+      if (!isRecord(value)) continue
+      const image = typeof value.image === 'string' ? value.image : key
+      const effects = isRecord(value.effects) ? value.effects : {}
+      entries[key] = { image, effects }
+    }
+  }
+  const rawVersion = isRecord(raw) ? raw.version : undefined
+
+  return {
+    version: typeof rawVersion === 'string' ? rawVersion : String(rawVersion ?? app.getVersion()),
+    updatedAt: isRecord(raw) && typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString(),
+    entries,
+  }
+}
+
+function loadImageEffectProfileFile(folderPath: string): LoadImageEffectProfileResult {
+  const filePath = join(folderPath, IMAGE_EFFECT_PROFILE_FILE)
+  if (!existsSync(filePath)) return { success: true, exists: false }
+
+  try {
+    const raw = readFileSync(filePath, 'utf-8')
+    return {
+      success: true,
+      exists: true,
+      profile: normalizeImageEffectProfile(JSON.parse(raw) as unknown),
+    }
+  } catch (e: unknown) {
+    return { success: false, exists: true, error: String(e) }
+  }
+}
+
+function saveImageEffectProfileFile(
+  folderPath: string,
+  imagePath: string,
+  effects: ImageEffectProfileDocument['entries'][string]['effects']
+): SaveImageEffectProfileResult {
+  const imageKey = toProfileImageKey(folderPath, imagePath)
+  if (!imageKey) {
+    return { success: false, error: 'Image is not inside the selected folder' }
+  }
+
+  const loaded = loadImageEffectProfileFile(folderPath)
+  const profile = loaded.success && loaded.profile
+    ? loaded.profile
+    : { version: app.getVersion(), updatedAt: new Date().toISOString(), entries: {} }
+
+  const updated: ImageEffectProfileDocument = {
+    ...profile,
+    version: app.getVersion(),
+    updatedAt: new Date().toISOString(),
+    entries: {
+      ...profile.entries,
+      [imageKey]: {
+        image: imageKey,
+        effects,
+      },
+    },
+  }
+
+  const filePath = join(folderPath, IMAGE_EFFECT_PROFILE_FILE)
+  try {
+    writeFileSync(filePath, JSON.stringify(updated, null, 2), 'utf-8')
+    return { success: true, profile: updated, filePath }
+  } catch (e: unknown) {
+    return { success: false, error: String(e) }
+  }
 }
 
 function getAssetEffectBasePath(): string | null {
@@ -770,6 +856,22 @@ ipcMain.handle('save-text-file', async (_event, filePath: string, content: strin
 })
 
 // ===== アプリ起動 =====
+
+ipcMain.handle('load-image-effect-profile', async (_event, folderPath: string): Promise<LoadImageEffectProfileResult> => {
+  return loadImageEffectProfileFile(folderPath)
+})
+
+ipcMain.handle(
+  'save-image-effect-profile',
+  async (
+    _event,
+    folderPath: string,
+    imagePath: string,
+    effects: ImageEffectProfileDocument['entries'][string]['effects']
+  ): Promise<SaveImageEffectProfileResult> => {
+    return saveImageEffectProfileFile(folderPath, imagePath, effects)
+  }
+)
 
 ipcMain.handle('cleanup-text-reader-temp-file', async (_event, tempFilePath: string): Promise<CleanupTextReaderTempFileResult> => {
   try {
