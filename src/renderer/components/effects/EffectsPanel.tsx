@@ -162,6 +162,148 @@ const EFFECT_PRESET_1: CellEffects = {
   },
 }
 
+const EFFECT_PRESET_2: CellEffects = {
+  effectCenter: { x: 0.5, y: 0.59 },
+  colorOverlay: {
+    enabled: false,
+    color: { r: 255, g: 0, b: 128 },
+    alpha: 0.3,
+    imageAdjustEnabled: false,
+    saturationMax: 1.4,
+    contrastMax: 1.35,
+    dynamicAdjust: false,
+    dynamicAdjustDurationMs: 1000,
+    dynamicAdjustTimerSync: false,
+  },
+  vignette: {
+    enabled: false,
+    color: { r: 255, g: 100, b: 150 },
+    alpha: 0.5,
+    dynamic: true,
+    dynamicFrom: 0.4,
+    dynamicTo: 0.7,
+    dynamicDurationMs: 1000,
+    dynamicTimerSync: false,
+  },
+  spiral: {
+    enabled: true,
+    color: { r: 255, g: 0, b: 128 },
+    pattern: 'classic',
+    dualColorEnabled: false,
+    secondaryColor: { r: 82, g: 139, b: 255 },
+    detail: 82,
+    rotationSpeedDegPerSec: -330,
+    alpha: 0.55,
+    radialEnabled: true,
+    radialMode: 'periphery',
+    radialCenterX: 0.5,
+    radialCenterY: 0.5,
+    radialSize: 0.6,
+    radialFadeStrength: 0.25,
+    dynamic: true,
+    dynamicFrom: 0.2,
+    dynamicTo: 0.8,
+    dynamicDurationMs: 3000,
+    dynamicTimerSync: false,
+  },
+  blur: {
+    enabled: true,
+    strength: 0,
+    applyToAll: false,
+    gradualEnabled: false,
+    gradualDurationSec: 1,
+    gradualStartStrength: 0,
+    gradualEndStrength: 20,
+    gradualTimerSync: false,
+    radialEnabled: true,
+    radialPattern: 'a',
+    radialIntensity: 0.8,
+    radialCenterX: 0.5,
+    radialCenterY: 0.5,
+    radialSize: 1,
+    radialHeight: 1,
+  },
+  echo: {
+    enabled: false,
+    durationSec: 1,
+    startAlpha: 0.45,
+    startScale: 1,
+    endScale: 1.2,
+    timerSync: false,
+  },
+  flash: {
+    enabled: false,
+    imagePath: null,
+    opacity: 1,
+    displayDurationSec: 1,
+    intervalSec: 1,
+    startTransition: 'none',
+    startTransitionDurationSec: 0.6,
+    endTransition: 'fade',
+    endTransitionDurationSec: 0.6,
+  },
+  breathing: {
+    enabled: false,
+    speedPxPerSec: 8,
+    maxOffsetPx: 20,
+    timerSync: false,
+    scaleEnabled: false,
+    scaleDurationSec: 8,
+  },
+  shake: {
+    enabled: true,
+    mode: 'loop',
+    amplitudeFactor: 1,
+    speedFactor: 1,
+    loopAmplitudePx: 20,
+    loopSpeedPxPerSec: 80,
+    afterimageEnabled: false,
+    afterimageDurationSec: 0.35,
+    manualTriggerNonce: 2,
+    trailEnabled: true,
+    trailSecondStageEnabled: true,
+    trailSecondStageSize: 0.89,
+    trailSecondStageDelayFactor: 0.55,
+    trailDelaySec: 0.03,
+    trailAlpha: 1,
+    trailBlurStrength: 0,
+    trailCenterX: 0.5,
+    trailCenterY: 0.5,
+    trailSize: 0.59,
+    trailHeight: 0.92,
+  },
+  dynamicAsset: {
+    enabled: false,
+    pattern: 'rising',
+    assetPath: null,
+    assetPaths: [],
+    assetFolderPath: null,
+    spawnIntervalMs: 800,
+    riseSpeedPx: 2,
+    maxParticles: 20,
+    sizeRatio: 1,
+    baseAlpha: 1,
+    alphaTimerSync: false,
+    emergenceSpeedFactor: 1,
+    colorOverlayEnabled: false,
+    colorOverlayColor: { r: 255, g: 100, b: 150 },
+    colorOverlayAlpha: 0.5,
+  },
+  textEffect: {
+    enabled: false,
+    texts: ['', '', '', '', ''],
+    font: 'Meiryo',
+    color: { r: 255, g: 100, b: 150 },
+    alpha: 0.5,
+    alphaTimerSync: false,
+    fontSize: 48,
+    charIntervalMs: 300,
+    displayDurationMs: 1000,
+    intervalMs: 600,
+    direction: 'vertical',
+  },
+}
+
 export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const {
     setCellEffect,
@@ -270,6 +412,20 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect(selectedCellId, 'textEffect', structuredClone(EFFECT_PRESET_1.textEffect))
   }
 
+  const applyEffectPreset2 = () => {
+    setCellEffect(selectedCellId, 'effectCenter', structuredClone(EFFECT_PRESET_2.effectCenter))
+    setCellEffect(selectedCellId, 'colorOverlay', structuredClone(EFFECT_PRESET_2.colorOverlay))
+    setCellEffect(selectedCellId, 'vignette', structuredClone(EFFECT_PRESET_2.vignette))
+    setCellEffect(selectedCellId, 'spiral', structuredClone(EFFECT_PRESET_2.spiral))
+    setCellEffect(selectedCellId, 'blur', structuredClone(EFFECT_PRESET_2.blur))
+    setCellEffect(selectedCellId, 'echo', structuredClone(EFFECT_PRESET_2.echo))
+    setCellEffect(selectedCellId, 'flash', structuredClone(EFFECT_PRESET_2.flash))
+    setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_2.breathing))
+    setCellEffect(selectedCellId, 'shake', structuredClone(EFFECT_PRESET_2.shake))
+    setCellEffect(selectedCellId, 'dynamicAsset', structuredClone(EFFECT_PRESET_2.dynamicAsset))
+    setCellEffect(selectedCellId, 'textEffect', structuredClone(EFFECT_PRESET_2.textEffect))
+  }
+
   const hasColumnSyncTarget = cells.some(c =>
     c.col === selectedCell.col &&
     (
@@ -339,9 +495,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Button small variant="secondary" onClick={applyEffectPreset1}>
-          {t('samplePreset')}
+          {t('samplePresetBlur')}
+        </Button>
+        <Button small variant="secondary" onClick={applyEffectPreset2}>
+          {t('samplePresetShake')}
         </Button>
       </div>
 
