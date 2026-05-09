@@ -1099,9 +1099,6 @@ export class CellRenderer {
           shake.afterimageEnabled,
           shake.afterimageDurationSec,
           shake.manualTriggerNonce ?? 0,
-          shake.trailSecondStageEnabled ?? false,
-          shake.trailSecondStageSize ?? 0.62,
-          shake.trailSecondStageDelayFactor ?? 1,
         ].join(':')
       : 'disabled'
 

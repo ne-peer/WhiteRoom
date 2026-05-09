@@ -13,6 +13,11 @@ import styles from './MasterCanvas.module.css'
 
 export const MasterCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const trailSizeDragRef = useRef<{
+    cellId: string
+    startX: number
+    startSize: number
+  } | null>(null)
   const showControls = useAppStore(s => s.showControls)
   const grid = useAppStore(s => s.grid)
   const cells = useAppStore(s => s.cells)
@@ -66,6 +71,14 @@ export const MasterCanvas: React.FC = () => {
   const { setCellImage } = usePixiStage(containerRef)
   const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
 
+  useEffect(() => {
+    const onMouseUp = (e: MouseEvent) => {
+      if (e.button === 2) trailSizeDragRef.current = null
+    }
+    window.addEventListener('mouseup', onMouseUp)
+    return () => window.removeEventListener('mouseup', onMouseUp)
+  }, [])
+
   // フルスクリーン変更をElectronから受け取り
   useEffect(() => {
     const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
@@ -91,6 +104,14 @@ export const MasterCanvas: React.FC = () => {
       if (e.key.toLowerCase() === 'u' && !e.repeat && !isEditable) {
         e.preventDefault()
         useAppStore.getState().toggleControls()
+      }
+      if (e.key.toLowerCase() === 'p' && !e.repeat && !isEditable) {
+        e.preventDefault()
+        const state = useAppStore.getState()
+        const next = !(state.shakeTrailPositionPicking || state.spiralRadialPositionPicking)
+        state.setShakeTrailPositionPicking(next)
+        state.setSpiralRadialPositionPicking(next)
+        trailSizeDragRef.current = null
       }
       if (e.key === ' ' && !e.repeat) {
         if (isEditable) return
@@ -147,6 +168,13 @@ export const MasterCanvas: React.FC = () => {
     const cell = cells.find(c => c.col === col && c.row === row)
     setHoveredCellId(cell?.id ?? null)
 
+    const trailSizeDrag = trailSizeDragRef.current
+    if (trailSizeDrag && (shakeTrailPositionPicking || spiralRadialPositionPicking)) {
+      e.preventDefault()
+      const nextSize = clamp(trailSizeDrag.startSize + (e.clientX - trailSizeDrag.startX) * 0.003, 0.25, 1.5)
+      useAppStore.getState().setCellEffect(trailSizeDrag.cellId, 'shake', { trailSize: nextSize })
+    }
+
     if ((!shakeTrailPositionPicking && !spiralRadialPositionPicking) || !cell) {
       setPickGuide(null)
       return
@@ -169,6 +197,34 @@ export const MasterCanvas: React.FC = () => {
   const handleMouseLeave = useCallback(() => {
     setHoveredCellId(null)
     setPickGuide(null)
+    trailSizeDragRef.current = null
+  }, [])
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 2) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const state = useAppStore.getState()
+    if (!state.shakeTrailPositionPicking && !state.spiralRadialPositionPicking) return
+    const cell = getCellAtClientPoint(e.clientX, e.clientY, rect, state.grid, state.cells)
+    if (!cell) return
+    e.preventDefault()
+    state.selectCell(cell.id)
+    trailSizeDragRef.current = {
+      cellId: cell.id,
+      startX: e.clientX,
+      startSize: cell.effects.shake.trailSize ?? 0.7,
+    }
+  }, [])
+
+  const handleMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button === 2) trailSizeDragRef.current = null
+  }, [])
+
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const state = useAppStore.getState()
+    if (state.shakeTrailPositionPicking || state.spiralRadialPositionPicking) {
+      e.preventDefault()
+    }
   }, [])
 
   // ドラッグ中はナビゲーションオーバーレイを非表示（flushSync で同期的に DOM から除去し dragover 干渉を防ぐ）
@@ -185,7 +241,10 @@ export const MasterCanvas: React.FC = () => {
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
       onMouseMove={handleMouseMove}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}
+      onContextMenu={handleContextMenu}
     >
       {/* タイマーオーバレイ（PixiJSの上にReactでレンダリング） */}
       <div
@@ -219,7 +278,8 @@ export const MasterCanvas: React.FC = () => {
       <TimerPreOverlay />
       {(shakeTrailPositionPicking || spiralRadialPositionPicking) && (
         <div className={styles.pickHint}>
-          {t('effectCenterSetting')}
+          <div>{t('effectCenterSetting')}</div>
+          <div className={styles.pickHintTip}>{t('effectCenterPickTip')}</div>
         </div>
       )}
       {(shakeTrailPositionPicking || spiralRadialPositionPicking) && pickGuide && (
@@ -243,4 +303,23 @@ export const MasterCanvas: React.FC = () => {
       <CellNavigationOverlay hoveredCellId={hoveredCellId} />
     </div>
   )
+}
+
+function getCellAtClientPoint(
+  clientX: number,
+  clientY: number,
+  rect: DOMRect,
+  grid: ReturnType<typeof useAppStore.getState>['grid'],
+  cells: ReturnType<typeof useAppStore.getState>['cells']
+) {
+  const relX = clientX - rect.left
+  const relY = clientY - rect.top
+  if (relX < 0 || relY < 0 || relX > rect.width || relY > rect.height) return null
+  const col = Math.max(0, Math.min(Math.floor(relX / (rect.width / grid.cols)), grid.cols - 1))
+  const row = Math.max(0, Math.min(Math.floor(relY / (rect.height / grid.rows)), grid.rows - 1))
+  return cells.find(c => c.col === col && c.row === row) ?? null
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
 }

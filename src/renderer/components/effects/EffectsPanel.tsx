@@ -1245,35 +1245,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     onChange={v => set('shake', { trailDelaySec: v })}
                   />
                 </Row>
-                <Row label={t('shakeTrailSecondStage')}>
-                  <Toggle
-                    value={effects.shake.trailSecondStageEnabled ?? DEFAULT_EFFECTS.shake.trailSecondStageEnabled}
-                    onChange={v => set('shake', { trailSecondStageEnabled: v })}
-                  />
-                </Row>
-                {(effects.shake.trailSecondStageEnabled ?? DEFAULT_EFFECTS.shake.trailSecondStageEnabled) && (
-                  <>
-                    <Row label={t('shakeTrailSecondStageSize')}>
-                      <Slider
-                        value={Math.round((effects.shake.trailSecondStageSize ?? DEFAULT_EFFECTS.shake.trailSecondStageSize) * 100)}
-                        min={10}
-                        max={100}
-                        onChange={v => set('shake', { trailSecondStageSize: v / 100 })}
-                        unit="%"
-                      />
-                    </Row>
-                    <Row label={t('shakeTrailSecondStageDelayFactor')}>
-                      <Slider
-                        value={Math.round((effects.shake.trailSecondStageDelayFactor ?? DEFAULT_EFFECTS.shake.trailSecondStageDelayFactor) * 100)}
-                        min={25}
-                        max={300}
-                        step={5}
-                        onChange={v => set('shake', { trailSecondStageDelayFactor: v / 100 })}
-                        unit="%"
-                      />
-                    </Row>
-                  </>
-                )}
                 <Row label={t('shakeTrailOpacity')}>
                   <Slider
                     value={Math.round(effects.shake.trailAlpha * 100)}
@@ -1310,6 +1281,35 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     unit="%"
                   />
                 </Row>
+                <Row label={t('shakeTrailSecondStage')}>
+                  <Toggle
+                    value={effects.shake.trailSecondStageEnabled ?? DEFAULT_EFFECTS.shake.trailSecondStageEnabled}
+                    onChange={v => set('shake', { trailSecondStageEnabled: v })}
+                  />
+                </Row>
+                {(effects.shake.trailSecondStageEnabled ?? DEFAULT_EFFECTS.shake.trailSecondStageEnabled) && (
+                  <>
+                    <Row label={t('shakeTrailSecondStageSize')}>
+                      <Slider
+                        value={Math.round((effects.shake.trailSecondStageSize ?? DEFAULT_EFFECTS.shake.trailSecondStageSize) * 100)}
+                        min={10}
+                        max={100}
+                        onChange={v => set('shake', { trailSecondStageSize: v / 100 })}
+                        unit="%"
+                      />
+                    </Row>
+                    <Row label={t('shakeTrailSecondStageDelayFactor')}>
+                      <Slider
+                        value={Math.round((effects.shake.trailSecondStageDelayFactor ?? DEFAULT_EFFECTS.shake.trailSecondStageDelayFactor) * 100)}
+                        min={25}
+                        max={300}
+                        step={5}
+                        onChange={v => set('shake', { trailSecondStageDelayFactor: v / 100 })}
+                        unit="%"
+                      />
+                    </Row>
+                  </>
+                )}
                 {effects.shake.mode === 'once' && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                     <Button
