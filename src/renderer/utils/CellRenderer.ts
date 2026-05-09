@@ -2129,7 +2129,7 @@ export class CellRenderer {
   }
 
   private createCenterPeripheryMaskSprite(
-    _keepCenter: boolean,
+    keepCenter: boolean,
     sizeRatio: number,
     centerXRatio = 0.5,
     centerYRatio = 0.5,
@@ -2144,7 +2144,8 @@ export class CellRenderer {
     const cy = this.height * clamp(centerYRatio, 0, 1)
     const maxR = Math.sqrt(cx * cx + cy * cy)
     const cut = clamp(sizeRatio, 0.05, 0.95) * maxR
-    const fade = clamp(fadeStrength, 0.01, 1.5)
+    const fadeScale = keepCenter ? 1 / 6 : 1 / 2
+    const fade = clamp(fadeStrength, 0.01, 1.5) * fadeScale
     const feather = Math.max(1, maxR * 0.03 / fade)
 
     for (let y = 0; y < canvas.height; y += 1) {
