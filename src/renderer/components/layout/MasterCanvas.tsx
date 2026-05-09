@@ -48,6 +48,7 @@ export const MasterCanvas: React.FC = () => {
     y: number
   } | null>(null)
   const [pickPreviewCenter, setPickPreviewCenter] = useState<PickCenterPoint | null>(null)
+  const [lockedPickColumn, setLockedPickColumn] = useState<number | null>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const { t } = useTranslation()
 
@@ -86,17 +87,50 @@ export const MasterCanvas: React.FC = () => {
   const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
   const pickingActive = shakeTrailPositionPicking || spiralRadialPositionPicking
   const selectedCell = cells.find(cell => cell.id === selectedCellId) ?? null
-  const pickColumn = selectedCell?.col ?? 0
+  const pickColumn = pickingActive ? lockedPickColumn ?? selectedCell?.col ?? null : null
+  const pickColumnBounds = React.useMemo((): React.CSSProperties | null => {
+    if (!pickingActive || pickColumn === null || grid.cols <= 0) return null
+    const left = Math.round((pickColumn * canvasSize.width) / grid.cols)
+    const nextLeft = Math.round(((pickColumn + 1) * canvasSize.width) / grid.cols)
+    return {
+      left,
+      top: 0,
+      width: nextLeft - left,
+      height: canvasSize.height,
+    }
+  }, [canvasSize.height, canvasSize.width, grid.cols, pickColumn, pickingActive])
   const guideCellSize = {
     width: grid.cols > 0 ? canvasSize.width / grid.cols : 0,
     height: grid.rows > 0 ? canvasSize.height / grid.rows : 0,
   }
-  const pickColumnOverlays = pickingActive
+  const pickColumnOverlays = pickingActive && pickColumn !== null
     ? cells.filter(cell => cell.col === pickColumn).map(cell => ({
       cell,
       imageSrc: cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null,
     }))
     : []
+  const cancelPickMode = useCallback(() => {
+    const state = useAppStore.getState()
+    state.setShakeTrailPositionPicking(false)
+    state.setSpiralRadialPositionPicking(false)
+    centerPickDragRef.current = null
+    trailSizeDragRef.current = null
+    setLockedPickColumn(null)
+    setPickPreviewCenter(null)
+    setPickGuide(null)
+  }, [lockedPickColumn])
+
+  React.useLayoutEffect(() => {
+    if (!pickingActive) {
+      setLockedPickColumn(null)
+      return
+    }
+    setLockedPickColumn(current => {
+      if (current !== null) return current
+      const state = useAppStore.getState()
+      return state.cells.find(cell => cell.id === state.selectedCellId)?.col ?? null
+    })
+  }, [pickingActive, selectedCell?.col])
 
   useEffect(() => {
     const onMouseUp = (e: MouseEvent) => {
@@ -167,7 +201,11 @@ export const MasterCanvas: React.FC = () => {
         const next = !(state.shakeTrailPositionPicking || state.spiralRadialPositionPicking)
         state.setShakeTrailPositionPicking(next)
         state.setSpiralRadialPositionPicking(next)
+        centerPickDragRef.current = null
         trailSizeDragRef.current = null
+        setLockedPickColumn(next ? state.cells.find(c => c.id === state.selectedCellId)?.col ?? null : null)
+        setPickPreviewCenter(null)
+        setPickGuide(null)
       }
       if (e.key === ' ' && !e.repeat) {
         if (isEditable) return
@@ -217,12 +255,17 @@ export const MasterCanvas: React.FC = () => {
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const { grid, cells, shakeTrailPositionPicking, spiralRadialPositionPicking } = useAppStore.getState()
+    const activePickColumn = lockedPickColumn
     const relX = e.clientX - rect.left
     const relY = e.clientY - rect.top
     const col = Math.max(0, Math.min(Math.floor(relX / (rect.width / grid.cols)), grid.cols - 1))
     const row = Math.max(0, Math.min(Math.floor(relY / (rect.height / grid.rows)), grid.rows - 1))
     const cell = cells.find(c => c.col === col && c.row === row)
-    setHoveredCellId(cell?.id ?? null)
+    setHoveredCellId(
+      (shakeTrailPositionPicking || spiralRadialPositionPicking) && cell?.col !== activePickColumn
+        ? null
+        : cell?.id ?? null
+    )
 
     const trailSizeDrag = trailSizeDragRef.current
     if (trailSizeDrag && (shakeTrailPositionPicking || spiralRadialPositionPicking)) {
@@ -253,7 +296,12 @@ export const MasterCanvas: React.FC = () => {
       return
     }
 
-    if ((!shakeTrailPositionPicking && !spiralRadialPositionPicking) || !cell) {
+    if (
+      (!shakeTrailPositionPicking && !spiralRadialPositionPicking) ||
+      !cell ||
+      activePickColumn === null ||
+      cell.col !== activePickColumn
+    ) {
       setPickGuide(null)
       return
     }
@@ -283,7 +331,12 @@ export const MasterCanvas: React.FC = () => {
     const state = useAppStore.getState()
     if (!state.shakeTrailPositionPicking && !state.spiralRadialPositionPicking) return
     const cell = getCellAtClientPoint(e.clientX, e.clientY, rect, state.grid, state.cells)
-    if (!cell) return
+    const activePickColumn = lockedPickColumn
+    if (!cell || activePickColumn === null || cell.col !== activePickColumn) {
+      e.preventDefault()
+      cancelPickMode()
+      return
+    }
     e.preventDefault()
     state.selectCell(cell.id)
     if (e.button === 0) {
@@ -310,7 +363,7 @@ export const MasterCanvas: React.FC = () => {
       startTrailHeight: cell.effects.shake.trailHeight ?? 1,
       startRadialHeight: cell.effects.blur.radialHeight ?? 1,
     }
-  }, [])
+  }, [cancelPickMode, lockedPickColumn])
 
   const handleMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button === 2) trailSizeDragRef.current = null
@@ -385,11 +438,11 @@ export const MasterCanvas: React.FC = () => {
         ))}
       </div>
       <TimerPreOverlay />
-      {pickingActive && (
+      {pickingActive && pickColumnBounds && (
         <div
           className={styles.pickFreezeLayer}
           style={{
-            gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
+            ...pickColumnBounds,
             gridTemplateRows: `repeat(${grid.rows}, minmax(0, 1fr))`,
           }}
         >
@@ -398,7 +451,6 @@ export const MasterCanvas: React.FC = () => {
               key={cell.id}
               className={styles.pickFreezeCell}
               style={{
-                gridColumn: cell.col + 1,
                 gridRow: cell.row + 1,
               }}
             >
@@ -415,11 +467,11 @@ export const MasterCanvas: React.FC = () => {
           ))}
         </div>
       )}
-      {pickingActive && (
+      {pickingActive && pickColumnBounds && (
         <div
           className={styles.pickCircleGuideLayer}
           style={{
-            gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
+            ...pickColumnBounds,
             gridTemplateRows: `repeat(${grid.rows}, minmax(0, 1fr))`,
           }}
         >
@@ -428,7 +480,6 @@ export const MasterCanvas: React.FC = () => {
               key={cell.id}
               className={styles.pickCircleGuideCell}
               style={{
-                gridColumn: cell.col + 1,
                 gridRow: cell.row + 1,
               }}
             >
@@ -443,28 +494,32 @@ export const MasterCanvas: React.FC = () => {
           ))}
         </div>
       )}
-      {pickingActive && (
-        <div className={styles.pickHint}>
-          <div>{t('effectCenterSetting')}</div>
-          <div className={styles.pickHintTip}>{t('effectCenterPickTip')}</div>
+      {pickingActive && pickColumnBounds && (
+        <div className={styles.pickUiLayer} style={pickColumnBounds}>
+          <div className={styles.pickHint}>
+            <div>{t('effectCenterSetting')}</div>
+            <div className={styles.pickHintTip}>{t('effectCenterPickTip')}</div>
+          </div>
         </div>
       )}
-      {pickingActive && (
-        <div className={styles.pickLegend}>
-          <div className={`${styles.pickLegendItem} ${styles.pickLegendGreen}`}>
-            <span>{t('pickLegendGreen')}</span>
-            <span className={styles.pickLegendSeparator}>-</span>
-            <span>{t('pickLegendBlurAreaSize')}</span>
-          </div>
-          <div className={`${styles.pickLegendItem} ${styles.pickLegendBlue}`}>
-            <span>{t('pickLegendBlue')}</span>
-            <span className={styles.pickLegendSeparator}>-</span>
-            <span>{t('pickLegendShakeAreaSize')}</span>
-          </div>
-          <div className={`${styles.pickLegendItem} ${styles.pickLegendYellow}`}>
-            <span>{t('pickLegendYellow')}</span>
-            <span className={styles.pickLegendSeparator}>-</span>
-            <span>{t('pickLegendShakeTrailDelayArea')}</span>
+      {pickingActive && pickColumnBounds && (
+        <div className={styles.pickUiLayer} style={pickColumnBounds}>
+          <div className={styles.pickLegend}>
+            <div className={`${styles.pickLegendItem} ${styles.pickLegendGreen}`}>
+              <span>{t('pickLegendGreen')}</span>
+              <span className={styles.pickLegendSeparator}>-</span>
+              <span>{t('pickLegendBlurAreaSize')}</span>
+            </div>
+            <div className={`${styles.pickLegendItem} ${styles.pickLegendBlue}`}>
+              <span>{t('pickLegendBlue')}</span>
+              <span className={styles.pickLegendSeparator}>-</span>
+              <span>{t('pickLegendShakeAreaSize')}</span>
+            </div>
+            <div className={`${styles.pickLegendItem} ${styles.pickLegendYellow}`}>
+              <span>{t('pickLegendYellow')}</span>
+              <span className={styles.pickLegendSeparator}>-</span>
+              <span>{t('pickLegendShakeTrailDelayArea')}</span>
+            </div>
           </div>
         </div>
       )}

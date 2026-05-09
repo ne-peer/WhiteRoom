@@ -177,6 +177,7 @@ export class CellRenderer {
     this.container = new PIXI.Container()
     this.container.eventMode = 'static'
     this.container.cursor = 'pointer'
+    this.updateHitArea()
 
     this.dynamicBackgroundLayer = new PIXI.Container()
     this.imageLayer = new PIXI.Container()
@@ -228,6 +229,7 @@ export class CellRenderer {
   resize(width: number, height: number) {
     this.width = width
     this.height = height
+    this.updateHitArea()
     this.redrawDynamicBackgroundMask()
     this.repositionDynamicBackground()
     this.repositionImage()
@@ -242,6 +244,10 @@ export class CellRenderer {
     this.textSystem.resizeMask(width, height)
     this.positionFlashOverlaySprite()
     if (this.latestEffects) this.updateSpiral(this.latestEffects)
+  }
+
+  private updateHitArea() {
+    this.container.hitArea = new PIXI.Rectangle(0, 0, this.width, this.height)
   }
 
   setImageFit(imageFit: ImageFitMode = 'cover') {
