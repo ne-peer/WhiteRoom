@@ -352,6 +352,25 @@ export const MasterCanvas: React.FC = () => {
           <div className={styles.pickHintTip}>{t('effectCenterPickTip')}</div>
         </div>
       )}
+      {pickingActive && (
+        <div className={styles.pickLegend}>
+          <div className={`${styles.pickLegendItem} ${styles.pickLegendGreen}`}>
+            <span>グリーン</span>
+            <span className={styles.pickLegendSeparator}>-</span>
+            <span>ブラーエリアサイズ</span>
+          </div>
+          <div className={`${styles.pickLegendItem} ${styles.pickLegendBlue}`}>
+            <span>ブルー</span>
+            <span className={styles.pickLegendSeparator}>-</span>
+            <span>シェイクエリアサイズ</span>
+          </div>
+          <div className={`${styles.pickLegendItem} ${styles.pickLegendYellow}`}>
+            <span>イエロー</span>
+            <span className={styles.pickLegendSeparator}>-</span>
+            <span>シェイク追従遅延エリア</span>
+          </div>
+        </div>
+      )}
       {pickingActive && pickGuide && (
         <div
           className={styles.pickGuide}

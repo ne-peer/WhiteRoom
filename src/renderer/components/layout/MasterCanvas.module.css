@@ -111,6 +111,58 @@
   color: rgba(255, 255, 255, 0.58);
 }
 
+.pickLegend {
+  position: absolute;
+  left: 50%;
+  top: 82px;
+  z-index: 6;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pickLegendItem {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.pickLegendGreen {
+  border: 1px solid rgba(156, 255, 178, 0.96);
+  background: rgba(96, 255, 136, 0.12);
+  color: rgba(156, 255, 178, 0.96);
+  box-shadow: 0 0 7px rgba(96, 255, 136, 0.68);
+}
+
+.pickLegendBlue {
+  border: 1px solid rgba(178, 232, 255, 0.96);
+  background: rgba(102, 204, 255, 0.14);
+  color: rgba(178, 232, 255, 0.96);
+  box-shadow: 0 0 7px rgba(102, 204, 255, 0.72);
+}
+
+.pickLegendYellow {
+  border: 1px solid rgba(255, 244, 154, 0.96);
+  background: rgba(255, 226, 102, 0.15);
+  color: rgba(255, 244, 154, 0.96);
+  box-shadow: 0 0 7px rgba(255, 226, 102, 0.72);
+}
+
+.pickLegendSeparator {
+  opacity: 0.72;
+}
+
 .pickGuide {
   position: absolute;
   z-index: 5;

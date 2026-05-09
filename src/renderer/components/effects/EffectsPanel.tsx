@@ -583,6 +583,9 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
             {t('effectCenterSettingHelp')}
           </div>
+          <div style={{ fontSize: 10, color: 'rgba(130, 130, 170, 0.60)', lineHeight: 1.5, padding: '0 2px', textAlign: 'right' }}>
+            {t('effectCenterShortcutHelp')}
+          </div>
         </div>
       </div>
 
