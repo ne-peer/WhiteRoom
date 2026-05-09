@@ -70,7 +70,7 @@ export const CellNavigationOverlay: React.FC<Props> = ({ hoveredCellId }) => {
           onDragOver={stopDrag}
           onClick={saveImageEffects}
         >
-          FX
+          Save
         </button>
         {showNavButtons && (
           <>
