@@ -249,7 +249,6 @@ When instructed with `bump to v{x.x.x}` (for example, `bump to v1.5.1`), perform
 5. Run `npm i` to synchronize `package-lock.json`.
 6. Commit the resulting changes with the exact commit message `bump to v{x.x.x}`.
 7. Create tag `v{x.x.x}` at the current commit.
-8. Push both the repository commit and the tag to the remote.
 
 ## Changelog
 
