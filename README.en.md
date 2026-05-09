@@ -12,7 +12,7 @@
 This app is free software distributed under the **MIT License**.  
 Anyone can use the application features freely within the terms of that license.
 
-### 💡 What you can do (permitted use)
+### ✅ What you can do (permitted use)
 This app includes no bundled assets such as images or scenario/text content. All rights to the content you prepare and use with this app belong to you.
 
 * **Commercial use:** You may use this app as a viewer for commercial works (paid games, paid content, etc.) and distribute your work with this app included.
