@@ -12,9 +12,15 @@ import { useTranslation } from '../../i18n'
 import styles from './MasterCanvas.module.css'
 
 type CircleGuideKind = 'radialBlur' | 'shakeTrail' | 'shakeTrailSecondStage'
+type PickCenterPoint = {
+  cellId: string
+  x: number
+  y: number
+}
 
 export const MasterCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const centerPickDragRef = useRef<PickCenterPoint | null>(null)
   const trailSizeDragRef = useRef<{
     cellId: string
     startX: number
@@ -41,6 +47,7 @@ export const MasterCanvas: React.FC = () => {
     x: number
     y: number
   } | null>(null)
+  const [pickPreviewCenter, setPickPreviewCenter] = useState<PickCenterPoint | null>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const { t } = useTranslation()
 
@@ -94,6 +101,22 @@ export const MasterCanvas: React.FC = () => {
   useEffect(() => {
     const onMouseUp = (e: MouseEvent) => {
       if (e.button === 2) trailSizeDragRef.current = null
+      if (e.button !== 0) return
+
+      const drag = centerPickDragRef.current
+      const el = containerRef.current
+      if (!drag || !el) return
+
+      const rect = el.getBoundingClientRect()
+      const point = getNormalizedPointInCell(e.clientX, e.clientY, rect, drag.cellId, useAppStore.getState())
+        ?? { cellId: drag.cellId, x: drag.x, y: drag.y }
+      const state = useAppStore.getState()
+      state.setCellEffect(point.cellId, 'effectCenter', { x: point.x, y: point.y })
+      state.setShakeTrailPositionPicking(false)
+      state.setSpiralRadialPositionPicking(false)
+      centerPickDragRef.current = null
+      setPickPreviewCenter(null)
+      setPickGuide(null)
     }
     window.addEventListener('mouseup', onMouseUp)
     return () => window.removeEventListener('mouseup', onMouseUp)
@@ -212,6 +235,24 @@ export const MasterCanvas: React.FC = () => {
       state.setCellEffect(trailSizeDrag.cellId, 'blur', { radialHeight: nextRadialHeight })
     }
 
+    const centerPickDrag = centerPickDragRef.current
+    if (centerPickDrag && (shakeTrailPositionPicking || spiralRadialPositionPicking)) {
+      const point = getNormalizedPointInCell(e.clientX, e.clientY, rect, centerPickDrag.cellId, useAppStore.getState())
+      if (point) {
+        centerPickDragRef.current = point
+        setPickPreviewCenter(point)
+        const guideRect = getCellGuideRect(rect, point.cellId, useAppStore.getState())
+        if (guideRect) {
+          setPickGuide({
+            ...guideRect,
+            x: point.x * guideRect.width,
+            y: point.y * guideRect.height,
+          })
+        }
+      }
+      return
+    }
+
     if ((!shakeTrailPositionPicking && !spiralRadialPositionPicking) || !cell) {
       setPickGuide(null)
       return
@@ -238,7 +279,6 @@ export const MasterCanvas: React.FC = () => {
   }, [])
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 2) return
     const rect = e.currentTarget.getBoundingClientRect()
     const state = useAppStore.getState()
     if (!state.shakeTrailPositionPicking && !state.spiralRadialPositionPicking) return
@@ -246,6 +286,22 @@ export const MasterCanvas: React.FC = () => {
     if (!cell) return
     e.preventDefault()
     state.selectCell(cell.id)
+    if (e.button === 0) {
+      const point = getNormalizedPointInCell(e.clientX, e.clientY, rect, cell.id, state)
+      if (!point) return
+      centerPickDragRef.current = point
+      setPickPreviewCenter(point)
+      const guideRect = getCellGuideRect(rect, point.cellId, state)
+      if (guideRect) {
+        setPickGuide({
+          ...guideRect,
+          x: point.x * guideRect.width,
+          y: point.y * guideRect.height,
+        })
+      }
+      return
+    }
+    if (e.button !== 2) return
     trailSizeDragRef.current = {
       cellId: cell.id,
       startX: e.clientX,
@@ -258,6 +314,19 @@ export const MasterCanvas: React.FC = () => {
 
   const handleMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button === 2) trailSizeDragRef.current = null
+    if (e.button !== 0) return
+    const drag = centerPickDragRef.current
+    if (!drag) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const point = getNormalizedPointInCell(e.clientX, e.clientY, rect, drag.cellId, useAppStore.getState())
+      ?? { cellId: drag.cellId, x: drag.x, y: drag.y }
+    const state = useAppStore.getState()
+    state.setCellEffect(point.cellId, 'effectCenter', { x: point.x, y: point.y })
+    state.setShakeTrailPositionPicking(false)
+    state.setSpiralRadialPositionPicking(false)
+    centerPickDragRef.current = null
+    setPickPreviewCenter(null)
+    setPickGuide(null)
   }, [])
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -363,7 +432,7 @@ export const MasterCanvas: React.FC = () => {
                 gridRow: cell.row + 1,
               }}
             >
-              {toCircleGuides(cell.effects, guideCellSize).map(guide => (
+              {toCircleGuides(cell.effects, guideCellSize, pickPreviewCenter?.cellId === cell.id ? pickPreviewCenter : null).map(guide => (
                 <div
                   key={guide.kind}
                   className={`${styles.pickCircleGuideEllipse} ${toCircleGuideClassName(guide.kind)}`}
@@ -437,6 +506,45 @@ function getCellAtClientPoint(
   return cells.find(c => c.col === col && c.row === row) ?? null
 }
 
+function getNormalizedPointInCell(
+  clientX: number,
+  clientY: number,
+  rect: DOMRect,
+  cellId: string,
+  state: ReturnType<typeof useAppStore.getState>
+): PickCenterPoint | null {
+  const cell = state.cells.find(c => c.id === cellId)
+  if (!cell) return null
+  const cellLeft = rect.left + (cell.col * rect.width) / state.grid.cols
+  const cellTop = rect.top + (cell.row * rect.height) / state.grid.rows
+  const cellWidth = rect.width / state.grid.cols
+  const cellHeight = rect.height / state.grid.rows
+  return {
+    cellId,
+    x: clamp((clientX - cellLeft) / cellWidth, 0, 1),
+    y: clamp((clientY - cellTop) / cellHeight, 0, 1),
+  }
+}
+
+function getCellGuideRect(
+  rect: DOMRect,
+  cellId: string,
+  state: ReturnType<typeof useAppStore.getState>
+): { left: number; top: number; width: number; height: number } | null {
+  const cell = state.cells.find(c => c.id === cellId)
+  if (!cell) return null
+  const left = Math.round((cell.col * rect.width) / state.grid.cols)
+  const top = Math.round((cell.row * rect.height) / state.grid.rows)
+  const nextLeft = Math.round(((cell.col + 1) * rect.width) / state.grid.cols)
+  const nextTop = Math.round(((cell.row + 1) * rect.height) / state.grid.rows)
+  return {
+    left,
+    top,
+    width: nextLeft - left,
+    height: nextTop - top,
+  }
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
@@ -455,18 +563,19 @@ function toFreezeImageStyle(imageFit: ReturnType<typeof useAppStore.getState>['c
 
 function toCircleGuides(
   effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects'],
-  cellSize: { width: number; height: number }
+  cellSize: { width: number; height: number },
+  previewCenter: PickCenterPoint | null = null
 ): { kind: CircleGuideKind; style: React.CSSProperties }[] {
   const guides: { kind: CircleGuideKind; style: React.CSSProperties }[] = []
 
   if (effects.blur?.radialEnabled) {
-    guides.push({ kind: 'radialBlur', style: toCircleGuideStyle(effects, 'radialBlur', cellSize) })
+    guides.push({ kind: 'radialBlur', style: toCircleGuideStyle(effects, 'radialBlur', cellSize, previewCenter) })
   }
 
   if (effects.shake?.trailEnabled) {
-    guides.push({ kind: 'shakeTrail', style: toCircleGuideStyle(effects, 'shakeTrail', cellSize) })
+    guides.push({ kind: 'shakeTrail', style: toCircleGuideStyle(effects, 'shakeTrail', cellSize, previewCenter) })
     if (effects.shake.trailSecondStageEnabled) {
-      guides.push({ kind: 'shakeTrailSecondStage', style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize) })
+      guides.push({ kind: 'shakeTrailSecondStage', style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize, previewCenter) })
     }
   }
 
@@ -476,10 +585,11 @@ function toCircleGuides(
 function toCircleGuideStyle(
   effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects'],
   kind: CircleGuideKind,
-  cellSize: { width: number; height: number }
+  cellSize: { width: number; height: number },
+  previewCenter: PickCenterPoint | null
 ): React.CSSProperties {
-  const centerX = clamp(effects.effectCenter?.x ?? 0.5, 0, 1)
-  const centerY = clamp(effects.effectCenter?.y ?? 0.5, 0, 1)
+  const centerX = clamp(previewCenter?.x ?? effects.effectCenter?.x ?? 0.5, 0, 1)
+  const centerY = clamp(previewCenter?.y ?? effects.effectCenter?.y ?? 0.5, 0, 1)
   const shakeSize = clamp(effects.shake?.trailSize ?? 0.7, 0.05, 3)
   const size = kind === 'radialBlur'
     ? clamp(effects.blur?.radialSize ?? 1, 0.05, 3)

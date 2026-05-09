@@ -325,17 +325,12 @@ function layoutCells(
       cr.configureBlankBackground(blankBackground)
       app.stage.addChild(cr.container)
       renderers.set(cell.id, cr)
-      const renderer = cr
 
       cr.container.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
         const state = useAppStore.getState()
         if (state.shakeTrailPositionPicking || state.spiralRadialPositionPicking) {
           if (event.button !== 0) return
-          const point = renderer.getNormalizedPointFromGlobal(event.global)
           state.selectCell(cell.id)
-          state.setCellEffect(cell.id, 'effectCenter', { x: point.x, y: point.y })
-          state.setShakeTrailPositionPicking(false)
-          state.setSpiralRadialPositionPicking(false)
           return
         }
         state.selectCell(cell.id)
