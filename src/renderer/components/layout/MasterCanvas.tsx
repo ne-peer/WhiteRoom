@@ -24,6 +24,7 @@ export const MasterCanvas: React.FC = () => {
   const cellTagOverrides = useAppStore(s => s.cellTagOverrides)
   const shakeTrailPositionPicking = useAppStore(s => s.shakeTrailPositionPicking)
   const spiralRadialPositionPicking = useAppStore(s => s.spiralRadialPositionPicking)
+  const selectedCellId = useAppStore(s => s.selectedCellId)
   const textReaderVisible = useAppStore(s => s.textReader.visible)
   const textReaderConfig = useAppStore(s => s.textReader.config)
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null)
@@ -70,6 +71,15 @@ export const MasterCanvas: React.FC = () => {
 
   const { setCellImage } = usePixiStage(containerRef)
   const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
+  const pickingActive = shakeTrailPositionPicking || spiralRadialPositionPicking
+  const selectedCell = cells.find(cell => cell.id === selectedCellId) ?? null
+  const pickColumn = selectedCell?.col ?? 0
+  const pickColumnOverlays = pickingActive
+    ? cells.filter(cell => cell.col === pickColumn).map(cell => ({
+      cell,
+      imageSrc: cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null,
+    }))
+    : []
 
   useEffect(() => {
     const onMouseUp = (e: MouseEvent) => {
@@ -276,13 +286,68 @@ export const MasterCanvas: React.FC = () => {
         ))}
       </div>
       <TimerPreOverlay />
-      {(shakeTrailPositionPicking || spiralRadialPositionPicking) && (
+      {pickingActive && (
+        <div
+          className={styles.pickFreezeLayer}
+          style={{
+            gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${grid.rows}, minmax(0, 1fr))`,
+          }}
+        >
+          {pickColumnOverlays.map(({ cell, imageSrc }) => (
+            <div
+              key={cell.id}
+              className={styles.pickFreezeCell}
+              style={{
+                gridColumn: cell.col + 1,
+                gridRow: cell.row + 1,
+              }}
+            >
+              {imageSrc && (
+                <img
+                  src={toImageSrc(imageSrc)}
+                  className={styles.pickFreezeImage}
+                  style={toFreezeImageStyle(cell.imageFit)}
+                  alt=""
+                  draggable={false}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {pickingActive && (
+        <div
+          className={styles.pickCircleGuideLayer}
+          style={{
+            gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${grid.rows}, minmax(0, 1fr))`,
+          }}
+        >
+          {pickColumnOverlays.map(({ cell }) => (
+            <div
+              key={cell.id}
+              className={styles.pickCircleGuideCell}
+              style={{
+                gridColumn: cell.col + 1,
+                gridRow: cell.row + 1,
+              }}
+            >
+              <div
+                className={styles.pickCircleGuideEllipse}
+                style={toCircleGuideStyle(cell.effects)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      {pickingActive && (
         <div className={styles.pickHint}>
           <div>{t('effectCenterSetting')}</div>
           <div className={styles.pickHintTip}>{t('effectCenterPickTip')}</div>
         </div>
       )}
-      {(shakeTrailPositionPicking || spiralRadialPositionPicking) && pickGuide && (
+      {pickingActive && pickGuide && (
         <div
           className={styles.pickGuide}
           style={{
@@ -322,4 +387,29 @@ function getCellAtClientPoint(
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
+}
+
+function toImageSrc(src: string): string {
+  if (src.startsWith('file://') || src.startsWith('http') || src.startsWith('data:')) return src
+  const normalized = src.replace(/\\/g, '/')
+  return normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`
+}
+
+function toFreezeImageStyle(imageFit: ReturnType<typeof useAppStore.getState>['cells'][number]['imageFit']): React.CSSProperties {
+  if (imageFit === 'fitHeight') return { width: 'auto', height: '100%', maxWidth: 'none' }
+  if (imageFit === 'fitWidth') return { width: '100%', height: 'auto', maxHeight: 'none' }
+  return { width: '100%', height: '100%', objectFit: 'contain' }
+}
+
+function toCircleGuideStyle(effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects']): React.CSSProperties {
+  const centerX = clamp(effects.effectCenter?.x ?? 0.5, 0, 1)
+  const centerY = clamp(effects.effectCenter?.y ?? 0.5, 0, 1)
+  const size = clamp(effects.shake?.trailSize ?? 0.7, 0.05, 3)
+  const height = clamp(effects.shake?.trailHeight ?? 1, 0.05, 3)
+  return {
+    left: `${centerX * 100}%`,
+    top: `${centerY * 100}%`,
+    width: `${size * 100}%`,
+    height: `${size * height * 100}%`,
+  }
 }
