@@ -93,8 +93,8 @@ Move the cursor near the lower-right corner of the current image to show the [Sa
 
 ![img](/docs/img/RM_effects-save.png)
 
-If settings already exist for the image, they will be overwritten.  
-The settings file is saved as `whiteroom_effects.json` in the same folder as the displayed image.  
+If settings already exist for the image, they will be overwritten. The settings file is saved as `whiteroom_effects.json` in the same folder as the displayed image.  
+
 If effects are being applied unexpectedly, delete this file.  
 
 ## Storyboard Feature
