@@ -26,6 +26,8 @@ const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.av
 const IMAGE_EFFECT_PROFILE_FILE = 'whiteroom_effects.json'
 const MAX_REMOTE_IMAGE_BYTES = 25 * 1024 * 1024
 const MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP = 10
+const DEFAULT_MAIN_WINDOW_WIDTH = 1600
+const DEFAULT_MAIN_WINDOW_HEIGHT = 1000
 const textReaderTempDirs = new Set<string>()
 let activeTextReaderTempDir: string | null = null
 const remoteImageDataUrlCache = new Map<string, RemoteImageResult>()
@@ -610,8 +612,8 @@ function listSystemFonts(): string[] {
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 1600,
-    height: 1000,
+    width: DEFAULT_MAIN_WINDOW_WIDTH,
+    height: DEFAULT_MAIN_WINDOW_HEIGHT,
     minWidth: 800,
     minHeight: 600,
     backgroundColor: '#0a0a0a',
@@ -802,6 +804,14 @@ ipcMain.handle('load-profile', async (_event, language?: UiLanguage): Promise<Lo
 ipcMain.handle('set-fullscreen', (_event, flag: boolean) => {
   const win = BrowserWindow.getFocusedWindow()
   if (win) win.setFullScreen(flag)
+})
+
+ipcMain.handle('reset-window-size', () => {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  if (!win) return
+  if (win.isFullScreen()) win.setFullScreen(false)
+  if (win.isMaximized()) win.unmaximize()
+  win.setSize(DEFAULT_MAIN_WINDOW_WIDTH, DEFAULT_MAIN_WINDOW_HEIGHT)
 })
 
 ipcMain.handle('open-external', async (_event, url: string) => {

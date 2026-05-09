@@ -34,6 +34,7 @@ export const translations = {
     showControlsTitle: '操作UIを表示',
     hideUi: 'UI非表示',
     showUi: 'UI表示',
+    resetWindowSize: 'ウィンドウサイズをリセット',
     appearanceShortcutHelp: 'u: UI表示・非表示　Esc: フルスクリーン終了',
 
     languageSettings: '言語設定',
@@ -372,6 +373,7 @@ export const translations = {
     showControlsTitle: 'Show controls',
     hideUi: 'Hide UI',
     showUi: 'Show UI',
+    resetWindowSize: 'Reset window size',
     appearanceShortcutHelp: 'u: show/hide UI  Esc: exit fullscreen',
 
     languageSettings: 'Language',

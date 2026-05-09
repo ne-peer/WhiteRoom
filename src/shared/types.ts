@@ -461,6 +461,7 @@ export type IpcApi = {
   saveProfile: (profile: AppProfile, language?: UiLanguage) => Promise<SaveProfileResult>
   loadProfile: (language?: UiLanguage) => Promise<LoadProfileResult>
   setFullscreen: (flag: boolean) => Promise<void>
+  resetWindowSize: () => Promise<void>
   openExternal: (url: string) => Promise<void>
   openDevTools: () => Promise<void>
   listSystemFonts: () => Promise<string[]>

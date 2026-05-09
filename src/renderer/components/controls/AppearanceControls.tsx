@@ -31,6 +31,11 @@ export const AppearanceControls: React.FC = () => {
     window.api.openDevTools()
   }
 
+  const handleResetWindowSize = () => {
+    setFullscreen(false)
+    window.api.resetWindowSize()
+  }
+
   return (
     <div className={styles.appearancePanel}>
       <div>
@@ -109,6 +114,11 @@ export const AppearanceControls: React.FC = () => {
           <Row label={t('hideUi')}>
             <Toggle value={!showControls} onChange={hide => setControlsVisible(!hide)} />
           </Row>
+          <div className={styles.fullWidthButtonRow}>
+            <Button variant="secondary" onClick={handleResetWindowSize}>
+              {t('resetWindowSize')}
+            </Button>
+          </div>
         </Section>
         <div className={styles.shortcutHelp}>{t('appearanceShortcutHelp')}</div>
       </div>
