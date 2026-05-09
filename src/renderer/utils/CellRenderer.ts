@@ -72,6 +72,7 @@ export class CellRenderer {
   private spiralMaskSprite: PIXI.Sprite | null = null
   private spiralMaskKey: string | null = null
   private spiralMaskFilter: PIXI.MaskFilter | null = null
+  private spiralDrawKey: string | null = null
   private spiralRotationRad = 0
   private spiralAlphaDynamicProgress = 0
   private radialBlurLayers: PIXI.Container[] = []
@@ -1470,7 +1471,6 @@ export class CellRenderer {
     }
 
     const key = [
-      this.currentImageSrc,
       this.width,
       this.height,
       shake.trailBlurStrength ?? 2,
@@ -1654,6 +1654,14 @@ export class CellRenderer {
 
   private refreshShakeTrailRegion() {
     if (!this.latestEffects) return
+    if (this.shakeTrailSprite && this.imageSprite) {
+      this.shakeTrailSprite.texture = this.imageSprite.texture
+      if (this.shakeTrailSecondSprite) {
+        this.shakeTrailSecondSprite.texture = this.imageSprite.texture
+      }
+      this.syncShakeTrail(0, this.latestEffects.shake)
+      return
+    }
     this.shakeTrailKey = null
     this.updateShakeTrail(this.latestEffects.shake)
   }
@@ -2194,6 +2202,7 @@ export class CellRenderer {
     if (!spiral.enabled) {
       this.spiralGraphics.visible = false
       this.spiralGraphics.clear()
+      this.spiralDrawKey = null
       this.clearSpiralMask()
       return
     }
@@ -2202,7 +2211,7 @@ export class CellRenderer {
     const centerX = clamp(effects.effectCenter?.x ?? 0.5, 0, 1)
     const centerY = clamp(effects.effectCenter?.y ?? 0.5, 0, 1)
     this.spiralGraphics.position.set(this.width * centerX, this.height * centerY)
-    this.redrawSpiral(spiral)
+    this.redrawSpiralIfNeeded(spiral)
     this.updateSpiralRadialMask(spiral)
     if (spiral.dynamic && !spiral.dynamicTimerSync) {
       this.applySpiralAlpha(effects, (Math.sin(this.spiralAlphaDynamicProgress * Math.PI * 2) + 1) * 0.5)
@@ -2240,7 +2249,23 @@ export class CellRenderer {
     this.spiralGraphics.alpha = clamp(spiral.alpha, 0, 1)
   }
 
-  private redrawSpiral(spiral: CellEffects['spiral']) {
+  private redrawSpiralIfNeeded(spiral: CellEffects['spiral']) {
+    const drawKey = [
+      this.width,
+      this.height,
+      spiral.pattern,
+      spiral.detail,
+      spiral.color.r,
+      spiral.color.g,
+      spiral.color.b,
+      spiral.dualColorEnabled,
+      spiral.secondaryColor.r,
+      spiral.secondaryColor.g,
+      spiral.secondaryColor.b,
+    ].join(':')
+    if (this.spiralDrawKey === drawKey) return
+    this.spiralDrawKey = drawKey
+
     const g = this.spiralGraphics
     g.clear()
     const primaryColor = (spiral.color.r << 16) | (spiral.color.g << 8) | spiral.color.b
@@ -2571,7 +2596,9 @@ export class CellRenderer {
       // 放射線ブラー時、リセット時に画像クローンを更新（テクスチャ＆トランスフォーム）
       if (blur.radialEnabled && this.imageSprite) {
         this.radialBlurImageClones.forEach(clone => {
+          if (clone.texture !== this.imageSprite!.texture) {
           clone.texture = this.imageSprite!.texture
+        }
           this.copySpriteTransform(this.imageSprite!, clone)
         })
       }
@@ -2761,6 +2788,10 @@ export class CellRenderer {
 
   private refreshBlurRegion() {
     if (!this.latestEffects) return
+    if (this.radialBlurImageClones.length > 0 && this.imageSprite) {
+      this.syncRadialBlurClones()
+      return
+    }
     this.blurAnimationKey = null
     this.updateBlur(this.latestEffects)
   }
@@ -2768,7 +2799,9 @@ export class CellRenderer {
   private syncRadialBlurClones() {
     if (this.imageSprite && this.radialBlurImageClones.length > 0) {
       this.radialBlurImageClones.forEach(clone => {
-        clone.texture = this.imageSprite!.texture
+        if (clone.texture !== this.imageSprite!.texture) {
+          clone.texture = this.imageSprite!.texture
+        }
         this.copySpriteTransform(this.imageSprite!, clone)
       })
     }
