@@ -18,7 +18,10 @@ export const MasterCanvas: React.FC = () => {
   const trailSizeDragRef = useRef<{
     cellId: string
     startX: number
+    startY: number
     startSize: number
+    startTrailHeight: number
+    startRadialHeight: number
   } | null>(null)
   const showControls = useAppStore(s => s.showControls)
   const grid = useAppStore(s => s.grid)
@@ -202,7 +205,11 @@ export const MasterCanvas: React.FC = () => {
     if (trailSizeDrag && (shakeTrailPositionPicking || spiralRadialPositionPicking)) {
       e.preventDefault()
       const nextSize = clamp(trailSizeDrag.startSize + (e.clientX - trailSizeDrag.startX) * 0.003, 0.25, 1.5)
-      useAppStore.getState().setCellEffect(trailSizeDrag.cellId, 'shake', { trailSize: nextSize })
+      const nextTrailHeight = clamp(trailSizeDrag.startTrailHeight + (e.clientY - trailSizeDrag.startY) * 0.003, 0.25, 2)
+      const nextRadialHeight = clamp(trailSizeDrag.startRadialHeight + (e.clientY - trailSizeDrag.startY) * 0.003, 0.25, 2)
+      const state = useAppStore.getState()
+      state.setCellEffect(trailSizeDrag.cellId, 'shake', { trailSize: nextSize, trailHeight: nextTrailHeight })
+      state.setCellEffect(trailSizeDrag.cellId, 'blur', { radialHeight: nextRadialHeight })
     }
 
     if ((!shakeTrailPositionPicking && !spiralRadialPositionPicking) || !cell) {
@@ -242,7 +249,10 @@ export const MasterCanvas: React.FC = () => {
     trailSizeDragRef.current = {
       cellId: cell.id,
       startX: e.clientX,
+      startY: e.clientY,
       startSize: cell.effects.shake.trailSize ?? 0.7,
+      startTrailHeight: cell.effects.shake.trailHeight ?? 1,
+      startRadialHeight: cell.effects.blur.radialHeight ?? 1,
     }
   }, [])
 
