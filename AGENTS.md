@@ -55,82 +55,15 @@ Image effect profiles are cached by folder path in `imageEffectProfiles`. Automa
 
 Current IPC covers folder selection/path reads, profile save/load, asset and overlay image selection, preset asset folder listing, local image base64 reads, system font listing, text file load/save and temp cleanup, image effect profile load/save, remote storyboard image loading with session cache/limits, fullscreen/window controls, external links/devtools, and fullscreen change notifications.
 
+## Reference Policy
+
+- `docs/WR-Concept_20260505.md` is an app-developer draft/memo file; do not treat it as an implementation spec and you do not need to reference it during normal development tasks.
+
 ## Key Types (`src/shared/types.ts`)
 
 Always check and update shared types before adding features.
-
-```typescript
-type CellFolder = {
-  id: string
-  source?: 'folder' | 'remote-image'
-  path: string
-  images: string[]
-}
-
-type Cell = {
-  id: string
-  col: number
-  row: number
-  folder: CellFolder | null
-  imageFit: ImageFitMode
-  currentImageIndex: number
-  slideshow: SlideShowConfig
-  effects: CellEffects
-}
-
-type CellEffects = {
-  effectCenter: {
-    x: number
-    y: number
-  }
-  colorOverlay: ColorOverlayEffect
-  vignette: VignetteEffect
-  spiral: {
-    enabled: boolean
-    pattern: 'classic' | 'vortex'
-    radialEnabled: boolean
-    dynamic: boolean
-    dynamicTimerSync: boolean
-  }
-  blur: BlurEffect
-  echo: EchoEffect
-  flash: FlashEffect
-  breathing: BreathingEffect
-  shake: ShakeEffect
-  dynamicAsset: DynamicAssetEffect
-  textEffect: TextEffect
-}
-
-type TimerConfig = {
-  enabled: boolean
-  totalSec: number
-  elapsedSec: number
-  running: boolean
-  position: TimerPosition
-  showBackground: boolean
-  effectCompletionLeadSec: number
-  endFlash: TimerEndFlashConfig
-  preOverlay: TimerPreOverlayConfig
-}
-
-type AppProfile = {
-  version: string
-  createdAt: string
-  name: string
-  blankColor: BlankColor
-  blankBackground?: BlankBackground
-  grid: GridLayout
-  cells: Cell[]
-  timer: TimerConfig
-  fullscreen: boolean
-}
-
-type ImageEffectProfileDocument = {
-  version: string
-  updatedAt: string
-  entries: Record<string, ImageEffectProfileEntry>
-}
-```
+- Keep these schemas aligned when adding/updating features: `CellFolder`, `Cell`, `CellEffects`, `TimerConfig`, `AppProfile`, `ImageEffectProfileDocument`.
+- The canonical definitions live in `src/shared/types.ts` (do not duplicate full type blocks here).
 
 ## Coding Rules
 
@@ -210,12 +143,6 @@ git tag --sort=-version:refname | Select-Object -First 3
 git log <prev-tag>..<latest-tag> --pretty=format:"%h %s %b" --no-merges
 ```
 
-Use this heading format:
-
-```md
-# Release Notes — v{tag}
-```
-
 Classify commits and append them to `RELEASE_NOTES.md` using these sections:
 
 - **Features**: commits with `feat:` / `add:`
@@ -225,7 +152,7 @@ Classify commits and append them to `RELEASE_NOTES.md` using these sections:
 Release note template:
 
 ```md
-# Release Notes — v1.4.0
+# Release Notes — v{tag}
 
 ## 機能追加
 - xxx
