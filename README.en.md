@@ -99,6 +99,8 @@ If effects are being applied unexpectedly, delete this file.
 
 ## Storyboard Feature
 
+![img](/docs/img/RM_storyboard.png)
+
 By embedding **storyboard tags** into a `.txt` file loaded in Text Reader, you can automatically switch images and effects as pages advance.
 
 ### Tag Types

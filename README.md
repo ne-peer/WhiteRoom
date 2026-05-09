@@ -99,6 +99,8 @@ xattr -d com.apple.quarantine ~/Downloads/WhiteRoom.for.Mac_arm64_v*.dmg
 
 ## ストーリーボード機能
 
+![img](/docs/img/RM_storyboard.png)
+
 テキストリーダーで読み込んだ `.txt` ファイルに**ストーリーボードタグ**を埋め込むことで、テキストのページ進行に合わせて画像やエフェクトを自動的に切り替えることができます。
 
 ### タグの種類
