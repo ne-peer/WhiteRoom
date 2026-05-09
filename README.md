@@ -76,8 +76,8 @@ xattr -d com.apple.quarantine ~/Downloads/WhiteRoom.for.Mac_arm64_v*.dmg
 
 ![img](/docs/img/RM_effects-save.png)
 
-すでに画像に対する設定が存在する場合は上書きされるのでご注意ください。  
-設定ファイルは表示中の画像と同じフォルダに `whiteroom_effects.json` として保存されます。  
+すでに画像に対する設定が存在する場合は上書きされるのでご注意ください。設定ファイルは表示中の画像と同じフォルダに `whiteroom_effects.json` として保存されます。  
+
 意図しないエフェクトが勝手に適用される場合は、このファイルを削除してください。  
 
 ## ストーリーボード機能
