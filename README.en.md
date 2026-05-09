@@ -2,7 +2,7 @@
 
 <div>
    <h1 align="center">WhiteRoom</h1> 
-   <p align="center">A multi-column image viewer with visual effect overlays.<br>A multi-column image viewer that lets you apply visual effects.</p>
+   <p align="center">A multi-column image viewer that lets you apply visual effects.</p>
 </div>
 
 &nbsp;
