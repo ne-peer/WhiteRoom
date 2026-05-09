@@ -80,13 +80,19 @@ export class CellRenderer {
   private shakeTrailSprite: PIXI.Sprite | null = null
   private shakeTrailMaskSprite: PIXI.Sprite | null = null
   private shakeTrailBlurFilter: PIXI.BlurFilter | null = null
+  private shakeTrailSecondLayer: PIXI.Container | null = null
+  private shakeTrailSecondSprite: PIXI.Sprite | null = null
+  private shakeTrailSecondMaskSprite: PIXI.Sprite | null = null
+  private shakeTrailSecondBlurFilter: PIXI.BlurFilter | null = null
   private shakeTrailKey: string | null = null
   private shakeTrailGuideKey: string | null = null
   private shakeTrailGuideGraphics: PIXI.Graphics | null = null
   private shakeTrailGuideRemainingSec = 0
   private shakeTrailSamples: { timeSec: number; offsetY: number }[] = []
+  private shakeTrailFirstStageSamples: { timeSec: number; offsetY: number }[] = []
   private shakeTrailElapsedSec = 0
   private shakeTrailSmoothedOffsetY: number | null = null
+  private shakeTrailSecondSmoothedOffsetY: number | null = null
   private particleSystem: ParticleSystem
   private textSystem: TextSystem
 
@@ -1092,6 +1098,8 @@ export class CellRenderer {
           shake.afterimageEnabled,
           shake.afterimageDurationSec,
           shake.manualTriggerNonce ?? 0,
+          shake.trailSecondStageEnabled ?? false,
+          shake.trailSecondStageSize ?? 0.62,
         ].join(':')
       : 'disabled'
 
@@ -1299,8 +1307,10 @@ export class CellRenderer {
     this.shakeLoopSegmentStartY = 0
     this.shakeAfterimagePending = false
     this.shakeTrailSamples = []
+    this.shakeTrailFirstStageSamples = []
     this.shakeTrailElapsedSec = 0
     this.shakeTrailSmoothedOffsetY = null
+    this.shakeTrailSecondSmoothedOffsetY = null
   }
 
   private getShakeCycleDurationMs(shake?: ShakeEffect) {
@@ -1409,6 +1419,8 @@ export class CellRenderer {
       this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
+      shake.trailSecondStageEnabled ?? false,
+      shake.trailSecondStageSize ?? 0.62,
     ].join(':')
     if (this.shakeTrailKey === key && this.shakeTrailSprite) return
 
@@ -1437,6 +1449,37 @@ export class CellRenderer {
     this.shakeTrailSprite = sprite
     this.shakeTrailMaskSprite = maskSprite
     this.shakeTrailBlurFilter = blurFilter
+
+    if (shake.trailSecondStageEnabled) {
+      const secondLayer = new PIXI.Container()
+      const secondSprite = new PIXI.Sprite(this.imageSprite.texture)
+      secondSprite.anchor.set(0.5)
+      const secondMaskSprite = this.createEllipseMaskSprite(
+        this.latestEffects?.effectCenter?.x ?? 0.5,
+        this.latestEffects?.effectCenter?.y ?? 0.5,
+        (shake.trailSize ?? 0.7) * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1),
+        shake.trailHeight ?? 1,
+        0.16
+      )
+      const secondMaskFilter = new PIXI.MaskFilter({ sprite: secondMaskSprite, channel: 'alpha' })
+      const secondBlurFilter = new PIXI.BlurFilter({
+        strength: clamp((shake.trailBlurStrength ?? 2) * 0.6, 0, 12),
+        quality: 3,
+      })
+
+      secondLayer.addChild(secondSprite)
+      secondLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      secondLayer.filters = [secondBlurFilter, secondMaskFilter]
+      secondMaskSprite.alpha = 0
+      this.container.addChildAt(secondLayer, this.container.getChildIndex(this.shakeTrailLayer) + 1)
+      this.container.addChildAt(secondMaskSprite, this.container.getChildIndex(secondLayer) + 1)
+
+      this.shakeTrailSecondLayer = secondLayer
+      this.shakeTrailSecondSprite = secondSprite
+      this.shakeTrailSecondMaskSprite = secondMaskSprite
+      this.shakeTrailSecondBlurFilter = secondBlurFilter
+    }
+
     this.shakeTrailKey = key
     this.syncShakeTrail(0, shake)
   }
@@ -1446,9 +1489,12 @@ export class CellRenderer {
     const dtSec = Math.max(0, delta) / 60
     this.shakeTrailElapsedSec += dtSec
     this.shakeTrailSamples.push({ timeSec: this.shakeTrailElapsedSec, offsetY: this.shakeOffsetY })
-    const keepAfterSec = this.shakeTrailElapsedSec - clamp(shake.trailDelaySec ?? 0.12, 0.02, 0.5) - 0.25
+    const keepAfterSec = this.shakeTrailElapsedSec - clamp(shake.trailDelaySec ?? 0.12, 0.01, 0.5) - 0.25
     while (this.shakeTrailSamples.length > 2 && this.shakeTrailSamples[0].timeSec < keepAfterSec) {
       this.shakeTrailSamples.shift()
+    }
+    while (this.shakeTrailFirstStageSamples.length > 2 && this.shakeTrailFirstStageSamples[0].timeSec < keepAfterSec) {
+      this.shakeTrailFirstStageSamples.shift()
     }
   }
 
@@ -1460,7 +1506,7 @@ export class CellRenderer {
     this.updateShakeTrail(shake)
     if (!this.shakeTrailSprite || !this.imageSprite) return
 
-    const delaySec = clamp(shake.trailDelaySec ?? 0.12, 0.02, 0.5)
+    const delaySec = clamp(shake.trailDelaySec ?? 0.12, 0.01, 0.5)
     const targetTimeSec = this.shakeTrailElapsedSec - delaySec
     const delayedOffsetY = this.getDelayedShakeOffset(targetTimeSec)
     const dtSec = Math.max(0, delta) / 60
@@ -1468,6 +1514,10 @@ export class CellRenderer {
     this.shakeTrailSmoothedOffsetY = this.shakeTrailSmoothedOffsetY === null
       ? delayedOffsetY
       : lerp(this.shakeTrailSmoothedOffsetY, delayedOffsetY, smoothFactor)
+    this.shakeTrailFirstStageSamples.push({
+      timeSec: this.shakeTrailElapsedSec,
+      offsetY: this.shakeTrailSmoothedOffsetY,
+    })
     const breathing = this.latestEffects?.breathing
     const breathingEnabled = breathing?.enabled ?? false
     const scaleMultiplier = breathingEnabled && breathing?.scaleEnabled ? this.getBreathingScaleMultiplier() : 1
@@ -1479,6 +1529,22 @@ export class CellRenderer {
       scaleMultiplier
     )
     this.shakeTrailSprite.alpha = clamp(shake.trailAlpha ?? 0.55, 0, 1)
+
+    if (shake.trailSecondStageEnabled && this.shakeTrailSecondSprite) {
+      const secondTargetTimeSec = this.shakeTrailElapsedSec - delaySec
+      const secondDelayedOffsetY = this.getDelayedShakeTrailFirstStageOffset(secondTargetTimeSec)
+      this.shakeTrailSecondSmoothedOffsetY = this.shakeTrailSecondSmoothedOffsetY === null
+        ? secondDelayedOffsetY
+        : lerp(this.shakeTrailSecondSmoothedOffsetY, secondDelayedOffsetY, smoothFactor)
+      this.shakeTrailSecondSprite.texture = this.imageSprite.texture
+      this.positionSprite(
+        this.shakeTrailSecondSprite,
+        breathingEnabled ? this.breathingOffsetX : 0,
+        (breathingEnabled ? this.breathingOffsetY : 0) + this.shakeTrailSecondSmoothedOffsetY,
+        scaleMultiplier
+      )
+      this.shakeTrailSecondSprite.alpha = clamp((shake.trailAlpha ?? 0.55) + 0.12, 0, 1)
+    }
 
     if (delta === 0 && this.shakeTrailSamples.length === 0) {
       this.shakeTrailSamples.push({ timeSec: this.shakeTrailElapsedSec, offsetY: this.shakeOffsetY })
@@ -1502,6 +1568,23 @@ export class CellRenderer {
     return this.shakeTrailSamples[this.shakeTrailSamples.length - 1].offsetY
   }
 
+  private getDelayedShakeTrailFirstStageOffset(targetTimeSec: number) {
+    if (this.shakeTrailFirstStageSamples.length === 0) return this.shakeTrailSmoothedOffsetY ?? this.shakeOffsetY
+    if (targetTimeSec <= this.shakeTrailFirstStageSamples[0].timeSec) return this.shakeTrailFirstStageSamples[0].offsetY
+
+    for (let i = 1; i < this.shakeTrailFirstStageSamples.length; i += 1) {
+      const prev = this.shakeTrailFirstStageSamples[i - 1]
+      const next = this.shakeTrailFirstStageSamples[i]
+      if (targetTimeSec <= next.timeSec) {
+        const span = next.timeSec - prev.timeSec
+        const p = span > 0 ? clamp((targetTimeSec - prev.timeSec) / span, 0, 1) : 1
+        return lerp(prev.offsetY, next.offsetY, p)
+      }
+    }
+
+    return this.shakeTrailFirstStageSamples[this.shakeTrailFirstStageSamples.length - 1].offsetY
+  }
+
   private refreshShakeTrailRegion() {
     if (!this.latestEffects) return
     this.shakeTrailKey = null
@@ -1512,6 +1595,7 @@ export class CellRenderer {
     this.shakeTrailLayer.filters = []
     this.shakeTrailLayer.filterArea = undefined
     this.shakeTrailBlurFilter = null
+    this.shakeTrailSecondBlurFilter = null
     if (this.shakeTrailSprite) {
       this.shakeTrailLayer.removeChild(this.shakeTrailSprite)
       this.shakeTrailSprite.destroy({ texture: false })
@@ -1523,8 +1607,22 @@ export class CellRenderer {
       this.shakeTrailMaskSprite.destroy()
       this.shakeTrailMaskSprite = null
     }
+    if (this.shakeTrailSecondLayer) {
+      this.container.removeChild(this.shakeTrailSecondLayer)
+      this.shakeTrailSecondLayer.destroy({ children: true })
+      this.shakeTrailSecondLayer = null
+      this.shakeTrailSecondSprite = null
+    }
+    if (this.shakeTrailSecondMaskSprite) {
+      this.container.removeChild(this.shakeTrailSecondMaskSprite)
+      this.shakeTrailSecondMaskSprite.texture.destroy(true)
+      this.shakeTrailSecondMaskSprite.destroy()
+      this.shakeTrailSecondMaskSprite = null
+    }
     this.shakeTrailKey = null
     this.shakeTrailSmoothedOffsetY = null
+    this.shakeTrailSecondSmoothedOffsetY = null
+    this.shakeTrailFirstStageSamples = []
   }
 
   private showShakeTrailGuide(shake: ShakeEffect) {

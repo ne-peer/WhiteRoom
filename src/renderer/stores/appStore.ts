@@ -119,6 +119,8 @@ export const DEFAULT_EFFECTS: CellEffects = {
     afterimageDurationSec: 0.35,
     manualTriggerNonce: 0,
     trailEnabled: false,
+    trailSecondStageEnabled: false,
+    trailSecondStageSize: 0.62,
     trailDelaySec: 0.12,
     trailAlpha: 0.55,
     trailBlurStrength: 2,

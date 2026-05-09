@@ -147,6 +147,8 @@ export type ShakeEffect = {
   afterimageDurationSec: number
   manualTriggerNonce: number
   trailEnabled: boolean
+  trailSecondStageEnabled: boolean
+  trailSecondStageSize: number
   trailDelaySec: number
   trailAlpha: number
   trailBlurStrength: number

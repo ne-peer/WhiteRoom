@@ -112,6 +112,8 @@ const EFFECT_PRESET_1: CellEffects = {
     afterimageDurationSec: 0.35,
     manualTriggerNonce: 0,
     trailEnabled: false,
+    trailSecondStageEnabled: false,
+    trailSecondStageSize: 0.62,
     trailDelaySec: 0.12,
     trailAlpha: 0.55,
     trailBlurStrength: 2,
@@ -220,6 +222,14 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     return values.map(font => ({ value: font, label: font }))
   }, [selectedFont, systemFonts])
 
+  useEffect(() => {
+    return () => {
+      if (effectCenterHighlightTimerRef.current !== null) {
+        window.clearInterval(effectCenterHighlightTimerRef.current)
+      }
+    }
+  }, [])
+
   if (!selectedCellId || !selectedCell) {
     return (
       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', textAlign: 'center', padding: '24px 0' }}>
@@ -321,13 +331,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       setEffectCenterHighlightTick(tick + 1)
     }, 220)
   }
-  useEffect(() => {
-    return () => {
-      if (effectCenterHighlightTimerRef.current !== null) {
-        window.clearInterval(effectCenterHighlightTimerRef.current)
-      }
-    }
-  }, [])
   const assetEffectFolderPlaceholder = __ASSET_EFFECT_FOLDERS__.length > 0
     ? (language === 'ja' ? '未選択' : 'Select folder')
     : (language === 'ja' ? 'assets/asset-effect にフォルダがありません' : 'No folders in assets/asset-effect')
@@ -1075,13 +1078,30 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <Row label={t('shakeTrailDelay')}>
                   <Slider
                     value={effects.shake.trailDelaySec}
-                    min={0.02}
+                    min={0.01}
                     max={0.5}
                     step={0.01}
                     unit={t('seconds')}
                     onChange={v => set('shake', { trailDelaySec: v })}
                   />
                 </Row>
+                <Row label={t('shakeTrailSecondStage')}>
+                  <Toggle
+                    value={effects.shake.trailSecondStageEnabled ?? DEFAULT_EFFECTS.shake.trailSecondStageEnabled}
+                    onChange={v => set('shake', { trailSecondStageEnabled: v })}
+                  />
+                </Row>
+                {(effects.shake.trailSecondStageEnabled ?? DEFAULT_EFFECTS.shake.trailSecondStageEnabled) && (
+                  <Row label={t('shakeTrailSecondStageSize')}>
+                    <Slider
+                      value={Math.round((effects.shake.trailSecondStageSize ?? DEFAULT_EFFECTS.shake.trailSecondStageSize) * 100)}
+                      min={10}
+                      max={100}
+                      onChange={v => set('shake', { trailSecondStageSize: v / 100 })}
+                      unit="%"
+                    />
+                  </Row>
+                )}
                 <Row label={t('shakeTrailOpacity')}>
                   <Slider
                     value={Math.round(effects.shake.trailAlpha * 100)}
