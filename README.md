@@ -50,106 +50,25 @@ xattr -d com.apple.quarantine ~/Downloads/WhiteRoom.for.Mac_arm64_v*.dmg
     * カラーフィルタ: シンプルなオーバレイカラーフィルタ
     * 画像強調フィルタ: 画像の彩度・コントラストを強調するエフェクト
     * ビネットエフェクト: 周辺減光エフェクト
+    * スパイラルエフェクト: 螺旋状エフェクト
     * ブラーエフェクト: ぼかしエフェクト
     * エコーエフェクト: 波紋を表現するエフェクト
     * ブリージングエフェクト: 呼吸を表現するエフェクト
-    * テキストエフェクト: 指定テキストをランダム位置に浮遊させる
-    * アセットエフェクト: 指定画像をランダム位置に配置し浮遊させる
+    * シェイクエフェクト: 揺れを表現するエフェクト
+    * テキストエフェクト: 指定テキストをランダム位置に浮遊させるエフェクト
+    * アセットエフェクト: 指定画像をランダム位置に配置し浮遊させるエフェクト
+    * フラッシュエフェクト: 画像を一時的にオーバレイ表示するエフェクト
 5. **タイマー**: タイマータブでON・位置設定
     * **エフェクトのタイマー同期機能**: タイマーの残り時間に応じてエフェクトを適用する機能
     * **終了時オーバレイ画像**: タイマー終了時にあわせて指定した画像をオーバレイ表示する機能
 6. **テキストリーダー**: テキストファイル(.txt)を読み込んでRPGツクール風にテキストを閲覧する機能
     * **ストーリーボード機能**: テキストの読み進めに合わせて画像・エフェクトを自動切り替えするタグをファイルに埋め込む機能（後述）
-7. **プロファイル保存**: プロファイルタブでJSON保存/読み込み
-
----
-
-## セットアップ手順（開発者向け）
-
-### 必須環境
-
-- **Node.js** v18以上（推奨: v22）
-- **npm** v9以上
-- **Windows 11** / macOS / Linux
-
-### インストール
-
-```bash
-# プロジェクトフォルダに移動
-cd C:\develop\WhiteRoom
-
-# 依存関係インストール
-npm install
-```
-
-### 開発起動
-
-```bash
-npm run dev
-```
-
-### ビルド（配布用）
-
-```bash
-# Windows インストーラー生成
-npm run build
-npm run package
-```
-
-出力先: `release/` フォルダ
-
----
-
-## ディレクトリ構造
-
-```
-src/
-├── main/           # Electronメインプロセス
-│   └── index.ts    # ファイルI/O、ダイアログ、IPC
-├── preload/        # IPC ブリッジ
-│   └── index.ts
-├── shared/         # 型定義（main/renderer共有）
-│   └── types.ts
-└── renderer/       # React + PixiJS フロントエンド
-    ├── App.tsx
-    ├── main.tsx
-    ├── global.css
-    ├── stores/
-    │   └── appStore.ts       # Zustand グローバル状態
-    ├── hooks/
-    │   ├── usePixiStage.ts   # PixiJSアプリ初期化
-    │   ├── useDropHandler.ts # D&D処理
-    │   └── useTimer.ts       # タイマー
-    ├── utils/
-    │   ├── CellRenderer.ts   # セルごとの描画クラス
-    │   └── pixiEffects.ts    # エフェクトユーティリティ
-    └── components/
-        ├── layout/
-        │   ├── MasterCanvas  # PixiJSキャンバスホスト
-        │   └── TopBar        # 上部ツールバー
-        ├── controls/
-        │   ├── ControlPanel  # 右サイドパネル
-        │   ├── GridControls  # グリッド・セル操作
-        │   ├── UIKit         # 共通UIコンポーネント
-        │   ├── AppearanceControls
-        │   └── ProfileControls
-        ├── effects/
-        │   └── EffectsPanel  # エフェクト設定
-        └── timer/
-            ├── TimerOverlay  # タイマー表示
-            └── TimerControls # タイマー設定
-```
-
-## 技術スタック
-
-- **Electron** v30 — クロスプラットフォームデスクトップアプリ
-- **React** v18 + **TypeScript** — UI
-- **PixiJS** v8 — WebGL描画エンジン
-- **Zustand** + immer — 状態管理
-- **GSAP** — アニメーション制御
-- **electron-vite** — ビルドツール
-
----
+7. **外観設定**:
+    * UI言語: ja/en
+    * 背景色: カラー(色指定) / ダイナミック(表示中画像のブラー背景)
+    * フルスクリーン/ウィンドウモード切り替え
+    * UI非表示切り替え
+8. **プロファイル保存**: プロファイルタブでJSON保存/読み込み
 
 ## エフェクト保存機能
 
@@ -161,8 +80,6 @@ src/
 すでに画像に対する設定が存在する場合は上書きされるのでご注意ください。  
 設定ファイルは表示中の画像と同じフォルダに"whiteroom_effects.json"として保存されます。  
 意図しないエフェクトが勝手に適用される場合は、このファイルを削除してください。  
-
----
 
 ## ストーリーボード機能
 
@@ -236,3 +153,90 @@ src/
 ### ページ後退時の動作
 
 テキストを前のページに戻した場合、タグが適用される前の状態（ファイル読み込み時点のスナップショット）に自動的に復元されます。
+
+---
+
+## セットアップ手順（開発者向け）
+
+### 必須環境
+
+- **Node.js** v18以上（推奨: v22）
+- **npm** v9以上
+- **Windows 11** / macOS / Linux
+
+## 技術スタック
+
+- **Electron** v30 — クロスプラットフォームデスクトップアプリ
+- **React** v18 + **TypeScript** — UI
+- **PixiJS** v8 — WebGL描画エンジン
+- **Zustand** + immer — 状態管理
+- **GSAP** — アニメーション制御
+- **electron-vite** — ビルドツール
+
+### インストール
+
+```bash
+# プロジェクトフォルダに移動
+cd C:\develop\WhiteRoom
+
+# 依存関係インストール
+npm install
+```
+
+### 開発起動
+
+```bash
+npm run dev
+```
+
+### ビルド（配布用）
+
+```bash
+# Windows インストーラー生成
+npm run build
+npm run package
+```
+
+出力先: `release/` フォルダ
+
+---
+
+## ディレクトリ構造
+
+```
+src/
+├── main/           # Electronメインプロセス
+│   └── index.ts    # ファイルI/O、ダイアログ、IPC
+├── preload/        # IPC ブリッジ
+│   └── index.ts
+├── shared/         # 型定義（main/renderer共有）
+│   └── types.ts
+└── renderer/       # React + PixiJS フロントエンド
+    ├── App.tsx
+    ├── main.tsx
+    ├── global.css
+    ├── stores/
+    │   └── appStore.ts       # Zustand グローバル状態
+    ├── hooks/
+    │   ├── usePixiStage.ts   # PixiJSアプリ初期化
+    │   ├── useDropHandler.ts # D&D処理
+    │   └── useTimer.ts       # タイマー
+    ├── utils/
+    │   ├── CellRenderer.ts   # セルごとの描画クラス
+    │   └── pixiEffects.ts    # エフェクトユーティリティ
+    └── components/
+        ├── layout/
+        │   ├── MasterCanvas  # PixiJSキャンバスホスト
+        │   └── TopBar        # 上部ツールバー
+        ├── controls/
+        │   ├── ControlPanel  # 右サイドパネル
+        │   ├── GridControls  # グリッド・セル操作
+        │   ├── UIKit         # 共通UIコンポーネント
+        │   ├── AppearanceControls
+        │   └── ProfileControls
+        ├── effects/
+        │   └── EffectsPanel  # エフェクト設定
+        └── timer/
+            ├── TimerOverlay  # タイマー表示
+            └── TimerControls # タイマー設定
+```
