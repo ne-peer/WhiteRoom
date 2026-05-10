@@ -150,6 +150,12 @@ export class CellRenderer {
   private squishCycleComplete = false
   private squishOrganicShape: SquishOrganicShape | null = null
   private squishRandomPosition: { x: number; y: number } | null = null
+  private squishBurstGraphics: PIXI.Graphics
+  private squishBurstActiveSec: number | null = null
+  private squishBurstTriggeredThisCycle = false
+  private squishBurstCenters: { x: number; y: number }[] = []
+  private squishBurstRadius = 0
+  private squishBurstBlurFilter: PIXI.BlurFilter | null = null
   private activeSlideTransition: {
     incoming: PIXI.Sprite
     outgoing: PIXI.Sprite
@@ -234,6 +240,8 @@ export class CellRenderer {
 
     this.colorOverlayGraphics = new PIXI.Graphics()
     this.overlayLayer.addChild(this.colorOverlayGraphics)
+    this.squishBurstGraphics = new PIXI.Graphics()
+    this.overlayLayer.addChild(this.squishBurstGraphics)
     this.squishGraphics = new PIXI.Graphics()
     this.overlayLayer.addChild(this.squishGraphics)
     this.spiralGraphics = new PIXI.Graphics()
@@ -2240,6 +2248,8 @@ export class CellRenderer {
           squish.repeatEnabled,
           squish.repeatIntervalSec,
           squish.randomPosition ?? false,
+          squish.burstEnabled ?? false,
+          squish.burstMaxOpacity ?? 0.8,
         ].join(':')
       : 'disabled'
 
@@ -2275,12 +2285,14 @@ export class CellRenderer {
       if (this.squishElapsedSec >= animationSec) {
         this.squishElapsedSec %= animationSec
         this.resetSquishOrganicShapes()
+        this.squishBurstTriggeredThisCycle = false
       }
       if (mode === 'permanentB') {
         this.drawSquishPermanentB(squish, this.squishElapsedSec)
       } else {
         this.drawSquishPermanent(squish, this.squishElapsedSec)
       }
+      this.tickSquishBurst(dtSec, squish, this.squishElapsedSec, mode, animationSec, this.width / 2, this.height / 2)
       return
     }
 
@@ -2288,7 +2300,10 @@ export class CellRenderer {
     const intervalSec = Math.max(0, squish.repeatIntervalSec)
     const cycleSec = animationSec + (squish.repeatEnabled ? intervalSec : 0)
 
-    if (this.squishCycleComplete && !squish.repeatEnabled) return
+    if (this.squishCycleComplete && !squish.repeatEnabled) {
+      this.tickSquishBurst(dtSec, squish, animationSec, mode, animationSec, this.width / 2, this.height / 2)
+      return
+    }
 
     this.squishElapsedSec += dtSec
     if (squish.repeatEnabled && cycleSec > 0) {
@@ -2297,13 +2312,143 @@ export class CellRenderer {
       if (didWrap) {
         this.resetSquishOrganicShapes()
         if (squish.randomPosition) this.computeSquishRandomPosition(squish)
+        this.squishBurstTriggeredThisCycle = false
       }
     } else if (this.squishElapsedSec >= animationSec) {
       this.squishElapsedSec = animationSec
       this.squishCycleComplete = true
     }
 
+    const baseX = (squish.randomPosition && this.squishRandomPosition)
+      ? this.squishRandomPosition.x : this.width / 2
+    const baseY = (squish.randomPosition && this.squishRandomPosition)
+      ? this.squishRandomPosition.y : this.height / 2
     this.drawSquish(squish, this.squishElapsedSec)
+    this.tickSquishBurst(dtSec, squish, this.squishElapsedSec, mode, animationSec, baseX, baseY)
+  }
+
+  private computeSquishScaleFromProgress(mode: string, progress: number): number {
+    if (mode === 'permanentA') {
+      const growEnd = 0.25
+      const peakScale = 1.06
+      const minScale = 0.35
+      return progress < growEnd
+        ? lerp(minScale, peakScale, easeOutBack(progress / growEnd))
+        : lerp(peakScale, minScale, easeInOutSine((progress - growEnd) / (1 - growEnd)))
+    }
+    if (mode === 'permanentB') {
+      const minScale = 0.35
+      const maxScale = 1.0
+      const expandEnd = 0.5
+      return progress < expandEnd
+        ? lerp(minScale, maxScale, easeInOutCubic(progress / expandEnd))
+        : lerp(maxScale, minScale, easeInOutCubic((progress - expandEnd) / (1 - expandEnd)))
+    }
+    // oneshot
+    const growProgress = clamp(progress / 0.58, 0, 1)
+    const settleProgress = clamp((progress - 0.58) / 0.34, 0, 1)
+    const peakScale = 1.06
+    const settledScale = 0.97
+    return progress < 0.58
+      ? peakScale * easeOutBack(growProgress)
+      : lerp(peakScale, settledScale, easeInOutSine(settleProgress))
+  }
+
+  private tickSquishBurst(
+    dtSec: number,
+    squish: SquishEffect,
+    elapsedSec: number,
+    mode: string,
+    animationSec: number,
+    baseX: number,
+    baseY: number
+  ) {
+    if (!squish.burstEnabled) {
+      this.squishBurstGraphics.clear()
+      return
+    }
+
+    if (!this.squishBurstTriggeredThisCycle && animationSec > 0) {
+      const progress = clamp(elapsedSec / animationSec, 0, 1)
+      const scale = this.computeSquishScaleFromProgress(mode, progress)
+      if (scale >= 0.8) {
+        this.squishBurstTriggeredThisCycle = true
+        this.squishBurstActiveSec = 0
+        const minSide = Math.max(1, Math.min(this.width, this.height))
+        const finalDiameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5)
+        const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5)
+        const centerOffset = (finalDiameter + edgeGap) / 2
+        this.squishBurstRadius = finalDiameter / 2
+        this.squishBurstCenters = [
+          { x: baseX - centerOffset, y: baseY },
+          { x: baseX + centerOffset, y: baseY },
+        ]
+      }
+    }
+
+    if (this.squishBurstActiveSec !== null) {
+      this.squishBurstActiveSec += dtSec
+      this.drawSquishBurst(squish)
+    } else {
+      this.squishBurstGraphics.clear()
+    }
+  }
+
+  private drawSquishBurst(squish: SquishEffect) {
+    this.squishBurstGraphics.clear()
+    if (this.squishBurstActiveSec === null) return
+
+    const maxOpacity = clamp(squish.burstMaxOpacity ?? 0.8, 0, 1)
+    const fadeInSec = 0.10
+    const totalSec = 0.9
+    const elapsed = this.squishBurstActiveSec
+
+    if (elapsed >= totalSec) {
+      this.squishBurstActiveSec = null
+      return
+    }
+
+    let fadeAlpha: number
+    if (elapsed < fadeInSec) {
+      fadeAlpha = easeOutSine(elapsed / fadeInSec)
+    } else {
+      fadeAlpha = easeOutSine(1 - (elapsed - fadeInSec) / (totalSec - fadeInSec))
+    }
+    if (fadeAlpha <= 0) return
+
+    const innerR = this.squishBurstRadius * 1.0
+    const outerR = this.squishBurstRadius * 1.5
+    const steps = 16
+
+    for (const center of this.squishBurstCenters) {
+      for (let i = 0; i < steps; i++) {
+        const t0 = i / steps
+        const t1 = (i + 1) / steps
+        const r0 = innerR + (outerR - innerR) * t0
+        const r1 = innerR + (outerR - innerR) * t1
+        // 内側から外側へ向かって透明度が下がるグラデーション
+        const ringAlpha = maxOpacity * fadeAlpha * (1 - t0)
+        if (ringAlpha <= 0) continue
+        this.squishBurstGraphics.circle(center.x, center.y, r1)
+        this.squishBurstGraphics.cut()
+        this.squishBurstGraphics.circle(center.x, center.y, r0)
+        this.squishBurstGraphics.fill({ color: 0xffffff, alpha: ringAlpha })
+      }
+    }
+
+    const strength = clamp(squish.featherStrength ?? 0, 0, 24)
+    if (strength <= 0) {
+      this.squishBurstGraphics.filters = []
+      this.squishBurstBlurFilter = null
+    } else {
+      if (!this.squishBurstBlurFilter) {
+        this.squishBurstBlurFilter = new PIXI.BlurFilter({ strength, quality: 4 })
+        this.squishBurstGraphics.filters = [this.squishBurstBlurFilter]
+      } else {
+        this.squishBurstBlurFilter.strength = strength
+      }
+      this.squishBurstGraphics.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    }
   }
 
   private drawSquish(squish: SquishEffect, elapsedSec: number) {
@@ -2597,6 +2742,9 @@ export class CellRenderer {
       this.squishRandomPosition = null
     }
     this.squishGraphics.clear()
+    this.squishBurstActiveSec = null
+    this.squishBurstTriggeredThisCycle = false
+    this.squishBurstGraphics.clear()
   }
 
   private clearSquish(resetKey = true) {
@@ -2604,6 +2752,9 @@ export class CellRenderer {
     this.squishGraphics.filters = []
     this.squishGraphics.filterArea = undefined
     this.squishBlurFilter = null
+    this.squishBurstGraphics.clear()
+    this.squishBurstGraphics.filters = []
+    this.squishBurstBlurFilter = null
     if (resetKey) this.squishKey = null
   }
 
@@ -3355,6 +3506,15 @@ function easeInSine(x: number): number {
 function easeInOutCubic(x: number): number {
   const t = clamp(x, 0, 1)
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+}
+
+function easeOutCubic(x: number): number {
+  return 1 - Math.pow(1 - clamp(x, 0, 1), 3)
+}
+
+function easeInCubic(x: number): number {
+  const t = clamp(x, 0, 1)
+  return t * t * t
 }
 
 function easeOutBack(x: number): number {

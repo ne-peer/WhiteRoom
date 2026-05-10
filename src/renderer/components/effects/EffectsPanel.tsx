@@ -140,6 +140,8 @@ const EFFECT_PRESET_1: CellEffects = {
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
     randomPosition: false,
+    burstEnabled: false,
+    burstMaxOpacity: 0.8,
   },
   dynamicAsset: {
     enabled: true,
@@ -1657,6 +1659,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   </Row>
                 )}
               </>
+            )}
+            <Row label={t('squishBurst')}>
+              <Toggle
+                value={effects.squish.burstEnabled ?? false}
+                onChange={v => set('squish', { burstEnabled: v })}
+              />
+            </Row>
+            {(effects.squish.burstEnabled ?? false) && (
+              <Row label={t('squishBurstMaxOpacity')}>
+                <Slider
+                  value={Math.round((effects.squish.burstMaxOpacity ?? 0.8) * 100)}
+                  min={0}
+                  max={100}
+                  step={1}
+                  unit="%"
+                  onChange={v => set('squish', { burstMaxOpacity: v / 100 })}
+                />
+              </Row>
             )}
           </>
         )}

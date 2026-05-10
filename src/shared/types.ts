@@ -177,6 +177,8 @@ export type SquishEffect = {
   repeatEnabled: boolean
   repeatIntervalSec: number
   randomPosition: boolean
+  burstEnabled?: boolean
+  burstMaxOpacity?: number
 }
 
 export type AssetDrawPattern = 'rising' | 'emergence'
