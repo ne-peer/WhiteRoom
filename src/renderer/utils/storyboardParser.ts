@@ -1,4 +1,4 @@
-import type { CellEffects, ReadingConfigPayload, StoryboardRichTagPayload, StoryboardTag, TagEntry } from '../../shared/types'
+import type { CellEffects, ReadingConfigPayload, SavedTimerConfig, StoryboardRichTagPayload, StoryboardTag, TagEntry } from '../../shared/types'
 
 // [[画像パス]]
 const SIMPLE_TAG_RE = /^\[\[(.+)\]\]$/
@@ -206,7 +206,7 @@ export function buildRichTagLine(
   image: string,
   effects: Partial<CellEffects>,
   progress?: { enabled: boolean; pages: number },
-  timer?: { enabled: boolean }
+  timer?: Partial<SavedTimerConfig>
 ): string {
   const payload: StoryboardRichTagPayload = { image, effects, progress, timer }
   return `[WR:${appVersion}:${JSON.stringify(payload)}]`

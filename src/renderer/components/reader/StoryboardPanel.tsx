@@ -69,7 +69,7 @@ export const StoryboardPanel: React.FC = () => {
   const segmentStartLines = useAppStore(s => s.textReader.segmentStartLines)
   const cells = useAppStore(s => s.cells)
   const cellTagOverrides = useAppStore(s => s.cellTagOverrides)
-  const timerEnabled = useAppStore(s => s.timer.enabled)
+  const timer = useAppStore(s => s.timer)
   const setStoryboardOpen = useAppStore(s => s.setStoryboardOpen)
   const insertTagAtCurrentPosition = useAppStore(s => s.insertTagAtCurrentPosition)
   const updateReadingConfigTag = useAppStore(s => s.updateReadingConfigTag)
@@ -101,12 +101,16 @@ export const StoryboardPanel: React.FC = () => {
     const firstCell = cells[0]
     const effects = firstCell?.effects ?? {}
 
+    const timerConfig = timer.enabled
+      ? (({ elapsedSec: _e, running: _r, ...saved }) => saved)(timer)
+      : undefined
+
     const tagLine = buildRichTagLine(
       __APP_VERSION__,
       imagePath,
       effects,
       progressEnabled ? { enabled: true, pages: progressPages } : undefined,
-      timerEnabled ? { enabled: true } : undefined
+      timerConfig
     )
 
     const api = (window as unknown as { api: IpcApi }).api

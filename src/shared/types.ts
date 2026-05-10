@@ -340,7 +340,7 @@ export type StoryboardRichTagPayload = {
   image: string
   effects: Partial<CellEffects>
   progress?: { enabled: boolean; pages: number }
-  timer?: { enabled: boolean }
+  timer?: Partial<SavedTimerConfig>
 }
 
 export type StoryboardRichTag = {

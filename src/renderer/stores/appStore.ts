@@ -1179,7 +1179,11 @@ export const useAppStore = create<AppStore>()(
 
       // タイマーリセット（タグ優先）
       if (tag.kind === 'rich' && tag.payload.timer?.enabled) {
-        s.timer.enabled = true
+        const { endFlash, preOverlay, autoNext, ...rest } = tag.payload.timer
+        Object.assign(s.timer, rest)
+        if (endFlash) Object.assign(s.timer.endFlash, endFlash)
+        if (preOverlay) Object.assign(s.timer.preOverlay, preOverlay)
+        if (autoNext) Object.assign(s.timer.autoNext, autoNext)
         s.timer.elapsedSec = 0
         s.timer.running = true
         // Auto が動作中なら一時停止
@@ -1188,7 +1192,8 @@ export const useAppStore = create<AppStore>()(
           s.textReader.autoSuspendedForTimer = true
         }
       } else {
-        // タイマーが動作中でもタグのエフェクト設定を優先
+        // タイマー設定のないタグへ移行した場合は非表示にリセット
+        s.timer.enabled = false
         s.timer.running = false
         s.timer.elapsedSec = 0
       }
