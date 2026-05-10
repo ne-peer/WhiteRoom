@@ -826,6 +826,10 @@ export const useAppStore = create<AppStore>()(
         }
         if (applyImageEffectProfileToCell(s, cell)) s.effectSyncNonce += 1
       })
+      if (s.timer.enabled) {
+        s.timer.elapsedSec = 0
+        s.timer.running = true
+      }
     }),
 
     // ===== UI =====
