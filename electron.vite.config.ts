@@ -2,6 +2,7 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import { resolve, join, extname } from 'path'
 import { readdirSync } from 'fs'
+import pkg from './package.json'
 
 function scanAssetEffectFolders(): { name: string; count: number }[] {
   const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
@@ -50,6 +51,7 @@ export default defineConfig({
     plugins: [react()],
     define: {
       __ASSET_EFFECT_FOLDERS__: JSON.stringify(scanAssetEffectFolders()),
+      __APP_VERSION__: JSON.stringify(pkg.version),
     },
     resolve: {
       alias: {

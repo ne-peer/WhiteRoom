@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useAppStore } from '../stores/appStore'
 import type { CellFolder, IpcApi } from '../../shared/types'
+import { parseTextFile } from '../utils/storyboardParser'
 
 function isProfileFile(name: string): boolean {
   return name.toLowerCase().endsWith('.json')
@@ -35,6 +36,8 @@ export function useDropHandler(
     language,
     importProfile,
     loadTextReaderFile,
+    setPendingStoryboardLoad,
+    resetForStoryboard,
   } = useAppStore()
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
@@ -73,10 +76,19 @@ export function useDropHandler(
       if (isTextFile(file.name)) {
         const result = await getApi().openTextFileDirect(filePath)
         if (!result.canceled && result.filePath && result.text !== undefined) {
-          loadTextReaderFile(result.filePath, result.text, result.tempFilePath)
-          const readingConfig = useAppStore.getState().textReader.readingConfig
-          if (readingConfig) {
-            await getApi().setWindowSize(readingConfig.windowSize.width, readingConfig.windowSize.height)
+          const parsed = parseTextFile(result.text)
+          if (parsed.tagEntries.length > 0) {
+            setPendingStoryboardLoad({
+              filePath: result.filePath,
+              text: result.text,
+              tempFilePath: result.tempFilePath,
+            })
+          } else {
+            loadTextReaderFile(result.filePath, result.text, result.tempFilePath)
+            const readingConfig = useAppStore.getState().textReader.readingConfig
+            if (readingConfig) {
+              await getApi().setWindowSize(readingConfig.windowSize.width, readingConfig.windowSize.height)
+            }
           }
         }
         break
@@ -129,7 +141,7 @@ export function useDropHandler(
         break
       }
     }
-  }, [cells, setCellFolder, setCellImageStore, grid, setCellImageRenderer, setImageEffectProfile, showAppNotification, language, importProfile, loadTextReaderFile])
+  }, [cells, setCellFolder, setCellImageStore, grid, setCellImageRenderer, setImageEffectProfile, showAppNotification, language, importProfile, loadTextReaderFile, setPendingStoryboardLoad, resetForStoryboard])
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
