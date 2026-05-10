@@ -1,5 +1,5 @@
 Created: 2026-05-09
-Last Updated: 2026-05-09
+Last Updated: 2026-05-10
 
 # WhiteRoom Image Effect Profile Specification
 
@@ -43,6 +43,7 @@ Saved:
 
 - Relative image path
 - Effect settings for that image
+- Timer settings (excluding transient state: `elapsedSec`, `running`)
 - Optional metadata needed for future compatibility
 
 Not saved:
@@ -53,6 +54,7 @@ Not saved:
 - Grid layout
 - Current slideshow state
 - Selection state
+- Timer elapsed time (`elapsedSec`) and running state (`running`)
 - Any text reader session state
 
 ### Suggested JSON Shape
@@ -61,12 +63,21 @@ The implementation should prefer a maintainable JSON object like this:
 
 ```json
 {
-  "version": "1.5.1",
-  "updatedAt": "2026-05-09T00:00:00.000Z",
+  "version": "1.5.2",
+  "updatedAt": "2026-05-10T00:00:00.000Z",
   "entries": {
     "image01.jpg": {
       "image": "image01.jpg",
-      "effects": {}
+      "effects": {},
+      "timer": {
+        "enabled": true,
+        "totalSec": 60,
+        "position": "bottom-center",
+        "showBackground": false,
+        "effectCompletionLeadSec": 3,
+        "endFlash": { "enabled": true, "color": { "r": 255, "g": 255, "b": 255 }, "maxTransparency": 0, "count": 3, "intervalSec": 0.5 },
+        "preOverlay": { "enabled": false, "imagePath": null, "displayStartSec": 10, "startOpacity": 0, "endOpacity": 80 }
+      }
     }
   }
 }
@@ -74,16 +85,19 @@ The implementation should prefer a maintainable JSON object like this:
 
 `version` records the WhiteRoom app version that last wrote the file.
 
-Each entry should be compatible with the Storyboard rich tag payload concept:
+Each entry uses the following TypeScript shape:
 
 ```typescript
 {
   image: string
   effects: Partial<CellEffects>
+  timer?: Partial<SavedTimerConfig>  // TimerConfig minus elapsedSec and running
 }
 ```
 
-`progress` and `timer` are part of the Storyboard rich tag schema, but this feature only needs image and effects unless implementation later finds a clear reason to support additional fields.
+`timer` is optional for backward compatibility. Entries written before timer support was added will continue to load correctly; when applied, the timer state remains unchanged for those entries.
+
+`elapsedSec` and `running` are excluded from `SavedTimerConfig` because they represent transient session state, not configuration.
 
 ### Save Behavior
 

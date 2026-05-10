@@ -22,8 +22,8 @@ const api: IpcApi = {
   openTextFile: (language) => ipcRenderer.invoke('open-text-file', language),
   saveTextFile: (filePath, content) => ipcRenderer.invoke('save-text-file', filePath, content),
   loadImageEffectProfile: (folderPath) => ipcRenderer.invoke('load-image-effect-profile', folderPath),
-  saveImageEffectProfile: (folderPath, imagePath, effects) =>
-    ipcRenderer.invoke('save-image-effect-profile', folderPath, imagePath, effects),
+  saveImageEffectProfile: (folderPath, imagePath, effects, timer) =>
+    ipcRenderer.invoke('save-image-effect-profile', folderPath, imagePath, effects, timer),
   cleanupTextReaderTempFile: (tempFilePath) => ipcRenderer.invoke('cleanup-text-reader-temp-file', tempFilePath),
   loadRemoteImageAsDataUrl: (url) => ipcRenderer.invoke('load-remote-image-data-url', url),
   getRemoteImageStats: () => ipcRenderer.invoke('get-remote-image-stats'),

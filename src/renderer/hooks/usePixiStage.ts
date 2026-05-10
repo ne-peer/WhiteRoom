@@ -157,24 +157,27 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     })
     slideshowTimersRef.current.clear()
 
-    cells.forEach(cell => {
-      if (!cell.slideshow.enabled || !cell.folder || cell.folder.images.length <= 1) return
-      const startInterval = () => window.setInterval(() => {
-        useAppStore.getState().nextCellImage(cell.id)
-      }, cell.slideshow.intervalMs)
-
-      if (randomizeStart) {
-        const tid = window.setTimeout(() => {
+    // タイマープロファイル適用中はスライドショーを停止
+    if (!store.timerSuspendedSlideshow) {
+      cells.forEach(cell => {
+        if (!cell.slideshow.enabled || !cell.folder || cell.folder.images.length <= 1) return
+        const startInterval = () => window.setInterval(() => {
           useAppStore.getState().nextCellImage(cell.id)
-          slideshowTimersRef.current.set(cell.id, startInterval())
-        }, Math.random() * cell.slideshow.intervalMs)
-        slideshowTimersRef.current.set(cell.id, tid)
-        return
-      }
+        }, cell.slideshow.intervalMs)
 
-      const tid = startInterval()
-      slideshowTimersRef.current.set(cell.id, tid)
-    })
+        if (randomizeStart) {
+          const tid = window.setTimeout(() => {
+            useAppStore.getState().nextCellImage(cell.id)
+            slideshowTimersRef.current.set(cell.id, startInterval())
+          }, Math.random() * cell.slideshow.intervalMs)
+          slideshowTimersRef.current.set(cell.id, tid)
+          return
+        }
+
+        const tid = startInterval()
+        slideshowTimersRef.current.set(cell.id, tid)
+      })
+    }
 
     return () => {
       slideshowTimersRef.current.forEach(id => {
@@ -185,6 +188,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     }
   }, [
     store.slideshowRestartNonce,
+    store.timerSuspendedSlideshow,
     store.cells.map(c => `${c.id}:${c.slideshow.enabled}:${c.slideshow.intervalMs}`).join(',')
   ])
 

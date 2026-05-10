@@ -16,6 +16,7 @@ interface Props {
 export const CellNavigationOverlay: React.FC<Props> = ({ hoveredCellId }) => {
   const cells = useAppStore(s => s.cells)
   const grid = useAppStore(s => s.grid)
+  const timer = useAppStore(s => s.timer)
   const prevCellImage = useAppStore(s => s.prevCellImage)
   const nextCellImage = useAppStore(s => s.nextCellImage)
   const setImageEffectProfile = useAppStore(s => s.setImageEffectProfile)
@@ -44,7 +45,8 @@ export const CellNavigationOverlay: React.FC<Props> = ({ hoveredCellId }) => {
       return
     }
 
-    const result = await api.saveImageEffectProfile(cell.folder.path, imagePath, cell.effects)
+    const { elapsedSec: _elapsedSec, running: _running, ...savedTimer } = timer
+    const result = await api.saveImageEffectProfile(cell.folder.path, imagePath, cell.effects, savedTimer)
     if (result.success) {
       setImageEffectProfile(cell.folder.path, result.profile ?? null)
       showAppNotification(t('imageEffectProfileSaved'), 'info')
