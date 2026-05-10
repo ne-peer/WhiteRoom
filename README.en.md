@@ -1,8 +1,9 @@
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ne-peer/WhiteRoom/total?style=flat&color=FF6496)
+[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ne-peer/WhiteRoom/total?style=flat&color=FF6496)](https://github.com/ne-peer/WhiteRoom/releases)
 
 <div>
    <h1 align="center">WhiteRoom</h1> 
    <p align="center">A multi-column image viewer that lets you apply visual effects.</p>
+   <p align="center"><a href="https://github.com/ne-peer/WhiteRoom/releases"><ins>Download</ins></a></p>
 </div>
 
 &nbsp;
@@ -26,8 +27,7 @@ This app includes no bundled assets such as images or scenario/text content. All
 
 ## Usage
 
-Download the latest release from:
-- https://github.com/ne-peer/WhiteRoom/releases
+### Files
 
 | OS | File |
 |---|---|
