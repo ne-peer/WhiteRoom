@@ -1,10 +1,27 @@
 import React from 'react'
 import styles from './UIKit.module.css'
 
+// ===== カテゴリセクション =====
+export const CategorySection: React.FC<{
+  title: string
+  children: React.ReactNode
+  headerBg: string
+  bodyBg: string
+}> = ({ title, children, headerBg, bodyBg }) => (
+  <div className={styles.categorySection}>
+    <div className={styles.categoryHeader} style={{ background: headerBg }}>{title}</div>
+    <div className={styles.categoryBody} style={{ background: bodyBg }}>{children}</div>
+  </div>
+)
+
 // ===== セクションタイトル =====
-export const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+export const Section: React.FC<{
+  title: string
+  children: React.ReactNode
+  titleColor?: string
+}> = ({ title, children, titleColor }) => (
   <div className={styles.section}>
-    <div className={styles.sectionTitle}>{title}</div>
+    <div className={styles.sectionTitle} style={titleColor ? { color: titleColor } : undefined}>{title}</div>
     {children}
   </div>
 )

@@ -1,3 +1,24 @@
+/* ===== カテゴリセクション ===== */
+.categorySection {
+  margin-bottom: 20px;
+  margin-left: -16px;
+  margin-right: -16px;
+  overflow: hidden;
+}
+
+.categoryHeader {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+  padding: 5px 16px;
+}
+
+.categoryBody {
+  padding: 10px 16px 2px;
+}
+
 /* ===== セクション ===== */
 .section {
   margin-bottom: 20px;

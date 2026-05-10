@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore, DEFAULT_EFFECTS } from '../../stores/appStore'
-import { Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select, IconButton } from '../controls/UIKit'
+import { CategorySection, Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select, IconButton } from '../controls/UIKit'
 import { formatCount, useTranslation } from '../../i18n'
 import type { AssetEffectFolder, Cell, CellEffects } from '../../../shared/types'
 
@@ -632,8 +632,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         </div>
       </div>
 
-      <Section title={t('colorOverlay')}>
-        <Row label={t('colorFilter')}>
+      {/* ===== フィルターカテゴリ ===== */}
+      <CategorySection
+        title={t('effectCategoryFilter')}
+        headerBg="rgba(42, 88, 196, 0.55)"
+        bodyBg="rgba(28, 65, 165, 0.15)"
+      >
+
+      <Section title={t('colorFilter')} titleColor="#aac8ff">
+        <Row label={t('enabled')}>
           <Toggle value={effects.colorOverlay.enabled} onChange={v => set('colorOverlay', { enabled: v })} />
         </Row>
         {effects.colorOverlay.enabled && (
@@ -650,7 +657,10 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             />
           </div>
         )}
-        <Row label={t('imageEnhanceFilter')}>
+      </Section>
+
+      <Section title={t('imageEnhanceFilter')} titleColor="#82b0ff">
+        <Row label={t('enabled')}>
           <Toggle
             value={effects.colorOverlay.imageAdjustEnabled}
             onChange={v => set('colorOverlay', { imageAdjustEnabled: v })}
@@ -692,14 +702,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     step={0.1}
                     unit={t('seconds')}
                     onChange={v => set('colorOverlay', { dynamicAdjustDurationMs: v * 1000 })}
-
                   />
                 </Row>
                 <Row label={t('timerSync')}>
                   <Toggle
                     value={effects.colorOverlay.dynamicAdjustTimerSync ?? false}
                     onChange={v => set('colorOverlay', { dynamicAdjustTimerSync: v })}
-
                   />
                 </Row>
               </>
@@ -708,7 +716,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('vignetteEffect')}>
+      <Section title={t('vignetteEffect')} titleColor="#5a98ff">
         <Row label={t('enabled')}>
           <Toggle value={effects.vignette.enabled} onChange={v => set('vignette', { enabled: v })} />
         </Row>
@@ -773,185 +781,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('spiralEffect')}>
-        <Row label={t('enabled')}>
-          <Toggle value={effects.spiral.enabled} onChange={v => set('spiral', { enabled: v })} />
-        </Row>
-        {effects.spiral.enabled && (
-          <>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('color')}</div>
-            <div style={{ marginBottom: 10 }}>
-              <ColorPicker
-                r={effects.spiral.color.r}
-                g={effects.spiral.color.g}
-                b={effects.spiral.color.b}
-                onChange={(r, g, b) => set('spiral', { color: { r, g, b } })}
-                showAlpha={false}
-              />
-            </div>
-            {effects.spiral.pattern === 'classic' && (
-              <>
-                <Row label={t('spiralDualColor')}>
-                  <Toggle
-                    value={effects.spiral.dualColorEnabled}
-                    onChange={v => set('spiral', { dualColorEnabled: v })}
-                  />
-                </Row>
-                {effects.spiral.dualColorEnabled && (
-                  <>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('spiralSecondaryColor')}</div>
-                    <div style={{ marginBottom: 10 }}>
-                      <ColorPicker
-                        r={effects.spiral.secondaryColor.r}
-                        g={effects.spiral.secondaryColor.g}
-                        b={effects.spiral.secondaryColor.b}
-                        onChange={(r, g, b) => set('spiral', { secondaryColor: { r, g, b } })}
-                        showAlpha={false}
-                      />
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-            <Row label={t('spiralDetail')}>
-              <Slider
-                value={effects.spiral.detail}
-                min={6}
-                max={120}
-                onChange={v => set('spiral', { detail: v })}
-              />
-            </Row>
-            <Row label={t('spiralPattern')}>
-              <Select
-                value={effects.spiral.pattern ?? 'classic'}
-                options={[
-                  { value: 'classic', label: t('spiralPatternClassic') },
-                  { value: 'vortex', label: t('spiralPatternVortex') },
-                ]}
-                onChange={v => set('spiral', { pattern: v as 'classic' | 'vortex' })}
-              />
-            </Row>
-            <Row label={t('rotationSpeed')}>
-              <Slider
-                value={Math.round(effects.spiral.rotationSpeedDegPerSec)}
-                min={-1200}
-                max={1200}
-                step={10}
-                onChange={v => set('spiral', { rotationSpeedDegPerSec: Math.round(v / 10) * 10 })}
-                unit="deg/s"
-              />
-            </Row>
-            <Row label={t('opacity')}>
-              <Slider
-                value={Math.round(effects.spiral.alpha * 100)}
-                min={0}
-                max={100}
-                onChange={v => set('spiral', { alpha: v / 100 })}
-                unit="%"
-              />
-            </Row>
-            <Row label={t('radialOption')}>
-              <Toggle
-                value={effects.spiral.radialEnabled}
-                onChange={v => set('spiral', { radialEnabled: v })}
-              />
-            </Row>
-            <div style={{ marginTop: -2, marginBottom: 8, display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={scrollToEffectCenterSetting}
-                style={{
-                  fontSize: 11,
-                  lineHeight: 1.2,
-                  color: 'rgba(255,255,255,0.72)',
-                  background: 'transparent',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: 999,
-                  padding: '2px 8px',
-                  cursor: 'pointer',
-                }}
-              >
-                {t('shakeTrailCirclePositionAdjust')}
-              </button>
-            </div>
-            {effects.spiral.radialEnabled && (
-              <>
-                <Row label={t('radialMode')}>
-                  <Select
-                    value={effects.spiral.radialMode}
-                    options={[
-                      { value: 'center', label: t('radialModeCenter') },
-                      { value: 'periphery', label: t('radialModePeriphery') },
-                    ]}
-                    onChange={v => set('spiral', { radialMode: v as 'center' | 'periphery' })}
-                  />
-                </Row>
-                <Row label={t('radialSize')}>
-                  <Slider
-                    value={Math.round(effects.spiral.radialSize * 100)}
-                    min={5}
-                    max={95}
-                    onChange={v => set('spiral', { radialSize: v / 100 })}
-                    unit="%"
-                  />
-                </Row>
-                <Row label={t('radialFadeStrength')}>
-                  <Slider
-                    value={Math.round((effects.spiral.radialFadeStrength ?? DEFAULT_EFFECTS.spiral.radialFadeStrength) * 100)}
-                    min={1}
-                    max={150}
-                    onChange={v => set('spiral', { radialFadeStrength: v / 100 })}
-                    unit="%"
-                  />
-                </Row>
-              </>
-            )}
-            <Row label={t('dynamicApply')}>
-              <Toggle value={effects.spiral.dynamic} onChange={v => set('spiral', { dynamic: v })} />
-            </Row>
-            {effects.spiral.dynamic && (
-              <>
-                <Row label={t('startOpacity')}>
-                  <Slider
-                    value={Math.round(effects.spiral.dynamicFrom * 100)}
-                    min={0}
-                    max={100}
-                    onChange={v => set('spiral', { dynamicFrom: v / 100 })}
-                    unit="%"
-                  />
-                </Row>
-                <Row label={t('endOpacity')}>
-                  <Slider
-                    value={Math.round(effects.spiral.dynamicTo * 100)}
-                    min={0}
-                    max={100}
-                    onChange={v => set('spiral', { dynamicTo: v / 100 })}
-                    unit="%"
-                  />
-                </Row>
-                <Row label={t('changeDuration')}>
-                  <NumberInput
-                    value={effects.spiral.dynamicDurationMs / 1000}
-                    min={0.1}
-                    max={10}
-                    step={0.1}
-                    unit={t('seconds')}
-                    onChange={v => set('spiral', { dynamicDurationMs: v * 1000 })}
-                  />
-                </Row>
-                <Row label={t('timerSync')}>
-                  <Toggle
-                    value={effects.spiral.dynamicTimerSync ?? false}
-                    onChange={v => set('spiral', { dynamicTimerSync: v })}
-                  />
-                </Row>
-              </>
-            )}
-          </>
-        )}
-      </Section>
-
-      <Section title={t('blurEffect')}>
+      <Section title={t('blurEffect')} titleColor="#3280f0">
         <Row label={t('enabled')}>
           <Toggle value={effects.blur.enabled} onChange={v => set('blur', { enabled: v })} />
         </Row>
@@ -1075,107 +905,16 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('echoEffect')}>
-        <Row label={t('enabled')}>
-          <Toggle value={effects.echo.enabled} onChange={v => set('echo', { enabled: v })} />
-        </Row>
-        {effects.echo.enabled && (
-          <>
-            <Row label={t('duration')}>
-              <NumberInput
-                value={effects.echo.durationSec}
-                min={0.1}
-                max={3600}
-                step={0.1}
-                unit={t('seconds')}
-                onChange={v => set('echo', { durationSec: v })}
-              />
-            </Row>
-            <Row label={t('startOpacity')}>
-              <Slider
-                value={Math.round(effects.echo.startAlpha * 100)}
-                min={0}
-                max={100}
-                onChange={v => set('echo', { startAlpha: v / 100 })}
-                unit="%"
-              />
-            </Row>
-            <Row label={t('endScale')}>
-              <Slider
-                value={Math.round(effects.echo.endScale * 100)}
-                min={100}
-                max={200}
-                onChange={v => set('echo', { endScale: v / 100 })}
-                unit="%"
-              />
-            </Row>
-            <Row label={t('timerSync')}>
-              <Toggle
-                value={effects.echo.timerSync ?? false}
-                onChange={v => set('echo', { timerSync: v })}
+      </CategorySection>
 
-              />
-            </Row>
-          </>
-        )}
-      </Section>
+      {/* ===== モーションカテゴリ ===== */}
+      <CategorySection
+        title={t('effectCategoryMotion')}
+        headerBg="rgba(155, 112, 0, 0.55)"
+        bodyBg="rgba(130, 95, 0, 0.15)"
+      >
 
-      <Section title={t('breathingEffect')}>
-        <Row label={t('enabled')}>
-          <Toggle value={effects.breathing.enabled} onChange={v => set('breathing', { enabled: v })} />
-        </Row>
-        {effects.breathing.enabled && (
-          <>
-            <Row label={t('moveSpeed')}>
-              <NumberInput
-                value={effects.breathing.speedPxPerSec}
-                min={0.1}
-                max={100}
-                step={0.1}
-                unit="px/s"
-                onChange={v => set('breathing', { speedPxPerSec: v })}
-              />
-            </Row>
-            <Row label={t('moveLimit')}>
-              <Slider
-                value={effects.breathing.maxOffsetPx}
-                min={0}
-                max={40}
-                step={1}
-                unit="px"
-                onChange={v => set('breathing', { maxOffsetPx: v })}
-              />
-            </Row>
-            <Row label={t('timerSync')}>
-              <Toggle
-                value={effects.breathing.timerSync ?? false}
-                onChange={v => set('breathing', { timerSync: v })}
-
-              />
-            </Row>
-            <Row label={t('scale')}>
-              <Toggle
-                value={effects.breathing.scaleEnabled}
-                onChange={v => set('breathing', { scaleEnabled: v })}
-              />
-            </Row>
-            {effects.breathing.scaleEnabled && (
-              <Row label={t('cycle')}>
-                <NumberInput
-                  value={effects.breathing.scaleDurationSec}
-                  min={1}
-                  max={60}
-                  step={0.5}
-                  unit={t('seconds')}
-                  onChange={v => set('breathing', { scaleDurationSec: v })}
-                />
-              </Row>
-            )}
-          </>
-        )}
-      </Section>
-
-      <Section title={t('shakeEffect')}>
+      <Section title={t('shakeEffect')} titleColor="#ffe580">
         <Row label={t('enabled')}>
           <Toggle value={effects.shake.enabled} onChange={v => set('shake', { enabled: v })} />
         </Row>
@@ -1401,7 +1140,362 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('squishEffect')}>
+      <Section title={t('breathingEffect')} titleColor="#f5cc30">
+        <Row label={t('enabled')}>
+          <Toggle value={effects.breathing.enabled} onChange={v => set('breathing', { enabled: v })} />
+        </Row>
+        {effects.breathing.enabled && (
+          <>
+            <Row label={t('moveSpeed')}>
+              <NumberInput
+                value={effects.breathing.speedPxPerSec}
+                min={0.1}
+                max={100}
+                step={0.1}
+                unit="px/s"
+                onChange={v => set('breathing', { speedPxPerSec: v })}
+              />
+            </Row>
+            <Row label={t('moveLimit')}>
+              <Slider
+                value={effects.breathing.maxOffsetPx}
+                min={0}
+                max={40}
+                step={1}
+                unit="px"
+                onChange={v => set('breathing', { maxOffsetPx: v })}
+              />
+            </Row>
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.breathing.timerSync ?? false}
+                onChange={v => set('breathing', { timerSync: v })}
+
+              />
+            </Row>
+            <Row label={t('scale')}>
+              <Toggle
+                value={effects.breathing.scaleEnabled}
+                onChange={v => set('breathing', { scaleEnabled: v })}
+              />
+            </Row>
+            {effects.breathing.scaleEnabled && (
+              <Row label={t('cycle')}>
+                <NumberInput
+                  value={effects.breathing.scaleDurationSec}
+                  min={1}
+                  max={60}
+                  step={0.5}
+                  unit={t('seconds')}
+                  onChange={v => set('breathing', { scaleDurationSec: v })}
+                />
+              </Row>
+            )}
+          </>
+        )}
+      </Section>
+
+      <Section title={t('echoEffect')} titleColor="#d8aa00">
+        <Row label={t('enabled')}>
+          <Toggle value={effects.echo.enabled} onChange={v => set('echo', { enabled: v })} />
+        </Row>
+        {effects.echo.enabled && (
+          <>
+            <Row label={t('duration')}>
+              <NumberInput
+                value={effects.echo.durationSec}
+                min={0.1}
+                max={3600}
+                step={0.1}
+                unit={t('seconds')}
+                onChange={v => set('echo', { durationSec: v })}
+              />
+            </Row>
+            <Row label={t('startOpacity')}>
+              <Slider
+                value={Math.round(effects.echo.startAlpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('echo', { startAlpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label={t('endScale')}>
+              <Slider
+                value={Math.round(effects.echo.endScale * 100)}
+                min={100}
+                max={200}
+                onChange={v => set('echo', { endScale: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.echo.timerSync ?? false}
+                onChange={v => set('echo', { timerSync: v })}
+
+              />
+            </Row>
+          </>
+        )}
+      </Section>
+
+      </CategorySection>
+
+      {/* ===== デコレーションカテゴリ ===== */}
+      <CategorySection
+        title={t('effectCategoryDecoration')}
+        headerBg="rgba(100, 35, 185, 0.55)"
+        bodyBg="rgba(80, 25, 155, 0.15)"
+      >
+
+      <Section title={t('assetEffect')} titleColor="#d4a8ff">
+        <Row label={t('enabled')}>
+          <Toggle value={effects.dynamicAsset.enabled} onChange={v => set('dynamicAsset', { enabled: v })} />
+        </Row>
+        {effects.dynamicAsset.enabled && (
+          <>
+            <Row label={assetEffectFolderLabel}>
+              <Select
+                value={(() => {
+                  const currentName = effects.dynamicAsset.assetFolderPath?.split(/[/\\]/).pop() ?? ''
+                  return __ASSET_EFFECT_FOLDERS__.some(f => f.name === currentName) ? currentName : ''
+                })()}
+                options={[
+                  {
+                    value: '',
+                    label: assetEffectFolderPlaceholder,
+                  },
+                  ...__ASSET_EFFECT_FOLDERS__.map(folder => ({
+                    value: folder.name,
+                    label: `${folder.name} (${formatCount(language, folder.count, t('imagesUnit'))})`,
+                  })),
+                ]}
+                onChange={handleSelectAssetEffectFolder}
+              />
+            </Row>
+            <div style={{ marginBottom: 8 }}>
+              <Button variant="secondary" onClick={handleOpenAsset}>
+                {t('selectAssetImage')}
+              </Button>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <Button variant="secondary" onClick={handleOpenAssetFolder}>
+                {t('drawRandomFromFolder')}
+              </Button>
+            </div>
+            {effects.dynamicAsset.assetPath && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 8, wordBreak: 'break-all' }}>
+                {effects.dynamicAsset.assetFolderPath
+                  ? `${effects.dynamicAsset.assetFolderPath} (${formatCount(language, effects.dynamicAsset.assetPaths.length, t('imagesUnit'))})`
+                  : effects.dynamicAsset.assetPath.split(/[\\/]/).pop()}
+              </div>
+            )}
+            <Row label={t('assetDrawPattern')}>
+              <Select
+                value={effects.dynamicAsset.pattern ?? 'rising'}
+                options={[
+                  { value: 'rising', label: t('assetPatternRising') },
+                  { value: 'emergence', label: t('assetPatternEmergence') },
+                ]}
+                onChange={v => set('dynamicAsset', { pattern: v as import('../../../shared/types').AssetDrawPattern })}
+              />
+            </Row>
+            <Row label={t('spawnInterval')}>
+              <NumberInput
+                value={effects.dynamicAsset.spawnIntervalMs / 1000}
+                min={0.1}
+                max={5}
+                step={0.1}
+                unit={t('seconds')}
+                onChange={v => set('dynamicAsset', { spawnIntervalMs: v * 1000 })}
+              />
+            </Row>
+            {(effects.dynamicAsset.pattern ?? 'rising') === 'rising' && (
+              <>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', margin: '8px 0 10px' }}>
+                  {t('riseSpeedHelp')}
+                </div>
+              </>
+            )}
+            <Row label={t('maxCount')}>
+              <NumberInput
+                value={effects.dynamicAsset.maxParticles}
+                min={1}
+                max={100}
+                step={1}
+                onChange={v => set('dynamicAsset', { maxParticles: v })}
+              />
+            </Row>
+            <Row label={t('opacity')}>
+              <Slider
+                value={Math.round(effects.dynamicAsset.baseAlpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('dynamicAsset', { baseAlpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.dynamicAsset.alphaTimerSync ?? false}
+                onChange={v => set('dynamicAsset', { alphaTimerSync: v })}
+              />
+            </Row>
+            <Row label={t('size')}>
+              <Slider
+                value={Math.round(effects.dynamicAsset.sizeRatio * 100)}
+                min={10}
+                max={300}
+                onChange={v => set('dynamicAsset', { sizeRatio: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            {(effects.dynamicAsset.pattern ?? 'rising') === 'emergence' && (
+              <Row label={t('emergenceSpeedFactor')}>
+                <Slider
+                  value={effects.dynamicAsset.emergenceSpeedFactor ?? 1.0}
+                  min={0.1}
+                  max={5}
+                  step={0.1}
+                  onChange={v => set('dynamicAsset', { emergenceSpeedFactor: v })}
+                />
+              </Row>
+            )}
+            <Row label={t('assetColor')}>
+              <Toggle
+                value={effects.dynamicAsset.colorOverlayEnabled}
+                onChange={v => set('dynamicAsset', { colorOverlayEnabled: v })}
+              />
+            </Row>
+            {effects.dynamicAsset.colorOverlayEnabled && (
+              <ColorPicker
+                r={effects.dynamicAsset.colorOverlayColor.r}
+                g={effects.dynamicAsset.colorOverlayColor.g}
+                b={effects.dynamicAsset.colorOverlayColor.b}
+                onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
+                showAlpha
+                alpha={effects.dynamicAsset.colorOverlayAlpha}
+                onAlphaChange={a => set('dynamicAsset', { colorOverlayAlpha: a })}
+              />
+            )}
+          </>
+        )}
+      </Section>
+
+      <Section title={t('flashEffect')} titleColor="#bf88ff">
+        <Row label={t('enabled')}>
+          <Toggle value={effects.flash.enabled} onChange={v => set('flash', { enabled: v })} />
+        </Row>
+        {effects.flash.enabled && (
+          <>
+            <Row label={t('flashImage')}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+                <Button variant="secondary" onClick={handleOpenFlashImage}>
+                  {t('selectImage')}
+                </Button>
+                {effects.flash.imagePath && (
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
+                    {effects.flash.imagePath.split(/[\\/]/).pop()}
+                  </div>
+                )}
+              </div>
+            </Row>
+            <Row label={t('flashStartTransition')}>
+              <Select
+                value={effects.flash.startTransition}
+                options={[
+                  { value: 'none', label: t('transitionNone') },
+                  { value: 'fade', label: t('transitionFade') },
+                  { value: 'slide-left', label: t('transitionSlideLeft') },
+                  { value: 'slide-right', label: t('transitionSlideRight') },
+                  { value: 'slide-up', label: t('transitionSlideUp') },
+                  { value: 'slide-down', label: t('transitionSlideDown') },
+                  { value: 'zoom-in', label: t('transitionZoomIn') },
+                  { value: 'zoom-out', label: t('transitionZoomOut') },
+                ]}
+                onChange={v => set('flash', { startTransition: v as import('../../../shared/types').FlashStartTransition })}
+              />
+            </Row>
+            <Row label={t('drawSpeed')}>
+              {effects.flash.startTransition === 'none' ? (
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>-</div>
+              ) : (
+                <Slider
+                  value={effects.flash.startTransitionDurationSec}
+                  min={0.2}
+                  max={5}
+                  step={0.1}
+                  unit={t('seconds')}
+                  onChange={v => set('flash', { startTransitionDurationSec: v })}
+                />
+              )}
+            </Row>
+            <Row label={t('flashEndTransition')}>
+              <Select
+                value={effects.flash.endTransition}
+                options={[
+                  { value: 'none', label: t('transitionNone') },
+                  { value: 'fade', label: t('transitionFade') },
+                  { value: 'slide-left', label: t('transitionSlideLeft') },
+                  { value: 'slide-right', label: t('transitionSlideRight') },
+                  { value: 'slide-up', label: t('transitionSlideUp') },
+                  { value: 'slide-down', label: t('transitionSlideDown') },
+                  { value: 'zoom-in', label: t('transitionZoomIn') },
+                  { value: 'zoom-out', label: t('transitionZoomOut') },
+                ]}
+                onChange={v => set('flash', { endTransition: v as import('../../../shared/types').SlideShowTransition })}
+              />
+            </Row>
+            <Row label={t('opacity')}>
+              <Slider
+                value={Math.round(effects.flash.opacity * 100)}
+                min={0}
+                max={100}
+                step={1}
+                unit="%"
+                onChange={v => set('flash', { opacity: v / 100 })}
+              />
+            </Row>
+            <Row label={t('drawSpeed')}>
+              {effects.flash.endTransition === 'none' ? (
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>-</div>
+              ) : (
+                <Slider
+                  value={effects.flash.endTransitionDurationSec}
+                  min={0.2}
+                  max={5}
+                  step={0.1}
+                  unit={t('seconds')}
+                  onChange={v => set('flash', { endTransitionDurationSec: v })}
+                />
+              )}
+            </Row>
+            <Row label={t('displayDuration')}>
+              <Slider
+                value={effects.flash.displayDurationSec}
+                min={0.2}
+                max={5}
+                step={0.2}
+                unit={t('seconds')}
+                onChange={v => set('flash', { displayDurationSec: v })}
+              />
+            </Row>
+            <Row label={t('displayInterval')}>
+              <Slider
+                value={effects.flash.intervalSec}
+                min={0}
+                max={60}
+                step={1}
+                unit={t('seconds')}
+                onChange={v => set('flash', { intervalSec: v })}
+              />
+            </Row>
+          </>
+        )}
+      </Section>
+
+      <Section title={t('squishEffect')} titleColor="#a868ff">
         <Row label={t('enabled')}>
           <Toggle value={effects.squish.enabled} onChange={v => set('squish', { enabled: v })} />
         </Row>
@@ -1536,9 +1630,185 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <div style={{ order: 2 }}>
-      <Section title={t('textEffect')}>
+      <Section title={t('spiralEffect')} titleColor="#9248ef">
+        <Row label={t('enabled')}>
+          <Toggle value={effects.spiral.enabled} onChange={v => set('spiral', { enabled: v })} />
+        </Row>
+        {effects.spiral.enabled && (
+          <>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('color')}</div>
+            <div style={{ marginBottom: 10 }}>
+              <ColorPicker
+                r={effects.spiral.color.r}
+                g={effects.spiral.color.g}
+                b={effects.spiral.color.b}
+                onChange={(r, g, b) => set('spiral', { color: { r, g, b } })}
+                showAlpha={false}
+              />
+            </div>
+            {effects.spiral.pattern === 'classic' && (
+              <>
+                <Row label={t('spiralDualColor')}>
+                  <Toggle
+                    value={effects.spiral.dualColorEnabled}
+                    onChange={v => set('spiral', { dualColorEnabled: v })}
+                  />
+                </Row>
+                {effects.spiral.dualColorEnabled && (
+                  <>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('spiralSecondaryColor')}</div>
+                    <div style={{ marginBottom: 10 }}>
+                      <ColorPicker
+                        r={effects.spiral.secondaryColor.r}
+                        g={effects.spiral.secondaryColor.g}
+                        b={effects.spiral.secondaryColor.b}
+                        onChange={(r, g, b) => set('spiral', { secondaryColor: { r, g, b } })}
+                        showAlpha={false}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+            <Row label={t('spiralDetail')}>
+              <Slider
+                value={effects.spiral.detail}
+                min={6}
+                max={120}
+                onChange={v => set('spiral', { detail: v })}
+              />
+            </Row>
+            <Row label={t('spiralPattern')}>
+              <Select
+                value={effects.spiral.pattern ?? 'classic'}
+                options={[
+                  { value: 'classic', label: t('spiralPatternClassic') },
+                  { value: 'vortex', label: t('spiralPatternVortex') },
+                ]}
+                onChange={v => set('spiral', { pattern: v as 'classic' | 'vortex' })}
+              />
+            </Row>
+            <Row label={t('rotationSpeed')}>
+              <Slider
+                value={Math.round(effects.spiral.rotationSpeedDegPerSec)}
+                min={-1200}
+                max={1200}
+                step={10}
+                onChange={v => set('spiral', { rotationSpeedDegPerSec: Math.round(v / 10) * 10 })}
+                unit="deg/s"
+              />
+            </Row>
+            <Row label={t('opacity')}>
+              <Slider
+                value={Math.round(effects.spiral.alpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('spiral', { alpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label={t('radialOption')}>
+              <Toggle
+                value={effects.spiral.radialEnabled}
+                onChange={v => set('spiral', { radialEnabled: v })}
+              />
+            </Row>
+            <div style={{ marginTop: -2, marginBottom: 8, display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={scrollToEffectCenterSetting}
+                style={{
+                  fontSize: 11,
+                  lineHeight: 1.2,
+                  color: 'rgba(255,255,255,0.72)',
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: 999,
+                  padding: '2px 8px',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('shakeTrailCirclePositionAdjust')}
+              </button>
+            </div>
+            {effects.spiral.radialEnabled && (
+              <>
+                <Row label={t('radialMode')}>
+                  <Select
+                    value={effects.spiral.radialMode}
+                    options={[
+                      { value: 'center', label: t('radialModeCenter') },
+                      { value: 'periphery', label: t('radialModePeriphery') },
+                    ]}
+                    onChange={v => set('spiral', { radialMode: v as 'center' | 'periphery' })}
+                  />
+                </Row>
+                <Row label={t('radialSize')}>
+                  <Slider
+                    value={Math.round(effects.spiral.radialSize * 100)}
+                    min={5}
+                    max={95}
+                    onChange={v => set('spiral', { radialSize: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('radialFadeStrength')}>
+                  <Slider
+                    value={Math.round((effects.spiral.radialFadeStrength ?? DEFAULT_EFFECTS.spiral.radialFadeStrength) * 100)}
+                    min={1}
+                    max={150}
+                    onChange={v => set('spiral', { radialFadeStrength: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              </>
+            )}
+            <Row label={t('dynamicApply')}>
+              <Toggle value={effects.spiral.dynamic} onChange={v => set('spiral', { dynamic: v })} />
+            </Row>
+            {effects.spiral.dynamic && (
+              <>
+                <Row label={t('startOpacity')}>
+                  <Slider
+                    value={Math.round(effects.spiral.dynamicFrom * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('spiral', { dynamicFrom: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('endOpacity')}>
+                  <Slider
+                    value={Math.round(effects.spiral.dynamicTo * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('spiral', { dynamicTo: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('changeDuration')}>
+                  <NumberInput
+                    value={effects.spiral.dynamicDurationMs / 1000}
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    unit={t('seconds')}
+                    onChange={v => set('spiral', { dynamicDurationMs: v * 1000 })}
+                  />
+                </Row>
+                <Row label={t('timerSync')}>
+                  <Toggle
+                    value={effects.spiral.dynamicTimerSync ?? false}
+                    onChange={v => set('spiral', { dynamicTimerSync: v })}
+                  />
+                </Row>
+              </>
+            )}
+          </>
+        )}
+      </Section>
+
+      <Section title={t('textEffect')} titleColor="#7830d8">
         <Row label={t('enabled')}>
           <Toggle value={effects.textEffect.enabled} onChange={v => set('textEffect', { enabled: v })} />
         </Row>
@@ -1648,256 +1918,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('flashEffect')}>
-        <Row label={t('enabled')}>
-          <Toggle value={effects.flash.enabled} onChange={v => set('flash', { enabled: v })} />
-        </Row>
-        {effects.flash.enabled && (
-          <>
-            <Row label={t('flashImage')}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-                <Button variant="secondary" onClick={handleOpenFlashImage}>
-                  {t('selectImage')}
-                </Button>
-                {effects.flash.imagePath && (
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
-                    {effects.flash.imagePath.split(/[\\/]/).pop()}
-                  </div>
-                )}
-              </div>
-            </Row>
-            <Row label={t('flashStartTransition')}>
-              <Select
-                value={effects.flash.startTransition}
-                options={[
-                  { value: 'none', label: t('transitionNone') },
-                  { value: 'fade', label: t('transitionFade') },
-                  { value: 'slide-left', label: t('transitionSlideLeft') },
-                  { value: 'slide-right', label: t('transitionSlideRight') },
-                  { value: 'slide-up', label: t('transitionSlideUp') },
-                  { value: 'slide-down', label: t('transitionSlideDown') },
-                  { value: 'zoom-in', label: t('transitionZoomIn') },
-                  { value: 'zoom-out', label: t('transitionZoomOut') },
-                ]}
-                onChange={v => set('flash', { startTransition: v as import('../../../shared/types').FlashStartTransition })}
-              />
-            </Row>
-            <Row label={t('drawSpeed')}>
-              {effects.flash.startTransition === 'none' ? (
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>-</div>
-              ) : (
-                <Slider
-                  value={effects.flash.startTransitionDurationSec}
-                  min={0.2}
-                  max={5}
-                  step={0.1}
-                  unit={t('seconds')}
-                  onChange={v => set('flash', { startTransitionDurationSec: v })}
-                />
-              )}
-            </Row>
-            <Row label={t('flashEndTransition')}>
-              <Select
-                value={effects.flash.endTransition}
-                options={[
-                  { value: 'none', label: t('transitionNone') },
-                  { value: 'fade', label: t('transitionFade') },
-                  { value: 'slide-left', label: t('transitionSlideLeft') },
-                  { value: 'slide-right', label: t('transitionSlideRight') },
-                  { value: 'slide-up', label: t('transitionSlideUp') },
-                  { value: 'slide-down', label: t('transitionSlideDown') },
-                  { value: 'zoom-in', label: t('transitionZoomIn') },
-                  { value: 'zoom-out', label: t('transitionZoomOut') },
-                ]}
-                onChange={v => set('flash', { endTransition: v as import('../../../shared/types').SlideShowTransition })}
-              />
-            </Row>
-            <Row label={t('opacity')}>
-              <Slider
-                value={Math.round(effects.flash.opacity * 100)}
-                min={0}
-                max={100}
-                step={1}
-                unit="%"
-                onChange={v => set('flash', { opacity: v / 100 })}
-              />
-            </Row>
-            <Row label={t('drawSpeed')}>
-              {effects.flash.endTransition === 'none' ? (
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>-</div>
-              ) : (
-                <Slider
-                  value={effects.flash.endTransitionDurationSec}
-                  min={0.2}
-                  max={5}
-                  step={0.1}
-                  unit={t('seconds')}
-                  onChange={v => set('flash', { endTransitionDurationSec: v })}
-                />
-              )}
-            </Row>
-            <Row label={t('displayDuration')}>
-              <Slider
-                value={effects.flash.displayDurationSec}
-                min={0.2}
-                max={5}
-                step={0.2}
-                unit={t('seconds')}
-                onChange={v => set('flash', { displayDurationSec: v })}
-              />
-            </Row>
-            <Row label={t('displayInterval')}>
-              <Slider
-                value={effects.flash.intervalSec}
-                min={0}
-                max={60}
-                step={1}
-                unit={t('seconds')}
-                onChange={v => set('flash', { intervalSec: v })}
-              />
-            </Row>
-          </>
-        )}
-      </Section>
-        </div>
-
-        <div style={{ order: 1 }}>
-      <Section title={t('assetEffect')}>
-        <Row label={t('enabled')}>
-          <Toggle value={effects.dynamicAsset.enabled} onChange={v => set('dynamicAsset', { enabled: v })} />
-        </Row>
-        {effects.dynamicAsset.enabled && (
-          <>
-            <Row label={assetEffectFolderLabel}>
-              <Select
-                value={(() => {
-                  const currentName = effects.dynamicAsset.assetFolderPath?.split(/[/\\]/).pop() ?? ''
-                  return __ASSET_EFFECT_FOLDERS__.some(f => f.name === currentName) ? currentName : ''
-                })()}
-                options={[
-                  {
-                    value: '',
-                    label: assetEffectFolderPlaceholder,
-                  },
-                  ...__ASSET_EFFECT_FOLDERS__.map(folder => ({
-                    value: folder.name,
-                    label: `${folder.name} (${formatCount(language, folder.count, t('imagesUnit'))})`,
-                  })),
-                ]}
-                onChange={handleSelectAssetEffectFolder}
-              />
-            </Row>
-            <div style={{ marginBottom: 8 }}>
-              <Button variant="secondary" onClick={handleOpenAsset}>
-                {t('selectAssetImage')}
-              </Button>
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <Button variant="secondary" onClick={handleOpenAssetFolder}>
-                {t('drawRandomFromFolder')}
-              </Button>
-            </div>
-            {effects.dynamicAsset.assetPath && (
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 8, wordBreak: 'break-all' }}>
-                {effects.dynamicAsset.assetFolderPath
-                  ? `${effects.dynamicAsset.assetFolderPath} (${formatCount(language, effects.dynamicAsset.assetPaths.length, t('imagesUnit'))})`
-                  : effects.dynamicAsset.assetPath.split(/[\\/]/).pop()}
-              </div>
-            )}
-            <Row label={t('assetDrawPattern')}>
-              <Select
-                value={effects.dynamicAsset.pattern ?? 'rising'}
-                options={[
-                  { value: 'rising', label: t('assetPatternRising') },
-                  { value: 'emergence', label: t('assetPatternEmergence') },
-                ]}
-                onChange={v => set('dynamicAsset', { pattern: v as import('../../../shared/types').AssetDrawPattern })}
-              />
-            </Row>
-            <Row label={t('spawnInterval')}>
-              <NumberInput
-                value={effects.dynamicAsset.spawnIntervalMs / 1000}
-                min={0.1}
-                max={5}
-                step={0.1}
-                unit={t('seconds')}
-                onChange={v => set('dynamicAsset', { spawnIntervalMs: v * 1000 })}
-              />
-            </Row>
-            {(effects.dynamicAsset.pattern ?? 'rising') === 'rising' && (
-              <>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', margin: '8px 0 10px' }}>
-                  {t('riseSpeedHelp')}
-                </div>
-              </>
-            )}
-            <Row label={t('maxCount')}>
-              <NumberInput
-                value={effects.dynamicAsset.maxParticles}
-                min={1}
-                max={100}
-                step={1}
-                onChange={v => set('dynamicAsset', { maxParticles: v })}
-              />
-            </Row>
-            <Row label={t('opacity')}>
-              <Slider
-                value={Math.round(effects.dynamicAsset.baseAlpha * 100)}
-                min={0}
-                max={100}
-                onChange={v => set('dynamicAsset', { baseAlpha: v / 100 })}
-                unit="%"
-              />
-            </Row>
-            <Row label={t('timerSync')}>
-              <Toggle
-                value={effects.dynamicAsset.alphaTimerSync ?? false}
-                onChange={v => set('dynamicAsset', { alphaTimerSync: v })}
-
-              />
-            </Row>
-            <Row label={t('size')}>
-              <Slider
-                value={Math.round(effects.dynamicAsset.sizeRatio * 100)}
-                min={10}
-                max={300}
-                onChange={v => set('dynamicAsset', { sizeRatio: v / 100 })}
-                unit="%"
-              />
-            </Row>
-            {(effects.dynamicAsset.pattern ?? 'rising') === 'emergence' && (
-              <Row label={t('emergenceSpeedFactor')}>
-                <Slider
-                  value={effects.dynamicAsset.emergenceSpeedFactor ?? 1.0}
-                  min={0.1}
-                  max={5}
-                  step={0.1}
-                  onChange={v => set('dynamicAsset', { emergenceSpeedFactor: v })}
-                />
-              </Row>
-            )}
-            <Row label={t('assetColor')}>
-              <Toggle
-                value={effects.dynamicAsset.colorOverlayEnabled}
-                onChange={v => set('dynamicAsset', { colorOverlayEnabled: v })}
-              />
-            </Row>
-            {effects.dynamicAsset.colorOverlayEnabled && (
-              <ColorPicker
-                r={effects.dynamicAsset.colorOverlayColor.r}
-                g={effects.dynamicAsset.colorOverlayColor.g}
-                b={effects.dynamicAsset.colorOverlayColor.b}
-                onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
-                showAlpha
-                alpha={effects.dynamicAsset.colorOverlayAlpha}
-                onAlphaChange={a => set('dynamicAsset', { colorOverlayAlpha: a })}
-              />
-            )}
-          </>
-        )}
-      </Section>
-        </div>
-      </div>
+      </CategorySection>
 
       <Section title={t('applyAll')}>
         <Button variant="primary" onClick={applyEffectsToAll}>
