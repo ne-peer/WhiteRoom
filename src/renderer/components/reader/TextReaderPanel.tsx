@@ -3,7 +3,10 @@ import { useAppStore } from '../../stores/appStore'
 import { useTranslation } from '../../i18n'
 import { Section, Row, Toggle } from '../controls/UIKit'
 import type { IpcApi, TextReaderWindowPosition, TextReaderPageAdvanceSpeed } from '../../../shared/types'
+import { parseTextFile } from '../../utils/storyboardParser'
 import styles from './TextReaderPanel.module.css'
+
+type PendingLoad = { filePath: string; text: string; tempFilePath?: string }
 
 export const TextReaderPanel: React.FC = () => {
   const { t, language } = useTranslation()
@@ -12,13 +15,18 @@ export const TextReaderPanel: React.FC = () => {
   const filePath = useAppStore(s => s.textReader.filePath)
   const rawSegments = useAppStore(s => s.textReader.rawSegments)
   const storyboardOpen = useAppStore(s => s.textReader.storyboardOpen)
+  const storyboardFileActive = useAppStore(s => s.textReader.storyboardFileActive)
   const tempFilePath = useAppStore(s => s.textReader.tempFilePath)
+  const pendingStoryboardLoad = useAppStore(s => s.pendingStoryboardLoad)
   const {
     setTextReaderConfig,
     setTextReaderVisible,
     loadTextReaderFile,
     closeTextReader,
     setStoryboardOpen,
+    resetForStoryboard,
+    setPendingStoryboardLoad,
+    unlockStoryboard,
   } = useAppStore()
 
   const [systemFonts, setSystemFonts] = useState<string[]>([])
@@ -54,6 +62,15 @@ export const TextReaderPanel: React.FC = () => {
     const api = (window as unknown as { api: IpcApi }).api
     const result = await api.openTextFile(language)
     if (!result.canceled && result.filePath && result.text !== undefined) {
+      const parsed = parseTextFile(result.text)
+      if (parsed.tagEntries.length > 0) {
+        setPendingStoryboardLoad({
+          filePath: result.filePath,
+          text: result.text,
+          tempFilePath: result.tempFilePath ?? undefined,
+        })
+        return
+      }
       loadTextReaderFile(result.filePath, result.text, result.tempFilePath)
       // ファイルに埋め込まれた読書設定がある場合、ウィンドウサイズを復元
       const readingConfig = useAppStore.getState().textReader.readingConfig
@@ -61,6 +78,27 @@ export const TextReaderPanel: React.FC = () => {
         await api.setWindowSize(readingConfig.windowSize.width, readingConfig.windowSize.height)
       }
     }
+  }
+
+  const handleStoryboardConfirm = async () => {
+    if (!pendingStoryboardLoad) return
+    const { filePath, text, tempFilePath: pendingTemp } = pendingStoryboardLoad
+    setPendingStoryboardLoad(null)
+    resetForStoryboard()
+    loadTextReaderFile(filePath, text, pendingTemp)
+    const api = (window as unknown as { api: IpcApi }).api
+    const readingConfig = useAppStore.getState().textReader.readingConfig
+    if (readingConfig) {
+      await api.setWindowSize(readingConfig.windowSize.width, readingConfig.windowSize.height)
+    }
+  }
+
+  const handleStoryboardCancel = () => {
+    setPendingStoryboardLoad(null)
+  }
+
+  const handleUnlockStoryboard = () => {
+    unlockStoryboard()
   }
 
   const handleCloseFile = async () => {
@@ -98,6 +136,23 @@ export const TextReaderPanel: React.FC = () => {
 
   return (
     <div className={styles.panel}>
+      {/* ストーリーボードファイル確認ダイアログ */}
+      {pendingStoryboardLoad && (
+        <div className={styles.dialogOverlay}>
+          <div className={styles.dialog}>
+            <div className={styles.dialogTitle}>{t('storyboardFileConfirmTitle')}</div>
+            <div className={styles.dialogMessage}>{t('storyboardFileConfirmMessage')}</div>
+            <div className={styles.dialogButtons}>
+              <button className={styles.dialogBtnCancel} onClick={handleStoryboardCancel}>
+                {t('storyboardFileConfirmCancel')}
+              </button>
+              <button className={styles.dialogBtnOk} onClick={handleStoryboardConfirm}>
+                {t('storyboardFileConfirmOk')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ファイル読み込みセクション */}
       <Section title={t('textReaderSection')}>
         <div className={styles.fileSection}>
@@ -284,6 +339,13 @@ export const TextReaderPanel: React.FC = () => {
       <div className={styles.pixivCounter}>
         pixiv requests: {pixivStats.count}/{pixivStats.limit}
       </div>
+
+      {/* ストーリーボードモード中の操作制限解除ボタン */}
+      {storyboardFileActive && (
+        <button className={styles.unlockBtn} onClick={handleUnlockStoryboard}>
+          {t('storyboardUnlockControls')}
+        </button>
+      )}
     </div>
   )
 }

@@ -21,6 +21,7 @@ export const CellNavigationOverlay: React.FC<Props> = ({ hoveredCellId }) => {
   const nextCellImage = useAppStore(s => s.nextCellImage)
   const setImageEffectProfile = useAppStore(s => s.setImageEffectProfile)
   const showAppNotification = useAppStore(s => s.showAppNotification)
+  const storyboardFileActive = useAppStore(s => s.textReader.storyboardFileActive)
   const { t } = useTranslation()
 
   if (!hoveredCellId) return null
@@ -30,7 +31,7 @@ export const CellNavigationOverlay: React.FC<Props> = ({ hoveredCellId }) => {
 
   const rightPct = ((cell.col + 1) / grid.cols) * 100
   const bottomPct = ((cell.row + 1) / grid.rows) * 100
-  const showNavButtons = cell.folder.images.length > 1
+  const showNavButtons = cell.folder.images.length > 1 && !storyboardFileActive
   const groupWidth = showNavButtons ? BTN_WIDTH * 3 + BTN_GAP * 2 : BTN_WIDTH
 
   const stopDrag = (e: React.DragEvent) => e.preventDefault()

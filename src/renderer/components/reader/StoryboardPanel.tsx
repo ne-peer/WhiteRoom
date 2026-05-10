@@ -5,8 +5,6 @@ import type { IpcApi, ReadingConfigPayload } from '../../../shared/types'
 import { buildRichTagLine, buildReadConfigTagLine, createStoryboardImageReference } from '../../utils/storyboardParser'
 import styles from './StoryboardPanel.module.css'
 
-const APP_VERSION = '1.4.0'
-
 function getTimestamp(): string {
   const d = new Date()
   const pad = (n: number, len = 2) => String(n).padStart(len, '0')
@@ -103,7 +101,7 @@ export const StoryboardPanel: React.FC = () => {
     const effects = firstCell?.effects ?? {}
 
     const tagLine = buildRichTagLine(
-      APP_VERSION,
+      __APP_VERSION__,
       imagePath,
       effects,
       progressEnabled ? { enabled: true, pages: progressPages } : undefined,
@@ -129,7 +127,7 @@ export const StoryboardPanel: React.FC = () => {
     if (!imagePath || !effects) { showStatus(t('storyboardNoFile')); return }
 
     const tagLine = buildRichTagLine(
-      APP_VERSION,
+      __APP_VERSION__,
       imagePath,
       effects,
       undefined,
@@ -168,7 +166,7 @@ export const StoryboardPanel: React.FC = () => {
     const showControls = state.showControls
 
     const payload: ReadingConfigPayload = { windowSize, textReader: config, showControls }
-    const tagLine = buildReadConfigTagLine(APP_VERSION, payload)
+    const tagLine = buildReadConfigTagLine(__APP_VERSION__, payload)
     const path = tempFilePath ?? filePath
 
     updateReadingConfigTag(tagLine, async (newText) => {

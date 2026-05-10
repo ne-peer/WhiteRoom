@@ -27,13 +27,23 @@ type ControlPanelProps = {
   floating?: boolean
 }
 
+const STORYBOARD_LOCKED_TABS: Tab[] = ['grid', 'effects', 'timer']
+
 export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) => {
   const [activeTab, setActiveTab] = useState<Tab>('grid')
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const selectedCell = useAppStore(selectSelectedCell)
   const showControls = useAppStore(s => s.showControls)
+  const storyboardFileActive = useAppStore(s => s.textReader.storyboardFileActive)
+  const pendingStoryboardLoad = useAppStore(s => s.pendingStoryboardLoad)
   const { t } = useTranslation()
+
+  useEffect(() => {
+    if (pendingStoryboardLoad !== null) {
+      setActiveTab('textreader')
+    }
+  }, [pendingStoryboardLoad])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -62,17 +72,21 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
       {/* タブナビゲーション — ラッパーで overflow visible を確保 */}
       <div className={styles.tabsContainer} ref={menuRef}>
         <div className={styles.tabs}>
-          {MAIN_TABS.map(tab => (
-            <button
-              key={tab.id}
-              className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-              title={t(tab.labelKey)}
-            >
-              <span className={styles.tabIcon}>{tab.icon}</span>
-              <span className={styles.tabLabel}>{t(tab.labelKey)}</span>
-            </button>
-          ))}
+          {MAIN_TABS.map(tab => {
+            const locked = storyboardFileActive && STORYBOARD_LOCKED_TABS.includes(tab.id)
+            return (
+              <button
+                key={tab.id}
+                className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''} ${locked ? styles.tabLocked : ''}`}
+                onClick={() => { if (!locked) setActiveTab(tab.id) }}
+                title={locked ? t('storyboardModeActiveNotice') : t(tab.labelKey)}
+                aria-disabled={locked}
+              >
+                <span className={styles.tabIcon}>{tab.icon}</span>
+                <span className={styles.tabLabel}>{t(tab.labelKey)}</span>
+              </button>
+            )
+          })}
 
           {/* ハンバーガーメニュー */}
           <button
@@ -112,6 +126,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
         {activeTab === 'appearance' && <AppearanceControls />}
         {activeTab === 'profile'    && <ProfileControls />}
         {activeTab === 'textreader' && <TextReaderPanel />}
+        {storyboardFileActive && STORYBOARD_LOCKED_TABS.includes(activeTab) && (
+          <div className={styles.storyboardLockOverlay}>
+            <span className={styles.storyboardLockMsg}>{t('storyboardModeActiveNotice')}</span>
+          </div>
+        )}
       </div>
     </div>
   )

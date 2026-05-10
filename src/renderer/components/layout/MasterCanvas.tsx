@@ -213,6 +213,7 @@ export const MasterCanvas: React.FC = () => {
       }
       if (!e.repeat && !isEditable && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'x')) {
         const state = useAppStore.getState()
+        if (state.textReader.storyboardFileActive) return
         const targetIds = [hoveredCellId, state.selectedCellId].filter((id): id is string => Boolean(id))
         const cell = targetIds
           .map(id => state.cells.find(c => c.id === id) ?? null)
@@ -253,7 +254,8 @@ export const MasterCanvas: React.FC = () => {
       const target = e.target as Element | null
       if (target?.closest('[data-reader-window], [data-storyboard-window]')) return
       const rect = el.getBoundingClientRect()
-      const { grid, cells, nextCellImage, prevCellImage } = useAppStore.getState()
+      const { grid, cells, nextCellImage, prevCellImage, textReader } = useAppStore.getState()
+      if (textReader.storyboardFileActive) return
       const relX = e.clientX - rect.left
       const relY = e.clientY - rect.top
       const col = Math.max(0, Math.min(Math.floor(relX / (rect.width / grid.cols)), grid.cols - 1))
