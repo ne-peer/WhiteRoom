@@ -2,6 +2,14 @@ import { useCallback } from 'react'
 import { useAppStore } from '../stores/appStore'
 import type { CellFolder, IpcApi } from '../../shared/types'
 
+function isProfileFile(name: string): boolean {
+  return name.toLowerCase().endsWith('.json')
+}
+
+function isTextFile(name: string): boolean {
+  return name.toLowerCase().endsWith('.txt')
+}
+
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
 
 function isImageFile(name: string): boolean {
@@ -25,6 +33,8 @@ export function useDropHandler(
     setImageEffectProfile,
     showAppNotification,
     language,
+    importProfile,
+    loadTextReaderFile,
   } = useAppStore()
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
@@ -39,6 +49,38 @@ export function useDropHandler(
     for (const file of files) {
       const filePath = getFilePath(file)
       if (!filePath) continue
+
+      // プロファイル JSON のD&D
+      if (isProfileFile(file.name)) {
+        const result = await getApi().loadProfileFromPath(filePath)
+        if (result.success && result.profile) {
+          importProfile(result.profile)
+          if (result.profile.windowSize) {
+            await getApi().setWindowSize(result.profile.windowSize.width, result.profile.windowSize.height)
+          }
+          const msg = language === 'en' ? '✓ Profile loaded' : '✓ プロファイルを読み込みました'
+          showAppNotification(msg, 'info')
+        } else if (result.error) {
+          const msg = language === 'en'
+            ? `✗ Failed to load profile: ${result.error}`
+            : `✗ プロファイルの読み込みに失敗しました: ${result.error}`
+          showAppNotification(msg, 'error')
+        }
+        break
+      }
+
+      // テキストファイル .txt のD&D
+      if (isTextFile(file.name)) {
+        const result = await getApi().openTextFileDirect(filePath)
+        if (!result.canceled && result.filePath && result.text !== undefined) {
+          loadTextReaderFile(result.filePath, result.text, result.tempFilePath)
+          const readingConfig = useAppStore.getState().textReader.readingConfig
+          if (readingConfig) {
+            await getApi().setWindowSize(readingConfig.windowSize.width, readingConfig.windowSize.height)
+          }
+        }
+        break
+      }
 
       if (file.type === '' || !file.type) {
         const result = await getApi().readFolderPath(filePath)
@@ -87,7 +129,7 @@ export function useDropHandler(
         break
       }
     }
-  }, [cells, setCellFolder, setCellImageStore, grid, setCellImageRenderer, setImageEffectProfile, showAppNotification, language])
+  }, [cells, setCellFolder, setCellImageStore, grid, setCellImageRenderer, setImageEffectProfile, showAppNotification, language, importProfile, loadTextReaderFile])
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()

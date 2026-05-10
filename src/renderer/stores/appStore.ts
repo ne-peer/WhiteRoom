@@ -945,6 +945,7 @@ export const useAppStore = create<AppStore>()(
         autoNext: { ...DEFAULT_TIMER_AUTO_NEXT, ...profile.timer?.autoNext },
       }
       s.fullscreen = profile.fullscreen
+      s.showControls = profile.fullscreen ? false : (profile.showControls ?? true)
       s.showNavigationBar = true
       s.selectedCellId = null
       s.imageEffectProfiles = {}

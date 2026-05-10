@@ -872,6 +872,32 @@ ipcMain.handle('open-text-file', async (_event, language?: UiLanguage): Promise<
   }
 })
 
+// プロファイルをパス直接指定で読み込み（D&D用）
+ipcMain.handle('load-profile-from-path', async (_event, filePath: string): Promise<LoadProfileResult> => {
+  try {
+    const raw = readFileSync(filePath, 'utf-8')
+    const profile = JSON.parse(raw) as AppProfile
+    return { success: true, profile, filePath }
+  } catch (e: unknown) {
+    return { success: false, error: String(e) }
+  }
+})
+
+// テキストファイルをパス直接指定で読み込み（D&D用）
+ipcMain.handle('open-text-file-direct', async (_event, filePath: string): Promise<OpenTextFileResult> => {
+  try {
+    const tempFilePath = createTextReaderTempFile(filePath)
+    const buf = readFileSync(tempFilePath)
+    const fileText = buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF
+      ? buf.slice(3).toString('utf-8')
+      : buf.toString('utf-8')
+    return { canceled: false, filePath, tempFilePath, text: fileText }
+  } catch {
+    cleanupTextReaderTempDir(activeTextReaderTempDir)
+    return { canceled: true }
+  }
+})
+
 // テキストファイル保存
 ipcMain.handle('save-text-file', async (_event, filePath: string, content: string): Promise<SaveTextFileResult> => {
   try {

@@ -7,7 +7,7 @@ import type { IpcApi } from '../../../shared/types'
 import styles from './ProfileControls.module.css'
 
 export const ProfileControls: React.FC = () => {
-  const { exportProfile, importProfile, resetProfile } = useAppStore()
+  const { exportProfile, importProfile, resetProfile, showControls } = useAppStore()
   const { language, t } = useTranslation()
   const [profileName, setProfileName] = useState('MyProfile')
   const [importedFileName, setImportedFileName] = useState<string | null>(null)
@@ -21,8 +21,10 @@ export const ProfileControls: React.FC = () => {
   }
 
   const handleSave = async () => {
+    const windowSize = await api.getWindowSize()
     const profile = exportProfile(profileName)
-    const result = await api.saveProfile(profile, language)
+    const fullProfile: typeof profile = { ...profile, windowSize, showControls }
+    const result = await api.saveProfile(fullProfile, language)
     if (result.success) showMsg('ok', t('saveDone'))
     else showMsg('err', `${t('saveFailed')}: ${result.error ?? ''}`)
   }
@@ -32,6 +34,9 @@ export const ProfileControls: React.FC = () => {
     if (result.success && result.profile) {
       const fileName = result.filePath?.split(/[\\/]/).pop() ?? null
       importProfile(result.profile)
+      if (result.profile.windowSize) {
+        await api.setWindowSize(result.profile.windowSize.width, result.profile.windowSize.height)
+      }
       if (fileName) {
         setProfileName(fileName.replace(/\.json$/i, ''))
         setImportedFileName(fileName)
