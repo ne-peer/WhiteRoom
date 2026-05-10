@@ -404,6 +404,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect(selectedCellId, key, val)
 
   const applyEffectPreset1 = () => {
+    const presetAssetFolder = assetEffectFolders.find(folder => folder.name === 'heart-sketch-A')
+    const dynamicAsset = presetAssetFolder
+      ? {
+          ...EFFECT_PRESET_1.dynamicAsset,
+          assetPath: presetAssetFolder.images[0],
+          assetPaths: presetAssetFolder.images,
+          assetFolderPath: presetAssetFolder.path,
+        }
+      : structuredClone(EFFECT_PRESET_1.dynamicAsset)
     setCellEffect(selectedCellId, 'colorOverlay', structuredClone(EFFECT_PRESET_1.colorOverlay))
     setCellEffect(selectedCellId, 'vignette', structuredClone(EFFECT_PRESET_1.vignette))
     setCellEffect(selectedCellId, 'spiral', structuredClone(EFFECT_PRESET_1.spiral))
@@ -412,7 +421,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect(selectedCellId, 'flash', structuredClone(EFFECT_PRESET_1.flash))
     setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_1.breathing))
     setCellEffect(selectedCellId, 'shake', structuredClone(EFFECT_PRESET_1.shake))
-    setCellEffect(selectedCellId, 'dynamicAsset', structuredClone(EFFECT_PRESET_1.dynamicAsset))
+    setCellEffect(selectedCellId, 'dynamicAsset', dynamicAsset)
     setCellEffect(selectedCellId, 'textEffect', structuredClone(EFFECT_PRESET_1.textEffect))
   }
 

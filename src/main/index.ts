@@ -5,9 +5,11 @@ import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSyn
 import { execFileSync } from 'child_process'
 import { get as httpGet } from 'http'
 import { get as httpsGet } from 'https'
+import { fileURLToPath } from 'url'
 import type {
   AppProfile,
   AssetEffectFoldersResult,
+  CellEffects,
   RemoteImageResult,
   RemoteImageStatsResult,
   ImageEffectProfileDocument,
@@ -25,6 +27,7 @@ import type {
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
 const IMAGE_EFFECT_PROFILE_FILE = 'whiteroom_effects.json'
+const PORTABLE_ASSET_EFFECT_PREFIX = 'whiteroom://asset-effect/'
 const MAX_REMOTE_IMAGE_BYTES = 25 * 1024 * 1024
 const MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP = 10
 const DEFAULT_MAIN_WINDOW_WIDTH = 1600
@@ -101,7 +104,9 @@ function normalizeImageEffectProfile(raw: unknown): ImageEffectProfileDocument {
     for (const [key, value] of Object.entries(raw.entries)) {
       if (!isRecord(value)) continue
       const image = typeof value.image === 'string' ? value.image : key
-      const effects = isRecord(value.effects) ? value.effects : {}
+      const effects = isRecord(value.effects)
+        ? mapEffectsAssetReferences(value.effects as Partial<CellEffects>, resolveAssetEffectReference)
+        : {}
       const timer = isRecord(value.timer) ? value.timer as Partial<SavedTimerConfig> : undefined
       entries[key] = timer !== undefined ? { image, effects, timer } : { image, effects }
     }
@@ -147,9 +152,10 @@ function saveImageEffectProfileFile(
     ? loaded.profile
     : { version: app.getVersion(), updatedAt: new Date().toISOString(), entries: {} }
 
+  const portableEffects = mapEffectsAssetReferences(effects, serializeAssetEffectReference)
   const entry: ImageEffectProfileDocument['entries'][string] = timer !== undefined
-    ? { image: imageKey, effects, timer }
-    : { image: imageKey, effects }
+    ? { image: imageKey, effects: portableEffects, timer }
+    : { image: imageKey, effects: portableEffects }
 
   const updated: ImageEffectProfileDocument = {
     ...profile,
@@ -163,8 +169,9 @@ function saveImageEffectProfileFile(
 
   const filePath = join(folderPath, IMAGE_EFFECT_PROFILE_FILE)
   try {
-    writeFileSync(filePath, JSON.stringify(updated, null, 2), 'utf-8')
-    return { success: true, profile: updated, filePath }
+    const portableUpdated = serializeImageEffectProfileDocument(updated)
+    writeFileSync(filePath, JSON.stringify(portableUpdated, null, 2), 'utf-8')
+    return { success: true, profile: normalizeImageEffectProfile(portableUpdated), filePath }
   } catch (e: unknown) {
     return { success: false, error: String(e) }
   }
@@ -179,6 +186,120 @@ function getAssetEffectBasePath(): string | null {
   return candidates.find(candidate =>
     existsSync(candidate) && statSync(candidate).isDirectory()
   ) ?? null
+}
+
+function fromFileUrlIfNeeded(src: string): string {
+  if (!src.startsWith('file://')) return src
+  try {
+    return fileURLToPath(src)
+  } catch {
+    return src
+  }
+}
+
+function normalizeAssetRelativePath(relPath: string): string | null {
+  const normalized = relPath.replace(/\\/g, '/').replace(/^\/+/, '')
+  const parts = normalized.split('/').filter(Boolean)
+  if (parts.length < 2 || parts.some(part => part === '.' || part === '..')) return null
+  return parts.join('/')
+}
+
+function extractAssetEffectRelativePath(src: string): string | null {
+  if (src.startsWith(PORTABLE_ASSET_EFFECT_PREFIX)) {
+    return normalizeAssetRelativePath(src.slice(PORTABLE_ASSET_EFFECT_PREFIX.length))
+  }
+
+  const localPath = fromFileUrlIfNeeded(src)
+  const basePath = getAssetEffectBasePath()
+  if (basePath) {
+    const rel = relative(basePath, localPath)
+    if (rel && !rel.startsWith('..') && !isAbsolute(rel)) {
+      return normalizeAssetRelativePath(rel)
+    }
+  }
+
+  const normalized = localPath.replace(/\\/g, '/')
+  const marker = '/asset-effect/'
+  const markerIndex = normalized.lastIndexOf(marker)
+  if (markerIndex >= 0) {
+    return normalizeAssetRelativePath(normalized.slice(markerIndex + marker.length))
+  }
+  if (normalized.startsWith('asset-effect/')) {
+    return normalizeAssetRelativePath(normalized.slice('asset-effect/'.length))
+  }
+  return null
+}
+
+function resolveAssetEffectReference(src: string): string {
+  const rel = extractAssetEffectRelativePath(src)
+  const basePath = getAssetEffectBasePath()
+  if (!rel || !basePath) return src
+
+  const resolved = join(basePath, ...rel.split('/'))
+  return existsSync(resolved) ? resolved : src
+}
+
+function serializeAssetEffectReference(src: string): string {
+  const rel = extractAssetEffectRelativePath(src)
+  const basePath = getAssetEffectBasePath()
+  if (!rel || !basePath) return src
+
+  const resolved = join(basePath, ...rel.split('/'))
+  return existsSync(resolved) ? `${PORTABLE_ASSET_EFFECT_PREFIX}${rel}` : src
+}
+
+function mapNullableAssetReference(
+  value: string | null | undefined,
+  mapper: (src: string) => string
+): string | null {
+  return value ? mapper(value) : null
+}
+
+function mapEffectsAssetReferences(
+  effects: Partial<CellEffects>,
+  mapper: (src: string) => string
+): Partial<CellEffects> {
+  if (!effects.dynamicAsset) return effects
+  return {
+    ...effects,
+    dynamicAsset: {
+      ...effects.dynamicAsset,
+      assetPath: mapNullableAssetReference(effects.dynamicAsset.assetPath, mapper),
+      assetPaths: effects.dynamicAsset.assetPaths?.map(mapper) ?? [],
+      assetFolderPath: mapNullableAssetReference(effects.dynamicAsset.assetFolderPath, mapper),
+    },
+  }
+}
+
+function serializeAppProfile(profile: AppProfile): AppProfile {
+  return {
+    ...profile,
+    cells: profile.cells.map(cell => ({
+      ...cell,
+      effects: mapEffectsAssetReferences(cell.effects, serializeAssetEffectReference) as CellEffects,
+    })),
+  }
+}
+
+function resolveAppProfile(profile: AppProfile): AppProfile {
+  return {
+    ...profile,
+    cells: profile.cells.map(cell => ({
+      ...cell,
+      effects: mapEffectsAssetReferences(cell.effects, resolveAssetEffectReference) as CellEffects,
+    })),
+  }
+}
+
+function serializeImageEffectProfileDocument(profile: ImageEffectProfileDocument): ImageEffectProfileDocument {
+  const entries: ImageEffectProfileDocument['entries'] = {}
+  for (const [key, entry] of Object.entries(profile.entries)) {
+    entries[key] = {
+      ...entry,
+      effects: mapEffectsAssetReferences(entry.effects, serializeAssetEffectReference),
+    }
+  }
+  return { ...profile, entries }
 }
 
 function normalizeFontName(name: string): string[] {
@@ -776,7 +897,7 @@ ipcMain.handle('save-profile', async (_event, profile: AppProfile, language?: Ui
     return { success: false }
   }
   try {
-    writeFileSync(result.filePath, JSON.stringify(profile, null, 2), 'utf-8')
+    writeFileSync(result.filePath, JSON.stringify(serializeAppProfile(profile), null, 2), 'utf-8')
     return { success: true, filePath: result.filePath }
   } catch (e: unknown) {
     return { success: false, error: String(e) }
@@ -797,7 +918,7 @@ ipcMain.handle('load-profile', async (_event, language?: UiLanguage): Promise<Lo
   try {
     const filePath = result.filePaths[0]
     const raw = readFileSync(filePath, 'utf-8')
-    const profile = JSON.parse(raw) as AppProfile
+    const profile = resolveAppProfile(JSON.parse(raw) as AppProfile)
     return { success: true, profile, filePath }
   } catch (e: unknown) {
     return { success: false, error: String(e) }
@@ -876,7 +997,7 @@ ipcMain.handle('open-text-file', async (_event, language?: UiLanguage): Promise<
 ipcMain.handle('load-profile-from-path', async (_event, filePath: string): Promise<LoadProfileResult> => {
   try {
     const raw = readFileSync(filePath, 'utf-8')
-    const profile = JSON.parse(raw) as AppProfile
+    const profile = resolveAppProfile(JSON.parse(raw) as AppProfile)
     return { success: true, profile, filePath }
   } catch (e: unknown) {
     return { success: false, error: String(e) }
