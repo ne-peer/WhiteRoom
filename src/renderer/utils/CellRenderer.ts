@@ -2517,6 +2517,8 @@ export class CellRenderer {
     }
 
     const blurKey = [
+      this.width,
+      this.height,
       blur.enabled,
       blur.strength,
       blur.applyToAll,
@@ -2797,6 +2799,11 @@ export class CellRenderer {
 
   private refreshBlurRegion() {
     if (!this.latestEffects) return
+    if (this.latestEffects.blur.enabled && this.latestEffects.blur.radialEnabled) {
+      this.blurAnimationKey = null
+      this.updateBlur(this.latestEffects)
+      return
+    }
     if (this.radialBlurImageClones.length > 0 && this.imageSprite) {
       this.syncRadialBlurClones()
       return
