@@ -398,6 +398,9 @@ export type AppState = {
   // セルのタグ一時上書き（profile対象外・セッション専用）
   cellTagOverrides: Record<string, string | null>  // cellId → override image path
 
+  // ストーリーボードファイル確認ダイアログ用の保留中読み込みデータ
+  pendingStoryboardLoad: { filePath: string; text: string; tempFilePath?: string } | null
+
   // テキストリーダー
   textReader: {
     config: TextReaderConfig
@@ -421,6 +424,7 @@ export type AppState = {
     storyboardOpen: boolean             // ストーリーボードパネル表示中
     currentSegmentIndex: number         // TextReaderWindow が計算した現在のセグメント
     readingConfig: ReadingConfigPayload | null  // ファイルから読み込んだ読書設定
+    storyboardFileActive: boolean       // ストーリーボードタグを含むファイルが読み込み中
   }
 }
 
@@ -497,6 +501,9 @@ export type AppActions = {
   setTextReaderVisible: (visible: boolean) => void
   loadTextReaderFile: (filePath: string, text: string, tempFilePath?: string) => void
   closeTextReader: () => void
+  resetForStoryboard: () => void
+  setPendingStoryboardLoad: (load: { filePath: string; text: string; tempFilePath?: string } | null) => void
+  unlockStoryboard: () => void
   setTextReaderPage: (index: number) => void
   setTextReaderAutoAdvancing: (flag: boolean) => void
   setTextReaderSpeedMultiplier: (multiplier: 1 | 2 | 3) => void
@@ -554,6 +561,7 @@ export const useAppStore = create<AppStore>()(
     imageEffectProfileAutoApplySuspended: false,
     timerSuspendedSlideshow: false,
     cellTagOverrides: {},
+    pendingStoryboardLoad: null,
     textReader: {
       config: getInitialTextReaderConfig(),
       visible: false,
@@ -575,6 +583,7 @@ export const useAppStore = create<AppStore>()(
       storyboardOpen: false,
       currentSegmentIndex: 0,
       readingConfig: null,
+      storyboardFileActive: false,
     },
 
     // ===== グリッド操作 =====
@@ -1048,6 +1057,7 @@ export const useAppStore = create<AppStore>()(
         s.textReader.activeProgressPages = 0
         s.textReader.autoSuspendedForTimer = false
         s.textReader.readingConfig = parsed.readingConfig ?? null
+        s.textReader.storyboardFileActive = parsed.tagEntries.length > 0
         // ファイルに埋め込まれた読書設定を復元（ウィンドウサイズはIPC経由でコンポーネント側が適用）
         if (parsed.readingConfig) {
           const restored = normalizeTextReaderConfig({
@@ -1102,6 +1112,7 @@ export const useAppStore = create<AppStore>()(
       s.textReader.storyboardOpen = false
       s.textReader.currentSegmentIndex = 0
       s.textReader.readingConfig = null
+      s.textReader.storyboardFileActive = false
       s.imageEffectProfileAutoApplySuspended = false
       s.timerSuspendedSlideshow = false
       let applied = false
@@ -1109,6 +1120,27 @@ export const useAppStore = create<AppStore>()(
         applied = applyImageEffectProfileToCell(s, cell) || applied
       })
       if (applied) s.effectSyncNonce += 1
+    }),
+
+    resetForStoryboard: () => set(s => {
+      // グリッドを1x1にリセット
+      s.grid = { cols: 1, rows: 1 }
+      s.cells = rebuildCells(s.cells, 1, 1)
+      // 全セルのエフェクトをデフォルトにリセット
+      for (const cell of s.cells) {
+        cell.effects = structuredClone(DEFAULT_EFFECTS)
+      }
+      // タイマーをデフォルトにリセット
+      s.timer = structuredClone(DEFAULT_TIMER)
+      s.effectSyncNonce += 1
+    }),
+
+    setPendingStoryboardLoad: (load) => set(s => {
+      s.pendingStoryboardLoad = load
+    }),
+
+    unlockStoryboard: () => set(s => {
+      s.textReader.storyboardFileActive = false
     }),
 
     setTextReaderPage: (index) => set(s => {

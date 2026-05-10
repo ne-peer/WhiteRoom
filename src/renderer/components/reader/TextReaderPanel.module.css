@@ -160,3 +160,95 @@
   min-width: 32px;
   text-align: right;
 }
+
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background: rgba(18, 18, 30, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 20px 22px 18px;
+  max-width: 340px;
+  width: 90%;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dialogTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(220, 180, 255, 0.95);
+}
+
+.dialogMessage {
+  font-size: 12px;
+  color: rgba(200, 200, 230, 0.80);
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.dialogButtons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.dialogBtnCancel {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(200, 200, 220, 0.80);
+  border-radius: 5px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.dialogBtnCancel:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.dialogBtnOk {
+  background: rgba(80, 80, 200, 0.35);
+  border: 1px solid rgba(120, 120, 255, 0.50);
+  color: rgba(190, 190, 255, 0.95);
+  border-radius: 5px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.dialogBtnOk:hover {
+  background: rgba(80, 80, 200, 0.50);
+}
+
+.unlockBtn {
+  margin: 8px 0 4px;
+  width: 100%;
+  background: rgba(180, 140, 0, 0.22);
+  border: 1px solid rgba(230, 180, 0, 0.45);
+  color: rgba(255, 210, 60, 0.95);
+  border-radius: 5px;
+  padding: 7px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  text-align: center;
+}
+
+.unlockBtn:hover {
+  background: rgba(180, 140, 0, 0.34);
+  border-color: rgba(230, 180, 0, 0.65);
+}
