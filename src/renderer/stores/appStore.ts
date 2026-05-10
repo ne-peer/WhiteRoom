@@ -135,6 +135,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
   },
   squish: {
     enabled: false,
+    organicEnabled: false,
     circleSizeRatio: 0.6,
     gapRatio: 0,
     color: { r: 222, g: 124, b: 155 },

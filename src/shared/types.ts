@@ -164,6 +164,7 @@ export type ShakeEffect = {
 
 export type SquishEffect = {
   enabled: boolean
+  organicEnabled: boolean
   circleSizeRatio: number
   gapRatio: number
   color: { r: number; g: number; b: number }

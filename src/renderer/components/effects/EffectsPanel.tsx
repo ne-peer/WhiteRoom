@@ -127,6 +127,7 @@ const EFFECT_PRESET_1: CellEffects = {
   },
   squish: {
     enabled: false,
+    organicEnabled: false,
     circleSizeRatio: 0.6,
     gapRatio: 0,
     color: { r: 222, g: 124, b: 155 },
@@ -290,6 +291,7 @@ const EFFECT_PRESET_2: CellEffects = {
   },
   squish: {
     enabled: false,
+    organicEnabled: false,
     circleSizeRatio: 0.6,
     gapRatio: 0,
     color: { r: 222, g: 124, b: 155 },
@@ -1409,6 +1411,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 step={1}
                 unit="%"
                 onChange={v => set('squish', { opacity: v / 100 })}
+              />
+            </Row>
+            <Row label={t('squishOrganic')}>
+              <Toggle
+                value={effects.squish.organicEnabled}
+                onChange={v => set('squish', { organicEnabled: v })}
               />
             </Row>
             <Row label={t('squishColor')}>

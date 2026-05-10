@@ -8,6 +8,12 @@ import {
   TextSystem,
 } from './pixiEffects'
 
+type SquishOrganicShape = {
+  radiusXScale: number
+  radiusYScale: number
+  sizeScale: number
+}
+
 export class CellRenderer {
   readonly cellId: string
   readonly container: PIXI.Container
@@ -140,6 +146,7 @@ export class CellRenderer {
   private squishKey: string | null = null
   private squishElapsedSec = 0
   private squishCycleComplete = false
+  private squishOrganicShape: SquishOrganicShape | null = null
   private activeSlideTransition: {
     incoming: PIXI.Sprite
     outgoing: PIXI.Sprite
@@ -2206,6 +2213,7 @@ export class CellRenderer {
     const key = squish
       ? [
           squish.enabled,
+          squish.organicEnabled,
           squish.circleSizeRatio,
           squish.gapRatio,
           squish.color.r,
@@ -2244,7 +2252,9 @@ export class CellRenderer {
 
     this.squishElapsedSec += dtSec
     if (squish.repeatEnabled && cycleSec > 0) {
+      const didWrap = this.squishElapsedSec >= cycleSec
       this.squishElapsedSec %= cycleSec
+      if (didWrap) this.resetSquishOrganicShapes()
     } else if (this.squishElapsedSec >= animationSec) {
       this.squishElapsedSec = animationSec
       this.squishCycleComplete = true
@@ -2288,17 +2298,49 @@ export class CellRenderer {
     const secondColor = darkenColor(color, 0.72)
     const secondBaseAlpha = clamp(baseAlpha + 0.12, 0, 0.8)
     const secondColorAlpha = clamp(colorAlpha + 0.16 * drawAlpha * opacity, 0, 1)
+    const organicShape = squish.organicEnabled
+      ? this.ensureSquishOrganicShape()
+      : undefined
+    const effectiveRadius = radius * (organicShape?.sizeScale ?? 1)
+    const effectiveSecondRadius = secondRadius * (organicShape?.sizeScale ?? 1)
 
-    for (const x of [centerX - centerOffset, centerX + centerOffset]) {
-      this.squishGraphics.circle(x, centerY, radius)
+    const centers = [centerX - centerOffset, centerX + centerOffset]
+    for (let index = 0; index < centers.length; index += 1) {
+      const x = centers[index]
+      this.drawSquishBlob(x, centerY, effectiveRadius, organicShape)
       this.squishGraphics.fill({ color: 0x000000, alpha: baseAlpha })
-      this.squishGraphics.circle(x, centerY, radius)
+      this.drawSquishBlob(x, centerY, effectiveRadius, organicShape)
       this.squishGraphics.fill({ color, alpha: colorAlpha })
-      this.squishGraphics.circle(x, centerY, secondRadius)
+      this.drawSquishBlob(x, centerY, effectiveSecondRadius, organicShape)
       this.squishGraphics.fill({ color: 0x000000, alpha: secondBaseAlpha })
-      this.squishGraphics.circle(x, centerY, secondRadius)
+      this.drawSquishBlob(x, centerY, effectiveSecondRadius, organicShape)
       this.squishGraphics.fill({ color: secondColor, alpha: secondColorAlpha })
     }
+  }
+
+  private drawSquishBlob(centerX: number, centerY: number, radius: number, shape?: SquishOrganicShape) {
+    if (!shape) {
+      this.squishGraphics.circle(centerX, centerY, radius)
+      return
+    }
+
+    this.squishGraphics.ellipse(
+      centerX,
+      centerY,
+      radius * shape.radiusXScale,
+      radius * shape.radiusYScale
+    )
+  }
+
+  private ensureSquishOrganicShape(): SquishOrganicShape {
+    if (!this.squishOrganicShape) {
+      this.squishOrganicShape = createSquishOrganicShape()
+    }
+    return this.squishOrganicShape
+  }
+
+  private resetSquishOrganicShapes() {
+    this.squishOrganicShape = null
   }
 
   private updateSquishFeather(squish: SquishEffect) {
@@ -2322,6 +2364,7 @@ export class CellRenderer {
   private resetSquishMotion() {
     this.squishElapsedSec = 0
     this.squishCycleComplete = false
+    this.resetSquishOrganicShapes()
     this.squishGraphics.clear()
   }
 
@@ -3052,6 +3095,18 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
 
 function lerp(start: number, end: number, progress: number): number {
   return start + (end - start) * progress
+}
+
+function createSquishOrganicShape(): SquishOrganicShape {
+  const stretch = 0.025 + Math.random() * 0.035
+  const horizontal = Math.random() < 0.5
+  const sizeScale = 0.96 + Math.random() * 0.08
+
+  return {
+    radiusXScale: horizontal ? 1 + stretch : 1 - stretch,
+    radiusYScale: horizontal ? 1 - stretch : 1 + stretch,
+    sizeScale,
+  }
 }
 
 function easeInOutSine(x: number): number {
