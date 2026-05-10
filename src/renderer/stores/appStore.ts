@@ -474,6 +474,7 @@ export type AppActions = {
   setCellEffect: <K extends keyof CellEffects>(
     cellId: string, effectKey: K, value: Partial<CellEffects[K]>
   ) => void
+  applyCellEffectPreset: (cellId: string, effects: Partial<CellEffects>) => void
   setCellSquishImageCenterColor: (cellId: string, color: { r: number; g: number; b: number }) => void
   setAllCellsEffect: <K extends keyof CellEffects>(
     effectKey: K, value: Partial<CellEffects[K]>
@@ -751,6 +752,30 @@ export const useAppStore = create<AppStore>()(
       }
       Object.assign(cell.effects[effectKey], patch)
       s.effectGuideNonce += 1
+    }),
+
+    applyCellEffectPreset: (cellId, effects) => set(s => {
+      const applyToCell = (cell: (typeof s.cells)[0]) => {
+        if (effects.effectCenter !== undefined) Object.assign(cell.effects.effectCenter, effects.effectCenter)
+        if (effects.colorOverlay !== undefined) Object.assign(cell.effects.colorOverlay, effects.colorOverlay)
+        if (effects.vignette !== undefined) Object.assign(cell.effects.vignette, effects.vignette)
+        if (effects.spiral !== undefined) Object.assign(cell.effects.spiral, effects.spiral)
+        if (effects.blur !== undefined) Object.assign(cell.effects.blur, effects.blur)
+        if (effects.echo !== undefined) Object.assign(cell.effects.echo, effects.echo)
+        if (effects.flash !== undefined) Object.assign(cell.effects.flash, effects.flash)
+        if (effects.breathing !== undefined) Object.assign(cell.effects.breathing, effects.breathing)
+        if (effects.shake !== undefined) Object.assign(cell.effects.shake, normalizeShakePatch(effects.shake))
+        if (effects.squish !== undefined) Object.assign(cell.effects.squish, effects.squish)
+        if (effects.dynamicAsset !== undefined) Object.assign(cell.effects.dynamicAsset, effects.dynamicAsset)
+        if (effects.textEffect !== undefined) Object.assign(cell.effects.textEffect, effects.textEffect)
+      }
+      if (s.applyEffectChangesToAllColumns) {
+        s.cells.forEach(applyToCell)
+      } else {
+        const cell = s.cells.find(c => c.id === cellId)
+        if (cell) applyToCell(cell)
+      }
+      // effectGuideNonce は増やさない: プリセット適用でブラーエリアガイドを表示しない
     }),
 
     setCellSquishImageCenterColor: (cellId, color) => set(s => {

@@ -339,6 +339,7 @@ const EFFECT_PRESET_2: CellEffects = {
 export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const {
     setCellEffect,
+    applyCellEffectPreset,
     selectedCellId,
     cells,
     applyEffectChangesToAllColumns,
@@ -444,32 +445,36 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           assetFolderPath: presetAssetFolder.path,
         }
       : structuredClone(EFFECT_PRESET_1.dynamicAsset)
-    setCellEffect(selectedCellId, 'colorOverlay', structuredClone(EFFECT_PRESET_1.colorOverlay))
-    setCellEffect(selectedCellId, 'vignette', structuredClone(EFFECT_PRESET_1.vignette))
-    setCellEffect(selectedCellId, 'spiral', structuredClone(EFFECT_PRESET_1.spiral))
-    setCellEffect(selectedCellId, 'blur', structuredClone(EFFECT_PRESET_1.blur))
-    setCellEffect(selectedCellId, 'echo', structuredClone(EFFECT_PRESET_1.echo))
-    setCellEffect(selectedCellId, 'flash', structuredClone(EFFECT_PRESET_1.flash))
-    setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_1.breathing))
-    setCellEffect(selectedCellId, 'shake', structuredClone(EFFECT_PRESET_1.shake))
-    setCellEffect(selectedCellId, 'squish', structuredClone(EFFECT_PRESET_1.squish))
-    setCellEffect(selectedCellId, 'dynamicAsset', dynamicAsset)
-    setCellEffect(selectedCellId, 'textEffect', structuredClone(EFFECT_PRESET_1.textEffect))
+    applyCellEffectPreset(selectedCellId, {
+      colorOverlay: structuredClone(EFFECT_PRESET_1.colorOverlay),
+      vignette: structuredClone(EFFECT_PRESET_1.vignette),
+      spiral: structuredClone(EFFECT_PRESET_1.spiral),
+      blur: structuredClone(EFFECT_PRESET_1.blur),
+      echo: structuredClone(EFFECT_PRESET_1.echo),
+      flash: structuredClone(EFFECT_PRESET_1.flash),
+      breathing: structuredClone(EFFECT_PRESET_1.breathing),
+      shake: structuredClone(EFFECT_PRESET_1.shake),
+      squish: structuredClone(EFFECT_PRESET_1.squish),
+      dynamicAsset,
+      textEffect: structuredClone(EFFECT_PRESET_1.textEffect),
+    })
   }
 
   const applyEffectPreset2 = () => {
-    setCellEffect(selectedCellId, 'effectCenter', structuredClone(EFFECT_PRESET_2.effectCenter))
-    setCellEffect(selectedCellId, 'colorOverlay', structuredClone(EFFECT_PRESET_2.colorOverlay))
-    setCellEffect(selectedCellId, 'vignette', structuredClone(EFFECT_PRESET_2.vignette))
-    setCellEffect(selectedCellId, 'spiral', structuredClone(EFFECT_PRESET_2.spiral))
-    setCellEffect(selectedCellId, 'blur', structuredClone(EFFECT_PRESET_2.blur))
-    setCellEffect(selectedCellId, 'echo', structuredClone(EFFECT_PRESET_2.echo))
-    setCellEffect(selectedCellId, 'flash', structuredClone(EFFECT_PRESET_2.flash))
-    setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_2.breathing))
-    setCellEffect(selectedCellId, 'shake', structuredClone(EFFECT_PRESET_2.shake))
-    setCellEffect(selectedCellId, 'squish', structuredClone(EFFECT_PRESET_2.squish))
-    setCellEffect(selectedCellId, 'dynamicAsset', structuredClone(EFFECT_PRESET_2.dynamicAsset))
-    setCellEffect(selectedCellId, 'textEffect', structuredClone(EFFECT_PRESET_2.textEffect))
+    applyCellEffectPreset(selectedCellId, {
+      effectCenter: structuredClone(EFFECT_PRESET_2.effectCenter),
+      colorOverlay: structuredClone(EFFECT_PRESET_2.colorOverlay),
+      vignette: structuredClone(EFFECT_PRESET_2.vignette),
+      spiral: structuredClone(EFFECT_PRESET_2.spiral),
+      blur: structuredClone(EFFECT_PRESET_2.blur),
+      echo: structuredClone(EFFECT_PRESET_2.echo),
+      flash: structuredClone(EFFECT_PRESET_2.flash),
+      breathing: structuredClone(EFFECT_PRESET_2.breathing),
+      shake: structuredClone(EFFECT_PRESET_2.shake),
+      squish: structuredClone(EFFECT_PRESET_2.squish),
+      dynamicAsset: structuredClone(EFFECT_PRESET_2.dynamicAsset),
+      textEffect: structuredClone(EFFECT_PRESET_2.textEffect),
+    })
   }
 
   const hasColumnSyncTarget = cells.some(c =>
