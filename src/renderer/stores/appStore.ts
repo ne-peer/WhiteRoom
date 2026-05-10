@@ -301,7 +301,7 @@ function mergeEffectsWithDefaults(effects: Partial<CellEffects> | undefined): Ce
 
 function applyImageEffectProfileToCell(state: AppState, cell: Cell): boolean {
   if (state.imageEffectProfileAutoApplySuspended) return false
-  if (!cell.folder || cell.folder.source === 'remote-image') return false
+  if (!cell.folder) return false
   if (state.cellTagOverrides[cell.id]) return false
 
   const imagePath = cell.folder.images[cell.currentImageIndex]

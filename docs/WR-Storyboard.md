@@ -1,5 +1,5 @@
 Created: 2026-05-08
-Last Updated: 2026-05-10
+Last Updated: 2026-05-10 (v1.5.3: remote image URL features removed)
 
 # WhiteRoom Storyboard Tag Specification
 
@@ -53,21 +53,14 @@ JSON schema:
 
 Field notes:
 
-- `image` may be an absolute path, a path relative to the text file, a `file:` URL, a `data:` URL, or an `http(s)` image/page URL.
+- `image` may be an absolute path, a path relative to the text file, a `file:` URL, or a `data:` URL.
 - `effects` contains partial `CellEffects` values to apply to all cells.
 - `progress.enabled` ramps effect progress over the specified number of pages.
 - `timer.enabled` resets and starts the timer when the tag triggers.
 
-## Remote Image Safety
+## Remote Image URLs (removed in v1.5.3)
 
-- Remote storyboard images are loaded through the main-process IPC path, then passed to PixiJS as data URLs.
-- Keep same-URL loads deduplicated with in-flight promise caches in both renderer and main. Multiple cells showing the same URL must produce at most one network request.
-- Successful remote image loads are cached for the app session. Re-entering the same tag must not re-request the image.
-- pixiv-family hosts (`pixiv.net` and `pximg.net`) are capped at 10 distinct image/page URLs per app session.
-- The 11th distinct pixiv-family URL must be blocked before network access and must surface a user-visible warning.
-- Do not reset the pixiv counter when changing or closing a text file. Only app restart resets it.
-- The Text tab must keep showing the current `pixiv requests: n/10` counter from main-process state.
-- Never add hard-coded sample pixiv artwork URLs or artwork IDs to code, tests, docs, or commit messages.
+Remote `http(s)` image loading (grid URL input, pixiv session limits, and the IPC-based image download pipeline) was removed in v1.5.3 to avoid potential violations of each service's Terms of Service (scraping prohibition clauses). `http(s)` values in the `image` field are no longer resolved through IPC and will not display correctly.
 
 ## Runtime Behavior
 
