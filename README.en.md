@@ -63,18 +63,21 @@ Then open the DMG as usual and drag the app into the Applications folder.
     * Or drag and drop a folder onto the canvas
 3. **Slideshow**: Turn it on from the Grid tab after selecting a cell.
 4. **Effects**: Configure effects in the Effects tab after selecting a cell.
-    * Color Filter: Simple overlay color filter
-    * Image Enhancement Filter: Emphasizes image saturation and contrast
-    * Vignette Effect: Peripheral darkening effect
-    * Spiral Effect: Spiral visual effect
-    * Blur Effect: Blur visual effect
-    * Echo Effect: Ripple-like trail effect
-    * Breathing Effect: Breathing-style visual effect
-    * Shake Effect: Camera/object shake effect
-    * Squish Effect: Pressing/squishing visual effect
-    * Text Effect: Floats custom text at random positions
-    * Asset Effect: Places custom images at random positions and floats them
-    * Flash Effect: Temporarily overlays an image
+    * **[Filter]**
+        * Color Filter: Simple overlay color filter
+        * Tone Filter: Emphasizes image saturation and contrast
+        * Vignette Effect: Peripheral darkening effect
+        * Blur Effect: Blur visual effect
+    * **[Motion]**
+        * Shake Effect: Camera/object shake effect
+        * Breathing Effect: Breathing-style visual effect
+        * Echo Effect: Ripple-like trail effect
+    * **[Decoration]**
+        * Asset Effect: Places custom images at random positions and floats them
+        * Flash Effect: Temporarily overlays an image
+        * Squish Effect: Pressing/squishing visual effect
+        * Spiral Effect: Spiral visual effect
+        * Text Effect: Floats custom text at random positions
 5. **Timer**: Enable and place it from the Timer tab.
     * **Timer-synced effect progress**: Applies effects based on remaining timer time
     * **End overlay image**: Displays a specified overlay image when the timer ends
