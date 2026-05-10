@@ -7,7 +7,7 @@
   pointer-events: auto;
   min-width: 220px;
   padding: 12px 14px 10px;
-  background: linear-gradient(180deg, rgba(14,14,18,0.52), rgba(14,14,18,0.32));
+  background: radial-gradient(ellipse 90% 120% at center, rgba(255,0,174,0.42) 0%, rgba(14,14,18,0.68) 70%);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 14px;
   backdrop-filter: blur(10px) saturate(120%);

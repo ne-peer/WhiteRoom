@@ -29,7 +29,7 @@ export const TimerControls: React.FC = () => {
   return (
     <div>
       <Section title={t('timerSettings')}>
-        <Row label={t('display')}>
+        <Row label={t('enabled')}>
           <Toggle value={timer.enabled} onChange={v => setTimer({ enabled: v })} />
         </Row>
         {timer.enabled && (

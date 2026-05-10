@@ -166,11 +166,15 @@ export const GridControls: React.FC = () => {
                   {t('applyFolderAll')}
                 </Button>
 
+                <div style={{ marginTop: 20 }}>
                 <Section title={t('slideshow')}>
                   <Row label={t('enabled')}>
                     <Toggle
                       value={selectedCell.slideshow.enabled}
-                      onChange={v => setCellSlideshow(selectedCellId, { enabled: v })}
+                      onChange={v => {
+                        setCellSlideshow(selectedCellId, { enabled: v })
+                        if (v) showAppNotification(t('slideshowTimerWarning'), 'info')
+                      }}
                     />
                   </Row>
                   {selectedCell.slideshow.enabled && (
@@ -223,6 +227,7 @@ export const GridControls: React.FC = () => {
                     </Button>
                   </div>
                 </Section>
+                </div>
               </div>
             )}
           </>
