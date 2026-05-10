@@ -56,7 +56,7 @@ export const CellNavigationOverlay: React.FC<Props> = ({ hoveredCellId }) => {
   }
 
   return (
-    <div className={styles.overlay} onDragOver={stopDrag}>
+    <div className={styles.overlay} onDragOver={stopDrag} data-cell-nav-overlay>
       <div
         className={styles.btnGroup}
         onDragOver={stopDrag}

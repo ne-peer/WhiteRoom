@@ -34,7 +34,7 @@ const App: React.FC = () => {
       const revealX = window.innerWidth - EDGE_REVEAL_THRESHOLD
       const keepVisibleX = window.innerWidth - CONTROL_PANEL_WIDTH - FLOAT_HIDE_MARGIN
 
-      const overReader = !!(event.target as Element | null)?.closest?.('[data-reader-window], [data-storyboard-window]')
+      const overReader = !!(event.target as Element | null)?.closest?.('[data-reader-window], [data-storyboard-window], [data-cell-nav-overlay]')
 
       setShowFloatingControls(current => {
         if (overReader) return false
