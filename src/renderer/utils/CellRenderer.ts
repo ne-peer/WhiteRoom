@@ -2212,7 +2212,7 @@ export class CellRenderer {
     const centerX = clamp(effects.effectCenter?.x ?? 0.5, 0, 1)
     const centerY = clamp(effects.effectCenter?.y ?? 0.5, 0, 1)
     this.spiralGraphics.position.set(this.width * centerX, this.height * centerY)
-    this.redrawSpiralIfNeeded(spiral)
+    this.redrawSpiralIfNeeded(spiral, centerX, centerY)
     this.updateSpiralRadialMask(spiral)
     if (spiral.dynamic && !spiral.dynamicTimerSync) {
       this.applySpiralAlpha(effects, (Math.sin(this.spiralAlphaDynamicProgress * Math.PI * 2) + 1) * 0.5)
@@ -2250,10 +2250,12 @@ export class CellRenderer {
     this.spiralGraphics.alpha = clamp(spiral.alpha, 0, 1)
   }
 
-  private redrawSpiralIfNeeded(spiral: CellEffects['spiral']) {
+  private redrawSpiralIfNeeded(spiral: CellEffects['spiral'], centerX: number, centerY: number) {
     const drawKey = [
       this.width,
       this.height,
+      centerX,
+      centerY,
       spiral.pattern,
       spiral.detail,
       spiral.color.r,
@@ -2271,7 +2273,13 @@ export class CellRenderer {
     g.clear()
     const primaryColor = (spiral.color.r << 16) | (spiral.color.g << 8) | spiral.color.b
     const secondaryColor = (spiral.secondaryColor.r << 16) | (spiral.secondaryColor.g << 8) | spiral.secondaryColor.b
-    const maxRadius = Math.sqrt(this.width * this.width + this.height * this.height) * 0.6
+    const cx = this.width * centerX
+    const cy = this.height * centerY
+    const maxCornerDist = Math.sqrt(
+      Math.max(cx * cx, (this.width - cx) * (this.width - cx)) +
+      Math.max(cy * cy, (this.height - cy) * (this.height - cy))
+    )
+    const maxRadius = Math.max(Math.sqrt(this.width * this.width + this.height * this.height) * 0.6, maxCornerDist)
     const detail = clamp(spiral.detail, 6, 120)
     const loops = spiral.pattern === 'vortex' ? detail * 0.15 : detail * 0.6
     const a = maxRadius / (Math.PI * 2 * loops)
