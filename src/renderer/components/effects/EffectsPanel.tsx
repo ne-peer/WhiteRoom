@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore, DEFAULT_EFFECTS } from '../../stores/appStore'
-import { Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select } from '../controls/UIKit'
+import { Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select, IconButton } from '../controls/UIKit'
 import { formatCount, useTranslation } from '../../i18n'
 import type { AssetEffectFolder, Cell, CellEffects } from '../../../shared/types'
 
@@ -353,6 +353,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setShakeTrailPositionPicking,
     spiralRadialPositionPicking,
     setSpiralRadialPositionPicking,
+    squishColorPicking,
+    setSquishColorPicking,
   } = useAppStore()
   const { language, t } = useTranslation()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
@@ -1428,17 +1430,40 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   { value: 'manual', label: t('squishColorSourceManual') },
                   { value: 'imageCenter', label: t('squishColorSourceImageCenter') },
                 ]}
-                onChange={v => set('squish', { colorSource: v as 'manual' | 'imageCenter' })}
+                onChange={v => {
+                  set('squish', { colorSource: v as 'manual' | 'imageCenter' })
+                  if (v !== 'manual') setSquishColorPicking(false)
+                }}
               />
             </Row>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-              <ColorPicker
-                r={effects.squish.color.r}
-                g={effects.squish.color.g}
-                b={effects.squish.color.b}
-                onChange={(r, g, b) => set('squish', { color: { r, g, b } })}
-              />
-            </div>
+            {(effects.squish.colorSource ?? 'manual') === 'manual' && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                <ColorPicker
+                  r={effects.squish.color.r}
+                  g={effects.squish.color.g}
+                  b={effects.squish.color.b}
+                  onChange={(r, g, b) => set('squish', { color: { r, g, b } })}
+                  leading={
+                    <IconButton
+                      active={squishColorPicking}
+                      onClick={() => setSquishColorPicking(!squishColorPicking)}
+                      title={squishColorPicking ? t('squishColorPickActive') : t('squishColorPickButton')}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M14.5 4.5l5 5m-3.5-6.5l5 5-10.5 10.5-4.5 1 1-4.5 10.5-10.5z"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </IconButton>
+                  }
+                />
+              </div>
+            )}
             <Row label={t('squishColorAlpha')}>
               <Slider
                 value={Math.round(effects.squish.alpha * 100)}

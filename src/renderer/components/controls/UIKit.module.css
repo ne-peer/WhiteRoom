@@ -204,6 +204,39 @@
   color: rgba(255,255,255,0.5);
 }
 
+.iconButton {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.76);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.iconButton:hover {
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,110,180,0.55);
+  color: #ffffff;
+}
+
+.iconButtonActive {
+  background: rgba(255,110,180,0.24);
+  border-color: #ff6eb4;
+  color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255,110,180,0.18);
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .alphaWrapper {
   display: flex;
   align-items: center;

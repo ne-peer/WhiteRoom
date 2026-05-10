@@ -9,6 +9,7 @@ import { TimerPreOverlay } from '../timer/TimerPreOverlay'
 import { CellNavigationOverlay } from './CellNavigationOverlay'
 import { TextReaderWindow, calcReaderAutoHeight, calcReaderAutoWidth, READER_WINDOW_MARGIN } from '../reader/TextReaderWindow'
 import { useTranslation } from '../../i18n'
+import type { Cell, ImageFitMode } from '../../../shared/types'
 import styles from './MasterCanvas.module.css'
 
 type CircleGuideKind = 'radialBlur' | 'shakeTrail' | 'shakeTrailSecondStage'
@@ -35,6 +36,7 @@ export const MasterCanvas: React.FC = () => {
   const cellTagOverrides = useAppStore(s => s.cellTagOverrides)
   const shakeTrailPositionPicking = useAppStore(s => s.shakeTrailPositionPicking)
   const spiralRadialPositionPicking = useAppStore(s => s.spiralRadialPositionPicking)
+  const squishColorPicking = useAppStore(s => s.squishColorPicking)
   const selectedCellId = useAppStore(s => s.selectedCellId)
   const textReaderVisible = useAppStore(s => s.textReader.visible)
   const textReaderConfig = useAppStore(s => s.textReader.config)
@@ -86,6 +88,7 @@ export const MasterCanvas: React.FC = () => {
   const { setCellImage } = usePixiStage(containerRef)
   const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
   const pickingActive = shakeTrailPositionPicking || spiralRadialPositionPicking
+  const anyPickModeActive = pickingActive || squishColorPicking
   const selectedCell = cells.find(cell => cell.id === selectedCellId) ?? null
   const pickColumn = pickingActive ? lockedPickColumn ?? selectedCell?.col ?? null : null
   const pickColumnBounds = React.useMemo((): React.CSSProperties | null => {
@@ -113,6 +116,7 @@ export const MasterCanvas: React.FC = () => {
     const state = useAppStore.getState()
     state.setShakeTrailPositionPicking(false)
     state.setSpiralRadialPositionPicking(false)
+    state.setSquishColorPicking(false)
     centerPickDragRef.current = null
     trailSizeDragRef.current = null
     setLockedPickColumn(null)
@@ -269,7 +273,7 @@ export const MasterCanvas: React.FC = () => {
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const { grid, cells, shakeTrailPositionPicking, spiralRadialPositionPicking } = useAppStore.getState()
+    const { grid, cells, shakeTrailPositionPicking, spiralRadialPositionPicking, squishColorPicking } = useAppStore.getState()
     const activePickColumn = lockedPickColumn
     const relX = e.clientX - rect.left
     const relY = e.clientY - rect.top
@@ -281,6 +285,11 @@ export const MasterCanvas: React.FC = () => {
         ? null
         : cell?.id ?? null
     )
+
+    if (squishColorPicking) {
+      setPickGuide(null)
+      return
+    }
 
     const trailSizeDrag = trailSizeDragRef.current
     if (trailSizeDrag && (shakeTrailPositionPicking || spiralRadialPositionPicking)) {
@@ -344,6 +353,36 @@ export const MasterCanvas: React.FC = () => {
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const state = useAppStore.getState()
+    if (state.squishColorPicking) {
+      e.preventDefault()
+      const cell = getCellAtClientPoint(e.clientX, e.clientY, rect, state.grid, state.cells)
+      const imageSrc = cell ? state.cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null : null
+      if (!cell || !imageSrc) {
+        state.showAppNotification(t('squishColorPickFailed'), 'warning')
+        state.setSquishColorPicking(false)
+        return
+      }
+      const clientX = e.clientX
+      const clientY = e.clientY
+      void pickColorFromCellImage(imageSrc, cell, state.grid, rect, clientX, clientY)
+        .then(color => {
+          const latest = useAppStore.getState()
+          if (!color) {
+            latest.showAppNotification(t('squishColorPickFailed'), 'warning')
+            latest.setSquishColorPicking(false)
+            return
+          }
+          latest.selectCell(cell.id)
+          latest.setCellEffect(cell.id, 'squish', { color, colorSource: 'manual' })
+          latest.setSquishColorPicking(false)
+        })
+        .catch(() => {
+          const latest = useAppStore.getState()
+          latest.showAppNotification(t('squishColorPickFailed'), 'warning')
+          latest.setSquishColorPicking(false)
+        })
+      return
+    }
     if (!state.shakeTrailPositionPicking && !state.spiralRadialPositionPicking) return
     const cell = getCellAtClientPoint(e.clientX, e.clientY, rect, state.grid, state.cells)
     const activePickColumn = lockedPickColumn
@@ -378,7 +417,7 @@ export const MasterCanvas: React.FC = () => {
       startTrailHeight: cell.effects.shake.trailHeight ?? 1,
       startRadialHeight: cell.effects.blur.radialHeight ?? 1,
     }
-  }, [cancelPickMode, lockedPickColumn])
+  }, [cancelPickMode, lockedPickColumn, t])
 
   const handleMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button === 2) trailSizeDragRef.current = null
@@ -399,7 +438,7 @@ export const MasterCanvas: React.FC = () => {
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const state = useAppStore.getState()
-    if (state.shakeTrailPositionPicking || state.spiralRadialPositionPicking) {
+    if (state.shakeTrailPositionPicking || state.spiralRadialPositionPicking || state.squishColorPicking) {
       e.preventDefault()
     }
   }, [])
@@ -412,7 +451,7 @@ export const MasterCanvas: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className={`${styles.canvas} ${showControls ? styles.withPanel : ''} ${(shakeTrailPositionPicking || spiralRadialPositionPicking) ? styles.pickMode : ''}`}
+      className={`${styles.canvas} ${showControls ? styles.withPanel : ''} ${anyPickModeActive ? styles.pickMode : ''}`}
       style={canvasShrinkStyle}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -515,6 +554,11 @@ export const MasterCanvas: React.FC = () => {
             <div>{t('effectCenterSetting')}</div>
             <div className={styles.pickHintTip}>{t('effectCenterPickTip')}</div>
           </div>
+        </div>
+      )}
+      {squishColorPicking && (
+        <div className={styles.pickUiLayer} style={{ left: 0, top: 0, width: canvasSize.width, height: canvasSize.height }}>
+          <div className={styles.pickHint}>{t('squishColorPickHint')}</div>
         </div>
       )}
       {pickingActive && pickColumnBounds && (
@@ -629,6 +673,89 @@ function toFreezeImageStyle(imageFit: ReturnType<typeof useAppStore.getState>['c
   if (imageFit === 'fitHeight') return { width: 'auto', height: '100%', maxWidth: 'none' }
   if (imageFit === 'fitWidth') return { width: '100%', height: 'auto', maxHeight: 'none' }
   return { width: '100%', height: '100%', objectFit: 'contain' }
+}
+
+async function pickColorFromCellImage(
+  imageSrc: string,
+  cell: Cell,
+  grid: ReturnType<typeof useAppStore.getState>['grid'],
+  rect: DOMRect,
+  clientX: number,
+  clientY: number
+): Promise<{ r: number; g: number; b: number } | null> {
+  const image = await loadHtmlImage(toImageSrc(imageSrc))
+  const sourcePoint = getImageSourcePoint(cell, grid, rect, clientX, clientY, image.naturalWidth, image.naturalHeight)
+  if (!sourcePoint) return null
+
+  const canvas = document.createElement('canvas')
+  canvas.width = 1
+  canvas.height = 1
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context) return null
+  context.drawImage(
+    image,
+    sourcePoint.x,
+    sourcePoint.y,
+    1,
+    1,
+    0,
+    0,
+    1,
+    1,
+  )
+  const [r, g, b] = context.getImageData(0, 0, 1, 1).data
+  return { r, g, b }
+}
+
+function getImageSourcePoint(
+  cell: Cell,
+  grid: ReturnType<typeof useAppStore.getState>['grid'],
+  rect: DOMRect,
+  clientX: number,
+  clientY: number,
+  imageWidth: number,
+  imageHeight: number
+): { x: number; y: number } | null {
+  if (imageWidth <= 0 || imageHeight <= 0 || grid.cols <= 0 || grid.rows <= 0) return null
+  const cellWidth = rect.width / grid.cols
+  const cellHeight = rect.height / grid.rows
+  const cellLeft = rect.left + cell.col * cellWidth
+  const cellTop = rect.top + cell.row * cellHeight
+  const localX = clientX - cellLeft
+  const localY = clientY - cellTop
+  const scale = getImageFitScale(cell.imageFit, cellWidth, cellHeight, imageWidth, imageHeight)
+  const drawnWidth = imageWidth * scale
+  const drawnHeight = imageHeight * scale
+  const imageLeft = (cellWidth - drawnWidth) / 2
+  const imageTop = (cellHeight - drawnHeight) / 2
+  const sourceX = Math.floor((localX - imageLeft) / scale)
+  const sourceY = Math.floor((localY - imageTop) / scale)
+  if (sourceX < 0 || sourceY < 0 || sourceX >= imageWidth || sourceY >= imageHeight) return null
+  return {
+    x: clamp(sourceX, 0, imageWidth - 1),
+    y: clamp(sourceY, 0, imageHeight - 1),
+  }
+}
+
+function getImageFitScale(
+  imageFit: ImageFitMode,
+  cellWidth: number,
+  cellHeight: number,
+  imageWidth: number,
+  imageHeight: number
+): number {
+  if (imageFit === 'fitHeight') return cellHeight / imageHeight
+  if (imageFit === 'fitWidth') return cellWidth / imageWidth
+  return Math.min(cellWidth / imageWidth, cellHeight / imageHeight)
+}
+
+function loadHtmlImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('Image load failed'))
+    image.src = src
+  })
 }
 
 function toCircleGuides(

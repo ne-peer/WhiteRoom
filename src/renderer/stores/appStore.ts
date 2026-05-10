@@ -389,6 +389,7 @@ export type AppState = {
   applyEffectChangesToAllColumns: boolean
   shakeTrailPositionPicking: boolean
   spiralRadialPositionPicking: boolean
+  squishColorPicking: boolean
   appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error' } | null
   imageEffectProfiles: Record<string, ImageEffectProfileDocument | null>
   imageEffectProfileAutoApplySuspended: boolean
@@ -452,6 +453,7 @@ export type AppActions = {
   setApplyEffectChangesToAllColumns: (flag: boolean) => void
   setShakeTrailPositionPicking: (flag: boolean) => void
   setSpiralRadialPositionPicking: (flag: boolean) => void
+  setSquishColorPicking: (flag: boolean) => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -546,6 +548,7 @@ export const useAppStore = create<AppStore>()(
     applyEffectChangesToAllColumns: true,
     shakeTrailPositionPicking: false,
     spiralRadialPositionPicking: false,
+    squishColorPicking: false,
     appNotification: null,
     imageEffectProfiles: {},
     imageEffectProfileAutoApplySuspended: false,
@@ -819,10 +822,20 @@ export const useAppStore = create<AppStore>()(
 
     setShakeTrailPositionPicking: (flag) => set(s => {
       s.shakeTrailPositionPicking = flag
+      if (flag) s.squishColorPicking = false
     }),
 
     setSpiralRadialPositionPicking: (flag) => set(s => {
       s.spiralRadialPositionPicking = flag
+      if (flag) s.squishColorPicking = false
+    }),
+
+    setSquishColorPicking: (flag) => set(s => {
+      s.squishColorPicking = flag
+      if (flag) {
+        s.shakeTrailPositionPicking = false
+        s.spiralRadialPositionPicking = false
+      }
     }),
 
     // ===== 表示設定 =====

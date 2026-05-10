@@ -104,10 +104,11 @@ export const TextInput: React.FC<{
 export const ColorPicker: React.FC<{
   r: number; g: number; b: number
   onChange: (r: number, g: number, b: number) => void
+  leading?: React.ReactNode
   showAlpha?: boolean
   alpha?: number
   onAlphaChange?: (a: number) => void
-}> = ({ r, g, b, onChange, showAlpha, alpha = 1, onAlphaChange }) => {
+}> = ({ r, g, b, onChange, leading, showAlpha, alpha = 1, onAlphaChange }) => {
   const hex = `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`
 
   const handleHexChange = (hex: string) => {
@@ -120,6 +121,7 @@ export const ColorPicker: React.FC<{
   return (
     <div className={styles.colorPickerWrapper}>
       <div className={styles.colorPickerRow}>
+        {leading}
         <input
           type="color"
           className={styles.colorInput}
@@ -156,6 +158,25 @@ export const Button: React.FC<{
 }> = ({ onClick, children, variant = 'secondary', small, disabled, title, className }) => (
   <button
     className={`${styles.button} ${styles[`button_${variant}`]} ${small ? styles.buttonSmall : ''} ${className ?? ''}`}
+    onClick={onClick}
+    disabled={disabled}
+    title={title}
+  >
+    {children}
+  </button>
+)
+
+// ===== 繧｢繧､繧ｳ繝ｳ繝懊ち繝ｳ =====
+export const IconButton: React.FC<{
+  onClick: () => void
+  children: React.ReactNode
+  active?: boolean
+  disabled?: boolean
+  title?: string
+}> = ({ onClick, children, active, disabled, title }) => (
+  <button
+    type="button"
+    className={`${styles.iconButton} ${active ? styles.iconButtonActive : ''}`}
     onClick={onClick}
     disabled={disabled}
     title={title}
