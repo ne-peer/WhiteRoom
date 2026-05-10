@@ -172,6 +172,11 @@ export const DEFAULT_TIMER_PRE_OVERLAY: TimerConfig['preOverlay'] = {
   endOpacity: 80,
 }
 
+export const DEFAULT_TIMER_AUTO_NEXT: TimerConfig['autoNext'] = {
+  enabled: false,
+  delaySec: 3,
+}
+
 export const DEFAULT_TIMER: TimerConfig = {
   enabled: false,
   totalSec: 60,
@@ -188,6 +193,7 @@ export const DEFAULT_TIMER: TimerConfig = {
     intervalSec: 0.5,
   },
   preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY },
+  autoNext: { ...DEFAULT_TIMER_AUTO_NEXT },
 }
 
 export const DEFAULT_TEXT_READER_CONFIG: TextReaderConfig = {
@@ -345,6 +351,7 @@ export type AppState = {
   showControls: boolean
   isLoading: boolean
   language: UiLanguage
+  timerCompletedNonce: number
   slideshowRestartNonce: number
   effectSyncNonce: number
   effectRandomNonce: number
@@ -435,6 +442,7 @@ export type AppActions = {
   // タイマー
   setTimer: (config: Partial<TimerConfig>) => void
   tickTimer: () => void
+  timerAutoNextImages: () => void
 
   // UI
   selectCell: (cellId: string | null) => void
@@ -498,6 +506,7 @@ export const useAppStore = create<AppStore>()(
     showControls: true,
     isLoading: false,
     language: getInitialLanguage(),
+    timerCompletedNonce: 0,
     slideshowRestartNonce: 0,
     effectSyncNonce: 0,
     effectRandomNonce: 0,
@@ -799,7 +808,24 @@ export const useAppStore = create<AppStore>()(
     tickTimer: () => set(s => {
       if (!s.timer.running || s.timer.elapsedSec >= s.timer.totalSec) return
       s.timer.elapsedSec = Math.min(s.timer.elapsedSec + 1, s.timer.totalSec)
-      if (s.timer.elapsedSec >= s.timer.totalSec) s.timer.running = false
+      if (s.timer.elapsedSec >= s.timer.totalSec) {
+        s.timer.running = false
+        s.timerCompletedNonce += 1
+      }
+    }),
+
+    timerAutoNextImages: () => set(s => {
+      s.cells.forEach(cell => {
+        if (!cell.folder || cell.folder.images.length <= 1) return
+        const len = cell.folder.images.length
+        const useRandom = cell.slideshow.enabled && cell.slideshow.randomOrder
+        if (useRandom) {
+          cell.currentImageIndex = Math.floor(Math.random() * len)
+        } else {
+          cell.currentImageIndex = (cell.currentImageIndex + 1) % len
+        }
+        if (applyImageEffectProfileToCell(s, cell)) s.effectSyncNonce += 1
+      })
     }),
 
     // ===== UI =====
@@ -889,6 +915,7 @@ export const useAppStore = create<AppStore>()(
         ...profile.timer,
         endFlash: { ...DEFAULT_TIMER.endFlash, ...profile.timer?.endFlash },
         preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY, ...profile.timer?.preOverlay },
+        autoNext: { ...DEFAULT_TIMER_AUTO_NEXT, ...profile.timer?.autoNext },
       }
       s.fullscreen = profile.fullscreen
       s.showNavigationBar = true

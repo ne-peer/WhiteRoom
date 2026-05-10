@@ -260,6 +260,27 @@ export const TimerControls: React.FC = () => {
           </>
         )}
       </Section>
+
+      <Section title={t('timerAutoNextSection')}>
+        <Row label={t('enabled')}>
+          <Toggle
+            value={timer.autoNext.enabled}
+            onChange={v => setTimer({ autoNext: { ...timer.autoNext, enabled: v } })}
+          />
+        </Row>
+        {timer.autoNext.enabled && (
+          <Row label={t('timerAutoNextDelay')}>
+            <NumberInput
+              value={timer.autoNext.delaySec}
+              min={0}
+              max={60}
+              step={1}
+              unit={t('seconds')}
+              onChange={v => setTimer({ autoNext: { ...timer.autoNext, delaySec: Math.max(0, Math.round(v)) } })}
+            />
+          </Row>
+        )}
+      </Section>
     </div>
   )
 }

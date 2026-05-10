@@ -263,6 +263,7 @@ export type TimerConfig = {
   effectCompletionLeadSec: number
   endFlash: TimerEndFlashConfig
   preOverlay: TimerPreOverlayConfig
+  autoNext: TimerAutoNextConfig
 }
 
 export type TimerEndFlashConfig = {
@@ -279,6 +280,11 @@ export type TimerPreOverlayConfig = {
   displayStartSec: number  // タイマー終了x秒前から表示開始
   startOpacity: number     // 表示開始時の不透明度 (0-100)
   endOpacity: number       // 表示完了時の不透明度 (0-100)
+}
+
+export type TimerAutoNextConfig = {
+  enabled: boolean
+  delaySec: number  // タイマー終了後、自動遷移するまでの待機時間 (秒)
 }
 
 // ===== グリッド全体 =====
