@@ -6,7 +6,7 @@ import type {
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
   ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig, ReadingConfigPayload,
 } from '../../shared/types'
-import { parseTextFile, insertOrReplaceTagBefore, insertOrReplaceReadConfigAtTop, resolveStoryboardImageReference } from '../utils/storyboardParser'
+import { parseTextFile, insertOrReplaceTagBefore, insertTagAtCharPosition, insertOrReplaceReadConfigAtTop, resolveStoryboardImageReference } from '../utils/storyboardParser'
 
 // ===== デフォルト値 =====
 
@@ -404,6 +404,7 @@ export type AppState = {
     autoSuspendedForTimer: boolean      // タイマー待ち中に Auto を一時停止した
     storyboardOpen: boolean             // ストーリーボードパネル表示中
     currentSegmentIndex: number         // TextReaderWindow が計算した現在のセグメント
+    currentPageSegCharOffset: number    // 現在ページ先頭の rawSegments[currentSegmentIndex] 内文字オフセット（0=セグメント先頭）
     readingConfig: ReadingConfigPayload | null  // ファイルから読み込んだ読書設定
   }
 }
@@ -491,6 +492,7 @@ export type AppActions = {
   setAutoSuspendedForTimer: (flag: boolean) => void
   setStoryboardOpen: (open: boolean) => void
   setCurrentSegmentIndex: (index: number) => void
+  setCurrentPageSegCharOffset: (offset: number) => void
   insertTagAtCurrentPosition: (
     tagLine: string,
     segmentIndex: number,
@@ -555,6 +557,7 @@ export const useAppStore = create<AppStore>()(
       autoSuspendedForTimer: false,
       storyboardOpen: false,
       currentSegmentIndex: 0,
+      currentPageSegCharOffset: 0,
       readingConfig: null,
     },
 
@@ -1062,6 +1065,7 @@ export const useAppStore = create<AppStore>()(
       s.textReader.autoSuspendedForTimer = false
       s.textReader.storyboardOpen = false
       s.textReader.currentSegmentIndex = 0
+      s.textReader.currentPageSegCharOffset = 0
       s.textReader.readingConfig = null
       s.imageEffectProfileAutoApplySuspended = false
       s.timerSuspendedSlideshow = false
@@ -1187,16 +1191,33 @@ export const useAppStore = create<AppStore>()(
       s.textReader.currentSegmentIndex = index
     }),
 
+    setCurrentPageSegCharOffset: (offset) => set(s => {
+      s.textReader.currentPageSegCharOffset = offset
+    }),
+
     insertTagAtCurrentPosition: (tagLine, segmentIndex, onSave) => {
       const state = get()
       const rawText = state.textReader.rawFileText
       const startLines = state.textReader.segmentStartLines
+      const charOffset = state.textReader.currentPageSegCharOffset
       if (!rawText) return
 
       const startLine = startLines[segmentIndex]
       if (startLine === undefined) return
 
-      const newText = insertOrReplaceTagBefore(rawText, startLine, tagLine)
+      let newText: string
+      if (charOffset > 0) {
+        // セグメント途中：raw ファイルの文字位置で段落を分割してタグを挿入
+        const rawLines = rawText.split('\n')
+        let rawCharPos = 0
+        for (let i = 0; i < startLine; i++) {
+          rawCharPos += (rawLines[i]?.length ?? 0) + 1  // +1 for '\n'
+        }
+        newText = insertTagAtCharPosition(rawText, rawCharPos + charOffset, tagLine)
+      } else {
+        // セグメント先頭：既存タグの置換も考慮した通常挿入
+        newText = insertOrReplaceTagBefore(rawText, startLine, tagLine)
+      }
 
       // テキストを再解析してストアを更新
       set(s => {

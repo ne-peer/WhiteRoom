@@ -155,6 +155,21 @@ export function insertOrReplaceReadConfigAtTop(text: string, tagLine: string): s
 }
 
 /**
+ * ファイルテキストの指定文字位置に改行＋タグ行＋改行を挿入して段落を分割する。
+ * 直前文字が改行の場合（行頭）は改行1つ、それ以外（行途中）は改行2つを前置する。
+ *
+ * @param text 現在のファイルテキスト
+ * @param insertPos 挿入する文字位置（rawText のインデックス）
+ * @param tagLine 挿入するタグ行文字列
+ */
+export function insertTagAtCharPosition(text: string, insertPos: number, tagLine: string): string {
+  const clampedPos = Math.max(0, Math.min(insertPos, text.length))
+  const prevChar = clampedPos > 0 ? text[clampedPos - 1] : undefined
+  const prefix = prevChar === '\n' ? '\n' : '\n\n'
+  return text.slice(0, clampedPos) + prefix + tagLine + '\n\n' + text.slice(clampedPos)
+}
+
+/**
  * ファイルテキストの指定行の直前にタグ行を挿入または上書きする。
  * すでに同位置にタグ行があれば置換し、なければ挿入する。
  *
