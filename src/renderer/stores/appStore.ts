@@ -192,6 +192,12 @@ export const DEFAULT_TIMER_AUTO_NEXT: TimerConfig['autoNext'] = {
   delaySec: 3,
 }
 
+export const DEFAULT_TIMER_PARTIAL: TimerConfig['partial'] = {
+  enabled: false,
+  startSec: 60,  // DEFAULT_TIMER.totalSec と同じ初期値
+  endSec: 0,
+}
+
 export const DEFAULT_TIMER: TimerConfig = {
   enabled: false,
   totalSec: 60,
@@ -209,6 +215,7 @@ export const DEFAULT_TIMER: TimerConfig = {
   },
   preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY },
   autoNext: { ...DEFAULT_TIMER_AUTO_NEXT },
+  partial: { ...DEFAULT_TIMER_PARTIAL },
 }
 
 export const DEFAULT_TEXT_READER_CONFIG: TextReaderConfig = {
@@ -338,13 +345,16 @@ function applyImageEffectProfileToCell(state: AppState, cell: Cell): boolean {
 
   cell.effects = mergeEffectsWithDefaults(entry.effects)
   if (entry.timer) {
-    const { endFlash, preOverlay, autoNext, ...rest } = entry.timer
+    const { endFlash, preOverlay, autoNext, partial, ...rest } = entry.timer
     Object.assign(state.timer, rest)
     if (endFlash) Object.assign(state.timer.endFlash, endFlash)
     if (preOverlay) Object.assign(state.timer.preOverlay, preOverlay)
     if (autoNext) Object.assign(state.timer.autoNext, autoNext)
+    if (partial) Object.assign(state.timer.partial, partial)
     if (entry.timer.enabled) {
-      state.timer.elapsedSec = 0
+      state.timer.elapsedSec = state.timer.partial.enabled
+        ? Math.max(0, state.timer.totalSec - state.timer.partial.startSec)
+        : 0
       state.timer.running = true
       state.timerSuspendedSlideshow = true
     }
@@ -872,8 +882,11 @@ export const useAppStore = create<AppStore>()(
 
     tickTimer: () => set(s => {
       if (!s.timer.running || s.timer.elapsedSec >= s.timer.totalSec) return
-      s.timer.elapsedSec = Math.min(s.timer.elapsedSec + 1, s.timer.totalSec)
-      if (s.timer.elapsedSec >= s.timer.totalSec) {
+      const completionElapsed = s.timer.partial.enabled && s.timer.partial.endSec > 0
+        ? Math.max(0, s.timer.totalSec - s.timer.partial.endSec)
+        : s.timer.totalSec
+      s.timer.elapsedSec = Math.min(s.timer.elapsedSec + 1, completionElapsed)
+      if (s.timer.elapsedSec >= completionElapsed) {
         s.timer.running = false
         s.timerCompletedNonce += 1
         // autoNext が無効の場合はここでスライドショーを再開
@@ -1179,12 +1192,15 @@ export const useAppStore = create<AppStore>()(
 
       // タイマーリセット（タグ優先）
       if (tag.kind === 'rich' && tag.payload.timer?.enabled) {
-        const { endFlash, preOverlay, autoNext, ...rest } = tag.payload.timer
+        const { endFlash, preOverlay, autoNext, partial, ...rest } = tag.payload.timer
         Object.assign(s.timer, rest)
         if (endFlash) Object.assign(s.timer.endFlash, endFlash)
         if (preOverlay) Object.assign(s.timer.preOverlay, preOverlay)
         if (autoNext) Object.assign(s.timer.autoNext, autoNext)
-        s.timer.elapsedSec = 0
+        if (partial) Object.assign(s.timer.partial, partial)
+        s.timer.elapsedSec = s.timer.partial.enabled
+          ? Math.max(0, s.timer.totalSec - s.timer.partial.startSec)
+          : 0
         s.timer.running = true
         // Auto が動作中なら一時停止
         if (s.textReader.isAutoAdvancing) {

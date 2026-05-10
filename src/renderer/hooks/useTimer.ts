@@ -37,9 +37,19 @@ export function useTimer() {
     return () => clearTimeout(timeout)
   }, [timerCompletedNonce]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const start = () => setTimer({ running: true })
+  const partialStartElapsed = timer.partial.enabled
+    ? Math.max(0, timer.totalSec - timer.partial.startSec)
+    : 0
+
+  const start = () => {
+    if (timer.partial.enabled && timer.elapsedSec < partialStartElapsed) {
+      setTimer({ running: true, elapsedSec: partialStartElapsed })
+    } else {
+      setTimer({ running: true })
+    }
+  }
   const pause = () => setTimer({ running: false })
-  const reset = () => setTimer({ running: false, elapsedSec: 0 })
+  const reset = () => setTimer({ running: false, elapsedSec: partialStartElapsed })
 
   const progress = timer.totalSec > 0 ? timer.elapsedSec / timer.totalSec : 0
 

@@ -158,6 +158,7 @@ export const TextReaderWindow: React.FC = () => {
   const autoSuspendedForTimer = useAppStore(s => s.textReader.autoSuspendedForTimer)
   const timer = useAppStore(s => s.timer)
   const timerAutoNextEnabled = useAppStore(s => s.timer.autoNext.enabled)
+  const timerCompletedNonce = useAppStore(s => s.timerCompletedNonce)
   const {
     setTextReaderPage,
     setTextReaderAutoAdvancing,
@@ -315,14 +316,13 @@ export const TextReaderWindow: React.FC = () => {
     }
   }, [currentPageIndex, visible, tagEntries, segmentPageStarts, timerAutoNextEnabled]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // タイマー完了後に Auto を再開
+  // タイマー完了（通常終了・途中終了いずれも）後に Auto を再開
   useEffect(() => {
+    if (timerCompletedNonce === 0) return
     if (!autoSuspendedForTimer) return
-    if (timer.enabled && !timer.running && timer.elapsedSec >= timer.totalSec) {
-      setAutoSuspendedForTimer(false)
-      setTextReaderAutoAdvancing(true)
-    }
-  }, [timer.running, timer.elapsedSec, autoSuspendedForTimer]) // eslint-disable-line react-hooks/exhaustive-deps
+    setAutoSuspendedForTimer(false)
+    setTextReaderAutoAdvancing(true)
+  }, [timerCompletedNonce]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ページ変更・設定変更時にアニメーションをリセット＆開始
   useEffect(() => {

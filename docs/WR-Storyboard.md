@@ -1,5 +1,5 @@
 Created: 2026-05-08
-Last Updated: 2026-05-10 (reading config tag added; timer merged into image tag; timer auto-start on tag apply)
+Last Updated: 2026-05-10 (reading config tag added; timer merged into image tag; timer auto-start on tag apply; partial timer start/end added)
 
 # WhiteRoom Storyboard Tag Specification
 
@@ -81,7 +81,7 @@ JSON schema:
   image: string
   effects: Partial<CellEffects>
   progress?: { enabled: boolean; pages: number }
-  timer?: { enabled: boolean }
+  timer?: Partial<SavedTimerConfig>   // SavedTimerConfig = TimerConfig minus elapsedSec and running
 }
 ```
 
@@ -90,7 +90,50 @@ Field notes:
 - `image` may be an absolute path, a path relative to the text file, a `file:` URL, a `data:` URL, or an `http(s)` image/page URL.
 - `effects` contains partial `CellEffects` values to apply to all cells.
 - `progress.enabled` ramps effect progress over the specified number of pages.
-- `timer.enabled` forces `timer.enabled = true` in the app state, resets `elapsedSec` to 0, and starts the timer when the tag triggers.
+- `timer.enabled` forces `timer.enabled = true` in the app state and starts the timer when the tag triggers.
+- `timer.partial` controls partial start/end behavior (see [Partial Timer](#partial-timer)).
+
+## Partial Timer
+
+The `timer.partial` field enables partial start/end behavior for the timer. This is the **Storyboard features** section in the Timer controls UI.
+
+```typescript
+timer: {
+  enabled: true,
+  totalSec: 60,
+  partial: {
+    enabled: true,
+    startSec: 45,   // countdown starts with 45 seconds remaining
+    endSec: 10,     // countdown stops when 10 seconds remain
+  }
+}
+```
+
+### Fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partial.enabled` | `boolean` | `false` | Enables partial start/end. When `false`, timer behaves normally |
+| `partial.startSec` | `number` | `totalSec` | Remaining seconds at which the countdown starts. Initial value matches `totalSec` (i.e. full countdown) |
+| `partial.endSec` | `number` | `0` | Remaining seconds at which the countdown stops early. `0` means run to the end |
+
+### Behavior
+
+- The progress bar base is always `totalSec`. `elapsedSec / totalSec` determines bar fill, so a partial run shows only the relevant slice of the bar.
+- When the timer starts (via storyboard tag or manually), `elapsedSec` is initialized to `totalSec - startSec`.
+- Each tick, if `elapsedSec` reaches `totalSec - endSec`, the timer stops and fires `timerCompletedNonce` — the same completion signal as a normal full run.
+- After the partial timer fires `timerCompletedNonce`, Text Reader Auto-advance resumes (same behavior as normal timer completion).
+- `startSec` must be ≥ `endSec + 1`. The UI enforces this with clamped inputs.
+
+### Storyboard Tag Serialization
+
+`timer.partial` is part of `SavedTimerConfig` (which excludes only `elapsedSec` and `running`) and is therefore saved automatically when the Storyboard tool inserts an image tag with the timer enabled. No additional fields are needed.
+
+When a storyboard tag is applied:
+
+1. `timer.partial` is merged into the store's timer state.
+2. If `partial.enabled`, `elapsedSec` is set to `max(0, totalSec - startSec)` instead of 0.
+3. The timer starts immediately (`running = true`).
 
 ## Remote Image Safety
 
@@ -110,7 +153,7 @@ Field notes:
 | Page advances into a tagged segment | `applyTagToAllCells()` sets `cellTagOverrides[cellId]` and merges `effects` into all cells |
 | Page retreats before active tags | `restoreBaseline()` restores the snapshot taken at file load |
 | `progress.enabled` | `storyboardEffectProgress` increments from 0 to 1 each page and overrides timer sync in the ticker |
-| `timer.enabled` | App `timer.enabled` is forced on, timer resets and starts; Auto-advance suspends until timer completes |
+| `timer.enabled` | App `timer.enabled` is forced on; `elapsedSec` is set per `partial.startSec` if partial is enabled; timer starts; Auto-advance suspends until timer completes (normal or partial end) |
 
 ## State and Baseline Rules
 

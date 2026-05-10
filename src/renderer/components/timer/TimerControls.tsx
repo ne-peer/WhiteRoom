@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useTimer } from '../../hooks/useTimer'
 import { Section, Row, Toggle, NumberInput, Select, Button, ColorPicker, Slider } from '../controls/UIKit'
@@ -25,6 +25,7 @@ export const TimerControls: React.FC = () => {
   const { setTimer, selectedCellId, enableAllTimerSyncForSelectedCell, disableAllTimerSyncForSelectedCell } = useAppStore()
   const { timer, start, pause, reset } = useTimer()
   const { t } = useTranslation()
+  const [showPartial, setShowPartial] = useState(false)
 
   return (
     <div>
@@ -54,6 +55,59 @@ export const TimerControls: React.FC = () => {
                 onChange={v => setTimer({ position: v as TimerPosition })}
               />
             </Row>
+
+            <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setShowPartial(v => !v)}
+                style={{
+                  background: showPartial ? 'rgba(255,220,0,0.18)' : 'rgba(255,255,255,0.1)',
+                  border: showPartial ? '1px solid rgba(255,220,0,0.5)' : '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 4,
+                  color: showPartial ? 'rgba(255,220,0,0.9)' : 'rgba(255,255,255,0.8)',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  padding: '3px 10px',
+                  lineHeight: 1.4,
+                }}
+              >
+                {t('storyboardPartialSection')}
+              </button>
+            </div>
+            {showPartial && (
+              <div style={{ marginTop: 8, paddingLeft: 4 }}>
+                  <Row label={t('partialTimerEnabled')}>
+                    <Toggle
+                      value={timer.partial.enabled}
+                      onChange={v => setTimer({ partial: { ...timer.partial, enabled: v } })}
+                    />
+                  </Row>
+                  {timer.partial.enabled && (
+                    <>
+                      <Row label={t('partialTimerStart')}>
+                        <NumberInput
+                          value={timer.partial.startSec}
+                          min={0}
+                          max={timer.totalSec}
+                          step={1}
+                          unit={t('seconds')}
+                          onChange={v => setTimer({ partial: { ...timer.partial, startSec: Math.round(clamp(v, 0, timer.totalSec)) } })}
+                        />
+                      </Row>
+                      <Row label={t('partialTimerEnd')}>
+                        <NumberInput
+                          value={timer.partial.endSec}
+                          min={0}
+                          max={Math.max(0, timer.partial.startSec - 1)}
+                          step={1}
+                          unit={t('seconds')}
+                          onChange={v => setTimer({ partial: { ...timer.partial, endSec: Math.round(clamp(v, 0, Math.max(0, timer.partial.startSec - 1))) } })}
+                        />
+                      </Row>
+                    </>
+                  )}
+                </div>
+              )}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
               {timer.running ? (

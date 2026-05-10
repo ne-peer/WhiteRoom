@@ -102,6 +102,8 @@ For the Text Reader storyboard tag system, read `docs/WR-Storyboard.md` before i
 
 - Tags are standalone lines that trigger image/effect changes when the next clean paragraph first becomes visible.
 - Rich tags use the format `[WR:<appVersion>:<JSON payload>]`.
+- The `timer` field in rich tags is `Partial<SavedTimerConfig>` (= `TimerConfig` minus `elapsedSec` and `running`). This includes `timer.partial` for partial start/end control.
+- `timer.partial.enabled` starts the timer at `totalSec - startSec` remaining and stops it early at `endSec` remaining; completion fires `timerCompletedNonce` and resumes Text Reader Auto-advance.
 - Remote storyboard images must be loaded through main-process IPC, deduplicated, and session-cached.
 - pixiv-family hosts (`pixiv.net` and `pximg.net`) are capped at 10 distinct image/page URLs per app session.
 - Never add hard-coded sample pixiv artwork URLs or artwork IDs to code, tests, docs, or commit messages.

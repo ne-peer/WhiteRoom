@@ -270,6 +270,12 @@ export type TimerPosition =
   | 'middle-left' | 'middle-center' | 'middle-right'
   | 'bottom-left' | 'bottom-center' | 'bottom-right'
 
+export type TimerPartialConfig = {
+  enabled: boolean
+  startSec: number   // カウントダウン開始秒数（合計時間の残り秒数）
+  endSec: number     // カウントダウン終了秒数（残り秒数、0=最後まで）
+}
+
 export type TimerConfig = {
   enabled: boolean
   totalSec: number
@@ -281,6 +287,7 @@ export type TimerConfig = {
   endFlash: TimerEndFlashConfig
   preOverlay: TimerPreOverlayConfig
   autoNext: TimerAutoNextConfig
+  partial: TimerPartialConfig
 }
 
 export type TimerEndFlashConfig = {

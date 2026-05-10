@@ -1,5 +1,5 @@
 Created: 2026-05-09
-Last Updated: 2026-05-10
+Last Updated: 2026-05-10 (partial timer added to SavedTimerConfig)
 
 # WhiteRoom Image Effect Profile Specification
 
@@ -76,7 +76,8 @@ The implementation should prefer a maintainable JSON object like this:
         "showBackground": false,
         "effectCompletionLeadSec": 3,
         "endFlash": { "enabled": true, "color": { "r": 255, "g": 255, "b": 255 }, "maxTransparency": 0, "count": 3, "intervalSec": 0.5 },
-        "preOverlay": { "enabled": false, "imagePath": null, "displayStartSec": 10, "startOpacity": 0, "endOpacity": 80 }
+        "preOverlay": { "enabled": false, "imagePath": null, "displayStartSec": 10, "startOpacity": 0, "endOpacity": 80 },
+        "partial": { "enabled": false, "startSec": 60, "endSec": 0 }
       }
     }
   }
@@ -98,6 +99,8 @@ Each entry uses the following TypeScript shape:
 `timer` is optional for backward compatibility. Entries written before timer support was added will continue to load correctly; when applied, the timer state remains unchanged for those entries.
 
 `elapsedSec` and `running` are excluded from `SavedTimerConfig` because they represent transient session state, not configuration.
+
+`timer.partial` stores the partial start/end config introduced for storyboard use. When `partial.enabled` is true and the timer is started by applying this profile entry, `elapsedSec` is initialized to `totalSec - partial.startSec` instead of 0, and the timer stops when `elapsedSec` reaches `totalSec - partial.endSec`. See `WR-Storyboard.md § Partial Timer` for full details.
 
 ### Save Behavior
 
