@@ -1,8 +1,10 @@
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ne-peer/WhiteRoom/total?style=flat&color=FF6496)
+[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ne-peer/WhiteRoom/total?style=flat&color=FF6496)](https://github.com/ne-peer/WhiteRoom/releases)
 
 <div>
    <h1 align="center">WhiteRoom</h1> 
-   <p align="center">ビジュアルエフェクトを付与できるマルチカラム対応画像ビューア<br>A multi-column image viewer that lets you apply visual effects.</p>
+   <p align="center">ビジュアルエフェクトを付与できるマルチカラム対応画像ビューア<br>
+        <sub>A multi-column image viewer that lets you apply visual effects.<sub></p>
+   <p align="center"><a href="https://github.com/ne-peer/WhiteRoom/releases"><ins>Download</ins></a></p>
 </div>
 
 &nbsp;
@@ -26,8 +28,7 @@
 
 ## 使い方
 
-以下から最新版をダウンロードしてください。
-- https://github.com/ne-peer/WhiteRoom/releases
+### ファイルタイプ
 
 | OS | ファイル |
 |---|---|
