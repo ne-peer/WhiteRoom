@@ -164,6 +164,7 @@ export type ShakeEffect = {
 
 export type SquishEffect = {
   enabled: boolean
+  mode: 'oneshot' | 'permanentA' | 'permanentB'
   organicEnabled: boolean
   colorSource?: 'manual' | 'imageCenter'
   circleSizeRatio: number
@@ -175,6 +176,7 @@ export type SquishEffect = {
   speedFactor: number
   repeatEnabled: boolean
   repeatIntervalSec: number
+  randomPosition: boolean
 }
 
 export type AssetDrawPattern = 'rising' | 'emergence'

@@ -135,6 +135,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
   },
   squish: {
     enabled: false,
+    mode: 'oneshot' as 'oneshot' | 'permanentA' | 'permanentB',
     organicEnabled: false,
     colorSource: 'manual',
     circleSizeRatio: 0.6,
@@ -146,6 +147,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
+    randomPosition: false,
   },
   dynamicAsset: {
     enabled: false,

@@ -149,6 +149,7 @@ export class CellRenderer {
   private squishElapsedSec = 0
   private squishCycleComplete = false
   private squishOrganicShape: SquishOrganicShape | null = null
+  private squishRandomPosition: { x: number; y: number } | null = null
   private activeSlideTransition: {
     incoming: PIXI.Sprite
     outgoing: PIXI.Sprite
@@ -2224,6 +2225,7 @@ export class CellRenderer {
     const key = squish
       ? [
           squish.enabled,
+          squish.mode ?? 'oneshot',
           squish.organicEnabled,
           squish.colorSource,
           squish.circleSizeRatio,
@@ -2237,6 +2239,7 @@ export class CellRenderer {
           squish.speedFactor,
           squish.repeatEnabled,
           squish.repeatIntervalSec,
+          squish.randomPosition ?? false,
         ].join(':')
       : 'disabled'
 
@@ -2248,14 +2251,39 @@ export class CellRenderer {
 
     if (this.squishKey === key) return
     this.squishKey = key
-    this.resetSquishMotion()
-    this.drawSquish(squish, 0)
+    this.resetSquishMotion(squish)
+    const mode = squish.mode ?? 'oneshot'
+    if (mode === 'permanentA') {
+      this.drawSquishPermanent(squish, 0)
+    } else if (mode === 'permanentB') {
+      this.drawSquishPermanentB(squish, 0)
+    } else {
+      this.drawSquish(squish, 0)
+    }
   }
 
   private tickSquish(delta: number, squish?: SquishEffect) {
     if (!squish?.enabled) return
 
     const dtSec = Math.max(0, delta) / 60
+    const mode = squish.mode ?? 'oneshot'
+
+    if (mode === 'permanentA' || mode === 'permanentB') {
+      const animationSec = this.getSquishAnimationDurationSec(squish)
+      if (animationSec <= 0) return
+      this.squishElapsedSec += dtSec
+      if (this.squishElapsedSec >= animationSec) {
+        this.squishElapsedSec %= animationSec
+        this.resetSquishOrganicShapes()
+      }
+      if (mode === 'permanentB') {
+        this.drawSquishPermanentB(squish, this.squishElapsedSec)
+      } else {
+        this.drawSquishPermanent(squish, this.squishElapsedSec)
+      }
+      return
+    }
+
     const animationSec = this.getSquishAnimationDurationSec(squish)
     const intervalSec = Math.max(0, squish.repeatIntervalSec)
     const cycleSec = animationSec + (squish.repeatEnabled ? intervalSec : 0)
@@ -2266,7 +2294,10 @@ export class CellRenderer {
     if (squish.repeatEnabled && cycleSec > 0) {
       const didWrap = this.squishElapsedSec >= cycleSec
       this.squishElapsedSec %= cycleSec
-      if (didWrap) this.resetSquishOrganicShapes()
+      if (didWrap) {
+        this.resetSquishOrganicShapes()
+        if (squish.randomPosition) this.computeSquishRandomPosition(squish)
+      }
     } else if (this.squishElapsedSec >= animationSec) {
       this.squishElapsedSec = animationSec
       this.squishCycleComplete = true
@@ -2316,6 +2347,62 @@ export class CellRenderer {
     const effectiveRadius = radius * (organicShape?.sizeScale ?? 1)
     const effectiveSecondRadius = secondRadius * (organicShape?.sizeScale ?? 1)
 
+    const baseX = (squish.randomPosition && this.squishRandomPosition)
+      ? this.squishRandomPosition.x
+      : this.width / 2
+    const baseY = (squish.randomPosition && this.squishRandomPosition)
+      ? this.squishRandomPosition.y
+      : this.height / 2
+    const centers: [number, number] = [baseX - centerOffset, baseX + centerOffset]
+    this.drawSquishBlobPair(centers, baseY, effectiveRadius, organicShape)
+    this.squishGraphics.fill({ color: 0x000000, alpha: baseAlpha })
+    this.drawSquishBlobPair(centers, baseY, effectiveRadius, organicShape)
+    this.squishGraphics.fill({ color, alpha: colorAlpha })
+    this.drawSquishBlobPair(centers, baseY, effectiveSecondRadius, organicShape)
+    this.squishGraphics.fill({ color: 0x000000, alpha: secondBaseAlpha })
+    this.drawSquishBlobPair(centers, baseY, effectiveSecondRadius, organicShape)
+    this.squishGraphics.fill({ color: secondColor, alpha: secondColorAlpha })
+  }
+
+  private drawSquishPermanent(squish: SquishEffect, elapsedSec: number) {
+    this.squishGraphics.clear()
+    const animationSec = this.getSquishAnimationDurationSec(squish)
+    if (animationSec <= 0) return
+
+    const progress = clamp(elapsedSec / animationSec, 0, 1)
+    const growEnd = 0.25
+    const peakScale = 1.06
+    const minScale = 0.35
+    const scale = progress < growEnd
+      ? lerp(minScale, peakScale, easeOutBack(progress / growEnd))
+      : lerp(peakScale, minScale, easeInOutSine((progress - growEnd) / (1 - growEnd)))
+
+    if (scale <= 0) return
+
+    this.updateSquishFeather(squish)
+
+    const minSide = Math.max(1, Math.min(this.width, this.height))
+    const diameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5) * scale
+    const radius = diameter / 2
+    const finalDiameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5)
+    const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5)
+    const centerOffset = (finalDiameter + edgeGap) / 2
+    const centerX = this.width / 2
+    const centerY = this.height / 2
+    const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
+    const opacity = clamp(squish.opacity ?? 1, 0, 1)
+    const colorAlpha = clamp(squish.alpha, 0, 1) * opacity
+    const baseAlpha = clamp(0.42 + squish.alpha * 0.18, 0, 0.65) * opacity
+    const secondRadius = radius * 0.85
+    const secondColor = darkenColor(color, 0.72)
+    const secondBaseAlpha = clamp(baseAlpha + 0.12, 0, 0.8)
+    const secondColorAlpha = clamp(colorAlpha + 0.16 * opacity, 0, 1)
+    const organicShape = squish.organicEnabled
+      ? this.ensureSquishOrganicShape()
+      : undefined
+    const effectiveRadius = radius * (organicShape?.sizeScale ?? 1)
+    const effectiveSecondRadius = secondRadius * (organicShape?.sizeScale ?? 1)
+
     const centers: [number, number] = [centerX - centerOffset, centerX + centerOffset]
     this.drawSquishBlobPair(centers, centerY, effectiveRadius, organicShape)
     this.squishGraphics.fill({ color: 0x000000, alpha: baseAlpha })
@@ -2325,6 +2412,74 @@ export class CellRenderer {
     this.squishGraphics.fill({ color: 0x000000, alpha: secondBaseAlpha })
     this.drawSquishBlobPair(centers, centerY, effectiveSecondRadius, organicShape)
     this.squishGraphics.fill({ color: secondColor, alpha: secondColorAlpha })
+  }
+
+  private drawSquishPermanentB(squish: SquishEffect, elapsedSec: number) {
+    this.squishGraphics.clear()
+    const animationSec = this.getSquishAnimationDurationSec(squish)
+    if (animationSec <= 0) return
+
+    const progress = clamp(elapsedSec / animationSec, 0, 1)
+    const minScale = 0.35
+    const maxScale = 1.0
+    const expandEnd = 0.5
+    const scale = progress < expandEnd
+      ? lerp(minScale, maxScale, easeInOutCubic(progress / expandEnd))
+      : lerp(maxScale, minScale, easeInOutCubic((progress - expandEnd) / (1 - expandEnd)))
+
+    if (scale <= 0) return
+
+    this.updateSquishFeather(squish)
+
+    const minSide = Math.max(1, Math.min(this.width, this.height))
+    const diameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5) * scale
+    const radius = diameter / 2
+    const finalDiameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5)
+    const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5)
+    const centerOffset = (finalDiameter + edgeGap) / 2
+    const centerX = this.width / 2
+    const centerY = this.height / 2
+    const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
+    const opacity = clamp(squish.opacity ?? 1, 0, 1)
+    const colorAlpha = clamp(squish.alpha, 0, 1) * opacity
+    const baseAlpha = clamp(0.42 + squish.alpha * 0.18, 0, 0.65) * opacity
+    const secondRadius = radius * 0.85
+    const secondColor = darkenColor(color, 0.72)
+    const secondBaseAlpha = clamp(baseAlpha + 0.12, 0, 0.8)
+    const secondColorAlpha = clamp(colorAlpha + 0.16 * opacity, 0, 1)
+    const organicShape = squish.organicEnabled
+      ? this.ensureSquishOrganicShape()
+      : undefined
+    const effectiveRadius = radius * (organicShape?.sizeScale ?? 1)
+    const effectiveSecondRadius = secondRadius * (organicShape?.sizeScale ?? 1)
+
+    const centers: [number, number] = [centerX - centerOffset, centerX + centerOffset]
+    this.drawSquishBlobPair(centers, centerY, effectiveRadius, organicShape)
+    this.squishGraphics.fill({ color: 0x000000, alpha: baseAlpha })
+    this.drawSquishBlobPair(centers, centerY, effectiveRadius, organicShape)
+    this.squishGraphics.fill({ color, alpha: colorAlpha })
+    this.drawSquishBlobPair(centers, centerY, effectiveSecondRadius, organicShape)
+    this.squishGraphics.fill({ color: 0x000000, alpha: secondBaseAlpha })
+    this.drawSquishBlobPair(centers, centerY, effectiveSecondRadius, organicShape)
+    this.squishGraphics.fill({ color: secondColor, alpha: secondColorAlpha })
+  }
+
+  private computeSquishRandomPosition(squish: SquishEffect) {
+    const minSide = Math.min(this.width, this.height)
+    const radius = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5) / 2
+    const padding = Math.max(radius, minSide * 0.15)
+    const minX = padding
+    const maxX = this.width - padding
+    const minY = padding
+    const maxY = this.height - padding
+    if (maxX <= minX || maxY <= minY) {
+      this.squishRandomPosition = { x: this.width / 2, y: this.height / 2 }
+      return
+    }
+    this.squishRandomPosition = {
+      x: minX + Math.random() * (maxX - minX),
+      y: minY + Math.random() * (maxY - minY),
+    }
   }
 
   private drawSquishBlobPair(
@@ -2432,10 +2587,15 @@ export class CellRenderer {
     this.squishGraphics.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
   }
 
-  private resetSquishMotion() {
+  private resetSquishMotion(squish?: SquishEffect) {
     this.squishElapsedSec = 0
     this.squishCycleComplete = false
     this.resetSquishOrganicShapes()
+    if (squish && (squish.mode ?? 'oneshot') === 'oneshot' && squish.randomPosition) {
+      this.computeSquishRandomPosition(squish)
+    } else {
+      this.squishRandomPosition = null
+    }
     this.squishGraphics.clear()
   }
 
@@ -2454,10 +2614,10 @@ export class CellRenderer {
 
   private getSquishCycleDurationMs(squish?: SquishEffect) {
     if (!squish?.enabled) return 0
-    return (
-      this.getSquishAnimationDurationSec(squish) +
-      (squish.repeatEnabled ? Math.max(0, squish.repeatIntervalSec) : 0)
-    ) * 1000
+    const animSec = this.getSquishAnimationDurationSec(squish)
+    const mode = squish.mode ?? 'oneshot'
+    if (mode === 'permanentA' || mode === 'permanentB') return animSec * 1000
+    return (animSec + (squish.repeatEnabled ? Math.max(0, squish.repeatIntervalSec) : 0)) * 1000
   }
 
   private rebuildVignette() {
@@ -3190,6 +3350,11 @@ function easeOutSine(x: number): number {
 
 function easeInSine(x: number): number {
   return 1 - Math.cos((clamp(x, 0, 1) * Math.PI) / 2)
+}
+
+function easeInOutCubic(x: number): number {
+  const t = clamp(x, 0, 1)
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
 }
 
 function easeOutBack(x: number): number {

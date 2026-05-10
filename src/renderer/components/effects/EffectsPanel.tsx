@@ -127,6 +127,7 @@ const EFFECT_PRESET_1: CellEffects = {
   },
   squish: {
     enabled: false,
+    mode: 'oneshot' as const,
     organicEnabled: false,
     colorSource: 'manual',
     circleSizeRatio: 0.6,
@@ -138,6 +139,7 @@ const EFFECT_PRESET_1: CellEffects = {
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
+    randomPosition: false,
   },
   dynamicAsset: {
     enabled: true,
@@ -292,6 +294,7 @@ const EFFECT_PRESET_2: CellEffects = {
   },
   squish: {
     enabled: false,
+    mode: 'oneshot' as const,
     organicEnabled: false,
     colorSource: 'manual',
     circleSizeRatio: 0.6,
@@ -303,6 +306,7 @@ const EFFECT_PRESET_2: CellEffects = {
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
+    randomPosition: false,
   },
   dynamicAsset: {
     enabled: false,
@@ -1506,6 +1510,25 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         </Row>
         {effects.squish.enabled && (
           <>
+            <Row label={t('squishMode')}>
+              <Select
+                value={effects.squish.mode ?? 'oneshot'}
+                options={[
+                  { value: 'oneshot', label: t('squishModeOneshot') },
+                  { value: 'permanentA', label: t('squishModePermanentA') },
+                  { value: 'permanentB', label: t('squishModePermanentB') },
+                ]}
+                onChange={v => set('squish', { mode: v as 'oneshot' | 'permanentA' | 'permanentB' })}
+              />
+            </Row>
+            {(effects.squish.mode ?? 'oneshot') === 'oneshot' && (
+              <Row label={t('squishRandomPosition')}>
+                <Toggle
+                  value={effects.squish.randomPosition ?? false}
+                  onChange={v => set('squish', { randomPosition: v })}
+                />
+              </Row>
+            )}
             <Row label={t('squishOpacity')}>
               <Slider
                 value={Math.round(effects.squish.opacity * 100)}
@@ -1613,23 +1636,27 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('squish', { speedFactor: v })}
               />
             </Row>
-            <Row label={t('shakeRepeat')}>
-              <Toggle
-                value={effects.squish.repeatEnabled}
-                onChange={v => set('squish', { repeatEnabled: v })}
-              />
-            </Row>
-            {effects.squish.repeatEnabled && (
-              <Row label={t('shakeRepeatInterval')}>
-                <NumberInput
-                  value={effects.squish.repeatIntervalSec}
-                  min={0}
-                  max={60}
-                  step={0.1}
-                  unit={t('seconds')}
-                  onChange={v => set('squish', { repeatIntervalSec: v })}
-                />
-              </Row>
+            {(effects.squish.mode ?? 'oneshot') === 'oneshot' && (
+              <>
+                <Row label={t('shakeRepeat')}>
+                  <Toggle
+                    value={effects.squish.repeatEnabled}
+                    onChange={v => set('squish', { repeatEnabled: v })}
+                  />
+                </Row>
+                {effects.squish.repeatEnabled && (
+                  <Row label={t('shakeRepeatInterval')}>
+                    <NumberInput
+                      value={effects.squish.repeatIntervalSec}
+                      min={0}
+                      max={60}
+                      step={0.1}
+                      unit={t('seconds')}
+                      onChange={v => set('squish', { repeatIntervalSec: v })}
+                    />
+                  </Row>
+                )}
+              </>
             )}
           </>
         )}
