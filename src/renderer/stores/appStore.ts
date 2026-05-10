@@ -131,6 +131,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     trailCenterY: 0.5,
     trailSize: 0.7,
     trailHeight: 1,
+    lockBaseImage: false,
   },
   dynamicAsset: {
     enabled: false,

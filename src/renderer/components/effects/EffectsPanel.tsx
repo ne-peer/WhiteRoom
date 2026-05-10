@@ -1335,6 +1335,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     </Row>
                   </>
                 )}
+                <Row label={t('shakeTrailLockBase')}>
+                  <Toggle
+                    value={effects.shake.lockBaseImage ?? false}
+                    onChange={v => set('shake', { lockBaseImage: v })}
+                  />
+                </Row>
                 {effects.shake.mode === 'once' && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                     <Button
