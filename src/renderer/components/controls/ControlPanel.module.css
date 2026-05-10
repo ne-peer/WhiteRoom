@@ -13,6 +13,10 @@
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
+.panelHidden {
+  display: none;
+}
+
 .panelFloating {
   right: 10px;
   top: 10px;

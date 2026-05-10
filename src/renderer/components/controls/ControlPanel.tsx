@@ -56,7 +56,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
     return () => document.removeEventListener('mousedown', handleClick)
   }, [menuOpen])
 
-  if (!showControls && !floating) return null
+  const isHidden = !showControls && !floating
 
   const isMenuTabActive = MENU_TABS.some(tab => tab.id === activeTab)
 
@@ -68,7 +68,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
   const activeMenuTab = MENU_TABS.find(tab => tab.id === activeTab)
 
   return (
-    <div className={`${styles.panel} ${floating ? styles.panelFloating : ''}`}>
+    <div className={`${styles.panel} ${floating ? styles.panelFloating : ''} ${isHidden ? styles.panelHidden : ''}`}>
       {/* タブナビゲーション — ラッパーで overflow visible を確保 */}
       <div className={styles.tabsContainer} ref={menuRef}>
         <div className={styles.tabs}>
