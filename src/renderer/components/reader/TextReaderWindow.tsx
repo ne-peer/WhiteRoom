@@ -83,6 +83,44 @@ function calcMaxCharsForArea(
   }
 }
 
+/**
+ * splitSegmentToPages と同じ分割アルゴリズムで、各ページが segment テキスト内の
+ * 何文字目から始まるかを返す。offsets[0] はセグメント先頭文字（trim後）のオフセット。
+ */
+function getSegmentPageCharOffsets(
+  segment: string,
+  areaWidth: number,
+  areaHeight: number,
+  fontSize: number,
+  direction: 'horizontal' | 'vertical'
+): number[] {
+  const offsets: number[] = []
+  const startTrimLength = segment.length - segment.trimStart().length
+  let charOffset = startTrimLength
+  let remaining = segment.trim()
+
+  while (remaining.length > 0) {
+    offsets.push(charOffset)
+    const maxChars = calcMaxCharsForArea(remaining, areaWidth, areaHeight, fontSize, direction)
+    if (maxChars >= remaining.length) {
+      break
+    }
+    const slice = remaining.slice(0, maxChars)
+    const lastNewline = slice.lastIndexOf('\n')
+    const splitAt = lastNewline > maxChars * 0.4 ? lastNewline + 1 : maxChars
+
+    charOffset += splitAt
+
+    const nextPart = remaining.slice(splitAt)
+    const nextTrimmed = nextPart.trimStart()
+    charOffset += nextPart.length - nextTrimmed.length  // trimStart で除去した文字数
+
+    remaining = nextTrimmed
+  }
+
+  return offsets.length > 0 ? offsets : [0]
+}
+
 function splitSegmentToPages(
   segment: string,
   areaWidth: number,
@@ -119,6 +157,7 @@ export const TextReaderWindow: React.FC = () => {
   const tagEntries = useAppStore(s => s.textReader.tagEntries)
   const autoSuspendedForTimer = useAppStore(s => s.textReader.autoSuspendedForTimer)
   const timer = useAppStore(s => s.timer)
+  const timerAutoNextEnabled = useAppStore(s => s.timer.autoNext.enabled)
   const {
     setTextReaderPage,
     setTextReaderAutoAdvancing,
@@ -129,6 +168,7 @@ export const TextReaderWindow: React.FC = () => {
     incrementActiveProgressPages,
     setAutoSuspendedForTimer,
     setCurrentSegmentIndex,
+    setCurrentPageSegCharOffset,
   } = useAppStore()
 
   const textAreaRef = useRef<HTMLDivElement>(null)
@@ -181,6 +221,32 @@ export const TextReaderWindow: React.FC = () => {
   const segmentPageStartsRef = useRef(segmentPageStarts)
   segmentPageStartsRef.current = segmentPageStarts
 
+  // 現在ページのセグメント内文字オフセットを更新（タグ挿入位置の計算に使用）
+  // 0 = セグメント先頭（insertOrReplaceTagBefore を使う）、>0 = 途中分割位置
+  useEffect(() => {
+    if (!visible || segmentPageStarts.length === 0) {
+      setCurrentPageSegCharOffset(0)
+      return
+    }
+
+    let segIdx = 0
+    for (let i = 0; i < segmentPageStarts.length; i++) {
+      if ((segmentPageStarts[i] ?? 0) <= currentPageIndex) segIdx = i
+      else break
+    }
+
+    const pageWithinSeg = currentPageIndex - (segmentPageStarts[segIdx] ?? 0)
+
+    if (pageWithinSeg === 0 || textAreaSize.width === 0 || textAreaSize.height === 0) {
+      setCurrentPageSegCharOffset(0)
+      return
+    }
+
+    const segText = rawSegments[segIdx] ?? ''
+    const charOffsets = getSegmentPageCharOffsets(segText, textAreaSize.width, textAreaSize.height, config.fontSize, config.textDirection)
+    setCurrentPageSegCharOffset(charOffsets[pageWithinSeg] ?? 0)
+  }, [visible, currentPageIndex, segmentPageStarts, rawSegments, textAreaSize, config.fontSize, config.textDirection, setCurrentPageSegCharOffset]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ページ変更時のタグ評価・ロールバック
   const prevPageIndexRef = useRef<number>(-1)
   useEffect(() => {
@@ -195,11 +261,36 @@ export const TextReaderWindow: React.FC = () => {
       else break
     }
 
-    // 現在セグメントに対して有効な最後のタグを探す
-    let newTagIndex: number | null = null
+    // アクティブセグメントの最初と最後のタグインデックスを特定
+    let activeSegIdx = -1
+    let firstTagIdx: number | null = null
+    let lastTagIdx: number | null = null
+
     for (let i = 0; i < tagEntries.length; i++) {
       const e = tagEntries[i]!
-      if (e.segmentIndex <= currentSegIdx) newTagIndex = i
+      if (e.segmentIndex <= currentSegIdx) {
+        if (e.segmentIndex > activeSegIdx) {
+          activeSegIdx = e.segmentIndex
+          firstTagIdx = i
+          lastTagIdx = i
+        } else if (e.segmentIndex === activeSegIdx) {
+          lastTagIdx = i
+        }
+      }
+    }
+
+    // 複数タグ時の画像選択ルール：
+    // - タイマーあり かつ autoNext.enabled ON → 最後のタグを適用（最後のタグの画像を表示）
+    // - それ以外 → 最初のタグを適用（最初のタグの画像を表示）
+    let newTagIndex: number | null = null
+    if (firstTagIdx !== null && lastTagIdx !== null) {
+      if (firstTagIdx !== lastTagIdx) {
+        const lastTag = tagEntries[lastTagIdx]!.tag
+        const lastHasTimer = lastTag.kind === 'rich' && lastTag.payload.timer?.enabled
+        newTagIndex = (lastHasTimer && timerAutoNextEnabled) ? lastTagIdx : firstTagIdx
+      } else {
+        newTagIndex = lastTagIdx
+      }
     }
 
     const storeState = useAppStore.getState()
@@ -222,7 +313,7 @@ export const TextReaderWindow: React.FC = () => {
       // 同じタグのまま前進 → エフェクト進行率を更新
       incrementActiveProgressPages()
     }
-  }, [currentPageIndex, visible, tagEntries, segmentPageStarts]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentPageIndex, visible, tagEntries, segmentPageStarts, timerAutoNextEnabled]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // タイマー完了後に Auto を再開
   useEffect(() => {
