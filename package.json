@@ -62,7 +62,7 @@
       "artifactName": "WhiteRoom Setup_v${version}.${ext}"
     },
     "portable": {
-      "artifactName": "WhiteRoom Portable_v${version}.${ext}"
+      "artifactName": "WhiteRoom for Windows_v${version}.${ext}"
     },
     "mac": {
       "icon": "build/icon.icns",
