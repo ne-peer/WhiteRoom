@@ -194,3 +194,4 @@ When instructed with `bump to v{x.x.x}` (for example, `bump to v1.5.1`), perform
 | v1.5.1 | One-shot shake repeat option and effect center picking improvements |
 | v1.5.2 | Per-image effect profiles, pick-mode circle height shortcuts, image navigation shortcuts, window size reset |
 | v1.5.3 | Storyboard reader settings save/restore, timer profile auto-next integration, fixed-base shake trail option, spiral coverage fix |
+| v1.5.4 | Storyboard timer partial control, squish effect expansion, storyboard loading guardrails, profile window/UI state persistence |
