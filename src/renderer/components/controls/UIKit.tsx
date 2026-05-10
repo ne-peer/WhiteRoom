@@ -119,13 +119,15 @@ export const ColorPicker: React.FC<{
 
   return (
     <div className={styles.colorPickerWrapper}>
-      <input
-        type="color"
-        className={styles.colorInput}
-        value={hex}
-        onChange={e => handleHexChange(e.target.value)}
-      />
-      <span className={styles.colorHex}>{hex.toUpperCase()}</span>
+      <div className={styles.colorPickerRow}>
+        <input
+          type="color"
+          className={styles.colorInput}
+          value={hex}
+          onChange={e => handleHexChange(e.target.value)}
+        />
+        <span className={styles.colorHex}>{hex.toUpperCase()}</span>
+      </div>
       {showAlpha && onAlphaChange && (
         <div className={styles.alphaWrapper}>
           <input

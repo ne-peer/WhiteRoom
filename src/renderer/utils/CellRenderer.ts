@@ -14,6 +14,8 @@ type SquishOrganicShape = {
   sizeScale: number
 }
 
+type DrawableImageSource = HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | ImageBitmap | OffscreenCanvas
+
 export class CellRenderer {
   readonly cellId: string
   readonly container: PIXI.Container
@@ -303,6 +305,15 @@ export class CellRenderer {
       x: clamp(local.x / this.width, 0, 1),
       y: clamp(local.y / this.height, 0, 1),
     }
+  }
+
+  isCurrentImage(src: string): boolean {
+    return this.currentImageSrc === toFileUrl(src)
+  }
+
+  getImageCenterColor(): { r: number; g: number; b: number } | null {
+    if (!this.imageSprite) return null
+    return sampleTextureCenterColor(this.imageSprite.texture)
   }
 
   async setImage(src: string, transition: SlideShowTransition = 'none', transitionDurationMs = 350) {
@@ -2214,6 +2225,7 @@ export class CellRenderer {
       ? [
           squish.enabled,
           squish.organicEnabled,
+          squish.colorSource,
           squish.circleSizeRatio,
           squish.gapRatio,
           squish.color.r,
@@ -2304,18 +2316,43 @@ export class CellRenderer {
     const effectiveRadius = radius * (organicShape?.sizeScale ?? 1)
     const effectiveSecondRadius = secondRadius * (organicShape?.sizeScale ?? 1)
 
-    const centers = [centerX - centerOffset, centerX + centerOffset]
-    for (let index = 0; index < centers.length; index += 1) {
-      const x = centers[index]
-      this.drawSquishBlob(x, centerY, effectiveRadius, organicShape)
-      this.squishGraphics.fill({ color: 0x000000, alpha: baseAlpha })
-      this.drawSquishBlob(x, centerY, effectiveRadius, organicShape)
-      this.squishGraphics.fill({ color, alpha: colorAlpha })
-      this.drawSquishBlob(x, centerY, effectiveSecondRadius, organicShape)
-      this.squishGraphics.fill({ color: 0x000000, alpha: secondBaseAlpha })
-      this.drawSquishBlob(x, centerY, effectiveSecondRadius, organicShape)
-      this.squishGraphics.fill({ color: secondColor, alpha: secondColorAlpha })
+    const centers: [number, number] = [centerX - centerOffset, centerX + centerOffset]
+    this.drawSquishBlobPair(centers, centerY, effectiveRadius, organicShape)
+    this.squishGraphics.fill({ color: 0x000000, alpha: baseAlpha })
+    this.drawSquishBlobPair(centers, centerY, effectiveRadius, organicShape)
+    this.squishGraphics.fill({ color, alpha: colorAlpha })
+    this.drawSquishBlobPair(centers, centerY, effectiveSecondRadius, organicShape)
+    this.squishGraphics.fill({ color: 0x000000, alpha: secondBaseAlpha })
+    this.drawSquishBlobPair(centers, centerY, effectiveSecondRadius, organicShape)
+    this.squishGraphics.fill({ color: secondColor, alpha: secondColorAlpha })
+  }
+
+  private drawSquishBlobPair(
+    centerXs: [number, number],
+    centerY: number,
+    radius: number,
+    shape?: SquishOrganicShape
+  ) {
+    const [leftX, rightX] = centerXs[0] <= centerXs[1]
+      ? centerXs
+      : [centerXs[1], centerXs[0]]
+    const radiusX = radius * (shape?.radiusXScale ?? 1)
+    const radiusY = radius * (shape?.radiusYScale ?? 1)
+    const distance = rightX - leftX
+
+    if (radiusX <= 0 || radiusY <= 0) return
+    if (distance <= 0) {
+      this.drawSquishBlob(leftX, centerY, radius, shape)
+      return
     }
+
+    if (distance >= radiusX * 2) {
+      this.drawSquishBlob(leftX, centerY, radius, shape)
+      this.drawSquishBlob(rightX, centerY, radius, shape)
+      return
+    }
+
+    this.drawMergedEllipsePair(leftX, rightX, centerY, radiusX, radiusY)
   }
 
   private drawSquishBlob(centerX: number, centerY: number, radius: number, shape?: SquishOrganicShape) {
@@ -2330,6 +2367,40 @@ export class CellRenderer {
       radius * shape.radiusXScale,
       radius * shape.radiusYScale
     )
+  }
+
+  private drawMergedEllipsePair(
+    leftX: number,
+    rightX: number,
+    centerY: number,
+    radiusX: number,
+    radiusY: number
+  ) {
+    const halfNormalizedDistance = clamp((rightX - leftX) / (2 * radiusX), 0, 1)
+    const intersectionAngle = Math.acos(halfNormalizedDistance)
+    const leftStart = intersectionAngle
+    const leftEnd = Math.PI * 2 - intersectionAngle
+    const rightStart = Math.PI + intersectionAngle
+    const rightEnd = Math.PI * 3 - intersectionAngle
+    const steps = 40
+    let firstPoint = true
+
+    const addArc = (centerX: number, start: number, end: number) => {
+      for (let i = 0; i <= steps; i += 1) {
+        const angle = start + ((end - start) * i) / steps
+        const x = centerX + Math.cos(angle) * radiusX
+        const y = centerY + Math.sin(angle) * radiusY
+        if (firstPoint) {
+          this.squishGraphics.moveTo(x, y)
+          firstPoint = false
+        } else {
+          this.squishGraphics.lineTo(x, y)
+        }
+      }
+    }
+
+    addArc(leftX, leftStart, leftEnd)
+    addArc(rightX, rightStart, rightEnd)
   }
 
   private ensureSquishOrganicShape(): SquishOrganicShape {
@@ -3140,6 +3211,48 @@ function darkenColor(color: number, factor: number): number {
   const g = ((color >> 8) & 0xff) * clampedFactor
   const b = (color & 0xff) * clampedFactor
   return rgbToHex(r, g, b)
+}
+
+function sampleTextureCenterColor(texture: PIXI.Texture): { r: number; g: number; b: number } | null {
+  const resource = texture.source.resource as unknown
+  if (!isCanvasImageSource(resource)) return null
+  const size = getCanvasImageSourceSize(resource)
+  if (!size || size.width <= 0 || size.height <= 0) return null
+
+  const canvas = document.createElement('canvas')
+  canvas.width = 1
+  canvas.height = 1
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context) return null
+
+  try {
+    const sx = Math.max(0, Math.min(size.width - 1, Math.floor(size.width / 2)))
+    const sy = Math.max(0, Math.min(size.height - 1, Math.floor(size.height / 2)))
+    context.drawImage(resource, sx, sy, 1, 1, 0, 0, 1, 1)
+    const [r, g, b] = context.getImageData(0, 0, 1, 1).data
+    return { r, g, b }
+  } catch {
+    return null
+  }
+}
+
+function isCanvasImageSource(resource: unknown): resource is DrawableImageSource {
+  if (typeof HTMLImageElement !== 'undefined' && resource instanceof HTMLImageElement) return true
+  if (typeof HTMLCanvasElement !== 'undefined' && resource instanceof HTMLCanvasElement) return true
+  if (typeof HTMLVideoElement !== 'undefined' && resource instanceof HTMLVideoElement) return true
+  if (typeof ImageBitmap !== 'undefined' && resource instanceof ImageBitmap) return true
+  if (typeof OffscreenCanvas !== 'undefined' && resource instanceof OffscreenCanvas) return true
+  return false
+}
+
+function getCanvasImageSourceSize(source: DrawableImageSource): { width: number; height: number } | null {
+  if (source instanceof HTMLImageElement) {
+    return { width: source.naturalWidth, height: source.naturalHeight }
+  }
+  if (source instanceof HTMLVideoElement) {
+    return { width: source.videoWidth, height: source.videoHeight }
+  }
+  return { width: source.width, height: source.height }
 }
 
 function getNextShakeOnceTarget(currentTarget: number): number {

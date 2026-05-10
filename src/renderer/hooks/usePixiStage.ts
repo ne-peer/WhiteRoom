@@ -115,13 +115,26 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     .map(c => `${c.id}:${c.folder?.id ?? ''}:${c.currentImageIndex}:${store.cellTagOverrides[c.id] ?? ''}`)
     .join(',')
 
+  const syncSquishImageCenterColor = (
+    cellId: string,
+    cr: CellRenderer,
+    expectedImage?: string
+  ) => {
+    if (expectedImage && !cr.isCurrentImage(expectedImage)) return
+    const color = cr.getImageCenterColor()
+    if (!color) return
+    useAppStore.getState().setCellSquishImageCenterColor(cellId, color)
+  }
+
   useEffect(() => {
     store.cells.forEach(cell => {
       const cr = cellRenderersRef.current.get(cell.id)
       if (!cr) return
       const overrideImage = store.cellTagOverrides[cell.id]
       if (overrideImage) {
-        cr.setImage(overrideImage, 'fade', 350)
+        void cr.setImage(overrideImage, 'fade', 350)
+          .then(() => syncSquishImageCenterColor(cell.id, cr, overrideImage))
+          .catch(() => undefined)
         return
       }
       if (!cell.folder) {
@@ -129,7 +142,11 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
         return
       }
       const imgPath = cell.folder.images[cell.currentImageIndex]
-      if (imgPath) cr.setImage(imgPath, cell.slideshow.transition, cell.slideshow.transitionDurationMs)
+      if (imgPath) {
+        void cr.setImage(imgPath, cell.slideshow.transition, cell.slideshow.transitionDurationMs)
+          .then(() => syncSquishImageCenterColor(cell.id, cr, imgPath))
+          .catch(() => undefined)
+      }
     })
   }, [imageKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -140,6 +157,9 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       if (cr) {
         cr.setImageFit(cell.imageFit ?? 'cover')
         cr.updateEffects(cell.effects, showCircleGuides)
+        if (cell.effects.squish.colorSource === 'imageCenter') {
+          syncSquishImageCenterColor(cell.id, cr)
+        }
       }
     })
     lastEffectGuideNonceRef.current = store.effectGuideNonce

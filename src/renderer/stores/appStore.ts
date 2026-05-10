@@ -136,6 +136,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
   squish: {
     enabled: false,
     organicEnabled: false,
+    colorSource: 'manual',
     circleSizeRatio: 0.6,
     gapRatio: 0,
     color: { r: 222, g: 124, b: 155 },
@@ -456,6 +457,7 @@ export type AppActions = {
   setCellEffect: <K extends keyof CellEffects>(
     cellId: string, effectKey: K, value: Partial<CellEffects[K]>
   ) => void
+  setCellSquishImageCenterColor: (cellId: string, color: { r: number; g: number; b: number }) => void
   setAllCellsEffect: <K extends keyof CellEffects>(
     effectKey: K, value: Partial<CellEffects[K]>
   ) => void
@@ -723,6 +725,15 @@ export const useAppStore = create<AppStore>()(
         return
       }
       Object.assign(cell.effects[effectKey], patch)
+      s.effectGuideNonce += 1
+    }),
+
+    setCellSquishImageCenterColor: (cellId, color) => set(s => {
+      const cell = s.cells.find(c => c.id === cellId)
+      if (!cell || cell.effects.squish.colorSource !== 'imageCenter') return
+      const current = cell.effects.squish.color
+      if (current.r === color.r && current.g === color.g && current.b === color.b) return
+      cell.effects.squish.color = color
       s.effectGuideNonce += 1
     }),
 

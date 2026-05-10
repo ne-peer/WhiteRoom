@@ -128,6 +128,7 @@ const EFFECT_PRESET_1: CellEffects = {
   squish: {
     enabled: false,
     organicEnabled: false,
+    colorSource: 'manual',
     circleSizeRatio: 0.6,
     gapRatio: 0,
     color: { r: 222, g: 124, b: 155 },
@@ -292,6 +293,7 @@ const EFFECT_PRESET_2: CellEffects = {
   squish: {
     enabled: false,
     organicEnabled: false,
+    colorSource: 'manual',
     circleSizeRatio: 0.6,
     gapRatio: 0,
     color: { r: 222, g: 124, b: 155 },
@@ -1419,14 +1421,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('squish', { organicEnabled: v })}
               />
             </Row>
-            <Row label={t('squishColor')}>
+            <Row label={t('squishColorSource')}>
+              <Select
+                value={effects.squish.colorSource ?? 'manual'}
+                options={[
+                  { value: 'manual', label: t('squishColorSourceManual') },
+                  { value: 'imageCenter', label: t('squishColorSourceImageCenter') },
+                ]}
+                onChange={v => set('squish', { colorSource: v as 'manual' | 'imageCenter' })}
+              />
+            </Row>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
               <ColorPicker
                 r={effects.squish.color.r}
                 g={effects.squish.color.g}
                 b={effects.squish.color.b}
                 onChange={(r, g, b) => set('squish', { color: { r, g, b } })}
               />
-            </Row>
+            </div>
             <Row label={t('squishColorAlpha')}>
               <Slider
                 value={Math.round(effects.squish.alpha * 100)}
