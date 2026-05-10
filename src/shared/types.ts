@@ -412,9 +412,13 @@ export type SaveTextFileResult = {
   error?: string
 }
 
+// タイマー設定のうち保存対象（elapsedSec・running はセッション状態のため除外）
+export type SavedTimerConfig = Omit<TimerConfig, 'elapsedSec' | 'running'>
+
 export type ImageEffectProfileEntry = {
   image: string
   effects: Partial<CellEffects>
+  timer?: Partial<SavedTimerConfig>
 }
 
 export type ImageEffectProfileDocument = {
@@ -490,7 +494,8 @@ export type IpcApi = {
   saveImageEffectProfile: (
     folderPath: string,
     imagePath: string,
-    effects: Partial<CellEffects>
+    effects: Partial<CellEffects>,
+    timer?: Partial<SavedTimerConfig>
   ) => Promise<SaveImageEffectProfileResult>
   cleanupTextReaderTempFile: (tempFilePath: string) => Promise<CleanupTextReaderTempFileResult>
   loadRemoteImageAsDataUrl: (url: string) => Promise<RemoteImageResult>

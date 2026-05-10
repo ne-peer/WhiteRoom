@@ -13,6 +13,7 @@ import type {
   ImageEffectProfileDocument,
   LoadImageEffectProfileResult,
   SaveImageEffectProfileResult,
+  SavedTimerConfig,
   SaveProfileResult,
   LoadProfileResult,
   OpenFolderResult,
@@ -101,7 +102,8 @@ function normalizeImageEffectProfile(raw: unknown): ImageEffectProfileDocument {
       if (!isRecord(value)) continue
       const image = typeof value.image === 'string' ? value.image : key
       const effects = isRecord(value.effects) ? value.effects : {}
-      entries[key] = { image, effects }
+      const timer = isRecord(value.timer) ? value.timer as Partial<SavedTimerConfig> : undefined
+      entries[key] = timer !== undefined ? { image, effects, timer } : { image, effects }
     }
   }
   const rawVersion = isRecord(raw) ? raw.version : undefined
@@ -132,7 +134,8 @@ function loadImageEffectProfileFile(folderPath: string): LoadImageEffectProfileR
 function saveImageEffectProfileFile(
   folderPath: string,
   imagePath: string,
-  effects: ImageEffectProfileDocument['entries'][string]['effects']
+  effects: ImageEffectProfileDocument['entries'][string]['effects'],
+  timer?: Partial<SavedTimerConfig>
 ): SaveImageEffectProfileResult {
   const imageKey = toProfileImageKey(folderPath, imagePath)
   if (!imageKey) {
@@ -144,16 +147,17 @@ function saveImageEffectProfileFile(
     ? loaded.profile
     : { version: app.getVersion(), updatedAt: new Date().toISOString(), entries: {} }
 
+  const entry: ImageEffectProfileDocument['entries'][string] = timer !== undefined
+    ? { image: imageKey, effects, timer }
+    : { image: imageKey, effects }
+
   const updated: ImageEffectProfileDocument = {
     ...profile,
     version: app.getVersion(),
     updatedAt: new Date().toISOString(),
     entries: {
       ...profile.entries,
-      [imageKey]: {
-        image: imageKey,
-        effects,
-      },
+      [imageKey]: entry,
     },
   }
 
@@ -890,9 +894,10 @@ ipcMain.handle(
     _event,
     folderPath: string,
     imagePath: string,
-    effects: ImageEffectProfileDocument['entries'][string]['effects']
+    effects: ImageEffectProfileDocument['entries'][string]['effects'],
+    timer?: Partial<SavedTimerConfig>
   ): Promise<SaveImageEffectProfileResult> => {
-    return saveImageEffectProfileFile(folderPath, imagePath, effects)
+    return saveImageEffectProfileFile(folderPath, imagePath, effects, timer)
   }
 )
 

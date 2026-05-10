@@ -321,6 +321,18 @@ function applyImageEffectProfileToCell(state: AppState, cell: Cell): boolean {
   if (!entry) return false
 
   cell.effects = mergeEffectsWithDefaults(entry.effects)
+  if (entry.timer) {
+    const { endFlash, preOverlay, autoNext, ...rest } = entry.timer
+    Object.assign(state.timer, rest)
+    if (endFlash) Object.assign(state.timer.endFlash, endFlash)
+    if (preOverlay) Object.assign(state.timer.preOverlay, preOverlay)
+    if (autoNext) Object.assign(state.timer.autoNext, autoNext)
+    if (entry.timer.enabled) {
+      state.timer.elapsedSec = 0
+      state.timer.running = true
+      state.timerSuspendedSlideshow = true
+    }
+  }
   return true
 }
 
@@ -364,6 +376,7 @@ export type AppState = {
   appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error' } | null
   imageEffectProfiles: Record<string, ImageEffectProfileDocument | null>
   imageEffectProfileAutoApplySuspended: boolean
+  timerSuspendedSlideshow: boolean  // タイマープロファイル適用中はスライドショーを停止
 
   // セルのタグ一時上書き（profile対象外・セッション専用）
   cellTagOverrides: Record<string, string | null>  // cellId → override image path
@@ -519,6 +532,7 @@ export const useAppStore = create<AppStore>()(
     appNotification: null,
     imageEffectProfiles: {},
     imageEffectProfileAutoApplySuspended: false,
+    timerSuspendedSlideshow: false,
     cellTagOverrides: {},
     textReader: {
       config: getInitialTextReaderConfig(),
@@ -811,10 +825,17 @@ export const useAppStore = create<AppStore>()(
       if (s.timer.elapsedSec >= s.timer.totalSec) {
         s.timer.running = false
         s.timerCompletedNonce += 1
+        // autoNext が無効の場合はここでスライドショーを再開
+        if (s.timerSuspendedSlideshow && !s.timer.autoNext.enabled) {
+          s.timerSuspendedSlideshow = false
+        }
       }
     }),
 
     timerAutoNextImages: () => set(s => {
+      // 新しい画像でタイマープロファイルが再設定されなければスライドショーを再開するためリセット
+      s.timerSuspendedSlideshow = false
+
       s.cells.forEach(cell => {
         if (!cell.folder || cell.folder.images.length <= 1) return
         const len = cell.folder.images.length
@@ -826,9 +847,10 @@ export const useAppStore = create<AppStore>()(
         }
         if (applyImageEffectProfileToCell(s, cell)) s.effectSyncNonce += 1
       })
-      if (s.timer.enabled) {
-        s.timer.elapsedSec = 0
-        s.timer.running = true
+
+      // タイマープロファイルが再設定されなかった場合はスライドショーを再スタート
+      if (!s.timerSuspendedSlideshow) {
+        s.slideshowRestartNonce += 1
       }
     }),
 
@@ -926,6 +948,7 @@ export const useAppStore = create<AppStore>()(
       s.selectedCellId = null
       s.imageEffectProfiles = {}
       s.imageEffectProfileAutoApplySuspended = false
+      s.timerSuspendedSlideshow = false
     }),
 
     resetProfile: () => set(s => {
@@ -941,6 +964,7 @@ export const useAppStore = create<AppStore>()(
       s.applyEffectChangesToAllColumns = true
       s.imageEffectProfiles = {}
       s.imageEffectProfileAutoApplySuspended = false
+      s.timerSuspendedSlideshow = false
     }),
 
     // ===== テキストリーダー =====
@@ -1038,6 +1062,7 @@ export const useAppStore = create<AppStore>()(
       s.textReader.currentSegmentIndex = 0
       s.textReader.readingConfig = null
       s.imageEffectProfileAutoApplySuspended = false
+      s.timerSuspendedSlideshow = false
       let applied = false
       s.cells.forEach(cell => {
         applied = applyImageEffectProfileToCell(s, cell) || applied
