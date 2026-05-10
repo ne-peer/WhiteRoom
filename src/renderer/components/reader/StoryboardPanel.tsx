@@ -26,7 +26,6 @@ export const StoryboardPanel: React.FC = () => {
   const { t } = useTranslation()
   const [progressEnabled, setProgressEnabled] = useState(false)
   const [progressPages, setProgressPages] = useState(5)
-  const [timerEnabled, setTimerEnabled] = useState(false)
   const [useRelativePath, setUseRelativePath] = useState(false)
   const [imageReferenceInput, setImageReferenceInput] = useState('')
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
@@ -70,6 +69,7 @@ export const StoryboardPanel: React.FC = () => {
   const segmentStartLines = useAppStore(s => s.textReader.segmentStartLines)
   const cells = useAppStore(s => s.cells)
   const cellTagOverrides = useAppStore(s => s.cellTagOverrides)
+  const timerEnabled = useAppStore(s => s.timer.enabled)
   const setStoryboardOpen = useAppStore(s => s.setStoryboardOpen)
   const insertTagAtCurrentPosition = useAppStore(s => s.insertTagAtCurrentPosition)
   const updateReadingConfigTag = useAppStore(s => s.updateReadingConfigTag)
@@ -211,17 +211,6 @@ export const StoryboardPanel: React.FC = () => {
               <span className={styles.unit}>{t('storyboardProgressPages')}</span>
             </div>
           )}
-        </div>
-
-        <div className={styles.progressRow}>
-          <label className={styles.checkLabel}>
-            <input
-              type="checkbox"
-              checked={timerEnabled}
-              onChange={e => setTimerEnabled(e.target.checked)}
-            />
-            {t('storyboardTimerEnabled')}
-          </label>
         </div>
 
         <div className={styles.divider} />

@@ -1179,6 +1179,7 @@ export const useAppStore = create<AppStore>()(
 
       // タイマーリセット（タグ優先）
       if (tag.kind === 'rich' && tag.payload.timer?.enabled) {
+        s.timer.enabled = true
         s.timer.elapsedSec = 0
         s.timer.running = true
         // Auto が動作中なら一時停止

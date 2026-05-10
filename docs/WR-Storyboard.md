@@ -1,5 +1,5 @@
 Created: 2026-05-08
-Last Updated: 2026-05-10 (reading config tag added; timer merged into image tag)
+Last Updated: 2026-05-10 (reading config tag added; timer merged into image tag; timer auto-start on tag apply)
 
 # WhiteRoom Storyboard Tag Specification
 
@@ -90,7 +90,7 @@ Field notes:
 - `image` may be an absolute path, a path relative to the text file, a `file:` URL, a `data:` URL, or an `http(s)` image/page URL.
 - `effects` contains partial `CellEffects` values to apply to all cells.
 - `progress.enabled` ramps effect progress over the specified number of pages.
-- `timer.enabled` resets and starts the timer when the tag triggers.
+- `timer.enabled` forces `timer.enabled = true` in the app state, resets `elapsedSec` to 0, and starts the timer when the tag triggers.
 
 ## Remote Image Safety
 
@@ -110,7 +110,7 @@ Field notes:
 | Page advances into a tagged segment | `applyTagToAllCells()` sets `cellTagOverrides[cellId]` and merges `effects` into all cells |
 | Page retreats before active tags | `restoreBaseline()` restores the snapshot taken at file load |
 | `progress.enabled` | `storyboardEffectProgress` increments from 0 to 1 each page and overrides timer sync in the ticker |
-| `timer.enabled` | Timer resets and starts; Auto-advance suspends until timer completes |
+| `timer.enabled` | App `timer.enabled` is forced on, timer resets and starts; Auto-advance suspends until timer completes |
 
 ## State and Baseline Rules
 
