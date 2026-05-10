@@ -37,8 +37,8 @@ export const translations = {
     resetWindowSize: 'ウィンドウサイズをリセット',
     appearanceShortcutHelp: 'u: UI表示・非表示　Esc: フルスクリーン終了',
 
-    languageSettings: '言語設定',
-    uiLanguage: 'UI言語',
+    languageSettings: 'UI',
+    uiLanguage: 'Language',
     backgroundColor: '背景色',
     backgroundType: 'タイプ',
     backgroundColorLabel: 'カラー',
@@ -398,8 +398,8 @@ export const translations = {
     resetWindowSize: 'Reset window size',
     appearanceShortcutHelp: 'u: show/hide UI  Esc: exit fullscreen',
 
-    languageSettings: 'Language',
-    uiLanguage: 'UI language',
+    languageSettings: 'UI',
+    uiLanguage: 'Language',
     backgroundColor: 'Background Color',
     backgroundType: 'Type',
     backgroundColorLabel: 'Color',
