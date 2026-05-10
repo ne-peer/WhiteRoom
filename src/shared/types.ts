@@ -159,6 +159,7 @@ export type ShakeEffect = {
   trailCenterY: number
   trailSize: number
   trailHeight: number
+  lockBaseImage?: boolean
 }
 
 export type AssetDrawPattern = 'rising' | 'emergence'

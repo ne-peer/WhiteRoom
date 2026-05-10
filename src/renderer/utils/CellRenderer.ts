@@ -1091,9 +1091,10 @@ export class CellRenderer {
     const shake = this.latestEffects?.shake
     const breathingEnabled = breathing?.enabled ?? false
 
+    const shakeContributes = shake?.enabled && !(shake.lockBaseImage && shake.trailEnabled)
     return {
       offsetX: breathingEnabled ? this.breathingOffsetX : 0,
-      offsetY: (breathingEnabled ? this.breathingOffsetY : 0) + (shake?.enabled ? this.shakeOffsetY : 0),
+      offsetY: (breathingEnabled ? this.breathingOffsetY : 0) + (shakeContributes ? this.shakeOffsetY : 0),
       scaleMultiplier: breathingEnabled && breathing?.scaleEnabled ? this.getBreathingScaleMultiplier() : 1,
     }
   }
