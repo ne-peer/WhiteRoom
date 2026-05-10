@@ -39,7 +39,7 @@ export const CellNavigationOverlay: React.FC<Props> = ({ hoveredCellId }) => {
     e.stopPropagation()
     const imagePath = cell.folder?.images[cell.currentImageIndex]
     if (!cell.folder || !imagePath) return
-    if (cell.folder.source === 'remote-image' || /^https?:\/\//i.test(imagePath)) {
+    if (/^https?:\/\//i.test(imagePath)) {
       showAppNotification(t('imageEffectProfileRemoteUnsupported'), 'error')
       return
     }

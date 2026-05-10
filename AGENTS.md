@@ -53,7 +53,7 @@ Image effect profiles are cached by folder path in `imageEffectProfiles`. Automa
 
 `window.api.xxx()` -> `ipcRenderer.invoke()` / event subscription -> `ipcMain.handle()` (via preload)
 
-Current IPC covers folder selection/path reads, profile save/load, asset and overlay image selection, preset asset folder listing, local image base64 reads, system font listing, text file load/save and temp cleanup, image effect profile load/save, remote storyboard image loading with session cache/limits, fullscreen/window controls, external links/devtools, and fullscreen change notifications.
+Current IPC covers folder selection/path reads, profile save/load, asset and overlay image selection, preset asset folder listing, local image base64 reads, system font listing, text file load/save and temp cleanup, image effect profile load/save, fullscreen/window controls, external links/devtools, and fullscreen change notifications.
 
 ## Reference Policy
 
@@ -102,9 +102,7 @@ For the Text Reader storyboard tag system, read `docs/WR-Storyboard.md` before i
 
 - Tags are standalone lines that trigger image/effect changes when the next clean paragraph first becomes visible.
 - Rich tags use the format `[WR:<appVersion>:<JSON payload>]`.
-- Remote storyboard images must be loaded through main-process IPC, deduplicated, and session-cached.
-- pixiv-family hosts (`pixiv.net` and `pximg.net`) are capped at 10 distinct image/page URLs per app session.
-- Never add hard-coded sample pixiv artwork URLs or artwork IDs to code, tests, docs, or commit messages.
+- Storyboard tag images support absolute local paths, text-file-relative paths, file URLs, and data URLs. Remote `http(s)` image loading via IPC was removed in v1.5.3 (ToS compliance — see below).
 
 ## Image Effect Profile Spec
 
@@ -115,6 +113,20 @@ For the per-image effect profile save/load feature, read `docs/WR-EffectProfile.
 - Saved image paths must be relative.
 - Text Reader / Storyboard activity suspends automatic application until the text file is closed.
 - Remote URL images cannot be saved because there is no local target folder.
+
+## Removed Features
+
+### v1.5.3 — Remote image URL loading removed
+
+The following features were removed to avoid potential violations of each service's Terms of Service (scraping prohibition clauses):
+
+- **Grid remote image URL input** (`GridControls`): UI and logic that allowed specifying an `http(s)` URL to display an image directly in a cell.
+- **Pixiv session limits**: `MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP`, `countedPixivImageUrls`, `registerPixivImageUrl`, and all pixiv-specific HTTP fetching helpers (`fetchPixivOriginalCandidates`, `tryPixivOriginalImage`, `getPximgOriginalCandidates`, etc.).
+- **Request count display**: The `pixivCounter` UI in `TextReaderPanel` that polled `getRemoteImageStats()`.
+- **IPC channels**: `load-remote-image-data-url` and `get-remote-image-stats` were removed from `main/index.ts` and `preload/index.ts`.
+- **Types**: `RemoteImageResult`, `RemoteImageStatsResult`, and `CellFolder.source` were removed from `shared/types.ts`.
+
+Storyboard tags that reference local paths and `data:` URLs continue to work. Storyboard tags with `http(s)` image URLs are no longer resolved through IPC; PixiJS will attempt to load them directly (subject to CORS; results are not guaranteed).
 
 ## Documentation Workflow
 
@@ -191,3 +203,4 @@ When instructed with `bump to v{x.x.x}` (for example, `bump to v1.5.1`), perform
 | v1.5.0 | Shake, flash, and spiral effects; shared effect center controls; advanced shake trail controls |
 | v1.5.1 | One-shot shake repeat option and effect center picking improvements |
 | v1.5.2 | Per-image effect profiles, pick-mode circle height shortcuts, image navigation shortcuts, window size reset |
+| v1.5.3 | Remote image URL grid input and pixiv session-limit features removed (ToS compliance) |

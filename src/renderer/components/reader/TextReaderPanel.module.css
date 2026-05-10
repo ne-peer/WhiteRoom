@@ -77,16 +77,6 @@
   padding: 0 2px;
 }
 
-.pixivCounter {
-  margin-top: auto;
-  font-size: 10px;
-  color: rgba(130, 130, 170, 0.42);
-  line-height: 1.4;
-  padding: 0 2px 2px;
-  text-align: right;
-  user-select: none;
-}
-
 .select {
   width: 100%;
   background: rgba(255, 255, 255, 0.06);

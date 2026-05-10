@@ -25,7 +25,6 @@ export type UiLanguage = 'ja' | 'en'
 
 export type CellFolder = {
   id: string
-  source?: 'folder' | 'remote-image'
   path: string
   images: string[]  // ファイルパス一覧
 }
@@ -436,19 +435,6 @@ export type CleanupTextReaderTempFileResult = {
   error?: string
 }
 
-export type RemoteImageResult = {
-  success: boolean
-  dataUrl?: string
-  contentType?: string
-  limitExceeded?: boolean
-  error?: string
-}
-
-export type RemoteImageStatsResult = {
-  pixivUniqueImageCount: number
-  pixivUniqueImageLimit: number
-}
-
 export type IpcApi = {
   openFolder: (language?: UiLanguage) => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
@@ -474,7 +460,5 @@ export type IpcApi = {
     effects: Partial<CellEffects>
   ) => Promise<SaveImageEffectProfileResult>
   cleanupTextReaderTempFile: (tempFilePath: string) => Promise<CleanupTextReaderTempFileResult>
-  loadRemoteImageAsDataUrl: (url: string) => Promise<RemoteImageResult>
-  getRemoteImageStats: () => Promise<RemoteImageStatsResult>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void
 }

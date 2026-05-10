@@ -22,32 +22,10 @@ export const TextReaderPanel: React.FC = () => {
   } = useAppStore()
 
   const [systemFonts, setSystemFonts] = useState<string[]>([])
-  const [pixivStats, setPixivStats] = useState({ count: 0, limit: 10 })
 
   useEffect(() => {
     const api = (window as unknown as { api: IpcApi }).api
     api.listSystemFonts().then(setSystemFonts)
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    const api = (window as unknown as { api: IpcApi }).api
-    const refreshStats = async () => {
-      const stats = await api.getRemoteImageStats()
-      if (!cancelled) {
-        setPixivStats({
-          count: stats.pixivUniqueImageCount,
-          limit: stats.pixivUniqueImageLimit,
-        })
-      }
-    }
-
-    refreshStats()
-    const timer = window.setInterval(refreshStats, 1000)
-    return () => {
-      cancelled = true
-      window.clearInterval(timer)
-    }
   }, [])
 
   const handleOpenFile = async () => {
@@ -276,9 +254,6 @@ export const TextReaderPanel: React.FC = () => {
 
       {/* ショートカットヘルプ */}
       <div className={styles.shortcutHelp}>{t('textReaderShortcutHelp')}</div>
-      <div className={styles.pixivCounter}>
-        pixiv requests: {pixivStats.count}/{pixivStats.limit}
-      </div>
     </div>
   )
 }
