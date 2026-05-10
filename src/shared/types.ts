@@ -307,6 +307,8 @@ export type AppProfile = {
   cells: Cell[]
   timer: TimerConfig
   fullscreen: boolean
+  windowSize?: WindowSize
+  showControls?: boolean
 }
 
 // ===== ストーリーボードタグ =====
@@ -482,6 +484,8 @@ export type IpcApi = {
   readImageAsBase64: (filePath: string) => Promise<string>
   saveProfile: (profile: AppProfile, language?: UiLanguage) => Promise<SaveProfileResult>
   loadProfile: (language?: UiLanguage) => Promise<LoadProfileResult>
+  loadProfileFromPath: (filePath: string) => Promise<LoadProfileResult>
+  openTextFileDirect: (filePath: string) => Promise<OpenTextFileResult>
   setFullscreen: (flag: boolean) => Promise<void>
   resetWindowSize: () => Promise<void>
   getWindowSize: () => Promise<WindowSize>
