@@ -1,5 +1,5 @@
 Created: 2026-05-08
-Last Updated: 2026-05-10 (reading config tag added)
+Last Updated: 2026-05-10 (reading config tag added; timer merged into image tag)
 
 # WhiteRoom Storyboard Tag Specification
 
@@ -127,7 +127,7 @@ Field notes:
 | `src/renderer/utils/storyboardParser.ts` | `parseTextFile()`, `insertOrReplaceTagBefore()`, `buildRichTagLine()`, `parseReadConfigTagLine()`, `buildReadConfigTagLine()`, `insertOrReplaceReadConfigAtTop()` |
 | `src/renderer/stores/appStore.ts` | `tagEntries`, `baselineSnapshot`, `cellTagOverrides`, `storyboardEffectProgress`, `readingConfig`; actions `applyTagToAllCells`, `restoreBaseline`, `insertTagAtCurrentPosition`, `updateReadingConfigTag` |
 | `src/renderer/components/reader/TextReaderWindow.tsx` | Per-page tag evaluation and rollback |
-| `src/renderer/components/reader/StoryboardPanel.tsx` | Insert image/timer/reading-config tags and save the text file |
+| `src/renderer/components/reader/StoryboardPanel.tsx` | Insert image/reading-config tags and save the text file |
 | `src/renderer/components/reader/TextReaderPanel.tsx` | Restores window size via IPC after file load if `readingConfig` is present |
 | `src/renderer/hooks/usePixiStage.ts` | `cellTagOverrides` drives image override; `storyboardEffectProgress` overrides timer progress |
 

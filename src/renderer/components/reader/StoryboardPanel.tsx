@@ -26,6 +26,7 @@ export const StoryboardPanel: React.FC = () => {
   const { t } = useTranslation()
   const [progressEnabled, setProgressEnabled] = useState(false)
   const [progressPages, setProgressPages] = useState(5)
+  const [timerEnabled, setTimerEnabled] = useState(false)
   const [useRelativePath, setUseRelativePath] = useState(false)
   const [imageReferenceInput, setImageReferenceInput] = useState('')
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
@@ -105,33 +106,7 @@ export const StoryboardPanel: React.FC = () => {
       imagePath,
       effects,
       progressEnabled ? { enabled: true, pages: progressPages } : undefined,
-      undefined
-    )
-
-    const api = (window as unknown as { api: IpcApi }).api
-    insertTagAtCurrentPosition(tagLine, segIdx, async (newText) => {
-      const path = tempFilePath ?? filePath!
-      const result = await api.saveTextFile(path, newText)
-      if (result.success) showStatus(t('storyboardInserted'))
-      else showStatus(t('storyboardSaveFailed'))
-    })
-  }
-
-  const handleInsertTimer = () => {
-    const segIdx = currentSegmentIndex
-    if (segmentStartLines[segIdx] === undefined) { showStatus(t('storyboardNoFile')); return }
-
-    const firstCell = cells[0]
-    const effects = firstCell ? firstCell.effects : undefined
-    const imagePath = getImageReferenceForTag()
-    if (!imagePath || !effects) { showStatus(t('storyboardNoFile')); return }
-
-    const tagLine = buildRichTagLine(
-      __APP_VERSION__,
-      imagePath,
-      effects,
-      undefined,
-      { enabled: true }
+      timerEnabled ? { enabled: true } : undefined
     )
 
     const api = (window as unknown as { api: IpcApi }).api
@@ -238,17 +213,15 @@ export const StoryboardPanel: React.FC = () => {
           )}
         </div>
 
-        <div className={styles.divider} />
-
-        {/* タイマーをここに差し込む */}
-        <div className={styles.btnRow}>
-          <button
-            className={styles.actionBtn}
-            onClick={handleInsertTimer}
-            title={t('storyboardInsertTimerTooltip')}
-          >
-            {t('storyboardInsertTimer')}
-          </button>
+        <div className={styles.progressRow}>
+          <label className={styles.checkLabel}>
+            <input
+              type="checkbox"
+              checked={timerEnabled}
+              onChange={e => setTimerEnabled(e.target.checked)}
+            />
+            {t('storyboardTimerEnabled')}
+          </label>
         </div>
 
         <div className={styles.divider} />
