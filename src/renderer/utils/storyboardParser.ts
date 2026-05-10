@@ -1,9 +1,11 @@
-import type { CellEffects, StoryboardRichTagPayload, StoryboardTag, TagEntry } from '../../shared/types'
+import type { CellEffects, ReadingConfigPayload, StoryboardRichTagPayload, StoryboardTag, TagEntry } from '../../shared/types'
 
 // [[画像パス]]
 const SIMPLE_TAG_RE = /^\[\[(.+)\]\]$/
 // [WR:バージョン:{...json...}]
 const RICH_TAG_RE = /^\[WR:([0-9a-z._-]+):(\{.*\})\]$/i
+// [WR-RC:バージョン:{...json...}]
+const READ_CONFIG_TAG_RE = /^\[WR-RC:([0-9a-z._-]+):(\{.*\})\]$/i
 
 export function parseTagLine(line: string): StoryboardTag | null {
   const trimmed = line.trim()
@@ -31,11 +33,28 @@ export function isTagLine(line: string): boolean {
   return parseTagLine(line) !== null
 }
 
+export function parseReadConfigTagLine(line: string): ReadingConfigPayload | null {
+  const trimmed = line.trim()
+  const match = READ_CONFIG_TAG_RE.exec(trimmed)
+  if (!match || !match[2]) return null
+  try {
+    return JSON.parse(match[2]) as ReadingConfigPayload
+  } catch {
+    return null
+  }
+}
+
+export function buildReadConfigTagLine(appVersion: string, payload: ReadingConfigPayload): string {
+  return `[WR-RC:${appVersion}:${JSON.stringify(payload)}]`
+}
+
 export type ParsedTextFile = {
   cleanSegments: string[]
   tagEntries: TagEntry[]
   // cleanSegments[i] がファイル内で何行目から始まるか（0-indexed）
   segmentStartLines: number[]
+  // ファイル先頭に埋め込まれた読書設定（存在する場合）
+  readingConfig?: ReadingConfigPayload
 }
 
 /**
@@ -47,13 +66,26 @@ export type ParsedTextFile = {
 export function parseTextFile(text: string): ParsedTextFile {
   const lines = text.split('\n')
 
+  // ファイル先頭の ReadConfig タグを検出（最初の1行目のみチェック）
+  let readingConfig: ReadingConfigPayload | undefined
+  let lineStart = 0
+  if (lines[0] !== undefined) {
+    const firstLineConfig = parseReadConfigTagLine(lines[0])
+    if (firstLineConfig !== null) {
+      readingConfig = firstLineConfig
+      // ReadConfigタグ行と後続の空行をスキップ
+      lineStart = 1
+      while (lineStart < lines.length && lines[lineStart]?.trim() === '') lineStart++
+    }
+  }
+
   // パラグラフ（2個以上の空行で区切られたブロック）に分割
   type RawParagraph = { lines: string[]; startLineIndex: number }
   const paragraphs: RawParagraph[] = []
   let blockLines: string[] = []
   let blockStart = 0
 
-  for (let i = 0; i <= lines.length; i++) {
+  for (let i = lineStart; i <= lines.length; i++) {
     const line = lines[i] ?? null
     if (line === null || line.trim() === '') {
       if (blockLines.length > 0) {
@@ -106,7 +138,20 @@ export function parseTextFile(text: string): ParsedTextFile {
     }
   }
 
-  return { cleanSegments, tagEntries, segmentStartLines }
+  return { cleanSegments, tagEntries, segmentStartLines, readingConfig }
+}
+
+/**
+ * ファイル先頭にReadConfigタグを挿入または上書きする。
+ */
+export function insertOrReplaceReadConfigAtTop(text: string, tagLine: string): string {
+  const lines = text.split('\n')
+  if (lines.length > 0 && lines[0] !== undefined && parseReadConfigTagLine(lines[0]) !== null) {
+    lines[0] = tagLine
+  } else {
+    lines.unshift(tagLine, '')
+  }
+  return lines.join('\n')
 }
 
 /**

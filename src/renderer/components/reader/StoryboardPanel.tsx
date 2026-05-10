@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useTranslation } from '../../i18n'
-import type { IpcApi } from '../../../shared/types'
-import { buildRichTagLine, createStoryboardImageReference } from '../../utils/storyboardParser'
+import type { IpcApi, ReadingConfigPayload } from '../../../shared/types'
+import { buildRichTagLine, buildReadConfigTagLine, createStoryboardImageReference } from '../../utils/storyboardParser'
 import styles from './StoryboardPanel.module.css'
 
 const APP_VERSION = '1.4.0'
@@ -73,6 +73,7 @@ export const StoryboardPanel: React.FC = () => {
   const cellTagOverrides = useAppStore(s => s.cellTagOverrides)
   const setStoryboardOpen = useAppStore(s => s.setStoryboardOpen)
   const insertTagAtCurrentPosition = useAppStore(s => s.insertTagAtCurrentPosition)
+  const updateReadingConfigTag = useAppStore(s => s.updateReadingConfigTag)
 
   const showStatus = (msg: string) => {
     setStatusMsg(msg)
@@ -155,6 +156,28 @@ export const StoryboardPanel: React.FC = () => {
     else showStatus(t('storyboardSaveFailed'))
   }
 
+  const handleSaveReadingConfig = async () => {
+    if (!filePath) { showStatus(t('storyboardNoFile')); return }
+    const rawText = useAppStore.getState().textReader.rawFileText
+    if (!rawText) { showStatus(t('storyboardNoFile')); return }
+
+    const api = (window as unknown as { api: IpcApi }).api
+    const windowSize = await api.getWindowSize()
+    const state = useAppStore.getState()
+    const config = state.textReader.config
+    const showControls = state.showControls
+
+    const payload: ReadingConfigPayload = { windowSize, textReader: config, showControls }
+    const tagLine = buildReadConfigTagLine(APP_VERSION, payload)
+    const path = tempFilePath ?? filePath
+
+    updateReadingConfigTag(tagLine, async (newText) => {
+      const result = await api.saveTextFile(path, newText)
+      if (result.success) showStatus(t('storyboardReadingConfigSaved'))
+      else showStatus(t('storyboardSaveFailed'))
+    })
+  }
+
   return (
     <div className={styles.panel} style={{ left: pos.x, top: pos.y }} data-storyboard-window>
       <div className={styles.header} onMouseDown={handleHeaderMouseDown}>
@@ -227,6 +250,19 @@ export const StoryboardPanel: React.FC = () => {
             title={t('storyboardInsertTimerTooltip')}
           >
             {t('storyboardInsertTimer')}
+          </button>
+        </div>
+
+        <div className={styles.divider} />
+
+        {/* 読書設定を保存 */}
+        <div className={styles.btnRow}>
+          <button
+            className={`${styles.actionBtn} ${styles.saveBtn}`}
+            onClick={handleSaveReadingConfig}
+            title={t('storyboardSaveReadingConfigTooltip')}
+          >
+            {t('storyboardSaveReadingConfig')}
           </button>
         </div>
 
