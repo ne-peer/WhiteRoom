@@ -125,6 +125,18 @@ const EFFECT_PRESET_1: CellEffects = {
     trailSize: 0.7,
     trailHeight: 1,
   },
+  squish: {
+    enabled: false,
+    circleSizeRatio: 0.6,
+    gapRatio: 0,
+    color: { r: 222, g: 124, b: 155 },
+    alpha: 0.45,
+    opacity: 1,
+    featherStrength: 10,
+    speedFactor: 1,
+    repeatEnabled: true,
+    repeatIntervalSec: 0.8,
+  },
   dynamicAsset: {
     enabled: true,
     pattern: 'rising',
@@ -276,6 +288,18 @@ const EFFECT_PRESET_2: CellEffects = {
     trailSize: 0.59,
     trailHeight: 0.92,
   },
+  squish: {
+    enabled: false,
+    circleSizeRatio: 0.6,
+    gapRatio: 0,
+    color: { r: 222, g: 124, b: 155 },
+    alpha: 0.45,
+    opacity: 1,
+    featherStrength: 10,
+    speedFactor: 1,
+    repeatEnabled: true,
+    repeatIntervalSec: 0.8,
+  },
   dynamicAsset: {
     enabled: false,
     pattern: 'rising',
@@ -397,6 +421,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     flash: { ...DEFAULT_EFFECTS.flash, ...rawEffects.flash },
     breathing: { ...DEFAULT_EFFECTS.breathing, ...rawEffects.breathing },
     shake: { ...DEFAULT_EFFECTS.shake, ...rawEffects.shake },
+    squish: { ...DEFAULT_EFFECTS.squish, ...rawEffects.squish },
     dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...rawEffects.dynamicAsset },
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...rawEffects.textEffect },
   }
@@ -421,6 +446,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect(selectedCellId, 'flash', structuredClone(EFFECT_PRESET_1.flash))
     setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_1.breathing))
     setCellEffect(selectedCellId, 'shake', structuredClone(EFFECT_PRESET_1.shake))
+    setCellEffect(selectedCellId, 'squish', structuredClone(EFFECT_PRESET_1.squish))
     setCellEffect(selectedCellId, 'dynamicAsset', dynamicAsset)
     setCellEffect(selectedCellId, 'textEffect', structuredClone(EFFECT_PRESET_1.textEffect))
   }
@@ -435,6 +461,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect(selectedCellId, 'flash', structuredClone(EFFECT_PRESET_2.flash))
     setCellEffect(selectedCellId, 'breathing', structuredClone(EFFECT_PRESET_2.breathing))
     setCellEffect(selectedCellId, 'shake', structuredClone(EFFECT_PRESET_2.shake))
+    setCellEffect(selectedCellId, 'squish', structuredClone(EFFECT_PRESET_2.squish))
     setCellEffect(selectedCellId, 'dynamicAsset', structuredClone(EFFECT_PRESET_2.dynamicAsset))
     setCellEffect(selectedCellId, 'textEffect', structuredClone(EFFECT_PRESET_2.textEffect))
   }
@@ -446,7 +473,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       (c.effects.spiral?.enabled && c.effects.spiral?.dynamic) ||
       (c.effects.colorOverlay?.imageAdjustEnabled && c.effects.colorOverlay?.dynamicAdjust) ||
       (c.effects.blur.enabled && c.effects.blur.gradualEnabled) ||
-      c.effects.echo.enabled
+      c.effects.echo.enabled ||
+      c.effects.squish?.enabled
     )
   )
 
@@ -1367,6 +1395,102 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
+      <Section title={t('squishEffect')}>
+        <Row label={t('enabled')}>
+          <Toggle value={effects.squish.enabled} onChange={v => set('squish', { enabled: v })} />
+        </Row>
+        {effects.squish.enabled && (
+          <>
+            <Row label={t('squishOpacity')}>
+              <Slider
+                value={Math.round(effects.squish.opacity * 100)}
+                min={0}
+                max={100}
+                step={1}
+                unit="%"
+                onChange={v => set('squish', { opacity: v / 100 })}
+              />
+            </Row>
+            <Row label={t('squishColor')}>
+              <ColorPicker
+                r={effects.squish.color.r}
+                g={effects.squish.color.g}
+                b={effects.squish.color.b}
+                onChange={(r, g, b) => set('squish', { color: { r, g, b } })}
+              />
+            </Row>
+            <Row label={t('squishColorAlpha')}>
+              <Slider
+                value={Math.round(effects.squish.alpha * 100)}
+                min={0}
+                max={100}
+                step={1}
+                unit="%"
+                onChange={v => set('squish', { alpha: v / 100 })}
+              />
+            </Row>
+            <Row label={t('squishCircleSize')}>
+              <Slider
+                value={Math.round(effects.squish.circleSizeRatio * 100)}
+                min={5}
+                max={150}
+                step={1}
+                unit="%"
+                onChange={v => set('squish', { circleSizeRatio: v / 100 })}
+              />
+            </Row>
+            <Row label={t('squishCircleGap')}>
+              <Slider
+                value={Math.round(effects.squish.gapRatio * 100)}
+                min={-50}
+                max={50}
+                step={1}
+                unit="%"
+                onChange={v => set('squish', { gapRatio: v / 100 })}
+              />
+            </Row>
+            <Row label={t('squishFeather')}>
+              <Slider
+                value={effects.squish.featherStrength}
+                min={0}
+                max={24}
+                step={0.5}
+                unit="px"
+                onChange={v => set('squish', { featherStrength: v })}
+              />
+            </Row>
+            <Row label={t('speedFactor')}>
+              <NumberInput
+                value={effects.squish.speedFactor}
+                min={0.1}
+                max={5}
+                step={0.1}
+                unit="x"
+                onChange={v => set('squish', { speedFactor: v })}
+              />
+            </Row>
+            <Row label={t('shakeRepeat')}>
+              <Toggle
+                value={effects.squish.repeatEnabled}
+                onChange={v => set('squish', { repeatEnabled: v })}
+              />
+            </Row>
+            {effects.squish.repeatEnabled && (
+              <Row label={t('shakeRepeatInterval')}>
+                <NumberInput
+                  value={effects.squish.repeatIntervalSec}
+                  min={0}
+                  max={60}
+                  step={0.1}
+                  unit={t('seconds')}
+                  onChange={v => set('squish', { repeatIntervalSec: v })}
+                />
+              </Row>
+            )}
+          </>
+        )}
+      </Section>
+
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         <div style={{ order: 2 }}>
       <Section title={t('textEffect')}>
@@ -1738,7 +1862,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <Button
             variant="secondary"
             onClick={restartEffectsWithRandomTiming}
-            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.spiral?.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled || c.effects.shake?.enabled)}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.spiral?.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled || c.effects.shake?.enabled || c.effects.squish?.enabled)}
             title={t('restartRandomTimingTip')}
           >
             {t('restartRandomTiming')}

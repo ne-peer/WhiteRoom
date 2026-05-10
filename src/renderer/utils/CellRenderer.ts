@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, ShakeEffect, SlideShowTransition } from '../../shared/types'
+import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, ShakeEffect, SlideShowTransition, SquishEffect } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -34,6 +34,8 @@ export class CellRenderer {
   private imageMask: PIXI.Graphics
   private echoMask: PIXI.Graphics
   private colorOverlayGraphics: PIXI.Graphics
+  private squishGraphics: PIXI.Graphics
+  private squishBlurFilter: PIXI.BlurFilter | null = null
   private echoSprite: PIXI.Sprite | null = null
   private flashOverlaySprite: PIXI.Sprite | null = null
   private flashOverlayVisible = false
@@ -135,6 +137,9 @@ export class CellRenderer {
   private shakeLoopSegmentStartY = 0
   private shakeAfterimages: { sprite: PIXI.Sprite; ageSec: number; durationSec: number }[] = []
   private shakeAfterimagePending = false
+  private squishKey: string | null = null
+  private squishElapsedSec = 0
+  private squishCycleComplete = false
   private activeSlideTransition: {
     incoming: PIXI.Sprite
     outgoing: PIXI.Sprite
@@ -219,6 +224,8 @@ export class CellRenderer {
 
     this.colorOverlayGraphics = new PIXI.Graphics()
     this.overlayLayer.addChild(this.colorOverlayGraphics)
+    this.squishGraphics = new PIXI.Graphics()
+    this.overlayLayer.addChild(this.squishGraphics)
     this.spiralGraphics = new PIXI.Graphics()
     this.spiralLayer.addChild(this.spiralGraphics)
 
@@ -351,6 +358,7 @@ export class CellRenderer {
     this.updateSpiral(effects)
     this.updateEcho(effects)
     this.updateFlash(effects)
+    this.updateSquish(effects.squish)
     this.updateAsset(effects)
     this.updateText(effects)
   }
@@ -373,6 +381,7 @@ export class CellRenderer {
       effects.echo.durationSec * 1000,
       (effects.breathing?.scaleDurationSec ?? 1) * 1000,
       this.getShakeCycleDurationMs(effects.shake),
+      this.getSquishCycleDurationMs(effects.squish),
       textDurationMs,
       1000
     )
@@ -385,6 +394,7 @@ export class CellRenderer {
     this.flashEndTween?.kill()
     this.resetBreathingMotion(withRandomDelay)
     this.resetShakeMotion()
+    this.resetSquishMotion()
     if (this.effectResetTimeoutId !== null) {
       clearTimeout(this.effectResetTimeoutId)
       this.effectResetTimeoutId = null
@@ -403,6 +413,7 @@ export class CellRenderer {
     this.clearFlashOverlay()
     this.breathingKey = null
     this.shakeKey = null
+    this.squishKey = null
     this.textSystem.stop()
     if (delay > 0) {
       const timeoutId = window.setTimeout(() => {
@@ -558,6 +569,7 @@ export class CellRenderer {
     this.updateShakeTrailGuide(delta)
     this.createPendingShakeAfterimage(effects.shake)
     this.updateShakeAfterimages(delta)
+    this.tickSquish(delta, effects.squish)
     this.syncRadialBlurClones()
     this.syncEchoToImage()
     this.updateFlashCycle(delta)
@@ -588,6 +600,7 @@ export class CellRenderer {
     this.clearShakeTrail()
     this.clearShakeTrailGuide()
     this.clearFlashOverlay()
+    this.clearSquish()
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.clearSpiralMask()
@@ -2189,6 +2202,150 @@ export class CellRenderer {
     }
   }
 
+  private updateSquish(squish?: SquishEffect) {
+    const key = squish
+      ? [
+          squish.enabled,
+          squish.circleSizeRatio,
+          squish.gapRatio,
+          squish.color.r,
+          squish.color.g,
+          squish.color.b,
+          squish.alpha,
+          squish.opacity,
+          squish.featherStrength,
+          squish.speedFactor,
+          squish.repeatEnabled,
+          squish.repeatIntervalSec,
+        ].join(':')
+      : 'disabled'
+
+    if (!squish?.enabled) {
+      if (this.squishKey !== key) this.clearSquish(false)
+      this.squishKey = key
+      return
+    }
+
+    if (this.squishKey === key) return
+    this.squishKey = key
+    this.resetSquishMotion()
+    this.drawSquish(squish, 0)
+  }
+
+  private tickSquish(delta: number, squish?: SquishEffect) {
+    if (!squish?.enabled) return
+
+    const dtSec = Math.max(0, delta) / 60
+    const animationSec = this.getSquishAnimationDurationSec(squish)
+    const intervalSec = Math.max(0, squish.repeatIntervalSec)
+    const cycleSec = animationSec + (squish.repeatEnabled ? intervalSec : 0)
+
+    if (this.squishCycleComplete && !squish.repeatEnabled) return
+
+    this.squishElapsedSec += dtSec
+    if (squish.repeatEnabled && cycleSec > 0) {
+      this.squishElapsedSec %= cycleSec
+    } else if (this.squishElapsedSec >= animationSec) {
+      this.squishElapsedSec = animationSec
+      this.squishCycleComplete = true
+    }
+
+    this.drawSquish(squish, this.squishElapsedSec)
+  }
+
+  private drawSquish(squish: SquishEffect, elapsedSec: number) {
+    this.squishGraphics.clear()
+    const animationSec = this.getSquishAnimationDurationSec(squish)
+    if (elapsedSec >= animationSec) return
+
+    const progress = clamp(elapsedSec / animationSec, 0, 1)
+    const growProgress = clamp(progress / 0.58, 0, 1)
+    const settleProgress = clamp((progress - 0.58) / 0.34, 0, 1)
+    const fadeProgress = clamp((progress - 0.8) / 0.2, 0, 1)
+    const peakScale = 1.06
+    const settledScale = 0.97
+    const scale = progress < 0.58
+      ? peakScale * easeOutBack(growProgress)
+      : lerp(peakScale, settledScale, easeInOutSine(settleProgress))
+    const drawAlpha = 1 - easeInSine(fadeProgress)
+    if (scale <= 0 || drawAlpha <= 0) return
+
+    this.updateSquishFeather(squish)
+
+    const minSide = Math.max(1, Math.min(this.width, this.height))
+    const diameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5) * scale
+    const radius = diameter / 2
+    const finalDiameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5)
+    const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5)
+    const centerOffset = (finalDiameter + edgeGap) / 2
+    const centerX = this.width / 2
+    const centerY = this.height / 2
+    const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
+    const opacity = clamp(squish.opacity ?? 1, 0, 1)
+    const colorAlpha = clamp(squish.alpha, 0, 1) * drawAlpha * opacity
+    const baseAlpha = clamp(0.42 + squish.alpha * 0.18, 0, 0.65) * drawAlpha * opacity
+    const secondRadius = radius * 0.85
+    const secondColor = darkenColor(color, 0.72)
+    const secondBaseAlpha = clamp(baseAlpha + 0.12, 0, 0.8)
+    const secondColorAlpha = clamp(colorAlpha + 0.16 * drawAlpha * opacity, 0, 1)
+
+    for (const x of [centerX - centerOffset, centerX + centerOffset]) {
+      this.squishGraphics.circle(x, centerY, radius)
+      this.squishGraphics.fill({ color: 0x000000, alpha: baseAlpha })
+      this.squishGraphics.circle(x, centerY, radius)
+      this.squishGraphics.fill({ color, alpha: colorAlpha })
+      this.squishGraphics.circle(x, centerY, secondRadius)
+      this.squishGraphics.fill({ color: 0x000000, alpha: secondBaseAlpha })
+      this.squishGraphics.circle(x, centerY, secondRadius)
+      this.squishGraphics.fill({ color: secondColor, alpha: secondColorAlpha })
+    }
+  }
+
+  private updateSquishFeather(squish: SquishEffect) {
+    const strength = clamp(squish.featherStrength ?? 0, 0, 24)
+    if (strength <= 0) {
+      this.squishGraphics.filters = []
+      this.squishGraphics.filterArea = undefined
+      this.squishBlurFilter = null
+      return
+    }
+
+    if (!this.squishBlurFilter) {
+      this.squishBlurFilter = new PIXI.BlurFilter({ strength, quality: 4 })
+      this.squishGraphics.filters = [this.squishBlurFilter]
+    } else {
+      this.squishBlurFilter.strength = strength
+    }
+    this.squishGraphics.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+  }
+
+  private resetSquishMotion() {
+    this.squishElapsedSec = 0
+    this.squishCycleComplete = false
+    this.squishGraphics.clear()
+  }
+
+  private clearSquish(resetKey = true) {
+    this.resetSquishMotion()
+    this.squishGraphics.filters = []
+    this.squishGraphics.filterArea = undefined
+    this.squishBlurFilter = null
+    if (resetKey) this.squishKey = null
+  }
+
+  private getSquishAnimationDurationSec(squish?: SquishEffect) {
+    if (!squish?.enabled) return 0
+    return 0.9 / clamp(squish.speedFactor, 0.1, 5)
+  }
+
+  private getSquishCycleDurationMs(squish?: SquishEffect) {
+    if (!squish?.enabled) return 0
+    return (
+      this.getSquishAnimationDurationSec(squish) +
+      (squish.repeatEnabled ? Math.max(0, squish.repeatIntervalSec) : 0)
+    ) * 1000
+  }
+
   private rebuildVignette() {
     if (this.vignetteSprite) {
       this.vignetteLayer.removeChild(this.vignetteSprite)
@@ -2899,6 +3056,35 @@ function lerp(start: number, end: number, progress: number): number {
 
 function easeInOutSine(x: number): number {
   return -(Math.cos(Math.PI * x) - 1) / 2
+}
+
+function easeOutSine(x: number): number {
+  return Math.sin((clamp(x, 0, 1) * Math.PI) / 2)
+}
+
+function easeInSine(x: number): number {
+  return 1 - Math.cos((clamp(x, 0, 1) * Math.PI) / 2)
+}
+
+function easeOutBack(x: number): number {
+  const c1 = 1.70158
+  const c3 = c1 + 1
+  const t = clamp(x, 0, 1) - 1
+  return 1 + c3 * Math.pow(t, 3) + c1 * Math.pow(t, 2)
+}
+
+function rgbToHex(r: number, g: number, b: number): number {
+  return (clamp(Math.round(r), 0, 255) << 16) |
+    (clamp(Math.round(g), 0, 255) << 8) |
+    clamp(Math.round(b), 0, 255)
+}
+
+function darkenColor(color: number, factor: number): number {
+  const clampedFactor = clamp(factor, 0, 1)
+  const r = ((color >> 16) & 0xff) * clampedFactor
+  const g = ((color >> 8) & 0xff) * clampedFactor
+  const b = (color & 0xff) * clampedFactor
+  return rgbToHex(r, g, b)
 }
 
 function getNextShakeOnceTarget(currentTarget: number): number {

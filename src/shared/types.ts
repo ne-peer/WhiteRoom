@@ -162,6 +162,19 @@ export type ShakeEffect = {
   lockBaseImage?: boolean
 }
 
+export type SquishEffect = {
+  enabled: boolean
+  circleSizeRatio: number
+  gapRatio: number
+  color: { r: number; g: number; b: number }
+  alpha: number
+  opacity: number
+  featherStrength: number
+  speedFactor: number
+  repeatEnabled: boolean
+  repeatIntervalSec: number
+}
+
 export type AssetDrawPattern = 'rising' | 'emergence'
 
 export type AssetParticle = {
@@ -243,6 +256,7 @@ export type CellEffects = {
   flash: FlashEffect
   breathing: BreathingEffect
   shake: ShakeEffect
+  squish: SquishEffect
   dynamicAsset: DynamicAssetEffect
   textEffect: TextEffect
 }
