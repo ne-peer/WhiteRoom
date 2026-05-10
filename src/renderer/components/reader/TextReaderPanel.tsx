@@ -55,6 +55,11 @@ export const TextReaderPanel: React.FC = () => {
     const result = await api.openTextFile(language)
     if (!result.canceled && result.filePath && result.text !== undefined) {
       loadTextReaderFile(result.filePath, result.text, result.tempFilePath)
+      // ファイルに埋め込まれた読書設定がある場合、ウィンドウサイズを復元
+      const readingConfig = useAppStore.getState().textReader.readingConfig
+      if (readingConfig) {
+        await api.setWindowSize(readingConfig.windowSize.width, readingConfig.windowSize.height)
+      }
     }
   }
 

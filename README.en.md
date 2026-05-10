@@ -151,6 +151,18 @@ If enabled, effect intensity increases in proportion to page progress after the 
 - During playback, reaching that page resets and starts the timer automatically
 - While timer is running, "Auto (auto page turn)" pauses temporarily and resumes after timer completion
 
+#### "Save Reading Settings"
+
+- Saves the following settings at the moment the button is pressed to the top of the file:
+  - Window size
+  - Text window display settings (position, width, direction, overlay-on-image, etc.)
+  - Font settings (font, font size, background opacity)
+  - Speed settings (text speed, page advance speed)
+  - UI show/hide state
+- The next time this file is opened, all these settings are automatically restored
+- Settings are stored as a `[WR-RC:...]` tag on the first line of the file (updated if already present)
+- After saving, click "Save File" to write the text file with the new tag
+
 #### "Save File"
 
 - Saves current edits (including inserted tags) as a new file

@@ -814,6 +814,19 @@ ipcMain.handle('reset-window-size', () => {
   win.setSize(DEFAULT_MAIN_WINDOW_WIDTH, DEFAULT_MAIN_WINDOW_HEIGHT)
 })
 
+ipcMain.handle('get-window-size', (): { width: number; height: number } => {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  if (!win) return { width: DEFAULT_MAIN_WINDOW_WIDTH, height: DEFAULT_MAIN_WINDOW_HEIGHT }
+  const [width, height] = win.getSize()
+  return { width, height }
+})
+
+ipcMain.handle('set-window-size', (_event, width: number, height: number): void => {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  if (!win || win.isFullScreen() || win.isMaximized()) return
+  win.setSize(Math.round(width), Math.round(height))
+})
+
 ipcMain.handle('open-external', async (_event, url: string) => {
   if (url.startsWith('https://github.com/')) {
     await shell.openExternal(url)

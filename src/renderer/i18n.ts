@@ -358,6 +358,9 @@ export const translations = {
     storyboardSaveFailed: '✗ 保存失敗',
     storyboardInserted: '✓ タグを挿入しました',
     storyboardNoFile: 'ファイルが読み込まれていません',
+    storyboardSaveReadingConfig: '読書設定を保存',
+    storyboardSaveReadingConfigTooltip: 'ウィンドウサイズ・テキスト表示設定・フォント設定・速度設定をファイル先頭に保存します。次回このファイルを開いたときに自動復元されます。',
+    storyboardReadingConfigSaved: '✓ 読書設定を保存しました',
   },
   en: {
     tabGrid: 'Grid',
@@ -697,5 +700,8 @@ export const translations = {
     storyboardSaveFailed: '✗ Save failed',
     storyboardInserted: '✓ Tag inserted',
     storyboardNoFile: 'No file loaded',
+    storyboardSaveReadingConfig: 'Save reading settings',
+    storyboardSaveReadingConfigTooltip: 'Saves window size, text display settings, font settings, and speed settings to the top of the file. They will be automatically restored next time this file is opened.',
+    storyboardReadingConfigSaved: '✓ Reading settings saved',
   },
 } as const satisfies Record<UiLanguage, Record<string, string>>

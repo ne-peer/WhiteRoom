@@ -4,9 +4,9 @@ import { current } from 'immer'
 import type {
   AppProfile, Cell, CellBaseline, CellEffects, CellFolder, GridLayout,
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
-  ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig,
+  ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig, ReadingConfigPayload,
 } from '../../shared/types'
-import { parseTextFile, insertOrReplaceTagBefore, resolveStoryboardImageReference } from '../utils/storyboardParser'
+import { parseTextFile, insertOrReplaceTagBefore, insertOrReplaceReadConfigAtTop, resolveStoryboardImageReference } from '../utils/storyboardParser'
 
 // ===== デフォルト値 =====
 
@@ -383,6 +383,7 @@ export type AppState = {
     autoSuspendedForTimer: boolean      // タイマー待ち中に Auto を一時停止した
     storyboardOpen: boolean             // ストーリーボードパネル表示中
     currentSegmentIndex: number         // TextReaderWindow が計算した現在のセグメント
+    readingConfig: ReadingConfigPayload | null  // ファイルから読み込んだ読書設定
   }
 }
 
@@ -473,6 +474,7 @@ export type AppActions = {
     segmentIndex: number,
     onSave: (text: string) => void
   ) => void
+  updateReadingConfigTag: (tagLine: string, onSave: (text: string) => void) => void
 }
 
 export type AppStore = AppState & AppActions
@@ -529,6 +531,7 @@ export const useAppStore = create<AppStore>()(
       autoSuspendedForTimer: false,
       storyboardOpen: false,
       currentSegmentIndex: 0,
+      readingConfig: null,
     },
 
     // ===== グリッド操作 =====
@@ -948,6 +951,21 @@ export const useAppStore = create<AppStore>()(
         s.textReader.storyboardEffectProgress = null
         s.textReader.activeProgressPages = 0
         s.textReader.autoSuspendedForTimer = false
+        s.textReader.readingConfig = parsed.readingConfig ?? null
+        // ファイルに埋め込まれた読書設定を復元（ウィンドウサイズはIPC経由でコンポーネント側が適用）
+        if (parsed.readingConfig) {
+          const restored = normalizeTextReaderConfig({
+            ...DEFAULT_TEXT_READER_CONFIG,
+            ...parsed.readingConfig.textReader,
+          })
+          s.textReader.config = restored
+          if (typeof parsed.readingConfig.showControls === 'boolean') {
+            s.showControls = parsed.readingConfig.showControls
+          }
+          try {
+            window.localStorage.setItem('whiteroom.textReaderConfig', JSON.stringify(restored))
+          } catch { /* ignore */ }
+        }
         s.imageEffectProfileAutoApplySuspended = true
         s.appNotification = {
           id: Date.now(),
@@ -987,6 +1005,7 @@ export const useAppStore = create<AppStore>()(
       s.textReader.autoSuspendedForTimer = false
       s.textReader.storyboardOpen = false
       s.textReader.currentSegmentIndex = 0
+      s.textReader.readingConfig = null
       s.imageEffectProfileAutoApplySuspended = false
       let applied = false
       s.cells.forEach(cell => {
@@ -1128,6 +1147,25 @@ export const useAppStore = create<AppStore>()(
         s.textReader.rawSegments = parsed.cleanSegments
         s.textReader.tagEntries = parsed.tagEntries
         s.textReader.segmentStartLines = parsed.segmentStartLines
+      })
+
+      onSave(newText)
+    },
+
+    updateReadingConfigTag: (tagLine, onSave) => {
+      const state = get()
+      const rawText = state.textReader.rawFileText
+      if (!rawText) return
+
+      const newText = insertOrReplaceReadConfigAtTop(rawText, tagLine)
+      const parsed = parseTextFile(newText)
+
+      set(s => {
+        s.textReader.rawFileText = newText
+        s.textReader.rawSegments = parsed.cleanSegments
+        s.textReader.tagEntries = parsed.tagEntries
+        s.textReader.segmentStartLines = parsed.segmentStartLines
+        s.textReader.readingConfig = parsed.readingConfig ?? null
       })
 
       onSave(newText)

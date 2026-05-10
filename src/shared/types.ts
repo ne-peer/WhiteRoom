@@ -449,6 +449,17 @@ export type RemoteImageStatsResult = {
   pixivUniqueImageLimit: number
 }
 
+export type WindowSize = {
+  width: number
+  height: number
+}
+
+export type ReadingConfigPayload = {
+  windowSize: WindowSize
+  textReader: TextReaderConfig
+  showControls: boolean
+}
+
 export type IpcApi = {
   openFolder: (language?: UiLanguage) => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
@@ -462,6 +473,8 @@ export type IpcApi = {
   loadProfile: (language?: UiLanguage) => Promise<LoadProfileResult>
   setFullscreen: (flag: boolean) => Promise<void>
   resetWindowSize: () => Promise<void>
+  getWindowSize: () => Promise<WindowSize>
+  setWindowSize: (width: number, height: number) => Promise<void>
   openExternal: (url: string) => Promise<void>
   openDevTools: () => Promise<void>
   listSystemFonts: () => Promise<string[]>
