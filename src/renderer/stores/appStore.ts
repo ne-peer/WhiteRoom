@@ -139,6 +139,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
+    timerSync: false,
     zoomFactor: 1.5,
     centerCorrection: true,
   },
@@ -156,6 +157,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
+    timerSync: false,
     randomPosition: false,
     gapCorrectionEnabled: false,
     gapCorrectionScale: 1.5,
@@ -166,6 +168,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     enabled: false,
     color: { r: 231, g: 193, b: 211 },
     alpha: 0.3,
+    timerSync: false,
     fogCount: 6,
     fogSizeRatio: 0.45,
     blurStrength: 15,
@@ -913,6 +916,9 @@ export const useAppStore = create<AppStore>()(
         cell.effects.blur.gradualTimerSync = true
         cell.effects.echo.timerSync = true
         cell.effects.breathing.timerSync = true
+        cell.effects.zoom.timerSync = true
+        cell.effects.squish.timerSync = true
+        cell.effects.fog.timerSync = true
         cell.effects.dynamicAsset.alphaTimerSync = true
         cell.effects.textEffect.alphaTimerSync = true
       })
@@ -929,6 +935,9 @@ export const useAppStore = create<AppStore>()(
         cell.effects.blur.gradualTimerSync = false
         cell.effects.echo.timerSync = false
         cell.effects.breathing.timerSync = false
+        cell.effects.zoom.timerSync = false
+        cell.effects.squish.timerSync = false
+        cell.effects.fog.timerSync = false
         cell.effects.dynamicAsset.alphaTimerSync = false
         cell.effects.textEffect.alphaTimerSync = false
       })

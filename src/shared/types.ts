@@ -176,6 +176,7 @@ export type SquishEffect = {
   speedFactor: number
   repeatEnabled: boolean
   repeatIntervalSec: number
+  timerSync: boolean
   randomPosition: boolean
   burstEnabled?: boolean
   burstMaxOpacity?: number
@@ -192,6 +193,7 @@ export type ZoomEffect = {
   speedFactor: number
   repeatEnabled: boolean
   repeatIntervalSec: number
+  timerSync: boolean
   zoomFactor: number
   centerCorrection: boolean
   syncNonce?: number
@@ -201,6 +203,7 @@ export type FogEffect = {
   enabled: boolean
   color: { r: number; g: number; b: number }
   alpha: number
+  timerSync: boolean
   fogCount: number
   fogSizeRatio: number
   blurStrength: number

@@ -131,6 +131,7 @@ const EFFECT_PRESET_1: CellEffects = {
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
+    timerSync: false,
     zoomFactor: 1.5,
     centerCorrection: true,
   },
@@ -148,6 +149,7 @@ const EFFECT_PRESET_1: CellEffects = {
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
+    timerSync: false,
     randomPosition: false,
     burstEnabled: false,
     burstMaxOpacity: 0.8,
@@ -193,6 +195,7 @@ const EFFECT_PRESET_1: CellEffects = {
     enabled: false,
     color: { r: 231, g: 193, b: 211 },
     alpha: 0.3,
+    timerSync: false,
     fogCount: 6,
     fogSizeRatio: 0.45,
     blurStrength: 15,
@@ -326,6 +329,7 @@ const EFFECT_PRESET_2: CellEffects = {
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
+    timerSync: false,
     zoomFactor: 1.5,
     centerCorrection: true,
   },
@@ -343,6 +347,7 @@ const EFFECT_PRESET_2: CellEffects = {
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
+    timerSync: false,
     randomPosition: false,
   },
   dynamicAsset: {
@@ -379,6 +384,7 @@ const EFFECT_PRESET_2: CellEffects = {
     enabled: false,
     color: { r: 231, g: 193, b: 211 },
     alpha: 0.3,
+    timerSync: false,
     fogCount: 6,
     fogSizeRatio: 0.45,
     blurStrength: 15,
@@ -1248,6 +1254,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('zoom', { speedFactor: v })}
               />
             </Row>
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.zoom.timerSync ?? false}
+                onChange={v => set('zoom', { timerSync: v })}
+              />
+            </Row>
             {(effects.zoom.mode ?? 'oneshot') === 'oneshot' && (
               <>
                 <Row label={t('shakeRepeat')}>
@@ -1784,6 +1796,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('squish', { speedFactor: v })}
               />
             </Row>
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.squish.timerSync ?? false}
+                onChange={v => set('squish', v ? { timerSync: true, repeatEnabled: true } : { timerSync: false })}
+              />
+            </Row>
             {(effects.squish.mode ?? 'oneshot') === 'oneshot' && (
               <>
                 <Row label={t('shakeRepeat')}>
@@ -1892,6 +1910,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 max={100}
                 onChange={v => set('fog', { alpha: v / 100 })}
                 unit="%"
+              />
+            </Row>
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.fog.timerSync ?? false}
+                onChange={v => set('fog', { timerSync: v })}
               />
             </Row>
             <Row label={t('fogCount')}>

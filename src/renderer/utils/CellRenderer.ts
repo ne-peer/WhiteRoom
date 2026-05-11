@@ -2285,6 +2285,7 @@ export class CellRenderer {
           squish.speedFactor,
           squish.repeatEnabled,
           squish.repeatIntervalSec,
+          squish.timerSync ?? false,
           squish.randomPosition ?? false,
           squish.burstEnabled ?? false,
           squish.burstMaxOpacity ?? 0.8,
@@ -2441,7 +2442,10 @@ export class CellRenderer {
     this.squishBurstGraphics.clear()
     if (this.squishBurstActiveSec === null) return
 
-    const maxOpacity = clamp(squish.burstMaxOpacity ?? 0.8, 0, 1)
+    const maxOpacity = this.getTimerSyncedOpacity(
+      clamp(squish.burstMaxOpacity ?? 0.8, 0, 1),
+      squish.timerSync ?? false
+    )
     const fadeInSec = 0.10
     const totalSec = 0.9
     const elapsed = this.squishBurstActiveSec
@@ -2521,7 +2525,10 @@ export class CellRenderer {
     const centerOffset = (finalDiameter + edgeGap) / 2
     const centerX = this.width / 2
     const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
-    const opacity = clamp(squish.opacity ?? 1, 0, 1)
+    const opacity = this.getTimerSyncedOpacity(
+      clamp(squish.opacity ?? 1, 0, 1),
+      squish.timerSync ?? false
+    )
     const colorAlpha = clamp(squish.alpha, 0, 1) * drawAlpha * opacity
     const baseAlpha = clamp(0.42 + squish.alpha * 0.18, 0, 0.65) * drawAlpha * opacity
     const secondRadius = radius * 0.85
@@ -2578,7 +2585,10 @@ export class CellRenderer {
     const centerX = this.width / 2
     const centerY = this.height * (squish.circlePositionY ?? 0.5)
     const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
-    const opacity = clamp(squish.opacity ?? 1, 0, 1)
+    const opacity = this.getTimerSyncedOpacity(
+      clamp(squish.opacity ?? 1, 0, 1),
+      squish.timerSync ?? false
+    )
     const colorAlpha = clamp(squish.alpha, 0, 1) * opacity
     const baseAlpha = clamp(0.42 + squish.alpha * 0.18, 0, 0.65) * opacity
     const secondRadius = radius * 0.85
@@ -2629,7 +2639,10 @@ export class CellRenderer {
     const centerX = this.width / 2
     const centerY = this.height * (squish.circlePositionY ?? 0.5)
     const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
-    const opacity = clamp(squish.opacity ?? 1, 0, 1)
+    const opacity = this.getTimerSyncedOpacity(
+      clamp(squish.opacity ?? 1, 0, 1),
+      squish.timerSync ?? false
+    )
     const colorAlpha = clamp(squish.alpha, 0, 1) * opacity
     const baseAlpha = clamp(0.42 + squish.alpha * 0.18, 0, 0.65) * opacity
     const secondRadius = radius * 0.85
@@ -2930,7 +2943,10 @@ export class CellRenderer {
     const fadeSec = Math.max(0.1, fog.fadeDurationSec)
     const effectiveFadeSec = this.getFogEffectiveFadeDurationSec(fadeSec)
     const totalActiveSec = growSec + holdSec + effectiveFadeSec
-    const globalAlpha = clamp(fog.alpha, 0, 1)
+    const globalAlpha = this.getTimerSyncedOpacity(
+      clamp(fog.alpha, 0, 1),
+      fog.timerSync ?? false
+    )
     const minSide = Math.min(this.width, this.height)
     const maxRadius = minSide * clamp(fog.fogSizeRatio, 0.1, 0.8)
     const cx = instance.centerXRatio * this.width
@@ -3094,6 +3110,7 @@ export class CellRenderer {
           fog.color.g,
           fog.color.b,
           fog.alpha,
+          fog.timerSync ?? false,
           fog.fogCount,
           fog.fogSizeRatio,
           fog.blurStrength,
@@ -3210,6 +3227,7 @@ export class CellRenderer {
           zoom.speedFactor,
           zoom.repeatEnabled,
           zoom.repeatIntervalSec,
+          zoom.timerSync ?? false,
           zoom.zoomFactor,
           zoom.centerCorrection,
           zoom.syncNonce ?? 0,
@@ -3249,6 +3267,11 @@ export class CellRenderer {
       this.zoomScaleMultiplier = 1
       this.zoomCenterOffsetX = 0
       this.zoomCenterOffsetY = 0
+      return
+    }
+
+    if (zoom.timerSync && this.timerEnabled) {
+      this.applyZoomFromProgressLinear(zoom, clamp(this.timerProgress, 0, 1))
       return
     }
 
@@ -3322,6 +3345,26 @@ export class CellRenderer {
       this.zoomCenterOffsetX = 0
       this.zoomCenterOffsetY = 0
     }
+  }
+
+  private applyZoomFromProgressLinear(zoom: ZoomEffect, progress: number) {
+    const zoomFactor = Math.max(1, zoom.zoomFactor ?? 1.5)
+    const scale = lerp(1.0, zoomFactor, progress)
+    this.zoomScaleMultiplier = scale
+
+    if (zoom.centerCorrection) {
+      const effectCenter = this.latestEffects?.effectCenter ?? { x: 0.5, y: 0.5 }
+      this.zoomCenterOffsetX = (1 - scale) * (effectCenter.x - 0.5) * this.width
+      this.zoomCenterOffsetY = (1 - scale) * (effectCenter.y - 0.5) * this.height
+    } else {
+      this.zoomCenterOffsetX = 0
+      this.zoomCenterOffsetY = 0
+    }
+  }
+
+  private getTimerSyncedOpacity(baseOpacity: number, timerSyncEnabled: boolean): number {
+    if (!timerSyncEnabled || !this.timerEnabled) return baseOpacity
+    return lerp(baseOpacity, 1, clamp(this.timerProgress, 0, 1))
   }
 
   private rebuildVignette() {
