@@ -133,6 +133,15 @@ export const DEFAULT_EFFECTS: CellEffects = {
     trailHeight: 1,
     lockBaseImage: false,
   },
+  zoom: {
+    enabled: false,
+    mode: 'oneshot' as 'oneshot' | 'permanentA' | 'permanentB',
+    speedFactor: 1,
+    repeatEnabled: true,
+    repeatIntervalSec: 0.8,
+    zoomFactor: 1.5,
+    centerCorrection: true,
+  },
   squish: {
     enabled: false,
     mode: 'oneshot' as 'oneshot' | 'permanentA' | 'permanentB',
@@ -324,6 +333,7 @@ function mergeEffectsWithDefaults(effects: Partial<CellEffects> | undefined): Ce
     flash: { ...DEFAULT_EFFECTS.flash, ...effects?.flash },
     breathing: { ...DEFAULT_EFFECTS.breathing, ...effects?.breathing },
     shake: { ...DEFAULT_EFFECTS.shake, ...effects?.shake },
+    zoom: { ...DEFAULT_EFFECTS.zoom, ...effects?.zoom },
     squish: { ...DEFAULT_EFFECTS.squish, ...effects?.squish },
     dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...effects?.dynamicAsset },
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...effects?.textEffect },
@@ -478,6 +488,7 @@ export type AppActions = {
   ) => void
   applyCellEffectPreset: (cellId: string, effects: Partial<CellEffects>) => void
   setCellSquishImageCenterColor: (cellId: string, color: { r: number; g: number; b: number }) => void
+  syncZoomSquish: (cellId: string, source: 'zoom' | 'squish') => void
   setAllCellsEffect: <K extends keyof CellEffects>(
     effectKey: K, value: Partial<CellEffects[K]>
   ) => void
@@ -767,6 +778,7 @@ export const useAppStore = create<AppStore>()(
         if (effects.flash !== undefined) Object.assign(cell.effects.flash, effects.flash)
         if (effects.breathing !== undefined) Object.assign(cell.effects.breathing, effects.breathing)
         if (effects.shake !== undefined) Object.assign(cell.effects.shake, normalizeShakePatch(effects.shake))
+        if (effects.zoom !== undefined) Object.assign(cell.effects.zoom, effects.zoom)
         if (effects.squish !== undefined) Object.assign(cell.effects.squish, effects.squish)
         if (effects.dynamicAsset !== undefined) Object.assign(cell.effects.dynamicAsset, effects.dynamicAsset)
         if (effects.textEffect !== undefined) Object.assign(cell.effects.textEffect, effects.textEffect)
@@ -787,6 +799,38 @@ export const useAppStore = create<AppStore>()(
       if (current.r === color.r && current.g === color.g && current.b === color.b) return
       cell.effects.squish.color = color
       s.effectGuideNonce += 1
+    }),
+
+    syncZoomSquish: (cellId, source) => set(s => {
+      const applySync = (cell: (typeof s.cells)[0]) => {
+        if (source === 'zoom') {
+          const zoom = cell.effects.zoom
+          Object.assign(cell.effects.squish, {
+            mode: zoom.mode,
+            repeatEnabled: zoom.repeatEnabled,
+            speedFactor: zoom.speedFactor,
+            repeatIntervalSec: zoom.repeatIntervalSec,
+            syncNonce: (cell.effects.squish.syncNonce ?? 0) + 1,
+          })
+          cell.effects.zoom.syncNonce = (cell.effects.zoom.syncNonce ?? 0) + 1
+        } else {
+          const squish = cell.effects.squish
+          Object.assign(cell.effects.zoom, {
+            mode: squish.mode,
+            repeatEnabled: squish.repeatEnabled,
+            speedFactor: squish.speedFactor,
+            repeatIntervalSec: squish.repeatIntervalSec,
+            syncNonce: (cell.effects.zoom.syncNonce ?? 0) + 1,
+          })
+          cell.effects.squish.syncNonce = (cell.effects.squish.syncNonce ?? 0) + 1
+        }
+      }
+      if (s.applyEffectChangesToAllColumns) {
+        s.cells.forEach(applySync)
+      } else {
+        const cell = s.cells.find(c => c.id === cellId)
+        if (cell) applySync(cell)
+      }
     }),
 
     setAllCellsEffect: (effectKey, value) => set(s => {

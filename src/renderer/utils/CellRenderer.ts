@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, ShakeEffect, SlideShowTransition, SquishEffect } from '../../shared/types'
+import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, ShakeEffect, SlideShowTransition, SquishEffect, ZoomEffect } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -156,6 +156,12 @@ export class CellRenderer {
   private squishBurstCenters: { x: number; y: number }[] = []
   private squishBurstRadius = 0
   private squishBurstBlurFilter: PIXI.BlurFilter | null = null
+  private zoomKey: string | null = null
+  private zoomElapsedSec = 0
+  private zoomCycleComplete = false
+  private zoomScaleMultiplier = 1
+  private zoomCenterOffsetX = 0
+  private zoomCenterOffsetY = 0
   private activeSlideTransition: {
     incoming: PIXI.Sprite
     outgoing: PIXI.Sprite
@@ -385,6 +391,7 @@ export class CellRenderer {
     this.updateSpiral(effects)
     this.updateEcho(effects)
     this.updateFlash(effects)
+    this.updateZoom(effects.zoom)
     this.updateSquish(effects.squish)
     this.updateAsset(effects)
     this.updateText(effects)
@@ -590,6 +597,7 @@ export class CellRenderer {
   tick(delta: number, effects: CellEffects) {
     this.tickBreathing(delta, effects.breathing)
     this.tickShake(delta, effects.shake)
+    this.tickZoom(delta, effects.zoom)
     this.recordShakeTrailSample(delta, effects.shake)
     this.applyImageMotionTransform()
     this.syncShakeTrail(delta, effects.shake)
@@ -1133,9 +1141,9 @@ export class CellRenderer {
 
     const shakeContributes = shake?.enabled && !(shake.lockBaseImage && shake.trailEnabled)
     return {
-      offsetX: breathingEnabled ? this.breathingOffsetX : 0,
-      offsetY: (breathingEnabled ? this.breathingOffsetY : 0) + (shakeContributes ? this.shakeOffsetY : 0),
-      scaleMultiplier: breathingEnabled && breathing?.scaleEnabled ? this.getBreathingScaleMultiplier() : 1,
+      offsetX: (breathingEnabled ? this.breathingOffsetX : 0) + this.zoomCenterOffsetX,
+      offsetY: (breathingEnabled ? this.breathingOffsetY : 0) + (shakeContributes ? this.shakeOffsetY : 0) + this.zoomCenterOffsetY,
+      scaleMultiplier: (breathingEnabled && breathing?.scaleEnabled ? this.getBreathingScaleMultiplier() : 1) * this.zoomScaleMultiplier,
     }
   }
 
@@ -2250,6 +2258,7 @@ export class CellRenderer {
           squish.randomPosition ?? false,
           squish.burstEnabled ?? false,
           squish.burstMaxOpacity ?? 0.8,
+          squish.syncNonce ?? 0,
         ].join(':')
       : 'disabled'
 
@@ -2769,6 +2778,128 @@ export class CellRenderer {
     const mode = squish.mode ?? 'oneshot'
     if (mode === 'permanentA' || mode === 'permanentB') return animSec * 1000
     return (animSec + (squish.repeatEnabled ? Math.max(0, squish.repeatIntervalSec) : 0)) * 1000
+  }
+
+  private updateZoom(zoom?: ZoomEffect) {
+    const key = zoom
+      ? [
+          zoom.enabled,
+          zoom.mode ?? 'oneshot',
+          zoom.speedFactor,
+          zoom.repeatEnabled,
+          zoom.repeatIntervalSec,
+          zoom.zoomFactor,
+          zoom.centerCorrection,
+          zoom.syncNonce ?? 0,
+        ].join(':')
+      : 'disabled'
+
+    if (!zoom?.enabled) {
+      if (this.zoomKey !== key) this.clearZoom()
+      this.zoomKey = key
+      return
+    }
+
+    if (this.zoomKey === key) return
+    this.zoomKey = key
+    this.resetZoomMotion()
+  }
+
+  private clearZoom() {
+    this.zoomScaleMultiplier = 1
+    this.zoomCenterOffsetX = 0
+    this.zoomCenterOffsetY = 0
+    this.zoomElapsedSec = 0
+    this.zoomCycleComplete = false
+    if (this.imageSprite) this.positionImageSprite(this.imageSprite)
+  }
+
+  private resetZoomMotion() {
+    this.zoomElapsedSec = 0
+    this.zoomCycleComplete = false
+    this.zoomScaleMultiplier = 1
+    this.zoomCenterOffsetX = 0
+    this.zoomCenterOffsetY = 0
+  }
+
+  private tickZoom(delta: number, zoom?: ZoomEffect) {
+    if (!zoom?.enabled) {
+      this.zoomScaleMultiplier = 1
+      this.zoomCenterOffsetX = 0
+      this.zoomCenterOffsetY = 0
+      return
+    }
+
+    const dtSec = Math.max(0, delta) / 60
+    const mode = zoom.mode ?? 'oneshot'
+    const animationSec = 0.9 / Math.max(0.01, zoom.speedFactor)
+
+    if (mode === 'permanentA' || mode === 'permanentB') {
+      if (animationSec <= 0) return
+      this.zoomElapsedSec += dtSec
+      if (this.zoomElapsedSec >= animationSec) {
+        this.zoomElapsedSec %= animationSec
+      }
+      const progress = clamp(this.zoomElapsedSec / animationSec, 0, 1)
+      this.applyZoomFromProgress(zoom, mode, progress)
+      return
+    }
+
+    // oneshot
+    const intervalSec = Math.max(0, zoom.repeatIntervalSec)
+    const cycleSec = animationSec + (zoom.repeatEnabled ? intervalSec : 0)
+
+    if (this.zoomCycleComplete && !zoom.repeatEnabled) {
+      this.zoomScaleMultiplier = 1
+      this.zoomCenterOffsetX = 0
+      this.zoomCenterOffsetY = 0
+      return
+    }
+
+    this.zoomElapsedSec += dtSec
+    if (zoom.repeatEnabled && cycleSec > 0) {
+      this.zoomElapsedSec %= cycleSec
+    } else if (this.zoomElapsedSec >= animationSec) {
+      this.zoomElapsedSec = animationSec
+      this.zoomCycleComplete = true
+    }
+
+    const progress = clamp(this.zoomElapsedSec / animationSec, 0, 1)
+    this.applyZoomFromProgress(zoom, mode, progress)
+  }
+
+  private applyZoomFromProgress(zoom: ZoomEffect, mode: string, progress: number) {
+    const zoomFactor = Math.max(1, zoom.zoomFactor ?? 1.5)
+    let scale: number
+
+    if (mode === 'permanentA') {
+      const growEnd = 0.25
+      scale = progress < growEnd
+        ? lerp(1.0, zoomFactor, easeOutBack(progress / growEnd))
+        : lerp(zoomFactor, 1.0, easeInOutSine((progress - growEnd) / (1 - growEnd)))
+    } else if (mode === 'permanentB') {
+      const expandEnd = 0.5
+      scale = progress < expandEnd
+        ? lerp(1.0, zoomFactor, easeInOutCubic(progress / expandEnd))
+        : lerp(zoomFactor, 1.0, easeInOutCubic((progress - expandEnd) / (1 - expandEnd)))
+    } else {
+      // oneshot: zoom in then back out
+      const growEnd = 0.58
+      scale = progress < growEnd
+        ? lerp(1.0, zoomFactor, easeOutBack(progress / growEnd))
+        : lerp(zoomFactor, 1.0, easeInOutSine((progress - growEnd) / (1 - growEnd)))
+    }
+
+    this.zoomScaleMultiplier = scale
+
+    if (zoom.centerCorrection) {
+      const effectCenter = this.latestEffects?.effectCenter ?? { x: 0.5, y: 0.5 }
+      this.zoomCenterOffsetX = (1 - scale) * (effectCenter.x - 0.5) * this.width
+      this.zoomCenterOffsetY = (1 - scale) * (effectCenter.y - 0.5) * this.height
+    } else {
+      this.zoomCenterOffsetX = 0
+      this.zoomCenterOffsetY = 0
+    }
   }
 
   private rebuildVignette() {
