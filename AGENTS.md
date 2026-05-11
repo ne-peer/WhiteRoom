@@ -65,6 +65,20 @@ Always check and update shared types before adding features.
 - Keep these schemas aligned when adding/updating features: `CellFolder`, `Cell`, `CellEffects`, `TimerConfig`, `AppProfile`, `ImageEffectProfileDocument`.
 - The canonical definitions live in `src/shared/types.ts` (do not duplicate full type blocks here).
 
+## EffectsPanel UI Rules
+
+### Section titleColor
+
+Each `<Section>` inside `EffectsPanel` must use the **single unified color for its parent `<CategorySection>`**. Do not apply per-effect gradients.
+
+| CategorySection | Unified `titleColor` |
+|---|---|
+| フィルター (`effectCategoryFilter`) | `#82b0ff` |
+| モーション (`effectCategoryMotion`) | `#f5cc30` |
+| デコレーション (`effectCategoryDecoration`) | `#b070f8` |
+
+When adding a new `<Section>` to any category, use that category's unified color. Do not introduce new shades or gradients within a category.
+
 ## Coding Rules
 
 - **TypeScript strict**: no `any`, maximize type inference

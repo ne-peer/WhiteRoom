@@ -669,7 +669,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         bodyBg="rgba(28, 65, 165, 0.15)"
       >
 
-      <Section title={t('colorFilter')} titleColor="#aac8ff">
+      <Section title={t('colorFilter')} titleColor="#82b0ff">
         <Row label={t('enabled')}>
           <Toggle value={effects.colorOverlay.enabled} onChange={v => set('colorOverlay', { enabled: v })} />
         </Row>
@@ -746,7 +746,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('vignetteEffect')} titleColor="#5a98ff">
+      <Section title={t('vignetteEffect')} titleColor="#82b0ff">
         <Row label={t('enabled')}>
           <Toggle value={effects.vignette.enabled} onChange={v => set('vignette', { enabled: v })} />
         </Row>
@@ -811,7 +811,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('blurEffect')} titleColor="#3280f0">
+      <Section title={t('blurEffect')} titleColor="#82b0ff">
         <Row label={t('enabled')}>
           <Toggle value={effects.blur.enabled} onChange={v => set('blur', { enabled: v })} />
         </Row>
@@ -944,7 +944,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         bodyBg="rgba(130, 95, 0, 0.15)"
       >
 
-      <Section title={t('shakeEffect')} titleColor="#ffe580">
+      <Section title={t('shakeEffect')} titleColor="#f5cc30">
         <Row label={t('enabled')}>
           <Toggle value={effects.shake.enabled} onChange={v => set('shake', { enabled: v })} />
         </Row>
@@ -1170,7 +1170,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('zoomEffect')} titleColor="#4db8ff">
+      <Section title={t('zoomEffect')} titleColor="#f5cc30">
         <Row label={t('enabled')}>
           <Toggle value={effects.zoom.enabled} onChange={v => set('zoom', { enabled: v })} />
         </Row>
@@ -1305,7 +1305,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('echoEffect')} titleColor="#d8aa00">
+      <Section title={t('echoEffect')} titleColor="#f5cc30">
         <Row label={t('enabled')}>
           <Toggle value={effects.echo.enabled} onChange={v => set('echo', { enabled: v })} />
         </Row>
@@ -1359,7 +1359,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         bodyBg="rgba(80, 25, 155, 0.15)"
       >
 
-      <Section title={t('assetEffect')} titleColor="#d4a8ff">
+      <Section title={t('assetEffect')} titleColor="#b070f8">
         <Row label={t('enabled')}>
           <Toggle value={effects.dynamicAsset.enabled} onChange={v => set('dynamicAsset', { enabled: v })} />
         </Row>
@@ -1493,7 +1493,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('flashEffect')} titleColor="#bf88ff">
+      <Section title={t('flashEffect')} titleColor="#b070f8">
         <Row label={t('enabled')}>
           <Toggle value={effects.flash.enabled} onChange={v => set('flash', { enabled: v })} />
         </Row>
@@ -1605,7 +1605,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('squishEffect')} titleColor="#a868ff">
+      <Section title={t('squishEffect')} titleColor="#b070f8">
         <Row label={t('enabled')}>
           <Toggle value={effects.squish.enabled} onChange={v => set('squish', { enabled: v })} />
         </Row>
@@ -1834,7 +1834,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('spiralEffect')} titleColor="#9248ef">
+      <Section title={t('spiralEffect')} titleColor="#b070f8">
         <Row label={t('enabled')}>
           <Toggle value={effects.spiral.enabled} onChange={v => set('spiral', { enabled: v })} />
         </Row>
@@ -2012,7 +2012,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
-      <Section title={t('textEffect')} titleColor="#7830d8">
+      <Section title={t('textEffect')} titleColor="#b070f8">
         <Row label={t('enabled')}>
           <Toggle value={effects.textEffect.enabled} onChange={v => set('textEffect', { enabled: v })} />
         </Row>
