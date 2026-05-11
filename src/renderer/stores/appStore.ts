@@ -5,6 +5,7 @@ import type {
   AppProfile, Cell, CellBaseline, CellEffects, CellFolder, GridLayout,
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
   ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig, ReadingConfigPayload,
+  StashItem,
 } from '../../shared/types'
 import { parseTextFile, insertOrReplaceTagBefore, insertTagAtCharPosition, insertOrReplaceReadConfigAtTop, resolveStoryboardImageReference } from '../utils/storyboardParser'
 
@@ -265,6 +266,24 @@ export const DEFAULT_TIMER: TimerConfig = {
   partial: { ...DEFAULT_TIMER_PARTIAL },
 }
 
+// ===== スタッシュ定数 =====
+
+export const STASH_FOOD_EMOJIS = [
+  '🍎', '🍊', '🍋', '🍇', '🍓', '🫐', '🍉', '🍑', '🍒', '🍌',
+  '🥝', '🍍', '🥭', '🍏', '🍐', '🍈', '🥥', '🥑', '🍆', '🥦',
+  '🥕', '🌽', '🍕', '🍔', '🌮', '🍜', '🍣', '🍰', '🍩', '🍪',
+  '🎂', '🍫', '🍬', '🍭', '🧁', '🍦', '🥧', '🧆', '🍱', '🍛',
+]
+
+export const STASH_ACCENT_COLORS = [
+  '#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6',
+  '#ec4899', '#f97316', '#14b8a6', '#6366f1', '#84cc16',
+  '#e11d48', '#0ea5e9', '#d946ef', '#f59e0b', '#22c55e',
+]
+
+export const STASH_MAX_COUNT = 15
+export const STASH_MIN_SLOT_COUNT = 3
+
 export const DEFAULT_TEXT_READER_CONFIG: TextReaderConfig = {
   windowPosition: 'bottom',
   textDirection: 'horizontal',
@@ -454,6 +473,11 @@ export type AppState = {
   imageEffectProfileAutoApplySuspended: boolean
   timerSuspendedSlideshow: boolean  // タイマープロファイル適用中はスライドショーを停止
 
+  // スタッシュ
+  stashes: StashItem[]
+  stashSlotCount: number   // 表示行数（最低3）
+  stashWindowOpen: boolean
+
   // セルのタグ一時上書き（profile対象外・セッション専用）
   cellTagOverrides: Record<string, string | null>  // cellId → override image path
 
@@ -558,6 +582,13 @@ export type AppActions = {
   importProfile: (profile: AppProfile) => void
   resetProfile: () => void
 
+  // スタッシュ
+  saveStash: (index: number) => void
+  popStash: (index: number) => void
+  deleteStash: (index: number) => void
+  addStashSlot: () => void
+  setStashWindowOpen: (open: boolean) => void
+
   // テキストリーダー
   setTextReaderConfig: (config: Partial<TextReaderConfig>) => void
   setTextReaderVisible: (visible: boolean) => void
@@ -623,6 +654,9 @@ export const useAppStore = create<AppStore>()(
     imageEffectProfiles: {},
     imageEffectProfileAutoApplySuspended: false,
     timerSuspendedSlideshow: false,
+    stashes: [],
+    stashSlotCount: 3,
+    stashWindowOpen: false,
     cellTagOverrides: {},
     pendingStoryboardLoad: null,
     textReader: {
@@ -1084,8 +1118,9 @@ export const useAppStore = create<AppStore>()(
 
     exportProfile: (name) => {
       const s = get()
+      const hasStashes = s.stashes.length > 0
       const profile: AppProfile = {
-        version: '1.0.0',
+        version: hasStashes ? '1.1.0' : '1.0.0',
         createdAt: new Date().toISOString(),
         name,
         blankColor: s.blankColor,
@@ -1094,6 +1129,7 @@ export const useAppStore = create<AppStore>()(
         cells: s.cells,
         timer: s.timer,
         fullscreen: s.fullscreen,
+        stashes: hasStashes ? s.stashes : undefined,
       }
       return profile
     },
@@ -1137,6 +1173,9 @@ export const useAppStore = create<AppStore>()(
       s.imageEffectProfiles = {}
       s.imageEffectProfileAutoApplySuspended = false
       s.timerSuspendedSlideshow = false
+      // スタッシュを上書き復元（1.1.0 以降のみ）
+      s.stashes = profile.stashes ?? []
+      s.stashSlotCount = Math.max(3, s.stashes.length)
     }),
 
     resetProfile: () => set(s => {
@@ -1153,6 +1192,100 @@ export const useAppStore = create<AppStore>()(
       s.imageEffectProfiles = {}
       s.imageEffectProfileAutoApplySuspended = false
       s.timerSuspendedSlideshow = false
+    }),
+
+    // ===== スタッシュ =====
+
+    saveStash: (index) => {
+      const s = get()
+      const newItem: StashItem = {
+        id: crypto.randomUUID(),
+        emoji: STASH_FOOD_EMOJIS[Math.floor(Math.random() * STASH_FOOD_EMOJIS.length)],
+        color: STASH_ACCENT_COLORS[Math.floor(Math.random() * STASH_ACCENT_COLORS.length)],
+        savedAt: new Date().toISOString(),
+        blankColor: structuredClone(s.blankColor),
+        blankBackground: structuredClone(s.blankBackground),
+        grid: structuredClone(s.grid),
+        cells: structuredClone(s.cells),
+        timer: structuredClone(s.timer),
+        textReaderConfig: structuredClone(s.textReader.config),
+        textReaderFilePath: s.textReader.filePath,
+        textReaderPageIndex: s.textReader.currentPageIndex,
+      }
+      set(draft => {
+        if (index < draft.stashes.length) {
+          draft.stashes[index] = newItem
+        } else {
+          draft.stashes.push(newItem)
+        }
+        draft.stashSlotCount = Math.max(draft.stashSlotCount, draft.stashes.length)
+      })
+      // スタッシュ完了後にプロファイルをリセット
+      get().resetProfile()
+    },
+
+    popStash: (index) => set(s => {
+      const item = s.stashes[index]
+      if (!item) return
+      s.blankColor = item.blankColor
+      s.blankBackground = { ...DEFAULT_BLANK_BACKGROUND, ...item.blankBackground }
+      s.grid = item.grid
+      s.cells = item.cells.map(cell => ({
+        ...cell,
+        imageFit: cell.imageFit ?? 'cover',
+        slideshow: { ...DEFAULT_SLIDESHOW, ...cell.slideshow },
+        effects: {
+          ...structuredClone(DEFAULT_EFFECTS),
+          ...cell.effects,
+          colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...cell.effects?.colorOverlay },
+          vignette: { ...DEFAULT_EFFECTS.vignette, ...cell.effects?.vignette },
+          spiral: { ...DEFAULT_EFFECTS.spiral, ...cell.effects?.spiral },
+          blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
+          echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
+          flash: { ...DEFAULT_EFFECTS.flash, ...cell.effects?.flash },
+          breathing: { ...DEFAULT_EFFECTS.breathing, ...cell.effects?.breathing },
+          shake: { ...DEFAULT_EFFECTS.shake, ...cell.effects?.shake },
+          squish: { ...DEFAULT_EFFECTS.squish, ...cell.effects?.squish },
+          fog: { ...DEFAULT_EFFECTS.fog, ...cell.effects?.fog },
+          dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
+          textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
+        },
+      }))
+      s.timer = {
+        ...DEFAULT_TIMER,
+        ...item.timer,
+        endFlash: { ...DEFAULT_TIMER.endFlash, ...item.timer?.endFlash },
+        preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY, ...item.timer?.preOverlay },
+        autoNext: { ...DEFAULT_TIMER_AUTO_NEXT, ...item.timer?.autoNext },
+        partial: { ...DEFAULT_TIMER_PARTIAL, ...item.timer?.partial },
+      }
+      // テキストリーダー設定を復元
+      s.textReader.config = normalizeTextReaderConfig({ ...DEFAULT_TEXT_READER_CONFIG, ...item.textReaderConfig })
+      s.showNavigationBar = true
+      s.selectedCellId = null
+      s.imageEffectProfiles = {}
+      s.imageEffectProfileAutoApplySuspended = false
+      s.timerSuspendedSlideshow = false
+    }),
+
+    deleteStash: (index) => set(s => {
+      if (index < 0 || index >= s.stashes.length) return
+      s.stashes.splice(index, 1)
+      // 4行目以降の空き行は削除（スロット数をスタッシュ数にあわせて縮小）
+      if (s.stashes.length >= 3) {
+        s.stashSlotCount = s.stashes.length
+      } else {
+        s.stashSlotCount = 3
+      }
+    }),
+
+    addStashSlot: () => set(s => {
+      if (s.stashSlotCount >= STASH_MAX_COUNT) return
+      s.stashSlotCount = Math.min(STASH_MAX_COUNT, s.stashSlotCount + 1)
+    }),
+
+    setStashWindowOpen: (open) => set(s => {
+      s.stashWindowOpen = open
     }),
 
     // ===== テキストリーダー =====

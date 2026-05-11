@@ -1,0 +1,184 @@
+.collapseIcon {
+  position: fixed;
+  z-index: 410;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  transition: opacity 1.4s ease, background 0.15s, border-color 0.15s;
+  padding: 0;
+  line-height: 1;
+  user-select: none;
+}
+
+.collapseIcon:hover {
+  background: rgba(245, 158, 11, 0.32);
+  border-color: rgba(245, 158, 11, 0.75);
+  opacity: 1 !important;
+  transition: opacity 0.12s ease, background 0.15s, border-color 0.15s;
+}
+
+/* ===== フロートウィンドウ ===== */
+
+.panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 310px;
+  z-index: 410;
+  background: rgba(10, 10, 22, 0.88);
+  border: 1px solid rgba(245, 158, 11, 0.30);
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  color: rgba(220, 220, 255, 0.92);
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: rgba(245, 158, 11, 0.10);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.22);
+  user-select: none;
+  cursor: grab;
+}
+
+.header:active {
+  cursor: grabbing;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(253, 200, 100, 0.95);
+  letter-spacing: 0.02em;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: rgba(200, 200, 220, 0.55);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.12s;
+}
+
+.closeBtn:hover {
+  color: rgba(255, 100, 100, 0.90);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  gap: 4px;
+}
+
+/* ===== スタッシュ行 ===== */
+
+.stashRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-left: 3px solid transparent;
+  padding-left: 6px;
+  border-radius: 0 4px 4px 0;
+  background: rgba(255, 255, 255, 0.025);
+  min-height: 30px;
+}
+
+.stashLabelBtn {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(190, 190, 230, 0.75);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  height: 26px;
+}
+
+.stashLabelBtn:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.40);
+  color: rgba(253, 200, 100, 0.95);
+}
+
+.actionSmBtn {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(190, 190, 230, 0.75);
+  border-radius: 4px;
+  padding: 4px 7px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  height: 26px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.actionSmBtn:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.popBtn:not(:disabled):hover {
+  background: rgba(80, 140, 220, 0.25);
+  border-color: rgba(100, 160, 255, 0.45);
+  color: rgba(180, 210, 255, 0.95);
+}
+
+.delBtn:not(:disabled):hover {
+  background: rgba(200, 60, 60, 0.22);
+  border-color: rgba(255, 100, 100, 0.40);
+  color: rgba(255, 140, 140, 0.95);
+}
+
+/* ===== + ボタン行 ===== */
+
+.addRow {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0 2px;
+}
+
+.addBtn {
+  background: none;
+  border: 1px dashed rgba(245, 158, 11, 0.35);
+  color: rgba(245, 158, 11, 0.60);
+  border-radius: 4px;
+  padding: 3px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  line-height: 1.2;
+}
+
+.addBtn:hover {
+  background: rgba(245, 158, 11, 0.10);
+  border-color: rgba(245, 158, 11, 0.55);
+  color: rgba(253, 200, 100, 0.90);
+}

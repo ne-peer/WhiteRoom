@@ -378,6 +378,21 @@ export type GridLayout = {
 
 // ===== アプリ全体状態（プロファイルと同一構造）=====
 
+export type StashItem = {
+  id: string
+  emoji: string
+  color: string        // hex アクセントカラー（例: '#f59e0b'）
+  savedAt: string      // ISO 日時
+  blankColor: BlankColor
+  blankBackground?: BlankBackground
+  grid: GridLayout
+  cells: Cell[]
+  timer: TimerConfig
+  textReaderConfig: TextReaderConfig
+  textReaderFilePath: string | null
+  textReaderPageIndex: number
+}
+
 export type AppProfile = {
   version: string
   createdAt: string
@@ -390,6 +405,7 @@ export type AppProfile = {
   fullscreen: boolean
   windowSize?: WindowSize
   showControls?: boolean
+  stashes?: StashItem[]
 }
 
 // ===== ストーリーボードタグ =====
@@ -586,5 +602,6 @@ export type IpcApi = {
   cleanupTextReaderTempFile: (tempFilePath: string) => Promise<CleanupTextReaderTempFileResult>
   loadRemoteImageAsDataUrl: (url: string) => Promise<RemoteImageResult>
   getRemoteImageStats: () => Promise<RemoteImageStatsResult>
+  checkHasStash: () => Promise<boolean>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void
 }

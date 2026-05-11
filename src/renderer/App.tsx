@@ -3,6 +3,7 @@ import { MasterCanvas } from './components/layout/MasterCanvas'
 import { TopBar } from './components/layout/TopBar'
 import { ControlPanel } from './components/controls/ControlPanel'
 import { StoryboardPanel } from './components/reader/StoryboardPanel'
+import { StashWindow } from './components/stash/StashWindow'
 import { useAppStore } from './stores/appStore'
 import './global.css'
 
@@ -34,7 +35,7 @@ const App: React.FC = () => {
       const revealX = window.innerWidth - EDGE_REVEAL_THRESHOLD
       const keepVisibleX = window.innerWidth - CONTROL_PANEL_WIDTH - FLOAT_HIDE_MARGIN
 
-      const overReader = !!(event.target as Element | null)?.closest?.('[data-reader-window], [data-storyboard-window], [data-cell-nav-overlay]')
+      const overReader = !!(event.target as Element | null)?.closest?.('[data-reader-window], [data-storyboard-window], [data-stash-window], [data-cell-nav-overlay]')
 
       setShowFloatingControls(current => {
         if (overReader) return false
@@ -62,6 +63,7 @@ const App: React.FC = () => {
       <MasterCanvas />
       <ControlPanel floating={showFloatingControls} />
       {storyboardOpen && <StoryboardPanel />}
+      <StashWindow />
       {appNotification && (
         <div
           style={{
