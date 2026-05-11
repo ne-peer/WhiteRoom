@@ -122,7 +122,7 @@ export const MasterCanvas: React.FC = () => {
     setLockedPickColumn(null)
     setPickPreviewCenter(null)
     setPickGuide(null)
-  }, [lockedPickColumn])
+  }, [])
 
   React.useLayoutEffect(() => {
     if (!pickingActive) {
@@ -183,21 +183,30 @@ export const MasterCanvas: React.FC = () => {
     return unsubscribe
   }, [])
 
-  // Escapeキーでフルスクリーン解除 / スペースキーでタイマー操作
+  // Escapeキーで中心位置指定キャンセル or フルスクリーン解除 / スペースキーでタイマー操作
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
       const tag = target?.tagName
       const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable
-      if (e.key === 'Escape' && useAppStore.getState().fullscreen) {
+      const state = useAppStore.getState()
+      const centerPickModeActive = state.shakeTrailPositionPicking || state.spiralRadialPositionPicking
+      if (e.key === 'Escape' && centerPickModeActive) {
+        e.preventDefault()
+        e.stopPropagation()
+        cancelPickMode()
+        return
+      }
+      if (e.key === 'Escape' && state.fullscreen) {
         e.preventDefault()
         const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
-        useAppStore.getState().setFullscreen(false)
+        state.setFullscreen(false)
         api?.setFullscreen(false)
+        return
       }
       if (e.key.toLowerCase() === 'u' && !e.repeat && !isEditable) {
         e.preventDefault()
-        useAppStore.getState().toggleControls()
+        state.toggleControls()
       }
       if (e.key.toLowerCase() === 'p' && !e.repeat && !isEditable) {
         e.preventDefault()
@@ -244,7 +253,7 @@ export const MasterCanvas: React.FC = () => {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [hoveredCellId])
+  }, [cancelPickMode, hoveredCellId])
 
   // マウスホイールで画像ナビゲーション（non-passiveで preventDefault を使用）
   useEffect(() => {
