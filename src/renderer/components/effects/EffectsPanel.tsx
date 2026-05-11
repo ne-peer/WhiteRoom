@@ -125,6 +125,15 @@ const EFFECT_PRESET_1: CellEffects = {
     trailSize: 0.7,
     trailHeight: 1,
   },
+  zoom: {
+    enabled: false,
+    mode: 'oneshot' as const,
+    speedFactor: 1,
+    repeatEnabled: true,
+    repeatIntervalSec: 0.8,
+    zoomFactor: 1.5,
+    centerCorrection: true,
+  },
   squish: {
     enabled: false,
     mode: 'oneshot' as const,
@@ -294,6 +303,15 @@ const EFFECT_PRESET_2: CellEffects = {
     trailSize: 0.59,
     trailHeight: 0.92,
   },
+  zoom: {
+    enabled: false,
+    mode: 'oneshot' as const,
+    speedFactor: 1,
+    repeatEnabled: true,
+    repeatIntervalSec: 0.8,
+    zoomFactor: 1.5,
+    centerCorrection: true,
+  },
   squish: {
     enabled: false,
     mode: 'oneshot' as const,
@@ -362,6 +380,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setSpiralRadialPositionPicking,
     squishColorPicking,
     setSquishColorPicking,
+    syncZoomSquish,
   } = useAppStore()
   const { language, t } = useTranslation()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
@@ -1151,6 +1170,86 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         )}
       </Section>
 
+      <Section title={t('zoomEffect')} titleColor="#4db8ff">
+        <Row label={t('enabled')}>
+          <Toggle value={effects.zoom.enabled} onChange={v => set('zoom', { enabled: v })} />
+        </Row>
+        {effects.zoom.enabled && (
+          <>
+            <Row label={t('zoomMode')}>
+              <Select
+                value={effects.zoom.mode ?? 'oneshot'}
+                options={[
+                  { value: 'oneshot', label: t('zoomModeOneshot') },
+                  { value: 'permanentA', label: t('zoomModePermanentA') },
+                  { value: 'permanentB', label: t('zoomModePermanentB') },
+                ]}
+                onChange={v => set('zoom', { mode: v as 'oneshot' | 'permanentA' | 'permanentB' })}
+              />
+            </Row>
+            <Row label={t('zoomFactor')}>
+              <NumberInput
+                value={effects.zoom.zoomFactor}
+                min={1.0}
+                max={5.0}
+                step={0.1}
+                unit="x"
+                onChange={v => set('zoom', { zoomFactor: v })}
+              />
+            </Row>
+            <Row label={t('zoomCenterCorrection')}>
+              <Toggle
+                value={effects.zoom.centerCorrection}
+                onChange={v => set('zoom', { centerCorrection: v })}
+              />
+            </Row>
+            <Row label={t('speedFactor')}>
+              <NumberInput
+                value={effects.zoom.speedFactor}
+                min={0.1}
+                max={5}
+                step={0.1}
+                unit="x"
+                onChange={v => set('zoom', { speedFactor: v })}
+              />
+            </Row>
+            {(effects.zoom.mode ?? 'oneshot') === 'oneshot' && (
+              <>
+                <Row label={t('shakeRepeat')}>
+                  <Toggle
+                    value={effects.zoom.repeatEnabled}
+                    onChange={v => set('zoom', { repeatEnabled: v })}
+                  />
+                </Row>
+                {effects.zoom.repeatEnabled && (
+                  <Row label={t('shakeRepeatInterval')}>
+                    <NumberInput
+                      value={effects.zoom.repeatIntervalSec}
+                      min={0}
+                      max={60}
+                      step={0.1}
+                      unit={t('seconds')}
+                      onChange={v => set('zoom', { repeatIntervalSec: v })}
+                    />
+                  </Row>
+                )}
+              </>
+            )}
+            {selectedCellId && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                <Button
+                  small
+                  variant="secondary"
+                  onClick={() => syncZoomSquish(selectedCellId, 'squish')}
+                >
+                  {t('syncWithSquish')}
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </Section>
+
       <Section title={t('breathingEffect')} titleColor="#f5cc30">
         <Row label={t('enabled')}>
           <Toggle value={effects.breathing.enabled} onChange={v => set('breathing', { enabled: v })} />
@@ -1531,6 +1630,18 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 />
               </Row>
             )}
+            {!(effects.squish.randomPosition && (effects.squish.mode ?? 'oneshot') === 'oneshot') && (
+              <Row label={t('squishCirclePositionY')}>
+                <Slider
+                  value={Math.round((effects.squish.circlePositionY ?? 0.5) * 100)}
+                  min={0}
+                  max={100}
+                  step={1}
+                  unit="%"
+                  onChange={v => set('squish', { circlePositionY: v / 100 })}
+                />
+              </Row>
+            )}
             <Row label={t('squishOpacity')}>
               <Slider
                 value={Math.round(effects.squish.opacity * 100)}
@@ -1660,6 +1771,36 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 )}
               </>
             )}
+            <Row label={t('squishGapCorrection')}>
+              <Toggle
+                value={effects.squish.gapCorrectionEnabled ?? false}
+                onChange={v => set('squish', { gapCorrectionEnabled: v })}
+              />
+            </Row>
+            {(effects.squish.gapCorrectionEnabled ?? false) && (
+              <>
+                <Row label={t('squishGapCorrectionScale')}>
+                  <NumberInput
+                    value={effects.squish.gapCorrectionScale ?? 1.5}
+                    min={1.0}
+                    max={4.0}
+                    step={0.05}
+                    unit="x"
+                    onChange={v => set('squish', { gapCorrectionScale: v })}
+                  />
+                </Row>
+                <Row label={t('squishCircleGapFactor')}>
+                  <Slider
+                    value={Math.round((effects.squish.circleGapFactor ?? 1) * 100)}
+                    min={0}
+                    max={300}
+                    step={1}
+                    unit="%"
+                    onChange={v => set('squish', { circleGapFactor: v / 100 })}
+                  />
+                </Row>
+              </>
+            )}
             <Row label={t('squishBurst')}>
               <Toggle
                 value={effects.squish.burstEnabled ?? false}
@@ -1677,6 +1818,17 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   onChange={v => set('squish', { burstMaxOpacity: v / 100 })}
                 />
               </Row>
+            )}
+            {selectedCellId && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                <Button
+                  small
+                  variant="secondary"
+                  onClick={() => syncZoomSquish(selectedCellId, 'zoom')}
+                >
+                  {t('syncWithZoom')}
+                </Button>
+              </div>
             )}
           </>
         )}
@@ -1980,7 +2132,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <Button
             variant="secondary"
             onClick={restartEffectsWithRandomTiming}
-            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.spiral?.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled || c.effects.shake?.enabled || c.effects.squish?.enabled)}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.spiral?.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled || c.effects.shake?.enabled || c.effects.zoom?.enabled || c.effects.squish?.enabled)}
             title={t('restartRandomTimingTip')}
           >
             {t('restartRandomTiming')}

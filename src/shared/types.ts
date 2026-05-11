@@ -179,6 +179,22 @@ export type SquishEffect = {
   randomPosition: boolean
   burstEnabled?: boolean
   burstMaxOpacity?: number
+  syncNonce?: number
+  gapCorrectionEnabled?: boolean
+  gapCorrectionScale?: number
+  circlePositionY?: number
+  circleGapFactor?: number
+}
+
+export type ZoomEffect = {
+  enabled: boolean
+  mode: 'oneshot' | 'permanentA' | 'permanentB'
+  speedFactor: number
+  repeatEnabled: boolean
+  repeatIntervalSec: number
+  zoomFactor: number
+  centerCorrection: boolean
+  syncNonce?: number
 }
 
 export type AssetDrawPattern = 'rising' | 'emergence'
@@ -262,6 +278,7 @@ export type CellEffects = {
   flash: FlashEffect
   breathing: BreathingEffect
   shake: ShakeEffect
+  zoom: ZoomEffect
   squish: SquishEffect
   dynamicAsset: DynamicAssetEffect
   textEffect: TextEffect
