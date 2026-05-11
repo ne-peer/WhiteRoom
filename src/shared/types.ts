@@ -81,6 +81,8 @@ export type VignetteEffect = {
   enabled: boolean
   color: { r: number; g: number; b: number }  // デフォルト: ピンク
   alpha: number         // 0.0 - 1.0
+  /** 0-100。高いほど中央の透明域が狭くなり周辺が濃くなる */
+  intensity: number
   dynamic: boolean      // 動的ビネット有効
   dynamicFrom: number   // 開始透明度 0.0-1.0
   dynamicTo: number     // 終了透明度 0.0-1.0

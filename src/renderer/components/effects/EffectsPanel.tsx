@@ -31,6 +31,7 @@ const EFFECT_PRESET_1: CellEffects = {
     enabled: true,
     color: { r: 255, g: 100, b: 150 },
     alpha: 0.5,
+    intensity: 50,
     dynamic: true,
     dynamicFrom: 0.62,
     dynamicTo: 1,
@@ -235,6 +236,7 @@ const EFFECT_PRESET_2: CellEffects = {
     enabled: false,
     color: { r: 255, g: 100, b: 150 },
     alpha: 0.5,
+    intensity: 50,
     dynamic: true,
     dynamicFrom: 0.4,
     dynamicTo: 0.7,
@@ -734,11 +736,16 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               g={effects.colorOverlay.color.g}
               b={effects.colorOverlay.color.b}
               onChange={(r, g, b) => set('colorOverlay', { color: { r, g, b } })}
-              showAlpha
-              alpha={effects.colorOverlay.alpha}
-              onAlphaChange={a => set('colorOverlay', { alpha: a })}
-              alphaSliderLabel={t('opacity')}
             />
+            <Row label={t('opacity')}>
+              <Slider
+                value={Math.round(effects.colorOverlay.alpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('colorOverlay', { alpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
           </div>
         )}
       </Section>
@@ -816,18 +823,35 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         </Row>
         {effects.vignette.enabled && (
           <>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('color')}</div>
-            <div style={{ marginBottom: 10 }}>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('color')}</div>
               <ColorPicker
                 r={effects.vignette.color.r}
                 g={effects.vignette.color.g}
                 b={effects.vignette.color.b}
                 onChange={(r, g, b) => set('vignette', { color: { r, g, b } })}
-                showAlpha={!effects.vignette.dynamic}
-                alpha={effects.vignette.alpha}
-                onAlphaChange={a => set('vignette', { alpha: a })}
               />
+              {!effects.vignette.dynamic && (
+                <Row label={t('opacity')}>
+                  <Slider
+                    value={Math.round(effects.vignette.alpha * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('vignette', { alpha: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              )}
             </div>
+            <Row label={t('strength')}>
+              <Slider
+                value={Math.round(effects.vignette.intensity ?? 50)}
+                min={0}
+                max={100}
+                onChange={v => set('vignette', { intensity: v })}
+                unit="%"
+              />
+            </Row>
             <Row label={t('dynamicVignette')}>
               <Toggle value={effects.vignette.dynamic} onChange={v => set('vignette', { dynamic: v })} />
             </Row>
@@ -1569,15 +1593,23 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               />
             </Row>
             {effects.dynamicAsset.colorOverlayEnabled && (
-              <ColorPicker
-                r={effects.dynamicAsset.colorOverlayColor.r}
-                g={effects.dynamicAsset.colorOverlayColor.g}
-                b={effects.dynamicAsset.colorOverlayColor.b}
-                onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
-                showAlpha
-                alpha={effects.dynamicAsset.colorOverlayAlpha}
-                onAlphaChange={a => set('dynamicAsset', { colorOverlayAlpha: a })}
-              />
+              <>
+                <ColorPicker
+                  r={effects.dynamicAsset.colorOverlayColor.r}
+                  g={effects.dynamicAsset.colorOverlayColor.g}
+                  b={effects.dynamicAsset.colorOverlayColor.b}
+                  onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
+                />
+                <Row label={t('opacity')}>
+                  <Slider
+                    value={Math.round(effects.dynamicAsset.colorOverlayAlpha * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('dynamicAsset', { colorOverlayAlpha: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              </>
             )}
           </>
         )}
@@ -1971,7 +2003,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 g={effects.fog.color.g}
                 b={effects.fog.color.b}
                 onChange={(r, g, b) => set('fog', { color: { r, g, b } })}
-                showAlpha={false}
               />
             </div>
             <Row label={t('fogAlpha')}>
@@ -2142,7 +2173,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 g={effects.spiral.color.g}
                 b={effects.spiral.color.b}
                 onChange={(r, g, b) => set('spiral', { color: { r, g, b } })}
-                showAlpha={false}
               />
             </div>
             {effects.spiral.pattern === 'classic' && (
@@ -2162,7 +2192,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                         g={effects.spiral.secondaryColor.g}
                         b={effects.spiral.secondaryColor.b}
                         onChange={(r, g, b) => set('spiral', { secondaryColor: { r, g, b } })}
-                        showAlpha={false}
                       />
                     </div>
                   </>
@@ -2363,10 +2392,16 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               g={effects.textEffect.color.g}
               b={effects.textEffect.color.b}
               onChange={(r, g, b) => set('textEffect', { color: { r, g, b } })}
-              showAlpha
-              alpha={effects.textEffect.alpha}
-              onAlphaChange={a => set('textEffect', { alpha: a })}
             />
+            <Row label={t('opacity')}>
+              <Slider
+                value={Math.round(effects.textEffect.alpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('textEffect', { alpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
             <Row label={t('timerSync')}>
               <Toggle
                 value={effects.textEffect.alphaTimerSync ?? false}

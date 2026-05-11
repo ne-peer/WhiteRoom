@@ -3690,12 +3690,14 @@ export class CellRenderer {
       return
     }
 
+    const intensity = vig.intensity ?? 50
     const textureKey = [
       this.width,
       this.height,
       vig.color.r,
       vig.color.g,
       vig.color.b,
+      Math.round(intensity),
     ].join(':')
 
     if (!this.vignetteSprite || this.vignetteTextureKey !== textureKey) {
@@ -3704,7 +3706,7 @@ export class CellRenderer {
         this.vignetteLayer.removeChild(this.vignetteSprite)
         this.vignetteSprite.destroy({ texture: true })
       }
-      const tex = createVignetteTexture(this.width, this.height, vig.color)
+      const tex = createVignetteTexture(this.width, this.height, vig.color, intensity)
       this.vignetteSprite = new PIXI.Sprite(tex)
       this.vignetteSprite.alpha = previousAlpha
       this.vignetteTextureKey = textureKey

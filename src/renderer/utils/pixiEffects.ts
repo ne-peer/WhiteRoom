@@ -6,8 +6,16 @@ import type { CellEffects, AssetParticle, TextEffect } from '../../shared/types'
 export function createVignetteTexture(
   width: number,
   height: number,
-  color: { r: number; g: number; b: number }
+  color: { r: number; g: number; b: number },
+  intensity = 50
 ): PIXI.Texture {
+  const t = Math.max(0, Math.min(1, intensity / 100))
+  const lerp = (a: number, b: number, u: number) => a + (b - a) * u
+  const clearEnd = lerp(0.68, 0.12, t)
+  const rampStop = lerp(0.82, 0.36, t)
+  const alphaRamp = lerp(0.04, 0.42, t)
+  const alphaEdge = lerp(0.58, 1, t)
+
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -18,8 +26,9 @@ export function createVignetteTexture(
   )
   const { r, g, b } = color
   gradient.addColorStop(0, `rgba(${r},${g},${b},0)`)
-  gradient.addColorStop(0.5, `rgba(${r},${g},${b},0.1)`)
-  gradient.addColorStop(1, `rgba(${r},${g},${b},1)`)
+  gradient.addColorStop(clearEnd, `rgba(${r},${g},${b},0)`)
+  gradient.addColorStop(rampStop, `rgba(${r},${g},${b},${alphaRamp})`)
+  gradient.addColorStop(1, `rgba(${r},${g},${b},${alphaEdge})`)
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, width, height)
   return PIXI.Texture.from(canvas)

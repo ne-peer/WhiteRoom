@@ -126,11 +126,7 @@ export const ColorPicker: React.FC<{
   r: number; g: number; b: number
   onChange: (r: number, g: number, b: number) => void
   leading?: React.ReactNode
-  showAlpha?: boolean
-  alpha?: number
-  onAlphaChange?: (a: number) => void
-  alphaSliderLabel?: string
-}> = ({ r, g, b, onChange, leading, showAlpha, alpha = 1, onAlphaChange, alphaSliderLabel }) => {
+}> = ({ r, g, b, onChange, leading }) => {
   const hex = `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`
 
   const handleHexChange = (hex: string) => {
@@ -152,36 +148,6 @@ export const ColorPicker: React.FC<{
         />
         <span className={styles.colorHex}>{hex.toUpperCase()}</span>
       </div>
-      {showAlpha && onAlphaChange && (
-        alphaSliderLabel ? (
-          <div className={`${styles.row} ${styles.colorPickerAlphaSliderRow}`}>
-            <span className={styles.label}>{alphaSliderLabel}</span>
-            <div className={styles.control}>
-              <div className={styles.sliderWrapper}>
-                <input
-                  type="range"
-                  className={styles.slider}
-                  min={0} max={100} step={1}
-                  value={Math.round(alpha * 100)}
-                  onChange={e => onAlphaChange(Number(e.target.value) / 100)}
-                />
-                <span className={styles.sliderValue}>{Math.round(alpha * 100)}%</span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className={styles.alphaWrapper}>
-            <input
-              type="range"
-              className={styles.slider}
-              min={0} max={100} step={1}
-              value={Math.round(alpha * 100)}
-              onChange={e => onAlphaChange(Number(e.target.value) / 100)}
-            />
-            <span className={styles.sliderValue}>{Math.round(alpha * 100)}%</span>
-          </div>
-        )
-      )}
     </div>
   )
 }

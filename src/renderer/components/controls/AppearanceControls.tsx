@@ -69,9 +69,15 @@ export const AppearanceControls: React.FC = () => {
                   g={blankColor.g}
                   b={blankColor.b}
                   onChange={(r, g, b) => setBlankColor({ ...blankColor, r, g, b })}
-                  showAlpha
-                  alpha={blankColor.a}
-                  onAlphaChange={a => setBlankColor({ ...blankColor, a })}
+                />
+              </Row>
+              <Row label={t('opacity')}>
+                <Slider
+                  value={Math.round(blankColor.a * 100)}
+                  min={0}
+                  max={100}
+                  onChange={v => setBlankColor({ ...blankColor, a: v / 100 })}
+                  unit="%"
                 />
               </Row>
               <div style={{ marginTop: 10 }}>

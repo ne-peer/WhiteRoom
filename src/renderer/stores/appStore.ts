@@ -38,6 +38,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     enabled: false,
     color: { r: 255, g: 100, b: 150 },
     alpha: 0.5,
+    intensity: 50,
     dynamic: false,
     dynamicFrom: 0.4,
     dynamicTo: 0.7,
