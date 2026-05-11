@@ -1198,6 +1198,21 @@ export class CellRenderer {
     }
   }
 
+  private getShakeTrailMotionTransform(trailOffsetY: number) {
+    const breathing = this.latestEffects?.breathing
+    const breathingEnabled = breathing?.enabled ?? false
+    const baseOffsetX = breathingEnabled ? this.breathingOffsetX : 0
+    const baseOffsetY = breathingEnabled ? this.breathingOffsetY : 0
+    const breathingScaleMultiplier = breathingEnabled && breathing?.scaleEnabled
+      ? this.getBreathingScaleMultiplier()
+      : 1
+    return {
+      offsetX: baseOffsetX + this.zoomCenterOffsetX,
+      offsetY: baseOffsetY + trailOffsetY + this.zoomCenterOffsetY,
+      scaleMultiplier: breathingScaleMultiplier * this.zoomScaleMultiplier,
+    }
+  }
+
   private updateShake(shake?: ShakeEffect, showCircleGuides = false) {
     const key = shake
       ? [
@@ -1688,15 +1703,13 @@ export class CellRenderer {
       timeSec: this.shakeTrailElapsedSec,
       offsetY: this.shakeTrailSmoothedOffsetY,
     })
-    const breathing = this.latestEffects?.breathing
-    const breathingEnabled = breathing?.enabled ?? false
-    const scaleMultiplier = breathingEnabled && breathing?.scaleEnabled ? this.getBreathingScaleMultiplier() : 1
     this.shakeTrailSprite.texture = this.imageSprite.texture
+    const firstStageTransform = this.getShakeTrailMotionTransform(this.shakeTrailSmoothedOffsetY)
     this.positionSprite(
       this.shakeTrailSprite,
-      breathingEnabled ? this.breathingOffsetX : 0,
-      (breathingEnabled ? this.breathingOffsetY : 0) + this.shakeTrailSmoothedOffsetY,
-      scaleMultiplier
+      firstStageTransform.offsetX,
+      firstStageTransform.offsetY,
+      firstStageTransform.scaleMultiplier
     )
     this.shakeTrailSprite.alpha = clamp(shake.trailAlpha ?? 0.8, 0, 1)
 
@@ -1708,11 +1721,12 @@ export class CellRenderer {
         ? secondDelayedOffsetY
         : lerp(this.shakeTrailSecondSmoothedOffsetY, secondDelayedOffsetY, smoothFactor)
       this.shakeTrailSecondSprite.texture = this.imageSprite.texture
+      const secondStageTransform = this.getShakeTrailMotionTransform(this.shakeTrailSecondSmoothedOffsetY)
       this.positionSprite(
         this.shakeTrailSecondSprite,
-        breathingEnabled ? this.breathingOffsetX : 0,
-        (breathingEnabled ? this.breathingOffsetY : 0) + this.shakeTrailSecondSmoothedOffsetY,
-        scaleMultiplier
+        secondStageTransform.offsetX,
+        secondStageTransform.offsetY,
+        secondStageTransform.scaleMultiplier
       )
       this.shakeTrailSecondSprite.alpha = clamp((shake.trailAlpha ?? 0.8) + 0.12, 0, 1)
     }
