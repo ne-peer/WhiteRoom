@@ -67,6 +67,12 @@ export type ColorOverlayEffect = {
   enabled: boolean
   color: { r: number; g: number; b: number }
   alpha: number  // 0.0 - 1.0
+  /** 動的反映（開始／終了透明度と変化時間でオーバーレイ強度を変化） */
+  dynamic: boolean
+  dynamicFrom: number
+  dynamicTo: number
+  dynamicDurationMs: number
+  dynamicTimerSync: boolean
   imageAdjustEnabled: boolean
   /** RGB 乗算。1.0 が無変更（暗く＜1、明るく＞1） */
   brightness: number

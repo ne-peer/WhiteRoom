@@ -19,6 +19,11 @@ const EFFECT_PRESET_1: CellEffects = {
     enabled: false,
     color: { r: 255, g: 0, b: 128 },
     alpha: 0.3,
+    dynamic: false,
+    dynamicFrom: 0.2,
+    dynamicTo: 0.5,
+    dynamicDurationMs: 1000,
+    dynamicTimerSync: false,
     imageAdjustEnabled: false,
     brightness: 1,
     saturationMax: 1.25,
@@ -224,6 +229,11 @@ const EFFECT_PRESET_2: CellEffects = {
     enabled: false,
     color: { r: 255, g: 0, b: 128 },
     alpha: 0.3,
+    dynamic: false,
+    dynamicFrom: 0.2,
+    dynamicTo: 0.5,
+    dynamicDurationMs: 1000,
+    dynamicTimerSync: false,
     imageAdjustEnabled: false,
     brightness: 1,
     saturationMax: 1.4,
@@ -562,6 +572,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     (
       (c.effects.vignette.enabled && c.effects.vignette.dynamic) ||
       (c.effects.spiral?.enabled && c.effects.spiral?.dynamic) ||
+      (c.effects.colorOverlay?.enabled && c.effects.colorOverlay?.dynamic) ||
       (c.effects.colorOverlay?.imageAdjustEnabled && c.effects.colorOverlay?.dynamicAdjust) ||
       (c.effects.blur.enabled && c.effects.blur.gradualEnabled) ||
       c.effects.echo.enabled ||
@@ -737,15 +748,59 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               b={effects.colorOverlay.color.b}
               onChange={(r, g, b) => set('colorOverlay', { color: { r, g, b } })}
             />
-            <Row label={t('opacity')}>
-              <Slider
-                value={Math.round(effects.colorOverlay.alpha * 100)}
-                min={0}
-                max={100}
-                onChange={v => set('colorOverlay', { alpha: v / 100 })}
-                unit="%"
-              />
+            {!effects.colorOverlay.dynamic && (
+              <Row label={t('opacity')}>
+                <Slider
+                  value={Math.round(effects.colorOverlay.alpha * 100)}
+                  min={0}
+                  max={100}
+                  onChange={v => set('colorOverlay', { alpha: v / 100 })}
+                  unit="%"
+                />
+              </Row>
+            )}
+            <Row label={t('dynamicReflect')}>
+              <Toggle value={effects.colorOverlay.dynamic} onChange={v => set('colorOverlay', { dynamic: v })} />
             </Row>
+            {effects.colorOverlay.dynamic && (
+              <>
+                <Row label={t('startOpacity')}>
+                  <Slider
+                    value={Math.round((effects.colorOverlay.dynamicFrom ?? 0) * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('colorOverlay', { dynamicFrom: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('endOpacity')}>
+                  <Slider
+                    value={Math.round((effects.colorOverlay.dynamicTo ?? 1) * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('colorOverlay', { dynamicTo: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+                <Row label={t('changeDuration')}>
+                  <NumberInput
+                    value={(effects.colorOverlay.dynamicDurationMs ?? 1000) / 1000}
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    unit={t('seconds')}
+                    onChange={v => set('colorOverlay', { dynamicDurationMs: v * 1000 })}
+                  />
+                </Row>
+                <Row label={t('timerSync')}>
+                  <Toggle
+                    value={effects.colorOverlay.dynamicTimerSync ?? false}
+                    onChange={v => set('colorOverlay', { dynamicTimerSync: v })}
+                    theme="timerSync"
+                  />
+                </Row>
+              </>
+            )}
           </div>
         )}
       </Section>
@@ -2464,7 +2519,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <Button
             variant="secondary"
             onClick={restartEffectsWithRandomTiming}
-            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.spiral?.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled || c.effects.shake?.enabled || c.effects.zoom?.enabled || c.effects.squish?.enabled)}
+            disabled={!cells.some(c => c.effects.vignette.dynamic || c.effects.spiral?.dynamic || c.effects.colorOverlay?.dynamic || c.effects.colorOverlay?.dynamicAdjust || c.effects.blur.gradualEnabled || c.effects.echo.enabled || c.effects.breathing?.enabled || c.effects.shake?.enabled || c.effects.zoom?.enabled || c.effects.squish?.enabled)}
             title={t('restartRandomTimingTip')}
           >
             {t('restartRandomTiming')}

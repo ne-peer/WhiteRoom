@@ -26,6 +26,11 @@ export const DEFAULT_EFFECTS: CellEffects = {
     enabled: false,
     color: { r: 255, g: 0, b: 128 },
     alpha: 0.3,
+    dynamic: false,
+    dynamicFrom: 0.2,
+    dynamicTo: 0.5,
+    dynamicDurationMs: 1000,
+    dynamicTimerSync: false,
     imageAdjustEnabled: false,
     brightness: 1,
     saturationMax: 1.4,
@@ -918,6 +923,7 @@ export const useAppStore = create<AppStore>()(
       const targetCells = s.applyEffectChangesToAllColumns ? s.cells : [selectedCell]
       targetCells.forEach(cell => {
         cell.effects.colorOverlay.dynamicAdjustTimerSync = true
+        cell.effects.colorOverlay.dynamicTimerSync = true
         cell.effects.vignette.dynamicTimerSync = true
         cell.effects.spiral.dynamicTimerSync = true
         cell.effects.blur.gradualTimerSync = true
@@ -938,6 +944,7 @@ export const useAppStore = create<AppStore>()(
       const targetCells = s.applyEffectChangesToAllColumns ? s.cells : [selectedCell]
       targetCells.forEach(cell => {
         cell.effects.colorOverlay.dynamicAdjustTimerSync = false
+        cell.effects.colorOverlay.dynamicTimerSync = false
         cell.effects.vignette.dynamicTimerSync = false
         cell.effects.spiral.dynamicTimerSync = false
         cell.effects.blur.gradualTimerSync = false

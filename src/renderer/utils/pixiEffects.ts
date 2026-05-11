@@ -47,10 +47,8 @@ export function updateColorOverlay(
     return
   }
   const { r, g, b } = effects.colorOverlay.color
-  const alpha = effects.colorOverlay.alpha
   graphics.rect(0, 0, width, height)
-  graphics.fill({ color: (r << 16) | (g << 8) | b, alpha })
-  graphics.alpha = 1
+  graphics.fill({ color: (r << 16) | (g << 8) | b, alpha: 1 })
 }
 
 // ===== ブラーフィルタ適用 =====
