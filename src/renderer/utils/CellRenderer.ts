@@ -2904,7 +2904,9 @@ export class CellRenderer {
   private drawFogDroplets(globalAlpha: number, instance: (typeof this.fogInstances)[0]) {
     const g = instance.dropletGraphics
     g.clear()
-    if (!instance.dropletPositions.length || globalAlpha <= 0.005) return
+    // NOTE: 途中で描画を打ち切ると「ある薄さで急に消える」見え方になるため、
+    // alpha=0 になるまで描き切る（0以下は何も描かれないので早期returnでOK）
+    if (!instance.dropletPositions.length || globalAlpha <= 0) return
     for (const dp of instance.dropletPositions) {
       const a = dp.baseAlpha * globalAlpha
       if (a <= 0) continue
@@ -2926,7 +2928,8 @@ export class CellRenderer {
     const growSec = Math.max(0.1, fog.growDurationSec)
     const holdSec = Math.max(0, fog.holdDurationSec)
     const fadeSec = Math.max(0.1, fog.fadeDurationSec)
-    const totalActiveSec = growSec + holdSec + fadeSec
+    const effectiveFadeSec = this.getFogEffectiveFadeDurationSec(fadeSec)
+    const totalActiveSec = growSec + holdSec + effectiveFadeSec
     const globalAlpha = clamp(fog.alpha, 0, 1)
     const minSide = Math.min(this.width, this.height)
     const maxRadius = minSide * clamp(fog.fogSizeRatio, 0.1, 0.8)
@@ -2952,8 +2955,9 @@ export class CellRenderer {
         blobAlpha = 1
         blobScale = 1
       } else if (t < totalActiveSec) {
-        const p = (t - growSec - holdSec) / fadeSec
-        blobAlpha = 1 - easeInSine(p)
+        const fadeElapsedSec = t - growSec - holdSec
+        const p = this.getFogFadeProgress(fadeElapsedSec, fadeSec)
+        blobAlpha = this.getFogFadeAlpha(p)
         // 蒸発感: フェード中にわずかに拡大
         blobScale = 1 + easeInSine(p) * 0.09
       } else {
@@ -2979,10 +2983,42 @@ export class CellRenderer {
     } else if (elapsedSec < growSec + holdSec) {
       dropletAlpha = 1
     } else {
-      const p = (elapsedSec - growSec - holdSec) / fadeSec
-      dropletAlpha = Math.max(0, 1 - easeInSine(p))
+      const fadeElapsedSec = elapsedSec - growSec - holdSec
+      const p = this.getFogFadeProgress(fadeElapsedSec, fadeSec)
+      dropletAlpha = this.getFogFadeAlpha(p)
     }
     this.drawFogDroplets(dropletAlpha * globalAlpha, instance)
+  }
+
+  private getFogEffectiveFadeDurationSec(fadeSec: number): number {
+    const splitSec = fadeSec * FOG_FADE_LINEAR_TAIL_START
+    const tailSec = fadeSec * (1 - FOG_FADE_LINEAR_TAIL_START)
+    return splitSec + tailSec * FOG_FADE_LINEAR_TAIL_SLOW_FACTOR
+  }
+
+  private getFogFadeProgress(fadeElapsedSec: number, fadeSec: number): number {
+    const splitSec = fadeSec * FOG_FADE_LINEAR_TAIL_START
+    const effectiveTailSec = fadeSec * (1 - FOG_FADE_LINEAR_TAIL_START) * FOG_FADE_LINEAR_TAIL_SLOW_FACTOR
+    if (fadeElapsedSec <= splitSec) {
+      return clamp(fadeElapsedSec / fadeSec, 0, 1)
+    }
+    const tailElapsedSec = fadeElapsedSec - splitSec
+    const tailProgress = clamp(tailElapsedSec / Math.max(0.0001, effectiveTailSec), 0, 1)
+    return clamp(
+      FOG_FADE_LINEAR_TAIL_START + tailProgress * (1 - FOG_FADE_LINEAR_TAIL_START),
+      0,
+      1
+    )
+  }
+
+  private getFogFadeAlpha(progress: number): number {
+    const p = clamp(progress, 0, 1)
+    if (p <= FOG_FADE_LINEAR_TAIL_START) {
+      return Math.max(0, 1 - easeInSine(p))
+    }
+    const tailProgress = (p - FOG_FADE_LINEAR_TAIL_START) / (1 - FOG_FADE_LINEAR_TAIL_START)
+    const tailStartAlpha = Math.max(0, 1 - easeInSine(FOG_FADE_LINEAR_TAIL_START))
+    return Math.max(0, tailStartAlpha * (1 - easeOutSine(tailProgress)))
   }
 
   private createFogInstance(fog: FogEffect) {
@@ -3093,7 +3129,7 @@ export class CellRenderer {
     const growSec = Math.max(0.1, fog.growDurationSec)
     const holdSec = Math.max(0, fog.holdDurationSec)
     const fadeSec = Math.max(0.1, fog.fadeDurationSec)
-    const totalActiveSec = growSec + holdSec + fadeSec
+    const totalActiveSec = growSec + holdSec + this.getFogEffectiveFadeDurationSec(fadeSec)
 
     // Spawn policy:
     // - repeatEnabled: start a new fog every repeatIntervalSec (allow overlap)
@@ -3159,9 +3195,10 @@ export class CellRenderer {
 
   private getFogCycleDurationMs(fog?: FogEffect) {
     if (!fog?.enabled) return 0
+    const fadeSec = this.getFogEffectiveFadeDurationSec(Math.max(0.1, fog.fadeDurationSec))
     const activeSec = Math.max(0.1, fog.growDurationSec) +
       Math.max(0, fog.holdDurationSec) +
-      Math.max(0.1, fog.fadeDurationSec)
+      fadeSec
     return (activeSec + (fog.repeatEnabled ? Math.max(0, fog.repeatIntervalSec) : 0)) * 1000
   }
 
@@ -4018,6 +4055,9 @@ function easeOutSine(x: number): number {
 function easeInSine(x: number): number {
   return 1 - Math.cos((clamp(x, 0, 1) * Math.PI) / 2)
 }
+
+const FOG_FADE_LINEAR_TAIL_START = 0.8
+const FOG_FADE_LINEAR_TAIL_SLOW_FACTOR = 1.75
 
 function easeInOutCubic(x: number): number {
   const t = clamp(x, 0, 1)

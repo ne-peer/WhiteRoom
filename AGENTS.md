@@ -110,6 +110,7 @@ npx tsc --noEmit
 6. **Dynamic blank background**: it is a cloned image sprite with its own blur filter, not a CSS background
 7. **Text reader is not part of `AppProfile`**: it is UI/session state stored separately from exported profiles
 8. **`structuredClone` inside immer `set()`**: compute snapshots outside `set()` using `get()` — immer draft Proxies cannot be structurally cloned
+9. **Fog evaporation tail**: keep fog fade visually smooth by avoiding alpha cutoffs. The final 20% of fog fade uses `easeOutSine` and an extended tail duration (slow factor) in `CellRenderer`; this may make visual fade time longer than `fadeDurationSec`, and that mismatch is currently accepted by design.
 
 ## Storyboard Tag Spec
 
