@@ -39,11 +39,13 @@ export const Toggle: React.FC<{
   value: boolean
   onChange: (v: boolean) => void
   label?: string
-}> = ({ value, onChange, label }) => (
+  disabled?: boolean
+  theme?: 'default' | 'timerSync'
+}> = ({ value, onChange, label, disabled = false, theme = 'default' }) => (
   <label className={styles.toggleWrapper}>
     <div
-      className={`${styles.toggle} ${value ? styles.toggleOn : ''}`}
-      onClick={() => onChange(!value)}
+      className={`${styles.toggle} ${value ? styles.toggleOn : ''} ${theme === 'timerSync' ? styles.toggleTimerSync : ''} ${disabled ? styles.toggleDisabled : ''}`}
+      onClick={() => { if (!disabled) onChange(!value) }}
     >
       <div className={styles.toggleThumb} />
     </div>
@@ -82,7 +84,8 @@ export const NumberInput: React.FC<{
   step?: number
   onChange: (v: number) => void
   unit?: string
-}> = ({ value, min, max, step = 1, onChange, unit }) => (
+  disabled?: boolean
+}> = ({ value, min, max, step = 1, onChange, unit, disabled = false }) => (
   <div className={styles.numberWrapper}>
     <input
       type="number"
@@ -91,6 +94,7 @@ export const NumberInput: React.FC<{
       min={min}
       max={max}
       step={step}
+      disabled={disabled}
       onChange={e => onChange(Number(e.target.value))}
     />
     {unit && <span className={styles.unit}>{unit}</span>}
@@ -207,10 +211,12 @@ export const Select: React.FC<{
   value: string
   options: { value: string; label: string }[]
   onChange: (v: string) => void
-}> = ({ value, options, onChange }) => (
+  disabled?: boolean
+}> = ({ value, options, onChange, disabled = false }) => (
   <select
     className={styles.select}
     value={value}
+    disabled={disabled}
     onChange={e => onChange(e.target.value)}
   >
     {options.map(opt => (

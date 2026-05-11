@@ -150,6 +150,8 @@ const EFFECT_PRESET_1: CellEffects = {
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
     timerSync: false,
+    timerSyncStartOpacity: 100 / 100,
+    timerSyncEndOpacity: 100 / 100,
     randomPosition: false,
     burstEnabled: false,
     burstMaxOpacity: 0.8,
@@ -196,6 +198,8 @@ const EFFECT_PRESET_1: CellEffects = {
     color: { r: 231, g: 193, b: 211 },
     alpha: 0.3,
     timerSync: false,
+    timerSyncStartOpacity: 30 / 100,
+    timerSyncEndOpacity: 100 / 100,
     fogCount: 6,
     fogSizeRatio: 0.45,
     blurStrength: 15,
@@ -348,6 +352,8 @@ const EFFECT_PRESET_2: CellEffects = {
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
     timerSync: false,
+    timerSyncStartOpacity: 100 / 100,
+    timerSyncEndOpacity: 100 / 100,
     randomPosition: false,
   },
   dynamicAsset: {
@@ -385,6 +391,8 @@ const EFFECT_PRESET_2: CellEffects = {
     color: { r: 231, g: 193, b: 211 },
     alpha: 0.3,
     timerSync: false,
+    timerSyncStartOpacity: 30 / 100,
+    timerSyncEndOpacity: 100 / 100,
     fogCount: 6,
     fogSizeRatio: 0.45,
     blurStrength: 15,
@@ -779,6 +787,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   <Toggle
                     value={effects.colorOverlay.dynamicAdjustTimerSync ?? false}
                     onChange={v => set('colorOverlay', { dynamicAdjustTimerSync: v })}
+                    theme="timerSync"
                   />
                 </Row>
               </>
@@ -843,6 +852,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   <Toggle
                     value={effects.vignette.dynamicTimerSync ?? false}
                     onChange={v => set('vignette', { dynamicTimerSync: v })}
+                    theme="timerSync"
 
                   />
                 </Row>
@@ -967,6 +977,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   <Toggle
                     value={effects.blur.gradualTimerSync ?? false}
                     onChange={v => set('blur', { gradualTimerSync: v })}
+                    theme="timerSync"
 
                   />
                 </Row>
@@ -1225,6 +1236,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   { value: 'permanentA', label: t('zoomModePermanentA') },
                   { value: 'permanentB', label: t('zoomModePermanentB') },
                 ]}
+                disabled={effects.zoom.timerSync ?? false}
                 onChange={v => set('zoom', { mode: v as 'oneshot' | 'permanentA' | 'permanentB' })}
               />
             </Row>
@@ -1251,13 +1263,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 max={5}
                 step={0.1}
                 unit="x"
+                disabled={effects.zoom.timerSync ?? false}
                 onChange={v => set('zoom', { speedFactor: v })}
-              />
-            </Row>
-            <Row label={t('timerSync')}>
-              <Toggle
-                value={effects.zoom.timerSync ?? false}
-                onChange={v => set('zoom', { timerSync: v })}
               />
             </Row>
             {(effects.zoom.mode ?? 'oneshot') === 'oneshot' && (
@@ -1265,7 +1272,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <Row label={t('shakeRepeat')}>
                   <Toggle
                     value={effects.zoom.repeatEnabled}
-                    onChange={v => set('zoom', { repeatEnabled: v })}
+                    onChange={v => set('zoom', v ? { repeatEnabled: true, timerSync: false } : { repeatEnabled: false })}
                   />
                 </Row>
                 {effects.zoom.repeatEnabled && (
@@ -1293,6 +1300,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 </Button>
               </div>
             )}
+            <div style={{ marginTop: 8 }}>
+              <Row label={t('timerSync')}>
+                <Toggle
+                  value={effects.zoom.timerSync ?? false}
+                  onChange={v => set('zoom', v ? { timerSync: true, repeatEnabled: false } : { timerSync: false })}
+                  theme="timerSync"
+                />
+              </Row>
+            </div>
           </>
         )}
       </Section>
@@ -1327,6 +1343,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <Toggle
                 value={effects.breathing.timerSync ?? false}
                 onChange={v => set('breathing', { timerSync: v })}
+                theme="timerSync"
 
               />
             </Row>
@@ -1390,6 +1407,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <Toggle
                 value={effects.echo.timerSync ?? false}
                 onChange={v => set('echo', { timerSync: v })}
+                theme="timerSync"
 
               />
             </Row>
@@ -1497,6 +1515,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <Toggle
                 value={effects.dynamicAsset.alphaTimerSync ?? false}
                 onChange={v => set('dynamicAsset', { alphaTimerSync: v })}
+                theme="timerSync"
               />
             </Row>
             <Row label={t('size')}>
@@ -1796,12 +1815,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('squish', { speedFactor: v })}
               />
             </Row>
-            <Row label={t('timerSync')}>
-              <Toggle
-                value={effects.squish.timerSync ?? false}
-                onChange={v => set('squish', v ? { timerSync: true, repeatEnabled: true } : { timerSync: false })}
-              />
-            </Row>
             {(effects.squish.mode ?? 'oneshot') === 'oneshot' && (
               <>
                 <Row label={t('shakeRepeat')}>
@@ -1872,6 +1885,30 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 />
               </Row>
             )}
+            {(effects.squish.timerSync ?? false) && (
+              <>
+                <Row label={t('startOpacity')}>
+                  <Slider
+                    value={Math.round((effects.squish.timerSyncStartOpacity ?? effects.squish.opacity) * 100)}
+                    min={0}
+                    max={100}
+                    step={1}
+                    unit="%"
+                    onChange={v => set('squish', { timerSyncStartOpacity: v / 100 })}
+                  />
+                </Row>
+                <Row label={t('endOpacity')}>
+                  <Slider
+                    value={Math.round((effects.squish.timerSyncEndOpacity ?? 1) * 100)}
+                    min={0}
+                    max={100}
+                    step={1}
+                    unit="%"
+                    onChange={v => set('squish', { timerSyncEndOpacity: v / 100 })}
+                  />
+                </Row>
+              </>
+            )}
             {selectedCellId && (
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                 <Button
@@ -1883,6 +1920,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 </Button>
               </div>
             )}
+            <div style={{ marginTop: 8 }}>
+              <Row label={t('timerSync')}>
+                <Toggle
+                  value={effects.squish.timerSync ?? false}
+                  onChange={v => set('squish', v ? { timerSync: true, repeatEnabled: true } : { timerSync: false })}
+                  theme="timerSync"
+                />
+              </Row>
+            </div>
           </>
         )}
       </Section>
@@ -1910,12 +1956,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 max={100}
                 onChange={v => set('fog', { alpha: v / 100 })}
                 unit="%"
-              />
-            </Row>
-            <Row label={t('timerSync')}>
-              <Toggle
-                value={effects.fog.timerSync ?? false}
-                onChange={v => set('fog', { timerSync: v })}
               />
             </Row>
             <Row label={t('fogCount')}>
@@ -2027,6 +2067,37 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <Toggle
                 value={effects.fog.randomPositionEnabled ?? false}
                 onChange={v => set('fog', { randomPositionEnabled: v })}
+              />
+            </Row>
+            {(effects.fog.timerSync ?? false) && (
+              <>
+                <Row label={t('startOpacity')}>
+                  <Slider
+                    value={Math.round((effects.fog.timerSyncStartOpacity ?? effects.fog.alpha) * 100)}
+                    min={0}
+                    max={100}
+                    step={1}
+                    unit="%"
+                    onChange={v => set('fog', { timerSyncStartOpacity: v / 100 })}
+                  />
+                </Row>
+                <Row label={t('endOpacity')}>
+                  <Slider
+                    value={Math.round((effects.fog.timerSyncEndOpacity ?? 1) * 100)}
+                    min={0}
+                    max={100}
+                    step={1}
+                    unit="%"
+                    onChange={v => set('fog', { timerSyncEndOpacity: v / 100 })}
+                  />
+                </Row>
+              </>
+            )}
+            <Row label={t('timerSync')}>
+              <Toggle
+                value={effects.fog.timerSync ?? false}
+                onChange={v => set('fog', { timerSync: v })}
+                theme="timerSync"
               />
             </Row>
           </>
@@ -2203,6 +2274,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   <Toggle
                     value={effects.spiral.dynamicTimerSync ?? false}
                     onChange={v => set('spiral', { dynamicTimerSync: v })}
+                    theme="timerSync"
                   />
                 </Row>
               </>
@@ -2274,6 +2346,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <Toggle
                 value={effects.textEffect.alphaTimerSync ?? false}
                 onChange={v => set('textEffect', { alphaTimerSync: v })}
+                theme="timerSync"
 
               />
             </Row>

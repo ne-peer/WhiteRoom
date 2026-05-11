@@ -2286,6 +2286,8 @@ export class CellRenderer {
           squish.repeatEnabled,
           squish.repeatIntervalSec,
           squish.timerSync ?? false,
+          squish.timerSyncStartOpacity ?? squish.opacity ?? 1,
+          squish.timerSyncEndOpacity ?? 1,
           squish.randomPosition ?? false,
           squish.burstEnabled ?? false,
           squish.burstMaxOpacity ?? 0.8,
@@ -2442,9 +2444,17 @@ export class CellRenderer {
     this.squishBurstGraphics.clear()
     if (this.squishBurstActiveSec === null) return
 
+    const overallOpacity = this.getTimerSyncedOpacity(
+      clamp(squish.opacity ?? 1, 0, 1),
+      squish.timerSync ?? false,
+      squish.timerSyncStartOpacity ?? squish.opacity ?? 1,
+      squish.timerSyncEndOpacity ?? 1
+    )
     const maxOpacity = this.getTimerSyncedOpacity(
-      clamp(squish.burstMaxOpacity ?? 0.8, 0, 1),
-      squish.timerSync ?? false
+      clamp(squish.burstMaxOpacity ?? 0.8, 0, 1) * overallOpacity,
+      squish.timerSync ?? false,
+      squish.timerSyncStartOpacity ?? squish.opacity ?? 1,
+      squish.timerSyncEndOpacity ?? 1
     )
     const fadeInSec = 0.10
     const totalSec = 0.9
@@ -2527,13 +2537,15 @@ export class CellRenderer {
     const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
     const opacity = this.getTimerSyncedOpacity(
       clamp(squish.opacity ?? 1, 0, 1),
-      squish.timerSync ?? false
+      squish.timerSync ?? false,
+      squish.timerSyncStartOpacity ?? squish.opacity ?? 1,
+      squish.timerSyncEndOpacity ?? 1
     )
     const colorAlpha = clamp(squish.alpha, 0, 1) * drawAlpha * opacity
     const baseAlpha = clamp(0.42 + squish.alpha * 0.18, 0, 0.65) * drawAlpha * opacity
     const secondRadius = radius * 0.85
     const secondColor = darkenColor(color, 0.72)
-    const secondBaseAlpha = clamp(baseAlpha + 0.12, 0, 0.8)
+    const secondBaseAlpha = clamp(baseAlpha + 0.12 * drawAlpha * opacity, 0, 0.8)
     const secondColorAlpha = clamp(colorAlpha + 0.16 * drawAlpha * opacity, 0, 1)
     const organicShape = squish.organicEnabled
       ? this.getSquishOrganicShape(elapsedSec)
@@ -2587,13 +2599,15 @@ export class CellRenderer {
     const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
     const opacity = this.getTimerSyncedOpacity(
       clamp(squish.opacity ?? 1, 0, 1),
-      squish.timerSync ?? false
+      squish.timerSync ?? false,
+      squish.timerSyncStartOpacity ?? squish.opacity ?? 1,
+      squish.timerSyncEndOpacity ?? 1
     )
     const colorAlpha = clamp(squish.alpha, 0, 1) * opacity
     const baseAlpha = clamp(0.42 + squish.alpha * 0.18, 0, 0.65) * opacity
     const secondRadius = radius * 0.85
     const secondColor = darkenColor(color, 0.72)
-    const secondBaseAlpha = clamp(baseAlpha + 0.12, 0, 0.8)
+    const secondBaseAlpha = clamp(baseAlpha + 0.12 * opacity, 0, 0.8)
     const secondColorAlpha = clamp(colorAlpha + 0.16 * opacity, 0, 1)
     const organicShape = squish.organicEnabled
       ? this.getSquishOrganicShape(elapsedSec)
@@ -2641,13 +2655,15 @@ export class CellRenderer {
     const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
     const opacity = this.getTimerSyncedOpacity(
       clamp(squish.opacity ?? 1, 0, 1),
-      squish.timerSync ?? false
+      squish.timerSync ?? false,
+      squish.timerSyncStartOpacity ?? squish.opacity ?? 1,
+      squish.timerSyncEndOpacity ?? 1
     )
     const colorAlpha = clamp(squish.alpha, 0, 1) * opacity
     const baseAlpha = clamp(0.42 + squish.alpha * 0.18, 0, 0.65) * opacity
     const secondRadius = radius * 0.85
     const secondColor = darkenColor(color, 0.72)
-    const secondBaseAlpha = clamp(baseAlpha + 0.12, 0, 0.8)
+    const secondBaseAlpha = clamp(baseAlpha + 0.12 * opacity, 0, 0.8)
     const secondColorAlpha = clamp(colorAlpha + 0.16 * opacity, 0, 1)
     const organicShape = squish.organicEnabled
       ? this.getSquishOrganicShape(elapsedSec)
@@ -2945,7 +2961,9 @@ export class CellRenderer {
     const totalActiveSec = growSec + holdSec + effectiveFadeSec
     const globalAlpha = this.getTimerSyncedOpacity(
       clamp(fog.alpha, 0, 1),
-      fog.timerSync ?? false
+      fog.timerSync ?? false,
+      fog.timerSyncStartOpacity ?? fog.alpha,
+      fog.timerSyncEndOpacity ?? 1
     )
     const minSide = Math.min(this.width, this.height)
     const maxRadius = minSide * clamp(fog.fogSizeRatio, 0.1, 0.8)
@@ -3111,6 +3129,8 @@ export class CellRenderer {
           fog.color.b,
           fog.alpha,
           fog.timerSync ?? false,
+          fog.timerSyncStartOpacity ?? fog.alpha,
+          fog.timerSyncEndOpacity ?? 1,
           fog.fogCount,
           fog.fogSizeRatio,
           fog.blurStrength,
@@ -3362,9 +3382,16 @@ export class CellRenderer {
     }
   }
 
-  private getTimerSyncedOpacity(baseOpacity: number, timerSyncEnabled: boolean): number {
+  private getTimerSyncedOpacity(
+    baseOpacity: number,
+    timerSyncEnabled: boolean,
+    timerSyncStartOpacity?: number,
+    timerSyncEndOpacity?: number
+  ): number {
     if (!timerSyncEnabled || !this.timerEnabled) return baseOpacity
-    return lerp(baseOpacity, 1, clamp(this.timerProgress, 0, 1))
+    const startOpacity = clamp(timerSyncStartOpacity ?? baseOpacity, 0, 1)
+    const endOpacity = clamp(timerSyncEndOpacity ?? 1, 0, 1)
+    return lerp(startOpacity, endOpacity, clamp(this.timerProgress, 0, 1))
   }
 
   private rebuildVignette() {

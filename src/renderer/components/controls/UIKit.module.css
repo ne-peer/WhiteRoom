@@ -81,6 +81,15 @@
   background: #ff6eb4;
 }
 
+.toggleTimerSync.toggleOn {
+  background: #5e3194;
+}
+
+.toggleDisabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .toggleThumb {
   position: absolute;
   top: 3px;

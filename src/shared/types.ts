@@ -177,6 +177,8 @@ export type SquishEffect = {
   repeatEnabled: boolean
   repeatIntervalSec: number
   timerSync: boolean
+  timerSyncStartOpacity: number
+  timerSyncEndOpacity: number
   randomPosition: boolean
   burstEnabled?: boolean
   burstMaxOpacity?: number
@@ -204,6 +206,8 @@ export type FogEffect = {
   color: { r: number; g: number; b: number }
   alpha: number
   timerSync: boolean
+  timerSyncStartOpacity: number
+  timerSyncEndOpacity: number
   fogCount: number
   fogSizeRatio: number
   blurStrength: number
