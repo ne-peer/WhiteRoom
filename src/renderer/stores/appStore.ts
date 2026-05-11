@@ -115,6 +115,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     repeatIntervalSec: 1.3,
     amplitudeFactor: 0.5,
     speedFactor: 0.6,
+    timerSync: false,
     loopAmplitudePx: 20,
     loopSpeedPxPerSec: 80,
     afterimageEnabled: false,
@@ -920,6 +921,7 @@ export const useAppStore = create<AppStore>()(
         cell.effects.blur.gradualTimerSync = true
         cell.effects.echo.timerSync = true
         cell.effects.breathing.timerSync = true
+        cell.effects.shake.timerSync = true
         cell.effects.zoom.timerSync = true
         cell.effects.squish.timerSync = true
         cell.effects.fog.timerSync = true
@@ -939,6 +941,7 @@ export const useAppStore = create<AppStore>()(
         cell.effects.blur.gradualTimerSync = false
         cell.effects.echo.timerSync = false
         cell.effects.breathing.timerSync = false
+        cell.effects.shake.timerSync = false
         cell.effects.zoom.timerSync = false
         cell.effects.squish.timerSync = false
         cell.effects.fog.timerSync = false

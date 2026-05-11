@@ -1186,6 +1186,7 @@ export class CellRenderer {
           shake.repeatIntervalSec,
           shake.amplitudeFactor,
           shake.speedFactor,
+          shake.timerSync ?? false,
           shake.loopAmplitudePx,
           shake.loopSpeedPxPerSec,
           shake.afterimageEnabled,
@@ -1277,9 +1278,12 @@ export class CellRenderer {
     if (!this.imageSprite || !shake?.enabled) return
 
     const dtSec = Math.max(0, delta) / 60
+    const timerScale = (shake.timerSync && this.timerEnabled)
+      ? clamp(this.timerProgress, 0, 1)
+      : 1
     if (shake.mode === 'loop') {
-      const amplitude = Math.max(0, shake.loopAmplitudePx)
-      const speed = Math.max(0, shake.loopSpeedPxPerSec)
+      const amplitude = Math.max(0, shake.loopAmplitudePx) * timerScale
+      const speed = Math.max(0, shake.loopSpeedPxPerSec) * timerScale
       if (amplitude <= 0 || speed <= 0) {
         this.shakeOffsetY = 0
         this.shakeLoopSegmentElapsedSec = 0
@@ -1310,7 +1314,7 @@ export class CellRenderer {
       return
     }
 
-    const factor = Math.max(0, shake.amplitudeFactor)
+    const factor = Math.max(0, shake.amplitudeFactor) * timerScale
     if (factor <= 0) {
       this.shakeOffsetY = 0
       this.shakeOnceInitialized = true
@@ -1349,7 +1353,7 @@ export class CellRenderer {
 
     if (this.shakeOnceSegmentStartY === this.shakeOnceSegmentTargetY) return
 
-    const speedFactor = Math.max(0.1, shake.speedFactor)
+    const speedFactor = Math.max(0.1, shake.speedFactor * timerScale)
     const start = this.shakeOnceSegmentStartY
     const target = this.shakeOnceSegmentTargetY
     const distance = Math.abs(target - start)

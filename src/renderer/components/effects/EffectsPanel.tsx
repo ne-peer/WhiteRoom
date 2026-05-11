@@ -108,6 +108,7 @@ const EFFECT_PRESET_1: CellEffects = {
     repeatIntervalSec: 3,
     amplitudeFactor: 1,
     speedFactor: 1,
+    timerSync: false,
     loopAmplitudePx: 20,
     loopSpeedPxPerSec: 80,
     afterimageEnabled: false,
@@ -310,6 +311,7 @@ const EFFECT_PRESET_2: CellEffects = {
     repeatIntervalSec: 3,
     amplitudeFactor: 1,
     speedFactor: 1,
+    timerSync: false,
     loopAmplitudePx: 20,
     loopSpeedPxPerSec: 80,
     afterimageEnabled: false,
@@ -1218,6 +1220,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 )}
               </>
             )}
+            <div style={{ marginTop: 8 }}>
+              <Row label={t('timerSync')}>
+                <Toggle
+                  value={effects.shake.timerSync ?? false}
+                  onChange={v => set('shake', v ? { timerSync: true, repeatEnabled: true } : { timerSync: false })}
+                  theme="timerSync"
+                />
+              </Row>
+            </div>
           </>
         )}
       </Section>

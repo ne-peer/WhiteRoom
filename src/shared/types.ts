@@ -143,6 +143,7 @@ export type ShakeEffect = {
   repeatIntervalSec: number
   amplitudeFactor: number
   speedFactor: number
+  timerSync: boolean
   loopAmplitudePx: number
   loopSpeedPxPerSec: number
   afterimageEnabled: boolean
