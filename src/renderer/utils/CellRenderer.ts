@@ -2006,6 +2006,9 @@ export class CellRenderer {
 
     const sprite = new PIXI.Sprite(this.imageSprite.texture)
     sprite.anchor.set(0.5)
+    // Normal合成で同一画像を重ねると重なり部分が見えにくいため、
+    // エコーは加算合成で全体の複製感を維持する。
+    sprite.blendMode = 'add'
     this.echoLayer.addChild(sprite)
     this.echoSprite = sprite
 
@@ -3893,9 +3896,10 @@ export class CellRenderer {
   private buildRadialGradientBlur(blur: BlurEffect, centerXRatio: number, centerYRatio: number) {
     if (!this.imageSprite) return
 
-    // 放射状ブラー用のレイヤーは画像系をまとめた imageRootLayer の末尾に挿入する。
-    // これによりトーンフィルタが放射状ブラーの画像クローンにも適用される。
-    const insertIndex = this.imageRootLayer.children.length
+    // 放射状ブラーのクローンが echoLayer を覆うとエコーが見えなくなるため、
+    // 挿入位置は echoLayer の手前（背面側）に固定する。
+    // imageRootLayer 配下なのでトーンフィルタの適用対象には引き続き含まれる。
+    const insertIndex = this.imageRootLayer.getChildIndex(this.echoLayer)
     const pattern = blur.radialPattern ?? 'a'
     const centerX = clamp(centerXRatio, 0, 1)
     const centerY = clamp(centerYRatio, 0, 1)
