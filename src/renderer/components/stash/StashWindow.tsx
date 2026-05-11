@@ -208,36 +208,22 @@ export const StashWindow: React.FC = () => {
                     borderLeft: `3px solid ${item.color}`,
                   } : undefined}
                 >
-                  {/* スタッシュラベル / スタッシュするボタン */}
+                  {/* スタッシュラベル / スタッシュするボタン（スタッシュ済みはPOP動作） */}
                   <button
-                    className={styles.stashLabelBtn}
+                    className={`${styles.stashLabelBtn} ${item ? styles.filled : styles.empty}`}
                     style={item ? {
                       color: item.color,
                       borderColor: `${item.color}55`,
                     } : undefined}
-                    onMouseEnter={() => !item && setHoverIdx(i)}
+                    onMouseEnter={() => setHoverIdx(i)}
                     onMouseLeave={() => setHoverIdx(null)}
-                    onClick={() => !item && handleSave(i)}
-                    title={item ? item.savedAt : t('stashSaveButton')}
+                    onClick={() => item ? handlePop(i) : handleSave(i)}
+                    title={item ? `${item.savedAt} — ${t('stashPopButton')}` : t('stashSaveButton')}
                   >
                     {item
-                      ? `${item.emoji} スタッシュ`
+                      ? (isHovering ? t('stashRestoreHover') : `${item.emoji} スタッシュ`)
                       : (isHovering ? t('stashSaveButton') : t('stashEmptySlot'))
                     }
-                  </button>
-
-                  {/* POP ボタン */}
-                  <button
-                    className={`${styles.actionSmBtn} ${styles.popBtn}`}
-                    style={item ? {
-                      color: item.color,
-                      borderColor: `${item.color}55`,
-                    } : undefined}
-                    onClick={() => handlePop(i)}
-                    disabled={!item}
-                    title={t('stashPopButton')}
-                  >
-                    {t('stashPopButton')}
                   </button>
 
                   {/* 削除ボタン */}
@@ -259,7 +245,8 @@ export const StashWindow: React.FC = () => {
                 <button
                   className={styles.addBtn}
                   onClick={addStashSlot}
-                  title="スロットを追加"
+                  disabled={stashes.length < rowCount}
+                  title={stashes.length < rowCount ? t('stashAddSlotDisabledHint') : 'スロットを追加'}
                 >
                   {t('stashAddSlot')}
                 </button>

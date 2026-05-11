@@ -30,7 +30,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 310px;
+  width: 180px;
   z-index: 410;
   background: rgba(10, 10, 22, 0.88);
   border: 1px solid rgba(245, 158, 11, 0.30);
@@ -119,10 +119,18 @@
   height: 26px;
 }
 
-.stashLabelBtn:hover {
+/* 空スロット：ホバーで保存 */
+.stashLabelBtn.empty:hover {
   background: rgba(245, 158, 11, 0.15);
   border-color: rgba(245, 158, 11, 0.40);
   color: rgba(253, 200, 100, 0.95);
+}
+
+/* スタッシュ済み：ホバーでPOP（青系） */
+.stashLabelBtn.filled:hover {
+  background: rgba(80, 140, 220, 0.25);
+  border-color: rgba(100, 160, 255, 0.45);
+  color: rgba(180, 210, 255, 0.95);
 }
 
 .actionSmBtn {
@@ -143,12 +151,6 @@
 .actionSmBtn:disabled {
   opacity: 0.28;
   cursor: not-allowed;
-}
-
-.popBtn:not(:disabled):hover {
-  background: rgba(80, 140, 220, 0.25);
-  border-color: rgba(100, 160, 255, 0.45);
-  color: rgba(180, 210, 255, 0.95);
 }
 
 .delBtn:not(:disabled):hover {
@@ -177,8 +179,14 @@
   line-height: 1.2;
 }
 
-.addBtn:hover {
+.addBtn:hover:not(:disabled) {
   background: rgba(245, 158, 11, 0.10);
   border-color: rgba(245, 158, 11, 0.55);
   color: rgba(253, 200, 100, 0.90);
+}
+
+.addBtn:disabled {
+  border-color: rgba(120, 120, 120, 0.25);
+  color: rgba(120, 120, 120, 0.35);
+  cursor: not-allowed;
 }
