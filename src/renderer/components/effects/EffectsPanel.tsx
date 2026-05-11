@@ -20,6 +20,7 @@ const EFFECT_PRESET_1: CellEffects = {
     color: { r: 255, g: 0, b: 128 },
     alpha: 0.3,
     imageAdjustEnabled: false,
+    brightness: 1,
     saturationMax: 1.25,
     contrastMax: 1.25,
     dynamicAdjust: true,
@@ -223,6 +224,7 @@ const EFFECT_PRESET_2: CellEffects = {
     color: { r: 255, g: 0, b: 128 },
     alpha: 0.3,
     imageAdjustEnabled: false,
+    brightness: 1,
     saturationMax: 1.4,
     contrastMax: 1.35,
     dynamicAdjust: false,
@@ -749,6 +751,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         </Row>
         {effects.colorOverlay.imageAdjustEnabled && (
           <>
+            <Row label={t('imageBrightness')}>
+              <Slider
+                value={Math.round((effects.colorOverlay.brightness ?? 1) * 100)}
+                min={30}
+                max={200}
+                onChange={v => set('colorOverlay', { brightness: v / 100 })}
+                unit="%"
+              />
+            </Row>
             <Row label={t('saturationMax')}>
               <Slider
                 value={Math.round(effects.colorOverlay.saturationMax * 100)}

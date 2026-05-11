@@ -1075,8 +1075,11 @@ export class CellRenderer {
   }
 
   private updateColorAdjustment(colorOverlay: ColorOverlayEffect) {
+    const brightnessBase = colorOverlay.brightness ?? 1
     const enabled = colorOverlay.imageAdjustEnabled &&
-      (colorOverlay.saturationMax > 1 || colorOverlay.contrastMax > 1)
+      (colorOverlay.saturationMax > 1 ||
+        colorOverlay.contrastMax > 1 ||
+        Math.abs(brightnessBase - 1) > 1e-5)
 
     if (!enabled) {
       this.colorAdjustGsapTween?.kill()
@@ -1093,10 +1096,11 @@ export class CellRenderer {
 
     const isTimerSync = colorOverlay.dynamicAdjust && colorOverlay.dynamicAdjustTimerSync
     const animationKey = isTimerSync
-      ? `timer-sync:${colorOverlay.saturationMax}:${colorOverlay.contrastMax}`
+      ? `timer-sync:${colorOverlay.saturationMax}:${colorOverlay.contrastMax}:${brightnessBase}`
       : [
           colorOverlay.saturationMax,
           colorOverlay.contrastMax,
+          brightnessBase,
           colorOverlay.dynamicAdjust,
           colorOverlay.dynamicAdjustDurationMs,
         ].join(':')
@@ -1137,9 +1141,12 @@ export class CellRenderer {
     const p = clamp(progress, 0, 1)
     const saturation = 1 + (Math.max(1, colorOverlay.saturationMax) - 1) * p
     const contrast = 1 + (Math.max(1, colorOverlay.contrastMax) - 1) * p
+    const bTarget = colorOverlay.brightness ?? 1
+    const brightnessMul = clamp(1 + (bTarget - 1) * p, 0.05, 3)
 
     this.colorMatrixFilter.reset()
-    this.colorMatrixFilter.contrast(contrast - 1, false)
+    this.colorMatrixFilter.brightness(brightnessMul, false)
+    this.colorMatrixFilter.contrast(contrast - 1, true)
     this.colorMatrixFilter.saturate(saturation - 1, true)
   }
 

@@ -68,6 +68,8 @@ export type ColorOverlayEffect = {
   color: { r: number; g: number; b: number }
   alpha: number  // 0.0 - 1.0
   imageAdjustEnabled: boolean
+  /** RGB 乗算。1.0 が無変更（暗く＜1、明るく＞1） */
+  brightness: number
   saturationMax: number  // 1.0 = normal
   contrastMax: number    // 1.0 = normal
   dynamicAdjust: boolean

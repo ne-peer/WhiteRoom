@@ -27,6 +27,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     color: { r: 255, g: 0, b: 128 },
     alpha: 0.3,
     imageAdjustEnabled: false,
+    brightness: 1,
     saturationMax: 1.4,
     contrastMax: 1.35,
     dynamicAdjust: false,
