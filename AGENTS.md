@@ -92,6 +92,7 @@ When adding a new `<Section>` to any category, use that category's unified color
 - **IPC**: always use `window.api.xxx()` from renderer, never call Electron APIs directly
 - **Error handling**: keep `try/catch` around file I/O and `PIXI.Assets.load()`
 - **Profile compatibility**: merge imported profiles with store defaults so old JSON remains loadable
+- **Commit messages**: write commit messages in Japanese
 - **Japanese text encoding**: keep Japanese messages in `src/renderer/i18n.ts` as literal Japanese text, not Unicode escape sequences. Save `src/renderer/i18n.ts` as UTF-8 with BOM so Japanese text is detected correctly on Windows.
 
 ## Commands
