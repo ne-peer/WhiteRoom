@@ -165,7 +165,7 @@ export type ShakeEffect = {
 
 export type SquishEffect = {
   enabled: boolean
-  mode: 'oneshot' | 'permanentA' | 'permanentB'
+  mode: 'oneshot' | 'oneshotA' | 'oneshotB' | 'permanentA' | 'permanentB'
   organicEnabled: boolean
   colorSource?: 'manual' | 'imageCenter'
   circleSizeRatio: number
@@ -192,7 +192,7 @@ export type SquishEffect = {
 
 export type ZoomEffect = {
   enabled: boolean
-  mode: 'oneshot' | 'permanentA' | 'permanentB'
+  mode: 'oneshot' | 'oneshotA' | 'oneshotB' | 'permanentA' | 'permanentB'
   speedFactor: number
   repeatEnabled: boolean
   repeatIntervalSec: number

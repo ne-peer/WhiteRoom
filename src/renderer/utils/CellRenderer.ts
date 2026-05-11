@@ -2306,11 +2306,21 @@ export class CellRenderer {
     }
   }
 
+  private normalizeOneshotMode(mode?: 'oneshot' | 'oneshotA' | 'oneshotB' | 'permanentA' | 'permanentB') {
+    return mode === 'oneshot' || mode == null ? 'oneshotA' : mode
+  }
+
+  private isOneshotMode(mode?: 'oneshot' | 'oneshotA' | 'oneshotB' | 'permanentA' | 'permanentB') {
+    const normalizedMode = this.normalizeOneshotMode(mode)
+    return normalizedMode === 'oneshotA' || normalizedMode === 'oneshotB'
+  }
+
   private updateSquish(squish?: SquishEffect) {
+    const normalizedMode = this.normalizeOneshotMode(squish?.mode)
     const key = squish
       ? [
           squish.enabled,
-          squish.mode ?? 'oneshot',
+          normalizedMode,
           squish.organicEnabled,
           squish.colorSource,
           squish.circleSizeRatio,
@@ -2347,13 +2357,13 @@ export class CellRenderer {
     if (this.squishKey === key) return
     this.squishKey = key
     this.resetSquishMotion(squish)
-    const mode = squish.mode ?? 'oneshot'
+    const mode = normalizedMode
     if (mode === 'permanentA') {
       this.drawSquishPermanent(squish, 0)
     } else if (mode === 'permanentB') {
       this.drawSquishPermanentB(squish, 0)
     } else {
-      this.drawSquish(squish, 0)
+      this.drawSquish(squish, 0, mode)
     }
   }
 
@@ -2361,7 +2371,7 @@ export class CellRenderer {
     if (!squish?.enabled) return
 
     const dtSec = Math.max(0, delta) / 60
-    const mode = squish.mode ?? 'oneshot'
+    const mode = this.normalizeOneshotMode(squish.mode)
 
     if (mode === 'permanentA' || mode === 'permanentB') {
       const animationSec = this.getSquishAnimationDurationSec(squish)
@@ -2408,7 +2418,7 @@ export class CellRenderer {
       ? this.squishRandomPosition.x : this.width / 2
     const baseY = (squish.randomPosition && this.squishRandomPosition)
       ? this.squishRandomPosition.y : this.height * (squish.circlePositionY ?? 0.5)
-    this.drawSquish(squish, this.squishElapsedSec)
+    this.drawSquish(squish, this.squishElapsedSec, mode)
     this.tickSquishBurst(dtSec, squish, this.squishElapsedSec, mode, animationSec, baseX, baseY)
   }
 
@@ -2429,13 +2439,15 @@ export class CellRenderer {
         ? lerp(minScale, maxScale, easeInOutCubic(progress / expandEnd))
         : lerp(maxScale, minScale, easeInOutCubic((progress - expandEnd) / (1 - expandEnd)))
     }
-    // oneshot
+    // oneshotA/oneshotB
     const growProgress = clamp(progress / 0.58, 0, 1)
     const settleProgress = clamp((progress - 0.58) / 0.34, 0, 1)
     const peakScale = 1.06
     const settledScale = 0.97
     return progress < 0.58
-      ? peakScale * easeOutBack(growProgress)
+      ? (mode === 'oneshotB'
+          ? peakScale * easeOutBack(growProgress)
+          : lerp(0.0, peakScale, easeInOutSine(growProgress)))
       : lerp(peakScale, settledScale, easeInOutSine(settleProgress))
   }
 
@@ -2547,7 +2559,7 @@ export class CellRenderer {
     }
   }
 
-  private drawSquish(squish: SquishEffect, elapsedSec: number) {
+  private drawSquish(squish: SquishEffect, elapsedSec: number, mode: string) {
     this.squishGraphics.clear()
     const animationSec = this.getSquishAnimationDurationSec(squish)
     if (elapsedSec >= animationSec) return
@@ -2559,7 +2571,9 @@ export class CellRenderer {
     const peakScale = 1.06
     const settledScale = 0.97
     const scale = progress < 0.58
-      ? peakScale * easeOutBack(growProgress)
+      ? (mode === 'oneshotB'
+          ? peakScale * easeOutBack(growProgress)
+          : lerp(0.0, peakScale, easeInOutSine(growProgress)))
       : lerp(peakScale, settledScale, easeInOutSine(settleProgress))
     const drawAlpha = 1 - easeInSine(fadeProgress)
     if (scale <= 0 || drawAlpha <= 0) return
@@ -2869,7 +2883,7 @@ export class CellRenderer {
     this.squishCycleComplete = false
     this.squishOrganicShape = null
     this.squishPrevOrganicShape = null
-    if (squish && (squish.mode ?? 'oneshot') === 'oneshot' && squish.randomPosition) {
+    if (squish && this.isOneshotMode(squish.mode) && squish.randomPosition) {
       this.computeSquishRandomPosition(squish)
     } else {
       this.squishRandomPosition = null
@@ -2899,7 +2913,7 @@ export class CellRenderer {
   private getSquishCycleDurationMs(squish?: SquishEffect) {
     if (!squish?.enabled) return 0
     const animSec = this.getSquishAnimationDurationSec(squish)
-    const mode = squish.mode ?? 'oneshot'
+    const mode = this.normalizeOneshotMode(squish.mode)
     if (mode === 'permanentA' || mode === 'permanentB') return animSec * 1000
     return (animSec + (squish.repeatEnabled ? Math.max(0, squish.repeatIntervalSec) : 0)) * 1000
   }
@@ -3279,10 +3293,11 @@ export class CellRenderer {
   }
 
   private updateZoom(zoom?: ZoomEffect) {
+    const normalizedMode = this.normalizeOneshotMode(zoom?.mode)
     const key = zoom
       ? [
           zoom.enabled,
-          zoom.mode ?? 'oneshot',
+          normalizedMode,
           zoom.speedFactor,
           zoom.repeatEnabled,
           zoom.repeatIntervalSec,
@@ -3335,7 +3350,7 @@ export class CellRenderer {
     }
 
     const dtSec = Math.max(0, delta) / 60
-    const mode = zoom.mode ?? 'oneshot'
+    const mode = this.normalizeOneshotMode(zoom.mode)
     const animationSec = 0.9 / Math.max(0.01, zoom.speedFactor)
 
     if (mode === 'permanentA' || mode === 'permanentB') {
@@ -3349,7 +3364,7 @@ export class CellRenderer {
       return
     }
 
-    // oneshot
+    // oneshotA/oneshotB
     const intervalSec = Math.max(0, zoom.repeatIntervalSec)
     const cycleSec = animationSec + (zoom.repeatEnabled ? intervalSec : 0)
 
@@ -3387,10 +3402,12 @@ export class CellRenderer {
         ? lerp(1.0, zoomFactor, easeInOutCubic(progress / expandEnd))
         : lerp(zoomFactor, 1.0, easeInOutCubic((progress - expandEnd) / (1 - expandEnd)))
     } else {
-      // oneshot: zoom in then back out
+      // oneshotA/oneshotB: zoom in then back out
       const growEnd = 0.58
       scale = progress < growEnd
-        ? lerp(1.0, zoomFactor, easeOutBack(progress / growEnd))
+        ? (mode === 'oneshotB'
+            ? lerp(1.0, zoomFactor, easeOutBack(progress / growEnd))
+            : lerp(1.0, zoomFactor, easeInOutSine(progress / growEnd)))
         : lerp(zoomFactor, 1.0, easeInOutSine((progress - growEnd) / (1 - growEnd)))
     }
 

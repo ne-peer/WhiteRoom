@@ -128,7 +128,7 @@ const EFFECT_PRESET_1: CellEffects = {
   },
   zoom: {
     enabled: false,
-    mode: 'oneshot' as const,
+    mode: 'oneshotA' as const,
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
@@ -138,7 +138,7 @@ const EFFECT_PRESET_1: CellEffects = {
   },
   squish: {
     enabled: false,
-    mode: 'oneshot' as const,
+    mode: 'oneshotA' as const,
     organicEnabled: false,
     colorSource: 'manual',
     circleSizeRatio: 0.6,
@@ -331,7 +331,7 @@ const EFFECT_PRESET_2: CellEffects = {
   },
   zoom: {
     enabled: false,
-    mode: 'oneshot' as const,
+    mode: 'oneshotA' as const,
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
@@ -341,7 +341,7 @@ const EFFECT_PRESET_2: CellEffects = {
   },
   squish: {
     enabled: false,
-    mode: 'oneshot' as const,
+    mode: 'oneshotA' as const,
     organicEnabled: false,
     colorSource: 'manual',
     circleSizeRatio: 0.6,
@@ -1241,14 +1241,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <>
             <Row label={t('zoomMode')}>
               <Select
-                value={effects.zoom.mode ?? 'oneshot'}
+                value={effects.zoom.mode ?? 'oneshotA'}
                 options={[
-                  { value: 'oneshot', label: t('zoomModeOneshot') },
+                  { value: 'oneshotA', label: t('zoomModeOneshotA') },
+                  { value: 'oneshotB', label: t('zoomModeOneshotB') },
                   { value: 'permanentA', label: t('zoomModePermanentA') },
                   { value: 'permanentB', label: t('zoomModePermanentB') },
                 ]}
                 disabled={effects.zoom.timerSync ?? false}
-                onChange={v => set('zoom', { mode: v as 'oneshot' | 'permanentA' | 'permanentB' })}
+                onChange={v => set('zoom', { mode: v as 'oneshot' | 'oneshotA' | 'oneshotB' | 'permanentA' | 'permanentB' })}
               />
             </Row>
             <Row label={t('zoomFactor')}>
@@ -1278,7 +1279,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('zoom', { speedFactor: v })}
               />
             </Row>
-            {(effects.zoom.mode ?? 'oneshot') === 'oneshot' && (
+            {(['oneshot', 'oneshotA', 'oneshotB'] as const).includes(effects.zoom.mode ?? 'oneshotA') && (
               <>
                 <Row label={t('shakeRepeat')}>
                   <Toggle
@@ -1690,16 +1691,17 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
           <>
             <Row label={t('squishMode')}>
               <Select
-                value={effects.squish.mode ?? 'oneshot'}
+                value={effects.squish.mode ?? 'oneshotA'}
                 options={[
-                  { value: 'oneshot', label: t('squishModeOneshot') },
+                  { value: 'oneshotA', label: t('squishModeOneshotA') },
+                  { value: 'oneshotB', label: t('squishModeOneshotB') },
                   { value: 'permanentA', label: t('squishModePermanentA') },
                   { value: 'permanentB', label: t('squishModePermanentB') },
                 ]}
-                onChange={v => set('squish', { mode: v as 'oneshot' | 'permanentA' | 'permanentB' })}
+                onChange={v => set('squish', { mode: v as 'oneshot' | 'oneshotA' | 'oneshotB' | 'permanentA' | 'permanentB' })}
               />
             </Row>
-            {(effects.squish.mode ?? 'oneshot') === 'oneshot' && (
+            {(['oneshot', 'oneshotA', 'oneshotB'] as const).includes(effects.squish.mode ?? 'oneshotA') && (
               <Row label={t('squishRandomPosition')}>
                 <Toggle
                   value={effects.squish.randomPosition ?? false}
@@ -1707,7 +1709,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 />
               </Row>
             )}
-            {!(effects.squish.randomPosition && (effects.squish.mode ?? 'oneshot') === 'oneshot') && (
+            {!(effects.squish.randomPosition && (['oneshot', 'oneshotA', 'oneshotB'] as const).includes(effects.squish.mode ?? 'oneshotA')) && (
               <Row label={t('squishCirclePositionY')}>
                 <Slider
                   value={Math.round((effects.squish.circlePositionY ?? 0.5) * 100)}
@@ -1826,7 +1828,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('squish', { speedFactor: v })}
               />
             </Row>
-            {(effects.squish.mode ?? 'oneshot') === 'oneshot' && (
+            {(['oneshot', 'oneshotA', 'oneshotB'] as const).includes(effects.squish.mode ?? 'oneshotA') && (
               <>
                 <Row label={t('shakeRepeat')}>
                   <Toggle

@@ -136,7 +136,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
   },
   zoom: {
     enabled: false,
-    mode: 'oneshot' as 'oneshot' | 'permanentA' | 'permanentB',
+    mode: 'oneshotA' as 'oneshot' | 'oneshotA' | 'oneshotB' | 'permanentA' | 'permanentB',
     speedFactor: 1,
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
@@ -146,7 +146,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
   },
   squish: {
     enabled: false,
-    mode: 'oneshot' as 'oneshot' | 'permanentA' | 'permanentB',
+    mode: 'oneshotA' as 'oneshot' | 'oneshotA' | 'oneshotB' | 'permanentA' | 'permanentB',
     organicEnabled: false,
     colorSource: 'manual',
     circleSizeRatio: 0.6,
