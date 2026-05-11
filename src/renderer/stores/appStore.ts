@@ -157,6 +157,8 @@ export const DEFAULT_EFFECTS: CellEffects = {
     repeatEnabled: true,
     repeatIntervalSec: 0.8,
     randomPosition: false,
+    gapCorrectionEnabled: false,
+    gapCorrectionScale: 1.5,
   },
   dynamicAsset: {
     enabled: false,
@@ -811,6 +813,9 @@ export const useAppStore = create<AppStore>()(
             speedFactor: zoom.speedFactor,
             repeatIntervalSec: zoom.repeatIntervalSec,
             syncNonce: (cell.effects.squish.syncNonce ?? 0) + 1,
+            ...(cell.effects.squish.gapCorrectionEnabled
+              ? { gapCorrectionScale: zoom.zoomFactor }
+              : {}),
           })
           cell.effects.zoom.syncNonce = (cell.effects.zoom.syncNonce ?? 0) + 1
         } else {

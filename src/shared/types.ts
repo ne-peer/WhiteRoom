@@ -180,6 +180,8 @@ export type SquishEffect = {
   burstEnabled?: boolean
   burstMaxOpacity?: number
   syncNonce?: number
+  gapCorrectionEnabled?: boolean
+  gapCorrectionScale?: number
 }
 
 export type ZoomEffect = {

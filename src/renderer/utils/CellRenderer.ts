@@ -2259,6 +2259,8 @@ export class CellRenderer {
           squish.burstEnabled ?? false,
           squish.burstMaxOpacity ?? 0.8,
           squish.syncNonce ?? 0,
+          squish.gapCorrectionEnabled ?? false,
+          squish.gapCorrectionScale ?? 1.5,
         ].join(':')
       : 'disabled'
 
@@ -2386,7 +2388,7 @@ export class CellRenderer {
         const minSide = Math.max(1, Math.min(this.width, this.height))
         const finalDiameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5)
         const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5)
-        const centerOffset = (finalDiameter + edgeGap) / 2
+        const centerOffset = this.applySquishGapCorrection((finalDiameter + edgeGap) / 2, squish)
         this.squishBurstRadius = finalDiameter / 2
         this.squishBurstCenters = [
           { x: baseX - centerOffset, y: baseY },
@@ -2507,7 +2509,8 @@ export class CellRenderer {
     const baseY = (squish.randomPosition && this.squishRandomPosition)
       ? this.squishRandomPosition.y
       : this.height / 2
-    const centers: [number, number] = [baseX - centerOffset, baseX + centerOffset]
+    const correctedCenterOffset = this.applySquishGapCorrection(centerOffset, squish)
+    const centers: [number, number] = [baseX - correctedCenterOffset, baseX + correctedCenterOffset]
     this.drawSquishBlobPair(centers, baseY, effectiveRadius, organicShape)
     this.squishGraphics.fill({ color: 0x000000, alpha: baseAlpha })
     this.drawSquishBlobPair(centers, baseY, effectiveRadius, organicShape)
@@ -2557,7 +2560,8 @@ export class CellRenderer {
     const effectiveRadius = radius * (organicShape?.sizeScale ?? 1)
     const effectiveSecondRadius = secondRadius * (organicShape?.sizeScale ?? 1)
 
-    const centers: [number, number] = [centerX - centerOffset, centerX + centerOffset]
+    const correctedCenterOffset = this.applySquishGapCorrection(centerOffset, squish)
+    const centers: [number, number] = [centerX - correctedCenterOffset, centerX + correctedCenterOffset]
     this.drawSquishBlobPair(centers, centerY, effectiveRadius, organicShape)
     this.squishGraphics.fill({ color: 0x000000, alpha: baseAlpha })
     this.drawSquishBlobPair(centers, centerY, effectiveRadius, organicShape)
@@ -2607,7 +2611,8 @@ export class CellRenderer {
     const effectiveRadius = radius * (organicShape?.sizeScale ?? 1)
     const effectiveSecondRadius = secondRadius * (organicShape?.sizeScale ?? 1)
 
-    const centers: [number, number] = [centerX - centerOffset, centerX + centerOffset]
+    const correctedCenterOffset = this.applySquishGapCorrection(centerOffset, squish)
+    const centers: [number, number] = [centerX - correctedCenterOffset, centerX + correctedCenterOffset]
     this.drawSquishBlobPair(centers, centerY, effectiveRadius, organicShape)
     this.squishGraphics.fill({ color: 0x000000, alpha: baseAlpha })
     this.drawSquishBlobPair(centers, centerY, effectiveRadius, organicShape)
@@ -2721,6 +2726,13 @@ export class CellRenderer {
 
   private resetSquishOrganicShapes() {
     this.squishOrganicShape = null
+  }
+
+  private applySquishGapCorrection(centerOffset: number, squish: SquishEffect): number {
+    if (!squish.gapCorrectionEnabled) return centerOffset
+    const refScale = Math.max(1.001, squish.gapCorrectionScale ?? 1.5)
+    const t = (this.zoomScaleMultiplier - 1) / (refScale - 1)
+    return centerOffset * lerp(1, refScale, clamp(t, 0, 2))
   }
 
   private updateSquishFeather(squish: SquishEffect) {

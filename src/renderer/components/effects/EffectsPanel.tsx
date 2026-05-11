@@ -1759,6 +1759,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 )}
               </>
             )}
+            <Row label={t('squishGapCorrection')}>
+              <Toggle
+                value={effects.squish.gapCorrectionEnabled ?? false}
+                onChange={v => set('squish', { gapCorrectionEnabled: v })}
+              />
+            </Row>
+            {(effects.squish.gapCorrectionEnabled ?? false) && (
+              <Row label={t('squishGapCorrectionScale')}>
+                <NumberInput
+                  value={effects.squish.gapCorrectionScale ?? 1.5}
+                  min={1.0}
+                  max={4.0}
+                  step={0.05}
+                  unit="x"
+                  onChange={v => set('squish', { gapCorrectionScale: v })}
+                />
+              </Row>
+            )}
             <Row label={t('squishBurst')}>
               <Toggle
                 value={effects.squish.burstEnabled ?? false}
