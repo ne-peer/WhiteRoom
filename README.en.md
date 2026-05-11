@@ -70,12 +70,14 @@ Then open the DMG as usual and drag the app into the Applications folder.
         * Blur Effect: Blur visual effect
     * **[Motion]**
         * Shake Effect: Camera/object shake effect
+        * Zoom Effect: Zoom in/out (scale) effect
         * Breathing Effect: Breathing-style visual effect
         * Echo Effect: Ripple-like trail effect
     * **[Decoration]**
         * Asset Effect: Places custom images at random positions and floats them
         * Flash Effect: Temporarily overlays an image
         * Squish Effect: Pressing/squishing visual effect
+        * Fog Effect: Draws a fog-like visual effect
         * Spiral Effect: Spiral visual effect
         * Text Effect: Floats custom text at random positions
 5. **Timer**: Enable and place it from the Timer tab.
