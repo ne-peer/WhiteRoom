@@ -737,6 +737,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               showAlpha
               alpha={effects.colorOverlay.alpha}
               onAlphaChange={a => set('colorOverlay', { alpha: a })}
+              alphaSliderLabel={t('opacity')}
             />
           </div>
         )}

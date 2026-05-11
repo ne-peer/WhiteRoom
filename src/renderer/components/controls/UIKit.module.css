@@ -274,6 +274,12 @@
   width: 100%;
 }
 
+/* ColorPicker 内で Row と同じ横幅に揃える（親が align-items: flex-end のため） */
+.colorPickerAlphaSliderRow {
+  align-self: stretch;
+  width: 100%;
+}
+
 /* ===== ボタン ===== */
 .button {
   padding: 8px 14px;
