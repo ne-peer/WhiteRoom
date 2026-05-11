@@ -197,6 +197,23 @@ export type ZoomEffect = {
   syncNonce?: number
 }
 
+export type FogEffect = {
+  enabled: boolean
+  color: { r: number; g: number; b: number }
+  alpha: number
+  fogCount: number
+  fogSizeRatio: number
+  blurStrength: number
+  growDurationSec: number
+  holdDurationSec: number
+  fadeDurationSec: number
+  dropletEnabled: boolean
+  dropletCount: number
+  dropletSpreadRatio: number
+  repeatEnabled: boolean
+  repeatIntervalSec: number
+}
+
 export type AssetDrawPattern = 'rising' | 'emergence'
 
 export type AssetParticle = {
@@ -280,6 +297,7 @@ export type CellEffects = {
   shake: ShakeEffect
   zoom: ZoomEffect
   squish: SquishEffect
+  fog: FogEffect
   dynamicAsset: DynamicAssetEffect
   textEffect: TextEffect
 }

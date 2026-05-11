@@ -189,6 +189,22 @@ const EFFECT_PRESET_1: CellEffects = {
     intervalMs: 600,
     direction: 'vertical',
   },
+  fog: {
+    enabled: false,
+    color: { r: 200, g: 225, b: 255 },
+    alpha: 0.6,
+    fogCount: 6,
+    fogSizeRatio: 0.45,
+    blurStrength: 18,
+    growDurationSec: 1.8,
+    holdDurationSec: 1.2,
+    fadeDurationSec: 2.5,
+    dropletEnabled: true,
+    dropletCount: 12,
+    dropletSpreadRatio: 0.85,
+    repeatEnabled: false,
+    repeatIntervalSec: 3.0,
+  },
 }
 
 const EFFECT_PRESET_2: CellEffects = {
@@ -358,6 +374,22 @@ const EFFECT_PRESET_2: CellEffects = {
     intervalMs: 600,
     direction: 'vertical',
   },
+  fog: {
+    enabled: false,
+    color: { r: 200, g: 225, b: 255 },
+    alpha: 0.6,
+    fogCount: 6,
+    fogSizeRatio: 0.45,
+    blurStrength: 18,
+    growDurationSec: 1.8,
+    holdDurationSec: 1.2,
+    fadeDurationSec: 2.5,
+    dropletEnabled: true,
+    dropletCount: 12,
+    dropletSpreadRatio: 0.85,
+    repeatEnabled: false,
+    repeatIntervalSec: 3.0,
+  },
 }
 
 export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
@@ -454,6 +486,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     breathing: { ...DEFAULT_EFFECTS.breathing, ...rawEffects.breathing },
     shake: { ...DEFAULT_EFFECTS.shake, ...rawEffects.shake },
     squish: { ...DEFAULT_EFFECTS.squish, ...rawEffects.squish },
+    fog: { ...DEFAULT_EFFECTS.fog, ...rawEffects.fog },
     dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...rawEffects.dynamicAsset },
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...rawEffects.textEffect },
   }
@@ -1240,7 +1273,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <Button
                   small
                   variant="secondary"
-                  onClick={() => syncZoomSquish(selectedCellId, 'squish')}
+                  onClick={() => syncZoomSquish(selectedCellId, 'zoom')}
                 >
                   {t('syncWithSquish')}
                 </Button>
@@ -1824,11 +1857,145 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <Button
                   small
                   variant="secondary"
-                  onClick={() => syncZoomSquish(selectedCellId, 'zoom')}
+                  onClick={() => syncZoomSquish(selectedCellId, 'squish')}
                 >
                   {t('syncWithZoom')}
                 </Button>
               </div>
+            )}
+          </>
+        )}
+      </Section>
+
+      <Section title={t('fogEffect')} titleColor="#b070f8">
+        <Row label={t('enabled')}>
+          <Toggle value={effects.fog.enabled} onChange={v => set('fog', { enabled: v })} />
+        </Row>
+        {effects.fog.enabled && (
+          <>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>{t('fogColor')}</div>
+            <div style={{ marginBottom: 10 }}>
+              <ColorPicker
+                r={effects.fog.color.r}
+                g={effects.fog.color.g}
+                b={effects.fog.color.b}
+                onChange={(r, g, b) => set('fog', { color: { r, g, b } })}
+                showAlpha={false}
+              />
+            </div>
+            <Row label={t('fogAlpha')}>
+              <Slider
+                value={Math.round(effects.fog.alpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('fog', { alpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label={t('fogCount')}>
+              <Slider
+                value={effects.fog.fogCount}
+                min={1}
+                max={12}
+                step={1}
+                onChange={v => set('fog', { fogCount: v })}
+              />
+            </Row>
+            <Row label={t('fogSizeRatio')}>
+              <Slider
+                value={Math.round(effects.fog.fogSizeRatio * 100)}
+                min={10}
+                max={90}
+                step={1}
+                onChange={v => set('fog', { fogSizeRatio: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label={t('fogBlurStrength')}>
+              <Slider
+                value={effects.fog.blurStrength}
+                min={0}
+                max={60}
+                step={1}
+                onChange={v => set('fog', { blurStrength: v })}
+              />
+            </Row>
+            <Row label={t('fogGrowDuration')}>
+              <NumberInput
+                value={effects.fog.growDurationSec}
+                min={0.2}
+                max={10}
+                step={0.1}
+                unit={t('seconds')}
+                onChange={v => set('fog', { growDurationSec: v })}
+              />
+            </Row>
+            <Row label={t('fogHoldDuration')}>
+              <NumberInput
+                value={effects.fog.holdDurationSec}
+                min={0}
+                max={10}
+                step={0.1}
+                unit={t('seconds')}
+                onChange={v => set('fog', { holdDurationSec: v })}
+              />
+            </Row>
+            <Row label={t('fogFadeDuration')}>
+              <NumberInput
+                value={effects.fog.fadeDurationSec}
+                min={0.2}
+                max={15}
+                step={0.1}
+                unit={t('seconds')}
+                onChange={v => set('fog', { fadeDurationSec: v })}
+              />
+            </Row>
+            <Row label={t('fogDroplet')}>
+              <Toggle
+                value={effects.fog.dropletEnabled}
+                onChange={v => set('fog', { dropletEnabled: v })}
+              />
+            </Row>
+            {effects.fog.dropletEnabled && (
+              <>
+                <Row label={t('fogDropletCount')}>
+                  <Slider
+                    value={effects.fog.dropletCount}
+                    min={1}
+                    max={150}
+                    step={1}
+                    onChange={v => set('fog', { dropletCount: v })}
+                  />
+                </Row>
+                <Row label={t('fogDropletSpread')}>
+                  <Slider
+                    value={Math.round((effects.fog.dropletSpreadRatio ?? 0.85) * 100)}
+                    min={1}
+                    max={100}
+                    step={1}
+                    onChange={v => set('fog', { dropletSpreadRatio: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              </>
+            )}
+            <Row label={t('fogRepeat')}>
+              <Toggle
+                value={effects.fog.repeatEnabled}
+                onChange={v => set('fog', { repeatEnabled: v })}
+              />
+            </Row>
+            {effects.fog.repeatEnabled && (
+              <Row label={t('fogRepeatInterval')}>
+                <NumberInput
+                  value={effects.fog.repeatIntervalSec}
+                  min={0}
+                  max={60}
+                  step={0.5}
+                  unit={t('seconds')}
+                  onChange={v => set('fog', { repeatIntervalSec: v })}
+                />
+              </Row>
             )}
           </>
         )}

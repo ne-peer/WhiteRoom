@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, ShakeEffect, SlideShowTransition, SquishEffect, ZoomEffect } from '../../shared/types'
+import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, FogEffect, ShakeEffect, SlideShowTransition, SquishEffect, ZoomEffect } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -78,6 +78,18 @@ export class CellRenderer {
   private flashBaseOpacity = 1
   private vignetteSprite: PIXI.Sprite | null = null
   private vignetteTextureKey: string | null = null
+  private fogLayer: PIXI.Container
+  private fogBlobContainer: PIXI.Container
+  private fogDropletGraphics: PIXI.Graphics
+  private fogKey: string | null = null
+  private fogElapsedSec = 0
+  private fogCycleComplete = false
+  private fogGradientTexture: PIXI.Texture | null = null
+  private fogBlobs: Array<{ sprite: PIXI.Sprite; offsetX: number; offsetY: number; phaseDelaySec: number }> = []
+  private fogDropletPositions: Array<{ x: number; y: number; rx: number; ry: number; baseAlpha: number }> = []
+  private fogBlobBlurFilter: PIXI.BlurFilter | null = null
+  private fogDropletBlurFilter: PIXI.BlurFilter | null = null
+
   private spiralGraphics: PIXI.Graphics
   private spiralMaskSprite: PIXI.Sprite | null = null
   private spiralMaskKey: string | null = null
@@ -149,6 +161,7 @@ export class CellRenderer {
   private squishElapsedSec = 0
   private squishCycleComplete = false
   private squishOrganicShape: SquishOrganicShape | null = null
+  private squishPrevOrganicShape: SquishOrganicShape | null = null
   private squishRandomPosition: { x: number; y: number } | null = null
   private squishBurstGraphics: PIXI.Graphics
   private squishBurstActiveSec: number | null = null
@@ -217,6 +230,8 @@ export class CellRenderer {
     this.textLayer = new PIXI.Container()
     this.vignetteLayer = new PIXI.Container()
     this.spiralLayer = new PIXI.Container()
+    this.fogLayer = new PIXI.Container()
+    this.fogBlobContainer = new PIXI.Container()
     this.guideLayer = new PIXI.Container()
     this.dynamicBackgroundMask = new PIXI.Graphics()
     this.imageMask = new PIXI.Graphics()
@@ -232,6 +247,7 @@ export class CellRenderer {
     this.container.addChild(this.textLayer)
     this.container.addChild(this.vignetteLayer)
     this.container.addChild(this.spiralLayer)
+    this.container.addChild(this.fogLayer)
     this.container.addChild(this.guideLayer)
     this.container.addChild(this.echoMask)
 
@@ -252,6 +268,10 @@ export class CellRenderer {
     this.overlayLayer.addChild(this.squishGraphics)
     this.spiralGraphics = new PIXI.Graphics()
     this.spiralLayer.addChild(this.spiralGraphics)
+
+    this.fogLayer.addChild(this.fogBlobContainer)
+    this.fogDropletGraphics = new PIXI.Graphics()
+    this.fogLayer.addChild(this.fogDropletGraphics)
 
     this.particleSystem = new ParticleSystem(this.particleContainer)
     this.textSystem = new TextSystem(this.textLayer)
@@ -393,6 +413,7 @@ export class CellRenderer {
     this.updateFlash(effects)
     this.updateZoom(effects.zoom)
     this.updateSquish(effects.squish)
+    this.updateFog(effects.fog)
     this.updateAsset(effects)
     this.updateText(effects)
   }
@@ -416,6 +437,7 @@ export class CellRenderer {
       (effects.breathing?.scaleDurationSec ?? 1) * 1000,
       this.getShakeCycleDurationMs(effects.shake),
       this.getSquishCycleDurationMs(effects.squish),
+      this.getFogCycleDurationMs(effects.fog),
       textDurationMs,
       1000
     )
@@ -429,6 +451,7 @@ export class CellRenderer {
     this.resetBreathingMotion(withRandomDelay)
     this.resetShakeMotion()
     this.resetSquishMotion()
+    this.resetFogMotion()
     if (this.effectResetTimeoutId !== null) {
       clearTimeout(this.effectResetTimeoutId)
       this.effectResetTimeoutId = null
@@ -448,6 +471,7 @@ export class CellRenderer {
     this.breathingKey = null
     this.shakeKey = null
     this.squishKey = null
+    this.fogKey = null
     this.textSystem.stop()
     if (delay > 0) {
       const timeoutId = window.setTimeout(() => {
@@ -605,6 +629,7 @@ export class CellRenderer {
     this.createPendingShakeAfterimage(effects.shake)
     this.updateShakeAfterimages(delta)
     this.tickSquish(delta, effects.squish)
+    this.tickFog(delta, effects.fog)
     this.syncRadialBlurClones()
     this.syncEchoToImage()
     this.updateFlashCycle(delta)
@@ -636,6 +661,7 @@ export class CellRenderer {
     this.clearShakeTrailGuide()
     this.clearFlashOverlay()
     this.clearSquish()
+    this.clearFog()
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.clearSpiralMask()
@@ -2499,7 +2525,7 @@ export class CellRenderer {
     const secondBaseAlpha = clamp(baseAlpha + 0.12, 0, 0.8)
     const secondColorAlpha = clamp(colorAlpha + 0.16 * drawAlpha * opacity, 0, 1)
     const organicShape = squish.organicEnabled
-      ? this.ensureSquishOrganicShape()
+      ? this.getSquishOrganicShape(elapsedSec)
       : undefined
     const effectiveRadius = radius * (organicShape?.sizeScale ?? 1)
     const effectiveSecondRadius = secondRadius * (organicShape?.sizeScale ?? 1)
@@ -2556,7 +2582,7 @@ export class CellRenderer {
     const secondBaseAlpha = clamp(baseAlpha + 0.12, 0, 0.8)
     const secondColorAlpha = clamp(colorAlpha + 0.16 * opacity, 0, 1)
     const organicShape = squish.organicEnabled
-      ? this.ensureSquishOrganicShape()
+      ? this.getSquishOrganicShape(elapsedSec)
       : undefined
     const effectiveRadius = radius * (organicShape?.sizeScale ?? 1)
     const effectiveSecondRadius = secondRadius * (organicShape?.sizeScale ?? 1)
@@ -2607,7 +2633,7 @@ export class CellRenderer {
     const secondBaseAlpha = clamp(baseAlpha + 0.12, 0, 0.8)
     const secondColorAlpha = clamp(colorAlpha + 0.16 * opacity, 0, 1)
     const organicShape = squish.organicEnabled
-      ? this.ensureSquishOrganicShape()
+      ? this.getSquishOrganicShape(elapsedSec)
       : undefined
     const effectiveRadius = radius * (organicShape?.sizeScale ?? 1)
     const effectiveSecondRadius = secondRadius * (organicShape?.sizeScale ?? 1)
@@ -2718,14 +2744,26 @@ export class CellRenderer {
     addArc(rightX, rightStart, rightEnd)
   }
 
-  private ensureSquishOrganicShape(): SquishOrganicShape {
+  private static readonly ORGANIC_TRANSITION_SEC = 0.25
+
+  private getSquishOrganicShape(elapsedSec: number): SquishOrganicShape {
     if (!this.squishOrganicShape) {
       this.squishOrganicShape = createSquishOrganicShape()
     }
-    return this.squishOrganicShape
+    const prev = this.squishPrevOrganicShape
+    if (!prev || elapsedSec >= CellRenderer.ORGANIC_TRANSITION_SEC) {
+      return this.squishOrganicShape
+    }
+    const t = easeInOutSine(elapsedSec / CellRenderer.ORGANIC_TRANSITION_SEC)
+    return {
+      radiusXScale: lerp(prev.radiusXScale, this.squishOrganicShape.radiusXScale, t),
+      radiusYScale: lerp(prev.radiusYScale, this.squishOrganicShape.radiusYScale, t),
+      sizeScale: lerp(prev.sizeScale, this.squishOrganicShape.sizeScale, t),
+    }
   }
 
   private resetSquishOrganicShapes() {
+    this.squishPrevOrganicShape = this.squishOrganicShape
     this.squishOrganicShape = null
   }
 
@@ -2757,7 +2795,8 @@ export class CellRenderer {
   private resetSquishMotion(squish?: SquishEffect) {
     this.squishElapsedSec = 0
     this.squishCycleComplete = false
-    this.resetSquishOrganicShapes()
+    this.squishOrganicShape = null
+    this.squishPrevOrganicShape = null
     if (squish && (squish.mode ?? 'oneshot') === 'oneshot' && squish.randomPosition) {
       this.computeSquishRandomPosition(squish)
     } else {
@@ -2791,6 +2830,293 @@ export class CellRenderer {
     const mode = squish.mode ?? 'oneshot'
     if (mode === 'permanentA' || mode === 'permanentB') return animSec * 1000
     return (animSec + (squish.repeatEnabled ? Math.max(0, squish.repeatIntervalSec) : 0)) * 1000
+  }
+
+  // ===== Mist Effect =====
+
+  private getFogGradientTexture(): PIXI.Texture {
+    if (this.fogGradientTexture) return this.fogGradientTexture
+    const size = 256
+    const canvas = document.createElement('canvas')
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')!
+    const center = size / 2
+    const grad = ctx.createRadialGradient(center, center, 0, center, center, center)
+    grad.addColorStop(0, 'rgba(255,255,255,1)')
+    grad.addColorStop(0.35, 'rgba(255,255,255,0.9)')
+    grad.addColorStop(0.65, 'rgba(255,255,255,0.5)')
+    grad.addColorStop(0.85, 'rgba(255,255,255,0.15)')
+    grad.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, size, size)
+    this.fogGradientTexture = PIXI.Texture.from(canvas)
+    return this.fogGradientTexture
+  }
+
+  private initFogBlobs(fog: FogEffect) {
+    for (const blob of this.fogBlobs) {
+      this.fogBlobContainer.removeChild(blob.sprite)
+      blob.sprite.destroy()
+    }
+    this.fogBlobs = []
+
+    const count = Math.max(1, Math.min(12, fog.fogCount))
+    const texture = this.getFogGradientTexture()
+    const tint = rgbToHex(fog.color.r, fog.color.g, fog.color.b)
+    const minSide = Math.min(this.width, this.height)
+    const spread = 0.14
+
+    for (let i = 0; i < count; i++) {
+      const sprite = new PIXI.Sprite(texture)
+      sprite.anchor.set(0.5)
+      sprite.tint = tint
+      sprite.alpha = 0
+      const angle = Math.random() * Math.PI * 2
+      const dist = Math.random() * spread * minSide
+      const offsetX = Math.cos(angle) * dist
+      const offsetY = Math.sin(angle) * dist
+      const phaseDelaySec = (i / count) * 0.35
+      this.fogBlobs.push({ sprite, offsetX, offsetY, phaseDelaySec })
+      this.fogBlobContainer.addChild(sprite)
+    }
+  }
+
+  private initFogDroplets(fog: FogEffect) {
+    this.fogDropletPositions = []
+    if (!fog.dropletEnabled) return
+    const count = Math.max(1, Math.min(150, fog.dropletCount))
+    const minSide = Math.min(this.width, this.height)
+    const halfDiag = Math.sqrt(this.width * this.width + this.height * this.height) / 2
+    const spreadRatio = clamp(fog.dropletSpreadRatio ?? 0.85, 0.01, 1.0)
+    const cx = this.width / 2
+    const cy = this.height / 2
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const dist = halfDiag * Math.random() * spreadRatio
+      const x = cx + Math.cos(angle) * dist
+      const y = cy + Math.sin(angle) * dist
+      const rx = 1.5 + Math.random() * 3.5
+      const ry = rx * (1.3 + Math.random() * 0.7)
+      const baseAlpha = 0.35 + Math.random() * 0.45
+      this.fogDropletPositions.push({ x, y, rx, ry, baseAlpha })
+    }
+  }
+
+  private drawFogDroplets(globalAlpha: number) {
+    this.fogDropletGraphics.clear()
+    if (!this.fogDropletPositions.length || globalAlpha <= 0.005) return
+    for (const dp of this.fogDropletPositions) {
+      const a = dp.baseAlpha * globalAlpha
+      if (a <= 0) continue
+      this.fogDropletGraphics.ellipse(dp.x, dp.y, dp.rx, dp.ry)
+      this.fogDropletGraphics.fill({ color: 0xffffff, alpha: a })
+      // ハイライト（光沢感）
+      this.fogDropletGraphics.ellipse(
+        dp.x - dp.rx * 0.28,
+        dp.y - dp.ry * 0.28,
+        dp.rx * 0.32,
+        dp.ry * 0.28
+      )
+      this.fogDropletGraphics.fill({ color: 0xffffff, alpha: Math.min(1, a + 0.25) })
+    }
+  }
+
+  private renderFogFrame(fog: FogEffect, elapsedSec: number) {
+    const growSec = Math.max(0.1, fog.growDurationSec)
+    const holdSec = Math.max(0, fog.holdDurationSec)
+    const fadeSec = Math.max(0.1, fog.fadeDurationSec)
+    const totalActiveSec = growSec + holdSec + fadeSec
+    const globalAlpha = clamp(fog.alpha, 0, 1)
+    const minSide = Math.min(this.width, this.height)
+    const maxRadius = minSide * clamp(fog.fogSizeRatio, 0.1, 0.8)
+    const cx = this.width / 2
+    const cy = this.height / 2
+
+    for (const blob of this.fogBlobs) {
+      const t = elapsedSec - blob.phaseDelaySec
+      if (t <= 0) {
+        blob.sprite.alpha = 0
+        blob.sprite.scale.set(0)
+        continue
+      }
+
+      let blobAlpha: number
+      let blobScale: number
+
+      if (t < growSec) {
+        const p = t / growSec
+        blobAlpha = easeOutSine(p)
+        blobScale = easeOutCubic(p)
+      } else if (t < growSec + holdSec) {
+        blobAlpha = 1
+        blobScale = 1
+      } else if (t < totalActiveSec) {
+        const p = (t - growSec - holdSec) / fadeSec
+        blobAlpha = 1 - easeInSine(p)
+        // 蒸発感: フェード中にわずかに拡大
+        blobScale = 1 + easeInSine(p) * 0.09
+      } else {
+        blob.sprite.alpha = 0
+        blob.sprite.scale.set(0)
+        continue
+      }
+
+      blob.sprite.alpha = blobAlpha * globalAlpha
+      // テクスチャの半分が128px: maxRadius / 128 でスケーリング
+      blob.sprite.scale.set(blobScale * maxRadius / 128)
+      blob.sprite.x = cx + blob.offsetX
+      blob.sprite.y = cy + blob.offsetY
+    }
+
+    // 水滴: growing 75% 以降から出現
+    const dropletStart = growSec * 0.75
+    let dropletAlpha: number
+    if (elapsedSec < dropletStart) {
+      dropletAlpha = 0
+    } else if (elapsedSec < growSec) {
+      dropletAlpha = (elapsedSec - dropletStart) / (growSec - dropletStart)
+    } else if (elapsedSec < growSec + holdSec) {
+      dropletAlpha = 1
+    } else {
+      const p = (elapsedSec - growSec - holdSec) / fadeSec
+      dropletAlpha = Math.max(0, 1 - easeInSine(p))
+    }
+    this.drawFogDroplets(dropletAlpha * globalAlpha)
+  }
+
+  private updateFog(fog?: FogEffect) {
+    const key = fog
+      ? [
+          fog.enabled,
+          fog.color.r,
+          fog.color.g,
+          fog.color.b,
+          fog.alpha,
+          fog.fogCount,
+          fog.fogSizeRatio,
+          fog.blurStrength,
+          fog.growDurationSec,
+          fog.holdDurationSec,
+          fog.fadeDurationSec,
+          fog.dropletEnabled,
+          fog.dropletCount,
+          fog.dropletSpreadRatio,
+          fog.repeatEnabled,
+          fog.repeatIntervalSec,
+        ].join(':')
+      : 'disabled'
+
+    if (!fog?.enabled) {
+      if (this.fogKey !== key) this.clearFog(false)
+      this.fogKey = key
+      return
+    }
+
+    if (this.fogKey === key) return
+    this.fogKey = key
+
+    this.resetFogMotion()
+    this.initFogBlobs(fog)
+    this.initFogDroplets(fog)
+
+    // ブラーフィルター設定
+    const blobBlurStrength = clamp(fog.blurStrength, 0, 60)
+    if (blobBlurStrength <= 0) {
+      this.fogBlobContainer.filters = []
+      this.fogBlobBlurFilter = null
+    } else {
+      if (!this.fogBlobBlurFilter) {
+        this.fogBlobBlurFilter = new PIXI.BlurFilter({ strength: blobBlurStrength, quality: 4 })
+        this.fogBlobContainer.filters = [this.fogBlobBlurFilter]
+      } else {
+        this.fogBlobBlurFilter.strength = blobBlurStrength
+      }
+      this.fogBlobContainer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    }
+
+    // 水滴用の軽いブラー
+    const dropletBlur = Math.max(0, blobBlurStrength * 0.12)
+    if (dropletBlur <= 0) {
+      this.fogDropletGraphics.filters = []
+      this.fogDropletBlurFilter = null
+    } else {
+      if (!this.fogDropletBlurFilter) {
+        this.fogDropletBlurFilter = new PIXI.BlurFilter({ strength: dropletBlur, quality: 2 })
+        this.fogDropletGraphics.filters = [this.fogDropletBlurFilter]
+      } else {
+        this.fogDropletBlurFilter.strength = dropletBlur
+      }
+      this.fogDropletGraphics.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    }
+  }
+
+  private tickFog(delta: number, fog?: FogEffect) {
+    if (!fog?.enabled) return
+
+    const dtSec = Math.max(0, delta) / 60
+    const growSec = Math.max(0.1, fog.growDurationSec)
+    const holdSec = Math.max(0, fog.holdDurationSec)
+    const fadeSec = Math.max(0.1, fog.fadeDurationSec)
+    const totalActiveSec = growSec + holdSec + fadeSec
+    const intervalSec = Math.max(0, fog.repeatIntervalSec)
+    const cycleSec = totalActiveSec + intervalSec
+
+    if (this.fogCycleComplete && !fog.repeatEnabled) {
+      // 完全フェード済みのまま保持
+      this.renderFogFrame(fog, totalActiveSec)
+      return
+    }
+
+    this.fogElapsedSec += dtSec
+
+    if (fog.repeatEnabled && cycleSec > 0) {
+      if (this.fogElapsedSec >= cycleSec) {
+        this.fogElapsedSec %= cycleSec
+        this.initFogDroplets(fog)
+      }
+    } else if (this.fogElapsedSec >= totalActiveSec) {
+      this.fogElapsedSec = totalActiveSec
+      this.fogCycleComplete = true
+    }
+
+    this.renderFogFrame(fog, this.fogElapsedSec)
+  }
+
+  private resetFogMotion() {
+    this.fogElapsedSec = 0
+    this.fogCycleComplete = false
+    for (const blob of this.fogBlobs) {
+      blob.sprite.alpha = 0
+      blob.sprite.scale.set(0)
+    }
+    this.fogDropletGraphics.clear()
+  }
+
+  private clearFog(resetKey = true) {
+    this.resetFogMotion()
+    for (const blob of this.fogBlobs) {
+      this.fogBlobContainer.removeChild(blob.sprite)
+      blob.sprite.destroy()
+    }
+    this.fogBlobs = []
+    this.fogDropletPositions = []
+    this.fogBlobContainer.filters = []
+    this.fogBlobContainer.filterArea = undefined
+    this.fogBlobBlurFilter = null
+    this.fogDropletGraphics.clear()
+    this.fogDropletGraphics.filters = []
+    this.fogDropletGraphics.filterArea = undefined
+    this.fogDropletBlurFilter = null
+    if (resetKey) this.fogKey = null
+  }
+
+  private getFogCycleDurationMs(fog?: FogEffect) {
+    if (!fog?.enabled) return 0
+    const activeSec = Math.max(0.1, fog.growDurationSec) +
+      Math.max(0, fog.holdDurationSec) +
+      Math.max(0.1, fog.fadeDurationSec)
+    return (activeSec + (fog.repeatEnabled ? Math.max(0, fog.repeatIntervalSec) : 0)) * 1000
   }
 
   private updateZoom(zoom?: ZoomEffect) {

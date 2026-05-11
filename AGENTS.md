@@ -30,8 +30,9 @@ CellRenderer.container
 |- [7] textLayer               - in-cell text effect (TextSystem)
 |- [8] vignetteLayer           - vignette sprite
 |- [9] spiralLayer             - spiral Graphics and radial mask
-|- [10] guideLayer             - temporary radial/position guide Graphics
-`- [11] echoMask               - mask graphics attached to the container
+|- [10] fogLayer               - fog effect (blob container + droplet graphics)
+|- [11] guideLayer             - temporary radial/position guide Graphics
+`- [12] echoMask               - mask graphics attached to the container
 ```
 
 - Blur targets `imageLayer` or `effectsLayer` depending on `blur.applyToAll`
