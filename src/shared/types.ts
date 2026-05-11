@@ -182,6 +182,8 @@ export type SquishEffect = {
   syncNonce?: number
   gapCorrectionEnabled?: boolean
   gapCorrectionScale?: number
+  circlePositionY?: number
+  circleGapFactor?: number
 }
 
 export type ZoomEffect = {

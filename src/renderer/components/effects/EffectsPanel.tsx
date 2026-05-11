@@ -1240,7 +1240,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <Button
                   small
                   variant="secondary"
-                  onClick={() => syncZoomSquish(selectedCellId, 'zoom')}
+                  onClick={() => syncZoomSquish(selectedCellId, 'squish')}
                 >
                   {t('syncWithSquish')}
                 </Button>
@@ -1630,6 +1630,18 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 />
               </Row>
             )}
+            {!(effects.squish.randomPosition && (effects.squish.mode ?? 'oneshot') === 'oneshot') && (
+              <Row label={t('squishCirclePositionY')}>
+                <Slider
+                  value={Math.round((effects.squish.circlePositionY ?? 0.5) * 100)}
+                  min={0}
+                  max={100}
+                  step={1}
+                  unit="%"
+                  onChange={v => set('squish', { circlePositionY: v / 100 })}
+                />
+              </Row>
+            )}
             <Row label={t('squishOpacity')}>
               <Slider
                 value={Math.round(effects.squish.opacity * 100)}
@@ -1766,16 +1778,28 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               />
             </Row>
             {(effects.squish.gapCorrectionEnabled ?? false) && (
-              <Row label={t('squishGapCorrectionScale')}>
-                <NumberInput
-                  value={effects.squish.gapCorrectionScale ?? 1.5}
-                  min={1.0}
-                  max={4.0}
-                  step={0.05}
-                  unit="x"
-                  onChange={v => set('squish', { gapCorrectionScale: v })}
-                />
-              </Row>
+              <>
+                <Row label={t('squishGapCorrectionScale')}>
+                  <NumberInput
+                    value={effects.squish.gapCorrectionScale ?? 1.5}
+                    min={1.0}
+                    max={4.0}
+                    step={0.05}
+                    unit="x"
+                    onChange={v => set('squish', { gapCorrectionScale: v })}
+                  />
+                </Row>
+                <Row label={t('squishCircleGapFactor')}>
+                  <Slider
+                    value={Math.round((effects.squish.circleGapFactor ?? 1) * 100)}
+                    min={0}
+                    max={300}
+                    step={1}
+                    unit="%"
+                    onChange={v => set('squish', { circleGapFactor: v / 100 })}
+                  />
+                </Row>
+              </>
             )}
             <Row label={t('squishBurst')}>
               <Toggle
@@ -1800,7 +1824,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <Button
                   small
                   variant="secondary"
-                  onClick={() => syncZoomSquish(selectedCellId, 'squish')}
+                  onClick={() => syncZoomSquish(selectedCellId, 'zoom')}
                 >
                   {t('syncWithZoom')}
                 </Button>

@@ -2261,6 +2261,8 @@ export class CellRenderer {
           squish.syncNonce ?? 0,
           squish.gapCorrectionEnabled ?? false,
           squish.gapCorrectionScale ?? 1.5,
+          squish.circlePositionY ?? 0.5,
+          squish.circleGapFactor ?? 1,
         ].join(':')
       : 'disabled'
 
@@ -2303,7 +2305,7 @@ export class CellRenderer {
       } else {
         this.drawSquishPermanent(squish, this.squishElapsedSec)
       }
-      this.tickSquishBurst(dtSec, squish, this.squishElapsedSec, mode, animationSec, this.width / 2, this.height / 2)
+      this.tickSquishBurst(dtSec, squish, this.squishElapsedSec, mode, animationSec, this.width / 2, this.height * (squish.circlePositionY ?? 0.5))
       return
     }
 
@@ -2312,7 +2314,7 @@ export class CellRenderer {
     const cycleSec = animationSec + (squish.repeatEnabled ? intervalSec : 0)
 
     if (this.squishCycleComplete && !squish.repeatEnabled) {
-      this.tickSquishBurst(dtSec, squish, animationSec, mode, animationSec, this.width / 2, this.height / 2)
+      this.tickSquishBurst(dtSec, squish, animationSec, mode, animationSec, this.width / 2, this.height * (squish.circlePositionY ?? 0.5))
       return
     }
 
@@ -2333,7 +2335,7 @@ export class CellRenderer {
     const baseX = (squish.randomPosition && this.squishRandomPosition)
       ? this.squishRandomPosition.x : this.width / 2
     const baseY = (squish.randomPosition && this.squishRandomPosition)
-      ? this.squishRandomPosition.y : this.height / 2
+      ? this.squishRandomPosition.y : this.height * (squish.circlePositionY ?? 0.5)
     this.drawSquish(squish, this.squishElapsedSec)
     this.tickSquishBurst(dtSec, squish, this.squishElapsedSec, mode, animationSec, baseX, baseY)
   }
@@ -2387,7 +2389,7 @@ export class CellRenderer {
         this.squishBurstActiveSec = 0
         const minSide = Math.max(1, Math.min(this.width, this.height))
         const finalDiameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5)
-        const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5)
+        const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5) * (squish.circleGapFactor ?? 1)
         const centerOffset = this.applySquishGapCorrection((finalDiameter + edgeGap) / 2, squish)
         this.squishBurstRadius = finalDiameter / 2
         this.squishBurstCenters = [
@@ -2485,10 +2487,9 @@ export class CellRenderer {
     const diameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5) * scale
     const radius = diameter / 2
     const finalDiameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5)
-    const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5)
+    const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5) * (squish.circleGapFactor ?? 1)
     const centerOffset = (finalDiameter + edgeGap) / 2
     const centerX = this.width / 2
-    const centerY = this.height / 2
     const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
     const opacity = clamp(squish.opacity ?? 1, 0, 1)
     const colorAlpha = clamp(squish.alpha, 0, 1) * drawAlpha * opacity
@@ -2508,7 +2509,7 @@ export class CellRenderer {
       : this.width / 2
     const baseY = (squish.randomPosition && this.squishRandomPosition)
       ? this.squishRandomPosition.y
-      : this.height / 2
+      : this.height * (squish.circlePositionY ?? 0.5)
     const correctedCenterOffset = this.applySquishGapCorrection(centerOffset, squish)
     const centers: [number, number] = [baseX - correctedCenterOffset, baseX + correctedCenterOffset]
     this.drawSquishBlobPair(centers, baseY, effectiveRadius, organicShape)
@@ -2542,10 +2543,10 @@ export class CellRenderer {
     const diameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5) * scale
     const radius = diameter / 2
     const finalDiameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5)
-    const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5)
+    const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5) * (squish.circleGapFactor ?? 1)
     const centerOffset = (finalDiameter + edgeGap) / 2
     const centerX = this.width / 2
-    const centerY = this.height / 2
+    const centerY = this.height * (squish.circlePositionY ?? 0.5)
     const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
     const opacity = clamp(squish.opacity ?? 1, 0, 1)
     const colorAlpha = clamp(squish.alpha, 0, 1) * opacity
@@ -2593,10 +2594,10 @@ export class CellRenderer {
     const diameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5) * scale
     const radius = diameter / 2
     const finalDiameter = minSide * clamp(squish.circleSizeRatio, 0.05, 1.5)
-    const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5)
+    const edgeGap = finalDiameter * clamp(squish.gapRatio, -0.5, 0.5) * (squish.circleGapFactor ?? 1)
     const centerOffset = (finalDiameter + edgeGap) / 2
     const centerX = this.width / 2
-    const centerY = this.height / 2
+    const centerY = this.height * (squish.circlePositionY ?? 0.5)
     const color = rgbToHex(squish.color.r, squish.color.g, squish.color.b)
     const opacity = clamp(squish.opacity ?? 1, 0, 1)
     const colorAlpha = clamp(squish.alpha, 0, 1) * opacity

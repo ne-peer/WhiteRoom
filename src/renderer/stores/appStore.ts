@@ -159,6 +159,8 @@ export const DEFAULT_EFFECTS: CellEffects = {
     randomPosition: false,
     gapCorrectionEnabled: false,
     gapCorrectionScale: 1.5,
+    circlePositionY: 0.5,
+    circleGapFactor: 1,
   },
   dynamicAsset: {
     enabled: false,
