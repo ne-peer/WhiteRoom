@@ -20,23 +20,26 @@
 
 ```text
 CellRenderer.container
-|- [0] dynamicBackgroundLayer  - blurred copy of the current image when blankBackground.mode === 'dynamic'
-|- [1] imageLayer              - main image sprite (mask-clipped)
-|- [2] shakeTrailLayer         - masked delayed shake-trail sprites
-|- [3] echoLayer               - echo trail sprite (mask-clipped)
-|- [4] effectsLayer            - blur target when blur.applyToAll = true
-|- [5] overlayLayer            - color overlay Graphics
-|- [6] particleContainer       - dynamic assets (ParticleSystem)
-|- [7] textLayer               - in-cell text effect (TextSystem)
-|- [8] vignetteLayer           - vignette sprite
-|- [9] spiralLayer             - spiral Graphics and radial mask
-|- [10] fogLayer               - fog effect (blob container + droplet graphics)
-|- [11] guideLayer             - temporary radial/position guide Graphics
-`- [12] echoMask               - mask graphics attached to the container
+|- [0] imageRootLayer          - wraps all image-derived layers; receives the tone (colorMatrix) filter
+|     |- [0] dynamicBackgroundLayer - blurred copy of the current image when blankBackground.mode === 'dynamic'
+|     |- [1] imageLayer            - main image sprite (mask-clipped); receives the per-cell blur filter
+|     |- [2] shakeTrailLayer       - parent index reference for masked delayed shake-trail sprites (inserted dynamically)
+|     |- [3] echoLayer             - echo trail sprite (mask-clipped)
+|     |- [4] effectsLayer          - blur target when blur.applyToAll = true
+|     |- [5] echoMask              - mask graphics for echoLayer
+|     `- [n] radial-blur layers / shake-trail dynamic layers (inserted at runtime)
+|- [1] overlayLayer            - color overlay Graphics, squish, flash
+|- [2] particleContainer       - dynamic assets (ParticleSystem)
+|- [3] textLayer               - in-cell text effect (TextSystem)
+|- [4] vignetteLayer           - vignette sprite
+|- [5] spiralLayer             - spiral Graphics and radial mask
+|- [6] fogLayer                - fog effect (blob container + droplet graphics)
+`- [7] guideLayer              - temporary radial/position guide Graphics
 ```
 
 - Blur targets `imageLayer` or `effectsLayer` depending on `blur.applyToAll`
-- Radial blur builds cloned image layers and mask sprites inside `CellRenderer`
+- Tone filter (colorOverlay.imageAdjustEnabled) is applied to `imageRootLayer` so it covers the main image, dynamic background, shake trail, echo, and radial blur clones uniformly
+- Radial blur builds cloned image layers and mask sprites inside `imageRootLayer`
 - Shake, shake-trail, flash overlay, spiral, radial blur, vignette, particles, and in-cell text are owned by `CellRenderer`
 - Timer UI, pre-overlay, end-flash, cell navigation overlay, pick-mode guides, storyboard panel, and text reader window are React overlays with `position: absolute`, outside PixiJS
 

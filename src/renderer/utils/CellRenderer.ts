@@ -20,6 +20,10 @@ export class CellRenderer {
   readonly cellId: string
   readonly container: PIXI.Container
 
+  // 画像系レイヤーをまとめてカラーマトリクス（トーン）フィルタを掛けるラッパー。
+  // この中身全体に対してフィルタを適用することで、シェイク追従や放射状ブラーなど
+  // 画像から派生した描画にも均一にトーンフィルタが反映される。
+  private imageRootLayer: PIXI.Container
   private dynamicBackgroundLayer: PIXI.Container
   private imageLayer: PIXI.Container
   private shakeTrailLayer: PIXI.Container
@@ -226,6 +230,7 @@ export class CellRenderer {
     this.container.cursor = 'pointer'
     this.updateHitArea()
 
+    this.imageRootLayer = new PIXI.Container()
     this.dynamicBackgroundLayer = new PIXI.Container()
     this.imageLayer = new PIXI.Container()
     this.shakeTrailLayer = new PIXI.Container()
@@ -243,11 +248,16 @@ export class CellRenderer {
     this.imageMask = new PIXI.Graphics()
     this.echoMask = new PIXI.Graphics()
 
-    this.container.addChild(this.dynamicBackgroundLayer)
-    this.container.addChild(this.imageLayer)
-    this.container.addChild(this.shakeTrailLayer)
-    this.container.addChild(this.echoLayer)
-    this.container.addChild(this.effectsLayer)
+    // 画像系レイヤーは imageRootLayer 配下にまとめ、トーンフィルタを共通適用する。
+    // シェイク追従や放射状ブラーなどの動的レイヤーも imageRootLayer に挿入する。
+    this.imageRootLayer.addChild(this.dynamicBackgroundLayer)
+    this.imageRootLayer.addChild(this.imageLayer)
+    this.imageRootLayer.addChild(this.shakeTrailLayer)
+    this.imageRootLayer.addChild(this.echoLayer)
+    this.imageRootLayer.addChild(this.effectsLayer)
+    this.imageRootLayer.addChild(this.echoMask)
+
+    this.container.addChild(this.imageRootLayer)
     this.container.addChild(this.overlayLayer)
     this.container.addChild(this.particleContainer)
     this.container.addChild(this.textLayer)
@@ -255,7 +265,6 @@ export class CellRenderer {
     this.container.addChild(this.spiralLayer)
     this.container.addChild(this.fogLayer)
     this.container.addChild(this.guideLayer)
-    this.container.addChild(this.echoMask)
 
     this.dynamicBackgroundLayer.addChild(this.dynamicBackgroundMask)
     this.dynamicBackgroundLayer.mask = this.dynamicBackgroundMask
@@ -297,6 +306,9 @@ export class CellRenderer {
     this.clearSpiralMask()
     this.refreshBlurRegion()
     this.setImageLayerFilters()
+    // カラーフィルタ（オーバーレイ）のサイズはセルサイズに依存するため再描画する。
+    // ウィンドウモード→フルスクリーン切り替え時に矩形が前のサイズで残るのを防ぐ。
+    if (this.latestEffects) this.updateColorOverlay(this.latestEffects)
     this.textSystem.resizeMask(width, height)
     this.positionFlashOverlaySprite()
     if (this.latestEffects) this.updateSpiral(this.latestEffects)
@@ -1132,11 +1144,20 @@ export class CellRenderer {
   }
 
   private setImageLayerFilters() {
-    const filters: PIXI.Filter[] = []
-    if (this.imageLayerBlurFilter) filters.push(this.imageLayerBlurFilter)
-    if (this.colorMatrixFilter) filters.push(this.colorMatrixFilter)
-    this.imageLayer.filters = filters
-    this.imageLayer.filterArea = filters.length > 0 ? new PIXI.Rectangle(0, 0, this.width, this.height) : undefined
+    // ブラー（applyToAll = false 時）は imageLayer 単体に適用する。
+    const imageLayerFilters: PIXI.Filter[] = []
+    if (this.imageLayerBlurFilter) imageLayerFilters.push(this.imageLayerBlurFilter)
+    // filterArea は PixiJS v8 の挙動を踏まえ filters より先に設定する。
+    this.imageLayer.filterArea = imageLayerFilters.length > 0 ? new PIXI.Rectangle(0, 0, this.width, this.height) : undefined
+    this.imageLayer.filters = imageLayerFilters
+
+    // トーンフィルタ（カラーマトリクス）は imageRootLayer 全体に適用する。
+    // こうすることで imageLayer 単体だけでなく、シェイク追従・放射状ブラー・
+    // エコーなど画像から派生した描画にも均一にトーンフィルタが反映される。
+    const rootFilters: PIXI.Filter[] = []
+    if (this.colorMatrixFilter) rootFilters.push(this.colorMatrixFilter)
+    this.imageRootLayer.filterArea = rootFilters.length > 0 ? new PIXI.Rectangle(0, 0, this.width, this.height) : undefined
+    this.imageRootLayer.filters = rootFilters
   }
 
   private updateBreathing(breathing?: BreathingEffect) {
@@ -1587,8 +1608,8 @@ export class CellRenderer {
     firstLayer.addChild(sprite)
     firstLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
     firstLayer.filters = [blurFilter, maskFilter]
-    this.container.addChildAt(firstLayer, this.container.getChildIndex(this.shakeTrailLayer) + 1)
-    this.container.addChildAt(maskSprite, this.container.getChildIndex(firstLayer) + 1)
+    this.imageRootLayer.addChildAt(firstLayer, this.imageRootLayer.getChildIndex(this.shakeTrailLayer) + 1)
+    this.imageRootLayer.addChildAt(maskSprite, this.imageRootLayer.getChildIndex(firstLayer) + 1)
     maskSprite.alpha = 0
 
     this.shakeTrailFirstLayer = firstLayer
@@ -1618,8 +1639,8 @@ export class CellRenderer {
       secondLayer.filters = [secondBlurFilter, secondMaskFilter]
       secondMaskSprite.alpha = 0
       // Keep the second trail stage above the first stage for every shake-trail setting.
-      this.container.addChildAt(secondLayer, this.container.getChildIndex(maskSprite) + 1)
-      this.container.addChildAt(secondMaskSprite, this.container.getChildIndex(secondLayer) + 1)
+      this.imageRootLayer.addChildAt(secondLayer, this.imageRootLayer.getChildIndex(maskSprite) + 1)
+      this.imageRootLayer.addChildAt(secondMaskSprite, this.imageRootLayer.getChildIndex(secondLayer) + 1)
 
       this.shakeTrailSecondLayer = secondLayer
       this.shakeTrailSecondSprite = secondSprite
@@ -1755,7 +1776,7 @@ export class CellRenderer {
     this.shakeTrailBlurFilter = null
     this.shakeTrailSecondBlurFilter = null
     if (this.shakeTrailFirstLayer) {
-      this.container.removeChild(this.shakeTrailFirstLayer)
+      this.imageRootLayer.removeChild(this.shakeTrailFirstLayer)
       this.shakeTrailFirstLayer.destroy({ children: true })
       this.shakeTrailFirstLayer = null
       this.shakeTrailSprite = null
@@ -1766,19 +1787,19 @@ export class CellRenderer {
       this.shakeTrailSprite = null
     }
     if (this.shakeTrailMaskSprite) {
-      this.container.removeChild(this.shakeTrailMaskSprite)
+      this.imageRootLayer.removeChild(this.shakeTrailMaskSprite)
       this.shakeTrailMaskSprite.texture.destroy(true)
       this.shakeTrailMaskSprite.destroy()
       this.shakeTrailMaskSprite = null
     }
     if (this.shakeTrailSecondLayer) {
-      this.container.removeChild(this.shakeTrailSecondLayer)
+      this.imageRootLayer.removeChild(this.shakeTrailSecondLayer)
       this.shakeTrailSecondLayer.destroy({ children: true })
       this.shakeTrailSecondLayer = null
       this.shakeTrailSecondSprite = null
     }
     if (this.shakeTrailSecondMaskSprite) {
-      this.container.removeChild(this.shakeTrailSecondMaskSprite)
+      this.imageRootLayer.removeChild(this.shakeTrailSecondMaskSprite)
       this.shakeTrailSecondMaskSprite.texture.destroy(true)
       this.shakeTrailSecondMaskSprite.destroy()
       this.shakeTrailSecondMaskSprite = null
@@ -3841,7 +3862,9 @@ export class CellRenderer {
   private buildRadialGradientBlur(blur: BlurEffect, centerXRatio: number, centerYRatio: number) {
     if (!this.imageSprite) return
 
-    const insertIndex = this.container.getChildIndex(this.overlayLayer)
+    // 放射状ブラー用のレイヤーは画像系をまとめた imageRootLayer の末尾に挿入する。
+    // これによりトーンフィルタが放射状ブラーの画像クローンにも適用される。
+    const insertIndex = this.imageRootLayer.children.length
     const pattern = blur.radialPattern ?? 'a'
     const centerX = clamp(centerXRatio, 0, 1)
     const centerY = clamp(centerYRatio, 0, 1)
@@ -3881,8 +3904,8 @@ export class CellRenderer {
       radialBlurLayer.filters = [blurFilter, maskFilter]
 
       maskSprite.alpha = 0
-      this.container.addChildAt(radialBlurLayer, insertIndex + index * 2)
-      this.container.addChildAt(maskSprite, insertIndex + index * 2 + 1)
+      this.imageRootLayer.addChildAt(radialBlurLayer, insertIndex + index * 2)
+      this.imageRootLayer.addChildAt(maskSprite, insertIndex + index * 2 + 1)
 
       if (index === 0) this.blurFilter = blurFilter
       this.radialBlurLayers.push(radialBlurLayer)
@@ -4044,11 +4067,11 @@ export class CellRenderer {
     this.radialBlurLayers.forEach(layer => {
       layer.filters = []
       layer.filterArea = undefined
-      this.container.removeChild(layer)
+      this.imageRootLayer.removeChild(layer)
       layer.destroy()
     })
     this.radialBlurMaskSprites.forEach(maskSprite => {
-      this.container.removeChild(maskSprite)
+      this.imageRootLayer.removeChild(maskSprite)
       maskSprite.texture.destroy(true)
       maskSprite.destroy()
     })
