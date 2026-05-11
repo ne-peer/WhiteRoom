@@ -80,15 +80,21 @@ export class CellRenderer {
   private vignetteTextureKey: string | null = null
   private fogLayer: PIXI.Container
   private fogBlobContainer: PIXI.Container
-  private fogDropletGraphics: PIXI.Graphics
   private fogKey: string | null = null
-  private fogElapsedSec = 0
-  private fogCycleComplete = false
   private fogGradientTexture: PIXI.Texture | null = null
-  private fogBlobs: Array<{ sprite: PIXI.Sprite; offsetX: number; offsetY: number; phaseDelaySec: number }> = []
-  private fogDropletPositions: Array<{ x: number; y: number; rx: number; ry: number; baseAlpha: number }> = []
-  private fogBlobBlurFilter: PIXI.BlurFilter | null = null
-  private fogDropletBlurFilter: PIXI.BlurFilter | null = null
+  private fogInstances: Array<{
+    container: PIXI.Container
+    blobContainer: PIXI.Container
+    dropletGraphics: PIXI.Graphics
+    centerXRatio: number
+    centerYRatio: number
+    elapsedSec: number
+    blobs: Array<{ sprite: PIXI.Sprite; offsetX: number; offsetY: number; phaseDelaySec: number }>
+    dropletPositions: Array<{ x: number; y: number; rx: number; ry: number; baseAlpha: number }>
+    blobBlurFilter: PIXI.BlurFilter | null
+    dropletBlurFilter: PIXI.BlurFilter | null
+  }> = []
+  private fogSpawnAccumulatorSec = 0
 
   private spiralGraphics: PIXI.Graphics
   private spiralMaskSprite: PIXI.Sprite | null = null
@@ -270,8 +276,6 @@ export class CellRenderer {
     this.spiralLayer.addChild(this.spiralGraphics)
 
     this.fogLayer.addChild(this.fogBlobContainer)
-    this.fogDropletGraphics = new PIXI.Graphics()
-    this.fogLayer.addChild(this.fogDropletGraphics)
 
     this.particleSystem = new ParticleSystem(this.particleContainer)
     this.textSystem = new TextSystem(this.textLayer)
@@ -451,7 +455,7 @@ export class CellRenderer {
     this.resetBreathingMotion(withRandomDelay)
     this.resetShakeMotion()
     this.resetSquishMotion()
-    this.resetFogMotion()
+    this.clearFog(false)
     if (this.effectResetTimeoutId !== null) {
       clearTimeout(this.effectResetTimeoutId)
       this.effectResetTimeoutId = null
@@ -2854,13 +2858,8 @@ export class CellRenderer {
     return this.fogGradientTexture
   }
 
-  private initFogBlobs(fog: FogEffect) {
-    for (const blob of this.fogBlobs) {
-      this.fogBlobContainer.removeChild(blob.sprite)
-      blob.sprite.destroy()
-    }
-    this.fogBlobs = []
-
+  private initFogBlobs(fog: FogEffect, instance: (typeof this.fogInstances)[0]) {
+    instance.blobs = []
     const count = Math.max(1, Math.min(12, fog.fogCount))
     const texture = this.getFogGradientTexture()
     const tint = rgbToHex(fog.color.r, fog.color.g, fog.color.b)
@@ -2877,20 +2876,19 @@ export class CellRenderer {
       const offsetX = Math.cos(angle) * dist
       const offsetY = Math.sin(angle) * dist
       const phaseDelaySec = (i / count) * 0.35
-      this.fogBlobs.push({ sprite, offsetX, offsetY, phaseDelaySec })
-      this.fogBlobContainer.addChild(sprite)
+      instance.blobs.push({ sprite, offsetX, offsetY, phaseDelaySec })
+      instance.blobContainer.addChild(sprite)
     }
   }
 
-  private initFogDroplets(fog: FogEffect) {
-    this.fogDropletPositions = []
+  private initFogDroplets(fog: FogEffect, instance: (typeof this.fogInstances)[0]) {
+    instance.dropletPositions = []
     if (!fog.dropletEnabled) return
     const count = Math.max(1, Math.min(150, fog.dropletCount))
-    const minSide = Math.min(this.width, this.height)
     const halfDiag = Math.sqrt(this.width * this.width + this.height * this.height) / 2
     const spreadRatio = clamp(fog.dropletSpreadRatio ?? 0.85, 0.01, 1.0)
-    const cx = this.width / 2
-    const cy = this.height / 2
+    const cx = instance.centerXRatio * this.width
+    const cy = instance.centerYRatio * this.height
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2
       const dist = halfDiag * Math.random() * spreadRatio
@@ -2899,30 +2897,32 @@ export class CellRenderer {
       const rx = 1.5 + Math.random() * 3.5
       const ry = rx * (1.3 + Math.random() * 0.7)
       const baseAlpha = 0.35 + Math.random() * 0.45
-      this.fogDropletPositions.push({ x, y, rx, ry, baseAlpha })
+      instance.dropletPositions.push({ x, y, rx, ry, baseAlpha })
     }
   }
 
-  private drawFogDroplets(globalAlpha: number) {
-    this.fogDropletGraphics.clear()
-    if (!this.fogDropletPositions.length || globalAlpha <= 0.005) return
-    for (const dp of this.fogDropletPositions) {
+  private drawFogDroplets(globalAlpha: number, instance: (typeof this.fogInstances)[0]) {
+    const g = instance.dropletGraphics
+    g.clear()
+    if (!instance.dropletPositions.length || globalAlpha <= 0.005) return
+    for (const dp of instance.dropletPositions) {
       const a = dp.baseAlpha * globalAlpha
       if (a <= 0) continue
-      this.fogDropletGraphics.ellipse(dp.x, dp.y, dp.rx, dp.ry)
-      this.fogDropletGraphics.fill({ color: 0xffffff, alpha: a })
+      g.ellipse(dp.x, dp.y, dp.rx, dp.ry)
+      g.fill({ color: 0xffffff, alpha: a })
       // ハイライト（光沢感）
-      this.fogDropletGraphics.ellipse(
+      g.ellipse(
         dp.x - dp.rx * 0.28,
         dp.y - dp.ry * 0.28,
         dp.rx * 0.32,
         dp.ry * 0.28
       )
-      this.fogDropletGraphics.fill({ color: 0xffffff, alpha: Math.min(1, a + 0.25) })
+      g.fill({ color: 0xffffff, alpha: Math.min(1, a + 0.25) })
     }
   }
 
-  private renderFogFrame(fog: FogEffect, elapsedSec: number) {
+  private renderFogFrame(fog: FogEffect, instance: (typeof this.fogInstances)[0]) {
+    const elapsedSec = instance.elapsedSec
     const growSec = Math.max(0.1, fog.growDurationSec)
     const holdSec = Math.max(0, fog.holdDurationSec)
     const fadeSec = Math.max(0.1, fog.fadeDurationSec)
@@ -2930,10 +2930,10 @@ export class CellRenderer {
     const globalAlpha = clamp(fog.alpha, 0, 1)
     const minSide = Math.min(this.width, this.height)
     const maxRadius = minSide * clamp(fog.fogSizeRatio, 0.1, 0.8)
-    const cx = this.width / 2
-    const cy = this.height / 2
+    const cx = instance.centerXRatio * this.width
+    const cy = instance.centerYRatio * this.height
 
-    for (const blob of this.fogBlobs) {
+    for (const blob of instance.blobs) {
       const t = elapsedSec - blob.phaseDelaySec
       if (t <= 0) {
         blob.sprite.alpha = 0
@@ -2982,13 +2982,78 @@ export class CellRenderer {
       const p = (elapsedSec - growSec - holdSec) / fadeSec
       dropletAlpha = Math.max(0, 1 - easeInSine(p))
     }
-    this.drawFogDroplets(dropletAlpha * globalAlpha)
+    this.drawFogDroplets(dropletAlpha * globalAlpha, instance)
+  }
+
+  private createFogInstance(fog: FogEffect) {
+    const randomPos = fog.randomPositionEnabled
+    const centerXRatio = randomPos ? (0.2 + Math.random() * 0.6) : 0.5
+    const centerYRatio = randomPos ? (0.2 + Math.random() * 0.6) : 0.5
+
+    const container = new PIXI.Container()
+    const blobContainer = new PIXI.Container()
+    const dropletGraphics = new PIXI.Graphics()
+    container.addChild(blobContainer)
+    container.addChild(dropletGraphics)
+
+    const instance: (typeof this.fogInstances)[0] = {
+      container,
+      blobContainer,
+      dropletGraphics,
+      centerXRatio,
+      centerYRatio,
+      elapsedSec: 0,
+      blobs: [],
+      dropletPositions: [],
+      blobBlurFilter: null,
+      dropletBlurFilter: null,
+    }
+
+    this.initFogBlobs(fog, instance)
+    this.initFogDroplets(fog, instance)
+    this.configureFogInstanceFilters(fog, instance)
+
+    this.fogBlobContainer.addChild(container)
+    this.fogInstances.push(instance)
+  }
+
+  private configureFogInstanceFilters(fog: FogEffect, instance: (typeof this.fogInstances)[0]) {
+    const blobBlurStrength = clamp(fog.blurStrength, 0, 60)
+    if (blobBlurStrength <= 0) {
+      instance.blobContainer.filters = []
+      instance.blobContainer.filterArea = undefined
+      instance.blobBlurFilter = null
+    } else {
+      if (!instance.blobBlurFilter) {
+        instance.blobBlurFilter = new PIXI.BlurFilter({ strength: blobBlurStrength, quality: 4 })
+        instance.blobContainer.filters = [instance.blobBlurFilter]
+      } else {
+        instance.blobBlurFilter.strength = blobBlurStrength
+      }
+      instance.blobContainer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    }
+
+    const dropletBlur = Math.max(0, blobBlurStrength * 0.12)
+    if (dropletBlur <= 0) {
+      instance.dropletGraphics.filters = []
+      instance.dropletGraphics.filterArea = undefined
+      instance.dropletBlurFilter = null
+    } else {
+      if (!instance.dropletBlurFilter) {
+        instance.dropletBlurFilter = new PIXI.BlurFilter({ strength: dropletBlur, quality: 2 })
+        instance.dropletGraphics.filters = [instance.dropletBlurFilter]
+      } else {
+        instance.dropletBlurFilter.strength = dropletBlur
+      }
+      instance.dropletGraphics.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    }
   }
 
   private updateFog(fog?: FogEffect) {
     const key = fog
       ? [
           fog.enabled,
+          fog.randomPositionEnabled,
           fog.color.r,
           fog.color.g,
           fog.color.b,
@@ -3016,39 +3081,9 @@ export class CellRenderer {
     if (this.fogKey === key) return
     this.fogKey = key
 
-    this.resetFogMotion()
-    this.initFogBlobs(fog)
-    this.initFogDroplets(fog)
-
-    // ブラーフィルター設定
-    const blobBlurStrength = clamp(fog.blurStrength, 0, 60)
-    if (blobBlurStrength <= 0) {
-      this.fogBlobContainer.filters = []
-      this.fogBlobBlurFilter = null
-    } else {
-      if (!this.fogBlobBlurFilter) {
-        this.fogBlobBlurFilter = new PIXI.BlurFilter({ strength: blobBlurStrength, quality: 4 })
-        this.fogBlobContainer.filters = [this.fogBlobBlurFilter]
-      } else {
-        this.fogBlobBlurFilter.strength = blobBlurStrength
-      }
-      this.fogBlobContainer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
-    }
-
-    // 水滴用の軽いブラー
-    const dropletBlur = Math.max(0, blobBlurStrength * 0.12)
-    if (dropletBlur <= 0) {
-      this.fogDropletGraphics.filters = []
-      this.fogDropletBlurFilter = null
-    } else {
-      if (!this.fogDropletBlurFilter) {
-        this.fogDropletBlurFilter = new PIXI.BlurFilter({ strength: dropletBlur, quality: 2 })
-        this.fogDropletGraphics.filters = [this.fogDropletBlurFilter]
-      } else {
-        this.fogDropletBlurFilter.strength = dropletBlur
-      }
-      this.fogDropletGraphics.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
-    }
+    this.clearFog(false)
+    this.fogSpawnAccumulatorSec = 0
+    this.createFogInstance(fog)
   }
 
   private tickFog(delta: number, fog?: FogEffect) {
@@ -3059,55 +3094,66 @@ export class CellRenderer {
     const holdSec = Math.max(0, fog.holdDurationSec)
     const fadeSec = Math.max(0.1, fog.fadeDurationSec)
     const totalActiveSec = growSec + holdSec + fadeSec
-    const intervalSec = Math.max(0, fog.repeatIntervalSec)
-    const cycleSec = totalActiveSec + intervalSec
 
-    if (this.fogCycleComplete && !fog.repeatEnabled) {
-      // 完全フェード済みのまま保持
-      this.renderFogFrame(fog, totalActiveSec)
-      return
-    }
+    // Spawn policy:
+    // - repeatEnabled: start a new fog every repeatIntervalSec (allow overlap)
+    // - repeatDisabled: keep a single fog instance (no overlap)
+    const spawnPeriodSec = fog.repeatEnabled ? Math.max(0.05, fog.repeatIntervalSec) : 0
 
-    this.fogElapsedSec += dtSec
-
-    if (fog.repeatEnabled && cycleSec > 0) {
-      if (this.fogElapsedSec >= cycleSec) {
-        this.fogElapsedSec %= cycleSec
-        this.initFogDroplets(fog)
+    if (fog.repeatEnabled) {
+      this.fogSpawnAccumulatorSec += dtSec
+      while (this.fogSpawnAccumulatorSec >= spawnPeriodSec) {
+        this.fogSpawnAccumulatorSec -= spawnPeriodSec
+        this.createFogInstance(fog)
       }
-    } else if (this.fogElapsedSec >= totalActiveSec) {
-      this.fogElapsedSec = totalActiveSec
-      this.fogCycleComplete = true
+    } else if (this.fogInstances.length === 0) {
+      this.createFogInstance(fog)
     }
 
-    this.renderFogFrame(fog, this.fogElapsedSec)
-  }
-
-  private resetFogMotion() {
-    this.fogElapsedSec = 0
-    this.fogCycleComplete = false
-    for (const blob of this.fogBlobs) {
-      blob.sprite.alpha = 0
-      blob.sprite.scale.set(0)
+    // Avoid unbounded growth if repeatIntervalSec is tiny.
+    const MAX_FOG_INSTANCES = 6
+    while (this.fogInstances.length > MAX_FOG_INSTANCES) {
+      const victim = this.fogInstances.shift()
+      if (victim) {
+        this.fogBlobContainer.removeChild(victim.container)
+        for (const blob of victim.blobs) blob.sprite.destroy()
+        victim.dropletGraphics.destroy()
+        victim.container.destroy()
+      }
     }
-    this.fogDropletGraphics.clear()
+
+    // Tick & render
+    for (let i = this.fogInstances.length - 1; i >= 0; i--) {
+      const inst = this.fogInstances[i]!
+      inst.elapsedSec += dtSec
+
+      if (!fog.repeatEnabled && inst.elapsedSec >= totalActiveSec) {
+        // When not repeating, hold the final frame.
+        inst.elapsedSec = totalActiveSec
+      }
+
+      this.renderFogFrame(fog, inst)
+
+      if (fog.repeatEnabled && inst.elapsedSec >= totalActiveSec) {
+        // Completed instances are removed when repeating.
+        this.fogBlobContainer.removeChild(inst.container)
+        for (const blob of inst.blobs) blob.sprite.destroy()
+        inst.dropletGraphics.destroy()
+        inst.container.destroy()
+        this.fogInstances.splice(i, 1)
+      }
+    }
   }
 
   private clearFog(resetKey = true) {
-    this.resetFogMotion()
-    for (const blob of this.fogBlobs) {
-      this.fogBlobContainer.removeChild(blob.sprite)
-      blob.sprite.destroy()
+    for (const inst of this.fogInstances) {
+      this.fogBlobContainer.removeChild(inst.container)
+      for (const blob of inst.blobs) blob.sprite.destroy()
+      inst.dropletGraphics.destroy()
+      inst.container.destroy()
     }
-    this.fogBlobs = []
-    this.fogDropletPositions = []
-    this.fogBlobContainer.filters = []
-    this.fogBlobContainer.filterArea = undefined
-    this.fogBlobBlurFilter = null
-    this.fogDropletGraphics.clear()
-    this.fogDropletGraphics.filters = []
-    this.fogDropletGraphics.filterArea = undefined
-    this.fogDropletBlurFilter = null
+    this.fogInstances = []
+    this.fogSpawnAccumulatorSec = 0
     if (resetKey) this.fogKey = null
   }
 

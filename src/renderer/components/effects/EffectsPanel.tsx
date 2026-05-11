@@ -204,6 +204,7 @@ const EFFECT_PRESET_1: CellEffects = {
     dropletSpreadRatio: 0.55,
     repeatEnabled: true,
     repeatIntervalSec: 0.5,
+    randomPositionEnabled: false,
   },
 }
 
@@ -389,6 +390,7 @@ const EFFECT_PRESET_2: CellEffects = {
     dropletSpreadRatio: 0.55,
     repeatEnabled: true,
     repeatIntervalSec: 0.5,
+    randomPositionEnabled: false,
   },
 }
 
@@ -1997,6 +1999,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 />
               </Row>
             )}
+            <Row label={t('fogRandomPosition')}>
+              <Toggle
+                value={effects.fog.randomPositionEnabled ?? false}
+                onChange={v => set('fog', { randomPositionEnabled: v })}
+              />
+            </Row>
           </>
         )}
       </Section>

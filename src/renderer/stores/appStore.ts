@@ -177,6 +177,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     dropletSpreadRatio: 0.55,
     repeatEnabled: true,
     repeatIntervalSec: 0.5,
+    randomPositionEnabled: false,
   },
   dynamicAsset: {
     enabled: false,

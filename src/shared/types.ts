@@ -212,6 +212,7 @@ export type FogEffect = {
   dropletSpreadRatio: number
   repeatEnabled: boolean
   repeatIntervalSec: number
+  randomPositionEnabled: boolean
 }
 
 export type AssetDrawPattern = 'rising' | 'emergence'
