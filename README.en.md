@@ -268,9 +268,7 @@ npm run package
 
 Output: `release/` folder
 
----
-
-## Directory Structure
+### Directory Structure
 
 ```
 src/
