@@ -9,8 +9,8 @@ const ICON_POS_X = 8
 const ICON_POS_Y = 8
 const MOUSE_COLLAPSE_DISTANCE = 100
 const ICON_FADE_DELAY_MS = 3000
-const LONG_PRESS_MS = 800
-const DEL_LONG_PRESS_MS = 500
+const LONG_PRESS_MS = 400
+const DEL_LONG_PRESS_MS = 400
 const DEL_CIRCLE_R = 8
 const DEL_CIRCUMFERENCE = 2 * Math.PI * DEL_CIRCLE_R
 
@@ -210,7 +210,7 @@ export const StashWindow: React.FC = () => {
             top: ICON_POS_Y,
             opacity: iconFaded ? 0.13 : 0.9,
           }}
-          onClick={expand}
+          onMouseEnter={expand}
           title={t('stashMenuTitle')}
           data-stash-window
         >

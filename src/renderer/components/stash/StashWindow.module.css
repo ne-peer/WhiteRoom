@@ -145,7 +145,7 @@
   background: rgba(100, 160, 255, 0.28);
   transform-origin: left center;
   transform: scaleX(0);
-  animation: longPressGrow 800ms linear forwards;
+  animation: longPressGrow 400ms linear forwards;
   border-radius: 3px;
   pointer-events: none;
 }
@@ -192,7 +192,7 @@
   stroke-linecap: round;
   transform: rotate(-90deg);
   transform-origin: 10px 10px;
-  animation: delProgressGrow 500ms linear forwards;
+  animation: delProgressGrow 400ms linear forwards;
 }
 
 @keyframes delProgressGrow {
