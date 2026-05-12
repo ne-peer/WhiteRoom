@@ -138,6 +138,19 @@ For the per-image effect profile save/load feature, read `docs/WR-EffectProfile.
 - Text Reader / Storyboard activity suspends automatic application until the text file is closed.
 - Remote URL images cannot be saved because there is no local target folder.
 
+## Stash Spec
+
+For the stash feature, read `docs/WR-Stash.md` before implementation.
+
+- A stash captures: `blankColor`, `blankBackground`, `grid`, `cells`, `timer`, `textReaderConfig`, `textReaderFilePath`, `textReaderPageIndex`. Not captured: `fullscreen`, `showControls`, `windowSize`, `language`, `imageEffectProfiles`.
+- Saving a stash immediately calls `resetProfile()` without a confirmation dialog.
+- POP restores settings but does **not** remove the stash slot.
+- `AppProfile` version `'1.1.0'` is used when stashes are present; old profiles (no `stashes` field) load as empty stash list.
+- `serializeAppProfile` / `resolveAppProfile` must process stash cell effects via `mapEffectsAssetReferences`.
+- The app close guard reads `window.__whiteroom_hasStash()` (set by `StashWindow`) and shows a native dialog when stashes remain.
+- Maximum 15 stash slots; minimum 3 rows displayed.
+- Stash window is accessed via the bottom-left hamburger menu or `[s]` shortcut key.
+
 ## Documentation Workflow
 
 When a new feature is added to this work instruction file, ask whether a feature specification should also be created under `docs/`.

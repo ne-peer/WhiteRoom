@@ -26,6 +26,17 @@
 
 /* ===== フロートウィンドウ ===== */
 
+@keyframes panelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .panel {
   position: fixed;
   top: 0;
@@ -42,6 +53,7 @@
   color: rgba(220, 220, 255, 0.92);
   overflow: hidden;
   backdrop-filter: blur(6px);
+  animation: panelEnter 0.18s ease-out;
 }
 
 .header {

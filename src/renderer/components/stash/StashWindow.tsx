@@ -201,22 +201,20 @@ export const StashWindow: React.FC = () => {
   return (
     <>
       {/* 縮小アイコン */}
-      {!expanded && (
-        <button
-          ref={iconRef}
-          className={styles.collapseIcon}
-          style={{
-            left: ICON_POS_X,
-            top: ICON_POS_Y,
-            opacity: iconFaded ? 0.13 : 0.9,
-          }}
-          onMouseEnter={expand}
-          title={t('stashMenuTitle')}
-          data-stash-window
-        >
-          📦
-        </button>
-      )}
+      <button
+        ref={iconRef}
+        className={styles.collapseIcon}
+        style={{
+          left: ICON_POS_X,
+          top: ICON_POS_Y,
+          opacity: iconFaded ? 0.13 : 0.9,
+        }}
+        onMouseEnter={expand}
+        title={t('stashMenuTitle')}
+        data-stash-window
+      >
+        📦
+      </button>
 
       {/* フロートウィンドウ */}
       {expanded && (
