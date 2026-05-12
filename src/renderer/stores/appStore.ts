@@ -7,6 +7,7 @@ import type {
   ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig, ReadingConfigPayload,
   StashItem, IpcApi,
 } from '../../shared/types'
+import { DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART } from '../../shared/types'
 import { parseTextFile, insertOrReplaceTagBefore, insertTagAtCharPosition, insertOrReplaceReadConfigAtTop, resolveStoryboardImageReference } from '../utils/storyboardParser'
 import { getTimerCompletionElapsed } from '../utils/timerProgress'
 
@@ -201,28 +202,28 @@ export const DEFAULT_EFFECTS: CellEffects = {
   dynamicAsset: {
     enabled: false,
     pattern: 'rising' as const,
-    sourceKind: 'raster' as const,
-    vectorPresetId: null,
+    sourceKind: 'vector' as const,
+    vectorPresetId: DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
     assetPath: null,
     assetPaths: [],
     assetFolderPath: null,
-    spawnIntervalMs: 800,
+    spawnIntervalMs: 400,
     riseSpeedPx: 2,
-    riseSpeedFactor: 1,
-    maxParticles: 20,
+    riseSpeedFactor: 0.8,
+    maxParticles: 50,
     featherStrength: 0,
-    sizeRatio: 1.0,
-    sizeRandomPercent: 10,
-    baseAlpha: 1.0,
+    sizeRatio: 0.7,
+    sizeRandomPercent: 25,
+    baseAlpha: 0.65,
     alphaTimerSync: false,
     emergenceSpeedFactor: 1.0,
-    additionalEffect: 'none',
+    additionalEffect: 'wiggle',
     additionalEffectSpeedFactor: 1.0,
     randomRotationEnabled: false,
-    colorOverlayEnabled: false,
+    colorOverlayEnabled: true,
     colorOverlayColor: { r: 255, g: 15, b: 91 },
     colorOverlayAlpha: 0.5,
-    colorOverlayAlphaRandomEnabled: false,
+    colorOverlayAlphaRandomEnabled: true,
   },
   textEffect: {
     enabled: false,
