@@ -9,7 +9,7 @@ import { fadeOutAndRemoveWhiteroomSplash } from './utils/splashDismiss'
 import './global.css'
 
 const CONTROL_PANEL_WIDTH = 300
-const EDGE_REVEAL_THRESHOLD = 60
+const EDGE_REVEAL_THRESHOLD = 150
 const FLOAT_HIDE_MARGIN = 48
 
 const App: React.FC = () => {
