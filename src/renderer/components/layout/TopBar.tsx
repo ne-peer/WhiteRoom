@@ -14,6 +14,7 @@ export const TopBar: React.FC = () => {
   const { t } = useTranslation()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuPanelRef = useRef<HTMLDivElement>(null)
 
   const handleFullscreen = () => {
     const next = !fullscreen
@@ -45,8 +46,32 @@ export const TopBar: React.FC = () => {
     return () => document.removeEventListener('mousedown', onMouseDown)
   }, [menuOpen])
 
+  // マウス距離でメニューを閉じる（ドックとメニューパネル両方の周辺 24px バッファを確保）
+  useEffect(() => {
+    if (!menuOpen) return
+    const CLOSE_DISTANCE = 24
+    const distToRect = (mx: number, my: number, r: DOMRect) => {
+      const dx = Math.max(r.left - mx, 0, mx - r.right)
+      const dy = Math.max(r.top - my, 0, my - r.bottom)
+      return Math.sqrt(dx * dx + dy * dy)
+    }
+    const onMouseMove = (e: MouseEvent) => {
+      const rects: DOMRect[] = []
+      if (menuRef.current) rects.push(menuRef.current.getBoundingClientRect())
+      if (menuPanelRef.current) rects.push(menuPanelRef.current.getBoundingClientRect())
+      const minDist = rects.reduce((min, r) => Math.min(min, distToRect(e.clientX, e.clientY, r)), Infinity)
+      if (minDist > CLOSE_DISTANCE) setMenuOpen(false)
+    }
+    document.addEventListener('mousemove', onMouseMove)
+    return () => document.removeEventListener('mousemove', onMouseMove)
+  }, [menuOpen])
+
   return (
-    <div className={styles.dock} ref={menuRef}>
+    <div
+      className={styles.dock}
+      ref={menuRef}
+      onMouseEnter={() => setMenuOpen(true)}
+    >
       <button
         className={`${styles.hamburgerBtn} ${menuOpen ? styles.hamburgerBtnOpen : ''}`}
         onClick={() => setMenuOpen(v => !v)}
@@ -57,7 +82,7 @@ export const TopBar: React.FC = () => {
       </button>
 
       {menuOpen && (
-        <div className={styles.menu}>
+        <div className={styles.menu} ref={menuPanelRef}>
           <button
             className={styles.menuItem}
             onClick={handleStash}
