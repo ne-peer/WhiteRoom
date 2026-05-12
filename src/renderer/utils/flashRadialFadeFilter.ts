@@ -1,8 +1,13 @@
 import { Filter } from 'pixi.js'
 
-/** Pixi デフォルトのフィルター用頂点シェーダー（defaultFilter.vert と同内容） */
+/**
+ * 頂点シェーダー
+ * vTextureCoord: テクスチャサンプリング用UV（プールテクスチャサイズに依存して 0..1 に届かない場合がある）
+ * vPosition:     出力フレーム内の正規化座標（常に 0..1）→ 位置ベースの距離計算に使用
+ */
 const FLASH_RADIAL_FADE_VERT = `in vec2 aPosition;
 out vec2 vTextureCoord;
+out vec2 vPosition;
 
 uniform vec4 uInputSize;
 uniform vec4 uOutputFrame;
@@ -27,10 +32,12 @@ void main(void)
 {
     gl_Position = filterVertexPosition();
     vTextureCoord = filterTextureCoord();
+    vPosition = aPosition;
 }
 `
 
 const FLASH_RADIAL_FADE_FRAG = `in vec2 vTextureCoord;
+in vec2 vPosition;
 out vec4 finalColor;
 
 uniform sampler2D uTexture;
@@ -44,7 +51,7 @@ void main(void)
 {
     vec4 c = texture(uTexture, vTextureCoord);
     vec2 qc = vec2(uRadialCenterX * uAspect, uRadialCenterY);
-    vec2 q = vec2(vTextureCoord.x * uAspect, vTextureCoord.y);
+    vec2 q = vec2(vPosition.x * uAspect, vPosition.y);
     float d0 = distance(qc, vec2(0.0, 0.0));
     float d1 = distance(qc, vec2(uAspect, 0.0));
     float d2 = distance(qc, vec2(0.0, 1.0));
