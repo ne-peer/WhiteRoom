@@ -1,5 +1,5 @@
 Created: 2026-05-12
-Last Updated: 2026-05-12 (rev 2)
+Last Updated: 2026-05-12 (rev 3)
 
 # WhiteRoom Stash Specification
 
@@ -59,6 +59,22 @@ The stash window is opened via:
 
 - **Hamburger menu** (bottom-left, replaces the former fullscreen/UI-hide buttons): the menu shows スタッシュ at the top, followed by フルスクリーン切り替え and UI非表示切り替え.
 - **Keyboard shortcut `[s]`**: opens the stash window from anywhere (same `isEditable` guard as other shortcuts).
+
+### Hamburger Menu Visibility
+
+The hamburger menu dock (`position: fixed; bottom: 12px; left: 12px`) uses the same fade behavior as the Stash collapsed icon:
+
+- **On mount**: a 3-second timer starts. After it elapses, the dock fades to near-invisible opacity (`0.13`) over a 1.4 s CSS transition.
+- **On hover**: opacity immediately snaps to `0.9` (0.12 s transition) and the fade timer is cleared.
+- **On mouse-leave / distance-based menu close**: the 3-second fade timer restarts.
+
+#### Text Window Overlap
+
+When the Text Reader window is visible at the `bottom` or `left` position, it visually overlaps the bottom-left hamburger dock. In this situation:
+
+- The dock opacity is forced to `0` (fully invisible) while the mouse is not hovering over it.
+- **Hovering** over the dock area still shows it at full opacity and allows normal interaction — the menu can be opened and all items remain clickable.
+- `pointerEvents` are never disabled; the dock is always interactive regardless of overlap state.
 
 ### Stash Window
 
