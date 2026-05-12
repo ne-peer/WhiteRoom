@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore, DEFAULT_EFFECTS } from '../../stores/appStore'
 import { CategorySection, Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select, IconButton } from '../controls/UIKit'
 import { formatCount, useTranslation } from '../../i18n'
-import type { AssetEffectFolder, Cell, CellEffects } from '../../../shared/types'
+import {
+  DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
+  type AssetEffectFolder,
+  type Cell,
+  type CellEffects,
+} from '../../../shared/types'
 
 const FALLBACK_FONT_OPTIONS = ['Meiryo', 'BIZ UDPGothic', 'Yu Gothic', 'MS PGothic']
   .map(font => ({ value: font, label: font }))
@@ -167,16 +172,11 @@ const EFFECT_PRESET_1: CellEffects = {
   dynamicAsset: {
     enabled: true,
     pattern: 'rising',
-    assetPath: 'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart1.png',
-    assetPaths: [
-      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart1.png',
-      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart2.png',
-      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart5.png',
-      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart6.png',
-      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart7.png',
-      'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A\\A_heart9.png',
-    ],
-    assetFolderPath: 'C:\\develop\\WhiteRoom\\assets\\asset-effect\\heart-sketch-A',
+    sourceKind: 'vector',
+    vectorPresetId: DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
+    assetPath: null,
+    assetPaths: [],
+    assetFolderPath: null,
     spawnIntervalMs: 600,
     riseSpeedPx: 2,
     maxParticles: 20,
@@ -375,6 +375,8 @@ const EFFECT_PRESET_2: CellEffects = {
   dynamicAsset: {
     enabled: false,
     pattern: 'rising',
+    sourceKind: 'raster',
+    vectorPresetId: null,
     assetPath: null,
     assetPaths: [],
     assetFolderPath: null,
@@ -526,15 +528,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setCellEffect(selectedCellId, key, val)
 
   const applyEffectPreset1 = () => {
-    const presetAssetFolder = assetEffectFolders.find(folder => folder.name === 'heart-sketch-A')
-    const dynamicAsset = presetAssetFolder
-      ? {
-          ...EFFECT_PRESET_1.dynamicAsset,
-          assetPath: presetAssetFolder.images[0],
-          assetPaths: presetAssetFolder.images,
-          assetFolderPath: presetAssetFolder.path,
-        }
-      : structuredClone(EFFECT_PRESET_1.dynamicAsset)
     applyCellEffectPreset(selectedCellId, {
       colorOverlay: structuredClone(EFFECT_PRESET_1.colorOverlay),
       vignette: structuredClone(EFFECT_PRESET_1.vignette),
@@ -545,7 +538,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       breathing: structuredClone(EFFECT_PRESET_1.breathing),
       shake: structuredClone(EFFECT_PRESET_1.shake),
       squish: structuredClone(EFFECT_PRESET_1.squish),
-      dynamicAsset,
+      dynamicAsset: structuredClone(EFFECT_PRESET_1.dynamicAsset),
       textEffect: structuredClone(EFFECT_PRESET_1.textEffect),
     })
   }
@@ -583,14 +576,26 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const handleOpenAsset = async () => {
     const result = await window.api.openAsset(language)
     if (!result.canceled && result.filePath) {
-      set('dynamicAsset', { assetPath: result.filePath, assetPaths: [result.filePath], assetFolderPath: null })
+      set('dynamicAsset', {
+        sourceKind: 'raster',
+        vectorPresetId: null,
+        assetPath: result.filePath,
+        assetPaths: [result.filePath],
+        assetFolderPath: null,
+      })
     }
   }
 
   const handleOpenAssetFolder = async () => {
     const result = await window.api.openAssetFolder(language)
     if (!result.canceled && result.folderPath && result.images && result.images.length > 0) {
-      set('dynamicAsset', { assetPath: result.images[0], assetPaths: result.images, assetFolderPath: result.folderPath })
+      set('dynamicAsset', {
+        sourceKind: 'raster',
+        vectorPresetId: null,
+        assetPath: result.images[0],
+        assetPaths: result.images,
+        assetFolderPath: result.folderPath,
+      })
     }
   }
   const handleOpenFlashImage = async () => {
@@ -600,11 +605,38 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     }
   }
 
+  const handleSelectAssetEffectSource = (value: string) => {
+    if (value.startsWith('__vector:')) {
+      const id = value.slice('__vector:'.length)
+      set('dynamicAsset', {
+        sourceKind: 'vector',
+        vectorPresetId: id,
+        assetPath: null,
+        assetPaths: [],
+        assetFolderPath: null,
+      })
+      return
+    }
+    if (!value) {
+      set('dynamicAsset', {
+        sourceKind: 'raster',
+        vectorPresetId: null,
+        assetPath: null,
+        assetPaths: [],
+        assetFolderPath: null,
+      })
+      return
+    }
+    handleSelectAssetEffectFolder(value)
+  }
+
   const handleSelectAssetEffectFolder = (folderName: string) => {
     if (!folderName) return
     const folder = assetEffectFolders.find(item => item.name === folderName)
     if (!folder) return
     set('dynamicAsset', {
+      sourceKind: 'raster',
+      vectorPresetId: null,
       assetPath: folder.images[0],
       assetPaths: folder.images,
       assetFolderPath: folder.path,
@@ -1536,6 +1568,9 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             <Row label={assetEffectFolderLabel}>
               <Select
                 value={(() => {
+                  if (effects.dynamicAsset.sourceKind === 'vector' && effects.dynamicAsset.vectorPresetId) {
+                    return `__vector:${effects.dynamicAsset.vectorPresetId}`
+                  }
                   const currentName = effects.dynamicAsset.assetFolderPath?.split(/[/\\]/).pop() ?? ''
                   return __ASSET_EFFECT_FOLDERS__.some(f => f.name === currentName) ? currentName : ''
                 })()}
@@ -1544,12 +1579,16 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     value: '',
                     label: assetEffectFolderPlaceholder,
                   },
+                  {
+                    value: `__vector:${DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART}`,
+                    label: t('dynamicAssetVectorHeart'),
+                  },
                   ...__ASSET_EFFECT_FOLDERS__.map(folder => ({
                     value: folder.name,
                     label: `${folder.name} (${formatCount(language, folder.count, t('imagesUnit'))})`,
                   })),
                 ]}
-                onChange={handleSelectAssetEffectFolder}
+                onChange={handleSelectAssetEffectSource}
               />
             </Row>
             <div style={{ marginBottom: 8 }}>
@@ -1562,7 +1601,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 {t('drawRandomFromFolder')}
               </Button>
             </div>
-            {effects.dynamicAsset.assetPath && (
+            {effects.dynamicAsset.sourceKind === 'vector' && effects.dynamicAsset.vectorPresetId && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.42)', marginBottom: 8 }}>
+                {t('dynamicAssetVectorActiveHint')}
+              </div>
+            )}
+            {effects.dynamicAsset.sourceKind === 'raster' && effects.dynamicAsset.assetPath && (
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 8, wordBreak: 'break-all' }}>
                 {effects.dynamicAsset.assetFolderPath
                   ? `${effects.dynamicAsset.assetFolderPath} (${formatCount(language, effects.dynamicAsset.assetPaths.length, t('imagesUnit'))})`

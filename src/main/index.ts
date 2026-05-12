@@ -264,6 +264,8 @@ function mapEffectsAssetReferences(
     ...effects,
     dynamicAsset: {
       ...effects.dynamicAsset,
+      sourceKind: effects.dynamicAsset.sourceKind === 'vector' ? 'vector' : 'raster',
+      vectorPresetId: effects.dynamicAsset.vectorPresetId ?? null,
       assetPath: mapNullableAssetReference(effects.dynamicAsset.assetPath, mapper),
       assetPaths: effects.dynamicAsset.assetPaths?.map(mapper) ?? [],
       assetFolderPath: mapNullableAssetReference(effects.dynamicAsset.assetFolderPath, mapper),

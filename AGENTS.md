@@ -138,6 +138,16 @@ For the per-image effect profile save/load feature, read `docs/WR-EffectProfile.
 - Text Reader / Storyboard activity suspends automatic application until the text file is closed.
 - Remote URL images cannot be saved because there is no local target folder.
 
+## Vector Stamp Spec (draft)
+
+For procedural vector stamps (e.g. Bézier paths) alongside raster dynamic assets, read the **draft** spec [`docs/WR-VectorStamp.md`](docs/WR-VectorStamp.md) before changing implementation or `src/shared/types.ts`.
+
+- Built-in presets use path-independent preset IDs; user-loaded image paths for raster drawing remain supported.
+- User-editable control-point “warping” of the base shape is out of scope; transforms are limited to fixed code paths (scale, rotation, alpha, pattern offsets, etc.).
+- Stamp groups assume a normalized cell anchor (0–1) and child placement in group-local space.
+
+**At stable release:** Remove the **DRAFT** banner and draft-only notes at the top of [`docs/WR-VectorStamp.md`](docs/WR-VectorStamp.md), align the body with shipped behavior, and trim this `AGENTS.md` section to a normal spec pointer (drop “draft” and the release-instructions paragraph).
+
 ## Stash Spec
 
 For the stash feature, read `docs/WR-Stash.md` before implementation.

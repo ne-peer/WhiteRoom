@@ -235,6 +235,11 @@ export type FogEffect = {
 
 export type AssetDrawPattern = 'rising' | 'emergence'
 
+/** 同梱ベクター・プリセット ID（プロファイルにパスを書かない） */
+export const DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART = 'builtin.heart.v1' as const
+
+export type DynamicAssetSourceKind = 'raster' | 'vector'
+
 export type AssetParticle = {
   id: string
   assetPath: string
@@ -252,6 +257,10 @@ export type AssetParticle = {
 export type DynamicAssetEffect = {
   enabled: boolean
   pattern: AssetDrawPattern
+  /** raster: assetPath(s) を使用。vector: vectorPresetId のみ（パスは保存・参照に使わない） */
+  sourceKind: DynamicAssetSourceKind
+  /** sourceKind === 'vector' のとき必須想定（未対応 ID は描画スキップ） */
+  vectorPresetId: string | null
   assetPath: string | null
   assetPaths: string[]
   assetFolderPath: string | null

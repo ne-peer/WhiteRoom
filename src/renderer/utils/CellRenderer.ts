@@ -7,6 +7,7 @@ import {
   ParticleSystem,
   TextSystem,
 } from './pixiEffects'
+import { isBuiltinVectorDynamicAssetPreset } from './vectorStampRegistry'
 
 type SquishOrganicShape = {
   radiusXScale: number
@@ -4224,8 +4225,23 @@ export class CellRenderer {
 
   private async updateAsset(effects: CellEffects) {
     const da = effects.dynamicAsset
+    const useVector =
+      da.sourceKind === 'vector' &&
+      da.vectorPresetId !== null &&
+      isBuiltinVectorDynamicAssetPreset(da.vectorPresetId)
+
     const assetPaths = da.assetPaths?.length ? da.assetPaths : (da.assetPath ? [da.assetPath] : [])
-    const assetKey = assetPaths.join('|')
+    const assetKey = useVector ? `vector:${da.vectorPresetId}` : assetPaths.join('|')
+
+    if (useVector) {
+      if (assetKey !== this.assetTexturesKey) {
+        this.assetTexturesKey = assetKey
+        this.assetPath = null
+        this.assetTexture = null
+        this.particleSystem.setVectorPreset(da.vectorPresetId!)
+      }
+      return
+    }
 
     if (assetPaths.length > 0 && assetKey !== this.assetTexturesKey) {
       this.assetPath = da.assetPath
