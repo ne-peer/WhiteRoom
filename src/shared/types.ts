@@ -161,6 +161,7 @@ export type FlashEffect = {
   blurStrength: number
   surroundingTransparency: number
   innerRadius: number
+  /** オーバーレイ「表示フェーズ」の秒数（UI: 維持時間）。開始トランジションはこの区間の先頭で重なる。終了はこの区間の後。開始・終了アニメ時間からの減算とはしない。0 のときは CellRenderer が極小の内部下限を用いる */
   displayDurationSec: number
   intervalSec: number
   startTransition: FlashStartTransition

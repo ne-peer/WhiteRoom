@@ -2037,12 +2037,12 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 />
               )}
             </Row>
-            <Row label={t('displayDuration')}>
+            <Row label={t('flashHoldDuration')}>
               <Slider
                 value={effects.flash.displayDurationSec}
-                min={0.2}
+                min={0}
                 max={5}
-                step={0.2}
+                step={0.1}
                 unit={t('seconds')}
                 onChange={v => set('flash', { displayDurationSec: v })}
               />

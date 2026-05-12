@@ -18,6 +18,9 @@ import { createFlashRadialFadeFilter, setFlashRadialFadeUniforms } from './flash
 /** ズームイン／アウトで新規レイヤーを完全透明から表示へ切り替える時間（秒） */
 const ZOOM_TRANSITION_ALPHA_IN_SEC = 0.5
 
+/** 維持時間が 0 のときの表示フェーズ下限（秒）。状態遷移用の極小値（開始トランジション長とは独立） */
+const FLASH_DISPLAY_PHASE_MIN_SEC = 0.0001
+
 type SquishOrganicShape = {
   radiusXScale: number
   radiusYScale: number
@@ -2223,7 +2226,7 @@ export class CellRenderer {
     this.flashBaseOpacity = clamp(flash.opacity ?? 1, 0, 1)
     this.flashCycleDurationSec = Math.max(
       0.2,
-      (flash.displayDurationSec ?? 1) +
+      this.flashResolvedDisplayPhaseSec(flash) +
       Math.max(0, flash.endTransitionDurationSec ?? 0) +
       Math.max(0, flash.intervalSec ?? 0)
     )
@@ -2399,6 +2402,11 @@ export class CellRenderer {
     sprite.tint = tintFromAssetColorOverlay(flash.colorOverlayColor, flash.colorOverlayAlpha ?? 0)
   }
 
+  /** UI の維持時間（0 可）に内部下限を足した「表示フェーズ」長。開始／終了トランジション時間とは加算しない */
+  private flashResolvedDisplayPhaseSec(flash: CellEffects['flash']): number {
+    return Math.max(Math.max(0, flash.displayDurationSec ?? 0), FLASH_DISPLAY_PHASE_MIN_SEC)
+  }
+
   private updateFlashCycle(delta: number) {
     const flash = this.flashOverlayEffect
     if (!flash) return
@@ -2416,7 +2424,8 @@ export class CellRenderer {
       this.flashCurrentHideNonce += 1
       this.startFlashShow(this.flashCurrentShowNonce)
     }
-    const shouldBeVisible = this.flashElapsedSec < Math.max(0.2, flash.displayDurationSec ?? 1)
+    const displayPhaseSec = this.flashResolvedDisplayPhaseSec(flash)
+    const shouldBeVisible = this.flashElapsedSec < displayPhaseSec
     if (shouldBeVisible !== this.flashOverlayVisible) {
       if (shouldBeVisible) {
         this.flashCurrentShowNonce += 1
