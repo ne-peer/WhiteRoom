@@ -6,10 +6,53 @@
   <title>WhiteRoom</title>
   <style>
     html, body { margin: 0; padding: 0; background: #0a0a0a; }
+    #whiteroom-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: #0a0a0a;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      opacity: 1;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      #whiteroom-splash {
+        transition: opacity 0.32s ease-out;
+      }
+    }
+    #whiteroom-splash.splash--out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #whiteroom-splash img {
+      width: 96px;
+      height: 96px;
+      object-fit: contain;
+      -webkit-user-drag: none;
+      user-select: none;
+    }
+    #whiteroom-splash .splash-lines {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 15px;
+      line-height: 1.65;
+      letter-spacing: 0.02em;
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
+  <div id="whiteroom-splash" lang="en" aria-live="polite">
+    <img src="./splash-icon.png" width="96" height="96" alt="" decoding="async" fetchpriority="high" />
+    <div class="splash-lines">
+      <div>Starting…</div>
+      <div>Loading…</div>
+    </div>
+  </div>
   <script type="module" src="./main.tsx"></script>
 </body>
 </html>

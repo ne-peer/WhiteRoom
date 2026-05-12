@@ -5,6 +5,7 @@ import { ControlPanel } from './components/controls/ControlPanel'
 import { StoryboardPanel } from './components/reader/StoryboardPanel'
 import { StashWindow } from './components/stash/StashWindow'
 import { useAppStore } from './stores/appStore'
+import { fadeOutAndRemoveWhiteroomSplash } from './utils/splashDismiss'
 import './global.css'
 
 const CONTROL_PANEL_WIDTH = 300
@@ -17,6 +18,10 @@ const App: React.FC = () => {
   const appNotification = useAppStore(s => s.appNotification)
   const clearAppNotification = useAppStore(s => s.clearAppNotification)
   const [showFloatingControls, setShowFloatingControls] = useState(false)
+
+  useEffect(() => {
+    fadeOutAndRemoveWhiteroomSplash()
+  }, [])
 
   useEffect(() => {
     if (!appNotification) return
