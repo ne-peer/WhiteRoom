@@ -21,10 +21,15 @@ type PickCenterPoint = {
 
 /** StashWindow のデフォルト左上と揃える（mousemove 前の [s] フォールバック） */
 const STASH_POINTER_FALLBACK = { x: 8, y: 48 }
+/** StashWindow のスロット長押し（LONG_PRESS_MS）と揃える */
+const STASH_RMB_LONG_PRESS_MS = 400
 
 export const MasterCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const lastClientPointerRef = useRef(STASH_POINTER_FALLBACK)
+  const stashRmbLongPressTimerRef = useRef<number | null>(null)
+  const stashRmbOpenAnchorRef = useRef<{ x: number; y: number } | null>(null)
+  const stashRmbSuppressNextContextMenuRef = useRef(false)
   const centerPickDragRef = useRef<PickCenterPoint | null>(null)
   const trailSizeDragRef = useRef<{
     cellId: string
@@ -128,6 +133,13 @@ export const MasterCanvas: React.FC = () => {
     setPickGuide(null)
   }, [])
 
+  const clearStashRmbLongPressTimer = useCallback(() => {
+    if (stashRmbLongPressTimerRef.current != null) {
+      window.clearTimeout(stashRmbLongPressTimerRef.current)
+      stashRmbLongPressTimerRef.current = null
+    }
+  }, [])
+
   React.useLayoutEffect(() => {
     if (!pickingActive) {
       setLockedPickColumn(null)
@@ -142,7 +154,10 @@ export const MasterCanvas: React.FC = () => {
 
   useEffect(() => {
     const onMouseUp = (e: MouseEvent) => {
-      if (e.button === 2) trailSizeDragRef.current = null
+      if (e.button === 2) {
+        trailSizeDragRef.current = null
+        clearStashRmbLongPressTimer()
+      }
       if (e.button !== 0) return
 
       const drag = centerPickDragRef.current
@@ -162,7 +177,7 @@ export const MasterCanvas: React.FC = () => {
     }
     window.addEventListener('mouseup', onMouseUp)
     return () => window.removeEventListener('mouseup', onMouseUp)
-  }, [])
+  }, [clearStashRmbLongPressTimer])
 
   useEffect(() => {
     const el = containerRef.current
@@ -377,7 +392,8 @@ export const MasterCanvas: React.FC = () => {
     setHoveredCellId(null)
     setPickGuide(null)
     trailSizeDragRef.current = null
-  }, [])
+    clearStashRmbLongPressTimer()
+  }, [clearStashRmbLongPressTimer])
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -410,6 +426,24 @@ export const MasterCanvas: React.FC = () => {
           latest.showAppNotification(t('squishColorPickFailed'), 'warning')
           latest.setSquishColorPicking(false)
         })
+      return
+    }
+    // [P] 中心位置指定モード中は無効（右ドラッグが円サイズ変更のため）
+    if (
+      e.button === 2 &&
+      !state.shakeTrailPositionPicking &&
+      !state.spiralRadialPositionPicking
+    ) {
+      stashRmbSuppressNextContextMenuRef.current = false
+      clearStashRmbLongPressTimer()
+      stashRmbOpenAnchorRef.current = { x: e.clientX, y: e.clientY }
+      stashRmbLongPressTimerRef.current = window.setTimeout(() => {
+        stashRmbLongPressTimerRef.current = null
+        const anchor = stashRmbOpenAnchorRef.current
+        if (!anchor) return
+        stashRmbSuppressNextContextMenuRef.current = true
+        useAppStore.getState().setStashWindowOpen(true, anchor)
+      }, STASH_RMB_LONG_PRESS_MS)
       return
     }
     if (!state.shakeTrailPositionPicking && !state.spiralRadialPositionPicking) return
@@ -446,10 +480,13 @@ export const MasterCanvas: React.FC = () => {
       startTrailHeight: cell.effects.shake.trailHeight ?? 1,
       startRadialHeight: cell.effects.blur.radialHeight ?? 1,
     }
-  }, [cancelPickMode, lockedPickColumn, t])
+  }, [cancelPickMode, clearStashRmbLongPressTimer, lockedPickColumn, t])
 
   const handleMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button === 2) trailSizeDragRef.current = null
+    if (e.button === 2) {
+      trailSizeDragRef.current = null
+      clearStashRmbLongPressTimer()
+    }
     if (e.button !== 0) return
     const drag = centerPickDragRef.current
     if (!drag) return
@@ -463,9 +500,14 @@ export const MasterCanvas: React.FC = () => {
     centerPickDragRef.current = null
     setPickPreviewCenter(null)
     setPickGuide(null)
-  }, [])
+  }, [clearStashRmbLongPressTimer])
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (stashRmbSuppressNextContextMenuRef.current) {
+      e.preventDefault()
+      stashRmbSuppressNextContextMenuRef.current = false
+      return
+    }
     const state = useAppStore.getState()
     if (state.shakeTrailPositionPicking || state.spiralRadialPositionPicking || state.squishColorPicking) {
       e.preventDefault()

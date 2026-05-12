@@ -1,5 +1,5 @@
 Created: 2026-05-12
-Last Updated: 2026-05-12 (rev 5)
+Last Updated: 2026-05-12 (rev 6)
 
 # WhiteRoom Stash Specification
 
@@ -58,6 +58,7 @@ type StashItem = {
 The stash window is opened via:
 
 - **Keyboard shortcut `[s]`**: opens the stash window from anywhere (same `isEditable` guard as other shortcuts). The panel’s **top-left** is placed at the **last known viewport mouse position** (tracked on `document` `mousemove` in `MasterCanvas`). If no move has occurred yet, the fallback matches the default window position `(8, 48)`. After layout, the position is **clamped** with an **8 px** margin so the panel stays fully inside the viewport. This uses transient store state `stashOpenAnchor`, applied in `StashWindow` via `useLayoutEffect`, then cleared with `clearStashOpenAnchor()`.
+- **Image grid: right-button long press** (`MasterCanvas`): after holding the **secondary mouse button** for **400 ms** on the image grid (same duration as slot long-press in `StashWindow`), opens the stash window with the same `setStashWindowOpen(true, anchor)` path. The anchor is the **pointer position at press-down** (`clientX` / `clientY`), not the cursor position after the hold. **Disabled** while **effect center pick mode** is active (`shakeTrailPositionPicking` or `spiralRadialPositionPicking`, i.e. `[p]` mode), because the right button is used there for circle-size drag. Also not started during **squish color picking**. On successful open, the next **`contextmenu`** event on the canvas is suppressed so the system menu does not appear. Releasing the button or leaving the canvas before 400 ms cancels the timer.
 - **Collapsed stash icon** (top-left): hovering re-expands the window (see Stash Window below). This path does **not** set an anchor; the panel stays at the default top-left after a prior collapse.
 
 ### Hamburger Menu Visibility
