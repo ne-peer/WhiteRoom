@@ -45,12 +45,6 @@
       "dist/renderer/**/*",
       "package.json"
     ],
-    "extraResources": [
-      {
-        "from": "assets/asset-effect",
-        "to": "asset-effect"
-      }
-    ],
     "win": {
       "icon": "build/icon.ico",
       "target": [
