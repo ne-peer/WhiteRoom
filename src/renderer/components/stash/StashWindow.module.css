@@ -157,6 +157,7 @@
 
 .actionSmBtn {
   flex-shrink: 0;
+  position: relative;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(190, 190, 230, 0.75);
@@ -168,11 +169,35 @@
   height: 26px;
   line-height: 1;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .actionSmBtn:disabled {
   opacity: 0.28;
   cursor: not-allowed;
+}
+
+/* 削除ボタン 円形プログレス */
+.delProgressRing {
+  display: block;
+  overflow: visible;
+}
+
+.delProgressCircle {
+  fill: none;
+  stroke: rgba(255, 100, 100, 0.85);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 10px 10px;
+  animation: delProgressGrow 500ms linear forwards;
+}
+
+@keyframes delProgressGrow {
+  from { stroke-dashoffset: 50.27; }
+  to   { stroke-dashoffset: 0; }
 }
 
 .delBtn:not(:disabled):hover {

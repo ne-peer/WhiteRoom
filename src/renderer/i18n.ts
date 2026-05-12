@@ -444,6 +444,7 @@ export const translations = {
     stashAddSlotDisabledHint: 'スロットが全て埋まってから追加できます',
     stashRestoreHover: '取り出す',
     stashLongPressHint: '長押しで取り出す',
+    stashDeleteHint: '長押しで削除',
     stashShortcutHelp: 's: スタッシュウィンドウを開く',
   },
   en: {
@@ -870,6 +871,7 @@ export const translations = {
     stashAddSlotDisabledHint: 'Fill all slots before adding a new one',
     stashRestoreHover: 'Pop',
     stashLongPressHint: 'Hold to pop',
+    stashDeleteHint: 'Hold to delete',
     stashShortcutHelp: 's: open stash window',
   },
 } as const satisfies Record<UiLanguage, Record<string, string>>

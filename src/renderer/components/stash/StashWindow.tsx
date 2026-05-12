@@ -10,6 +10,9 @@ const ICON_POS_Y = 8
 const MOUSE_COLLAPSE_DISTANCE = 100
 const ICON_FADE_DELAY_MS = 3000
 const LONG_PRESS_MS = 800
+const DEL_LONG_PRESS_MS = 500
+const DEL_CIRCLE_R = 8
+const DEL_CIRCUMFERENCE = 2 * Math.PI * DEL_CIRCLE_R
 
 function getDistanceToRect(mx: number, my: number, rect: DOMRect): number {
   const dx = Math.max(rect.left - mx, 0, mx - rect.right)
@@ -35,6 +38,7 @@ export const StashWindow: React.FC = () => {
   const [iconFaded, setIconFaded] = useState(false)
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
   const [longPressIdx, setLongPressIdx] = useState<number | null>(null)
+  const [delLongPressIdx, setDelLongPressIdx] = useState<number | null>(null)
   const [pos, setPos] = useState({ x: WINDOW_DEFAULT_X, y: WINDOW_DEFAULT_Y })
 
   const panelRef = useRef<HTMLDivElement>(null)
@@ -44,6 +48,7 @@ export const StashWindow: React.FC = () => {
   const dragStartPos = useRef({ x: 0, y: 0 })
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const delLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // stashWindowOpen の変化でウィンドウを開く
   useEffect(() => {
@@ -170,10 +175,23 @@ export const StashWindow: React.FC = () => {
     setLongPressIdx(null)
   }, [])
 
-  const handleDelete = (index: number) => {
-    if (!confirm(t('stashDeleteConfirm'))) return
-    deleteStash(index)
-  }
+  const startDelLongPress = useCallback((index: number) => {
+    if (delLongPressTimer.current) clearTimeout(delLongPressTimer.current)
+    setDelLongPressIdx(index)
+    delLongPressTimer.current = setTimeout(() => {
+      delLongPressTimer.current = null
+      setDelLongPressIdx(null)
+      deleteStash(index)
+    }, DEL_LONG_PRESS_MS)
+  }, [deleteStash])
+
+  const cancelDelLongPress = useCallback(() => {
+    if (delLongPressTimer.current) {
+      clearTimeout(delLongPressTimer.current)
+      delLongPressTimer.current = null
+    }
+    setDelLongPressIdx(null)
+  }, [])
 
   const rowCount = Math.max(STASH_MIN_SLOT_COUNT, stashSlotCount)
   const showAddButton = rowCount < STASH_MAX_COUNT
@@ -254,11 +272,31 @@ export const StashWindow: React.FC = () => {
                   {/* 削除ボタン */}
                   <button
                     className={`${styles.actionSmBtn} ${styles.delBtn}`}
-                    onClick={() => handleDelete(i)}
+                    onMouseDown={item ? () => startDelLongPress(i) : undefined}
+                    onMouseUp={cancelDelLongPress}
+                    onMouseLeave={cancelDelLongPress}
                     disabled={!item}
-                    title={t('stashDeleteButton')}
+                    title={item ? t('stashDeleteHint') : undefined}
                   >
-                    {t('stashDeleteButton')}
+                    {delLongPressIdx === i ? (
+                      <svg
+                        className={styles.delProgressRing}
+                        viewBox="0 0 20 20"
+                        width="18"
+                        height="18"
+                      >
+                        <circle
+                          className={styles.delProgressCircle}
+                          cx="10"
+                          cy="10"
+                          r={DEL_CIRCLE_R}
+                          strokeDasharray={DEL_CIRCUMFERENCE}
+                          strokeDashoffset={DEL_CIRCUMFERENCE}
+                        />
+                      </svg>
+                    ) : (
+                      t('stashDeleteButton')
+                    )}
                   </button>
                 </div>
               )
