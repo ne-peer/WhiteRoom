@@ -5,7 +5,7 @@ export function isBuiltinVectorDynamicAssetPreset(id: string | null | undefined)
   return id === DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART
 }
 
-const PARTICLE_HEART_UNIT = 48
+const PARTICLE_HEART_UNIT = 96
 
 /**
  * 動的アセット用。子 `Graphics` の pivot を形状中心に合わせた `Container` を返す。
