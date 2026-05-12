@@ -106,6 +106,8 @@ const EFFECT_PRESET_1: CellEffects = {
     enabled: false,
     imagePath: null,
     opacity: 1,
+    surroundingTransparency: 0,
+    innerRadius: 0.5,
     displayDurationSec: 1,
     intervalSec: 1,
     startTransition: 'none',
@@ -311,6 +313,8 @@ const EFFECT_PRESET_2: CellEffects = {
     enabled: false,
     imagePath: null,
     opacity: 1,
+    surroundingTransparency: 0,
+    innerRadius: 0.5,
     displayDurationSec: 1,
     intervalSec: 1,
     startTransition: 'none',
@@ -1796,6 +1800,28 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('flash', { opacity: v / 100 })}
               />
             </Row>
+            <Row label={t('flashSurroundingTransparency')}>
+              <Slider
+                value={Math.round((effects.flash.surroundingTransparency ?? 0) * 100)}
+                min={0}
+                max={100}
+                step={1}
+                unit="%"
+                onChange={v => set('flash', { surroundingTransparency: v / 100 })}
+              />
+            </Row>
+            <div style={{ opacity: (effects.flash.surroundingTransparency ?? 0) > 0 ? 1 : 0.4 }}>
+              <Row label={t('flashInnerRadius')}>
+                <Slider
+                  value={Math.round((effects.flash.innerRadius ?? 0.5) * 100)}
+                  min={0}
+                  max={100}
+                  step={1}
+                  unit="%"
+                  onChange={v => set('flash', { innerRadius: v / 100 })}
+                />
+              </Row>
+            </div>
             <Row label={t('drawSpeed')}>
               {effects.flash.endTransition === 'none' ? (
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>-</div>

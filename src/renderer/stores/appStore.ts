@@ -102,6 +102,8 @@ export const DEFAULT_EFFECTS: CellEffects = {
     enabled: false,
     imagePath: null,
     opacity: 1,
+    surroundingTransparency: 0,
+    innerRadius: 0.5,
     displayDurationSec: 1,
     intervalSec: 1,
     startTransition: 'none',

@@ -8,6 +8,7 @@ import {
   TextSystem,
 } from './pixiEffects'
 import { isBuiltinVectorDynamicAssetPreset } from './vectorStampRegistry'
+import { createFlashRadialFadeFilter, setFlashRadialFadeUniforms } from './flashRadialFadeFilter'
 
 type SquishOrganicShape = {
   radiusXScale: number
@@ -81,6 +82,7 @@ export class CellRenderer {
     | null = null
   private flashOverlayEffect: import('../../shared/types').FlashEffect | null = null
   private flashBaseOpacity = 1
+  private flashRadialFadeFilter: PIXI.Filter | null = null
   private vignetteSprite: PIXI.Sprite | null = null
   private vignetteTextureKey: string | null = null
   private fogLayer: PIXI.Container
@@ -2202,6 +2204,7 @@ export class CellRenderer {
       }
       return
     }
+    this.applyFlashRadialFadeFilter()
   }
 
   private ensureFlashOverlaySprite(texture: PIXI.Texture) {
@@ -2215,7 +2218,33 @@ export class CellRenderer {
       this.flashOverlaySprite.texture = texture
     }
     this.flashOverlaySprite.alpha = this.flashBaseOpacity
+    this.applyFlashRadialFadeFilter()
     this.positionFlashOverlaySprite()
+  }
+
+  private applyFlashRadialFadeFilter() {
+    const sprite = this.flashOverlaySprite
+    if (!sprite) return
+    const flash = this.flashOverlayEffect
+    const surroundingTransparency = flash?.surroundingTransparency ?? 0
+    const innerRadius = flash?.innerRadius ?? 0.5
+
+    if (surroundingTransparency <= 0) {
+      sprite.filters = []
+      return
+    }
+
+    if (!this.flashRadialFadeFilter) {
+      this.flashRadialFadeFilter = createFlashRadialFadeFilter()
+    }
+    setFlashRadialFadeUniforms(this.flashRadialFadeFilter, {
+      uInnerRadius: innerRadius,
+      uSurroundingTransparency: surroundingTransparency,
+      uAspect: this.height > 0 ? this.width / this.height : 1,
+      uRadialCenterX: 0.5,
+      uRadialCenterY: 0.5,
+    })
+    sprite.filters = [this.flashRadialFadeFilter]
   }
 
   private positionFlashOverlaySprite(offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
@@ -2226,6 +2255,15 @@ export class CellRenderer {
     this.flashOverlaySprite.scale.set(scale)
     this.flashOverlaySprite.x = this.width / 2 + offsetX
     this.flashOverlaySprite.y = this.height / 2 + offsetY
+    if (this.flashRadialFadeFilter && this.flashOverlaySprite.filters?.length) {
+      setFlashRadialFadeUniforms(this.flashRadialFadeFilter, {
+        uInnerRadius: this.flashOverlayEffect?.innerRadius ?? 0.5,
+        uSurroundingTransparency: this.flashOverlayEffect?.surroundingTransparency ?? 0,
+        uAspect: this.height > 0 ? this.width / this.height : 1,
+        uRadialCenterX: 0.5,
+        uRadialCenterY: 0.5,
+      })
+    }
   }
 
   private updateFlashCycle(delta: number) {
@@ -2404,6 +2442,10 @@ export class CellRenderer {
       this.overlayLayer.removeChild(this.flashOverlaySprite)
       this.flashOverlaySprite.destroy({ texture: false })
       this.flashOverlaySprite = null
+    }
+    if (this.flashRadialFadeFilter) {
+      this.flashRadialFadeFilter.destroy()
+      this.flashRadialFadeFilter = null
     }
   }
 

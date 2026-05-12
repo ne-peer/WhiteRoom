@@ -129,6 +129,8 @@ export type FlashEffect = {
   enabled: boolean
   imagePath: string | null
   opacity: number
+  surroundingTransparency: number
+  innerRadius: number
   displayDurationSec: number
   intervalSec: number
   startTransition: FlashStartTransition
