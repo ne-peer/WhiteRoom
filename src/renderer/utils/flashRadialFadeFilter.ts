@@ -1,5 +1,8 @@
 import { Filter } from 'pixi.js'
 
+/** UI の「周囲透明強度」に掛け、同じスライダー値でより強く周辺が透けるようにする係数 */
+export const FLASH_SURROUNDING_TRANSPARENCY_COEFFICIENT = 1.75
+
 /**
  * 頂点シェーダー
  * vTextureCoord: テクスチャサンプリング用UV（プールテクスチャサイズに依存して 0..1 に届かない場合がある）
@@ -61,7 +64,7 @@ void main(void)
     dist = clamp(dist, 0.0, 1.0);
     float inner = clamp(uInnerRadius, 0.0, 0.999);
     float t = smoothstep(inner, 1.0, dist);
-    float fadeAmt = clamp(uSurroundingTransparency, 0.0, 1.0);
+    float fadeAmt = clamp(uSurroundingTransparency * ${FLASH_SURROUNDING_TRANSPARENCY_COEFFICIENT}, 0.0, 1.0);
     float alphaMult = clamp(1.0 - t * fadeAmt, 0.0, 1.0);
     finalColor = c * alphaMult;
 }
