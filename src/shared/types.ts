@@ -272,6 +272,7 @@ export type DynamicAssetEffect = {
   assetFolderPath: string | null
   spawnIntervalMs: number    // 生成間隔
   riseSpeedPx: number        // 上昇速度 px/frame
+  riseSpeedFactor: number
   maxParticles: number
   featherStrength: number    // 0 - 100
   sizeRatio: number          // アセットサイズ倍率 0.1 - 3.0

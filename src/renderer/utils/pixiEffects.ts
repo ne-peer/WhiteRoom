@@ -211,13 +211,14 @@ export class ParticleSystem {
         const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
         const scale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
         const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
+        const riseSpeedFactor = clamp(effects.dynamicAsset.riseSpeedFactor ?? 1, 0.1, 5)
         const p: AssetParticle = {
           id: `p-${nowMs}-${Math.random()}`,
           assetPath: effects.dynamicAsset.assetPath ?? '',
           x: Math.random() * canvasWidth,
           y: canvasHeight - Math.random() * canvasHeight * 0.7,
           alpha: assetBaseAlpha,
-          vy: randomRiseSpeed(),
+          vy: randomRiseSpeed() * riseSpeedFactor,
           startTime: nowMs,
           particleTint,
           rotationRad,

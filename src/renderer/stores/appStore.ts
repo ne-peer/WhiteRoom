@@ -208,6 +208,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     assetFolderPath: null,
     spawnIntervalMs: 800,
     riseSpeedPx: 2,
+    riseSpeedFactor: 1,
     maxParticles: 20,
     featherStrength: 0,
     sizeRatio: 1.0,

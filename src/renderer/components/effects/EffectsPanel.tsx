@@ -190,6 +190,7 @@ const EFFECT_PRESET_1: CellEffects = {
     assetFolderPath: null,
     spawnIntervalMs: 600,
     riseSpeedPx: 2,
+    riseSpeedFactor: 1,
     maxParticles: 20,
     featherStrength: 0,
     sizeRatio: 0.56,
@@ -401,6 +402,7 @@ const EFFECT_PRESET_2: CellEffects = {
     assetFolderPath: null,
     spawnIntervalMs: 800,
     riseSpeedPx: 2,
+    riseSpeedFactor: 1,
     maxParticles: 20,
     featherStrength: 0,
     sizeRatio: 1,
@@ -1707,6 +1709,18 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   })}
               />
             </Row>
+            {dynamicAssetPattern === 'rising' && (
+              <Row label={t('riseSpeedFactor')}>
+                <Slider
+                  value={effects.dynamicAsset.riseSpeedFactor ?? 1}
+                  min={0.1}
+                  max={5}
+                  step={0.1}
+                  unit="x"
+                  onChange={v => set('dynamicAsset', { riseSpeedFactor: v })}
+                />
+              </Row>
+            )}
             <Row label={t('assetAdditionalEffect')}>
               <Select
                 value={visibleDynamicAssetAdditionalEffect}
