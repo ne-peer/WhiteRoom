@@ -71,7 +71,7 @@ export const TimerControls: React.FC = () => {
                   lineHeight: 1.4,
                 }}
               >
-                {t('storyboardPartialSection')}
+                {t('specialControlSection')}
               </button>
             </div>
             {showPartial && (
