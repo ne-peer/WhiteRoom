@@ -114,6 +114,10 @@ const EFFECT_PRESET_1: CellEffects = {
     imagePath: null,
     vectorPresetId: null,
     scaleRatio: 1,
+    colorOverlayEnabled: false,
+    colorOverlayColor: { r: 255, g: 15, b: 91 },
+    colorOverlayAlpha: 0.5,
+    colorOverlayAlphaRandomEnabled: false,
     opacity: 1,
     surroundingTransparency: 0,
     innerRadius: 0.5,
@@ -330,6 +334,10 @@ const EFFECT_PRESET_2: CellEffects = {
     imagePath: null,
     vectorPresetId: null,
     scaleRatio: 1,
+    colorOverlayEnabled: false,
+    colorOverlayColor: { r: 255, g: 15, b: 91 },
+    colorOverlayAlpha: 0.5,
+    colorOverlayAlphaRandomEnabled: false,
     opacity: 1,
     surroundingTransparency: 0,
     innerRadius: 0.5,
@@ -1883,6 +1891,47 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('flash', { vectorPresetId: v === '' ? null : v })}
               />
             </Row>
+            {effects.flash.vectorPresetId && (
+              <>
+                <Row label={t('assetColor')}>
+                  <Toggle
+                    value={effects.flash.colorOverlayEnabled}
+                    onChange={v =>
+                      set('flash', {
+                        colorOverlayEnabled: v,
+                        ...(v ? {} : { colorOverlayAlphaRandomEnabled: false }),
+                      })}
+                  />
+                </Row>
+                {effects.flash.colorOverlayEnabled && (
+                  <>
+                    <ColorPicker
+                      r={effects.flash.colorOverlayColor.r}
+                      g={effects.flash.colorOverlayColor.g}
+                      b={effects.flash.colorOverlayColor.b}
+                      onChange={(r, g, b) => set('flash', { colorOverlayColor: { r, g, b } })}
+                    />
+                    <Row label={t('assetColorApplyRandom')}>
+                      <Toggle
+                        value={effects.flash.colorOverlayAlphaRandomEnabled ?? false}
+                        onChange={v => set('flash', { colorOverlayAlphaRandomEnabled: v })}
+                      />
+                    </Row>
+                    {!effects.flash.colorOverlayAlphaRandomEnabled && (
+                      <Row label={t('assetColorOpacity')}>
+                        <Slider
+                          value={Math.round(effects.flash.colorOverlayAlpha * 100)}
+                          min={0}
+                          max={100}
+                          onChange={v => set('flash', { colorOverlayAlpha: v / 100 })}
+                          unit="%"
+                        />
+                      </Row>
+                    )}
+                  </>
+                )}
+              </>
+            )}
             <Row label={t('flashStartTransition')}>
               <Select
                 value={effects.flash.startTransition}

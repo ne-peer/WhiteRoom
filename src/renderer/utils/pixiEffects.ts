@@ -582,7 +582,7 @@ export class TextSystem {
   }
 }
 
-function tintFromAssetColorOverlay(
+export function tintFromAssetColorOverlay(
   color: { r: number; g: number; b: number },
   alpha: number
 ): number {

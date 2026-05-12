@@ -132,6 +132,11 @@ export type FlashEffect = {
   vectorPresetId: string | null
   /** 表示テクスチャの基準サイズに対する倍率（0.1–3.0） */
   scaleRatio: number
+  /** ベクターアセット選択時のみ有効。動的アセットの `colorOverlay*` と同じ挙動 */
+  colorOverlayEnabled: boolean
+  colorOverlayColor: { r: number; g: number; b: number }
+  colorOverlayAlpha: number
+  colorOverlayAlphaRandomEnabled: boolean
   opacity: number
   surroundingTransparency: number
   innerRadius: number

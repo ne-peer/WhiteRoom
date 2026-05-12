@@ -6,6 +6,7 @@ import {
   updateColorOverlay,
   ParticleSystem,
   TextSystem,
+  tintFromAssetColorOverlay,
 } from './pixiEffects'
 import {
   BUILTIN_VECTOR_FLASH_RASTER_GEOMETRY_SCALE,
@@ -2280,6 +2281,7 @@ export class CellRenderer {
     }
     this.applyFlashRadialFadeFilter()
     this.positionFlashOverlaySprite()
+    this.syncFlashVectorTint(false)
   }
 
   private ensureFlashOverlaySprite(texture: PIXI.Texture) {
@@ -2295,6 +2297,7 @@ export class CellRenderer {
     this.flashOverlaySprite.alpha = this.flashBaseOpacity
     this.applyFlashRadialFadeFilter()
     this.positionFlashOverlaySprite()
+    this.syncFlashVectorTint(false)
   }
 
   private applyFlashRadialFadeFilter() {
@@ -2342,6 +2345,37 @@ export class CellRenderer {
     }
   }
 
+  /** ベクターアセット用ティント。`fromCycleStart` が true のときのみ色適用度ランダムを再サンプル（動的アセットと同様）。 */
+  private syncFlashVectorTint(fromCycleStart: boolean) {
+    const sprite = this.flashOverlaySprite
+    const flash = this.flashOverlayEffect
+    if (!sprite || !flash) return
+    const vectorId =
+      flash.vectorPresetId && isBuiltinVectorDynamicAssetPreset(flash.vectorPresetId)
+        ? flash.vectorPresetId
+        : null
+    if (!vectorId) {
+      sprite.tint = 0xffffff
+      return
+    }
+    if (!flash.colorOverlayEnabled) {
+      sprite.tint = 0xffffff
+      return
+    }
+    if (flash.colorOverlayAlphaRandomEnabled) {
+      if (fromCycleStart) {
+        const alpha = 0.4 + Math.random() * 0.6
+        sprite.tint = tintFromAssetColorOverlay(flash.colorOverlayColor, alpha)
+      }
+      return
+    }
+    if ((flash.colorOverlayAlpha ?? 0) <= 0) {
+      sprite.tint = 0xffffff
+      return
+    }
+    sprite.tint = tintFromAssetColorOverlay(flash.colorOverlayColor, flash.colorOverlayAlpha ?? 0)
+  }
+
   private updateFlashCycle(delta: number) {
     const flash = this.flashOverlayEffect
     if (!flash) return
@@ -2384,6 +2418,7 @@ export class CellRenderer {
     sprite.visible = true
     sprite.alpha = this.flashBaseOpacity
     this.positionFlashOverlaySprite()
+    this.syncFlashVectorTint(true)
     if (flash.startTransition === 'none') return
     const duration = Math.max(0.05, flash.startTransitionDurationSec)
     const proxy = {
