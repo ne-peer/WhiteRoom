@@ -9,7 +9,7 @@ The Stash feature lets the user temporarily save the current application state, 
 
 ---
 
-## Save Target (保存対象A)
+## Save Target
 
 A stash captures the following state at save time:
 
