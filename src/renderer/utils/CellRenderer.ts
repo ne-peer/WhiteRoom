@@ -37,6 +37,7 @@ export class CellRenderer {
   private vignetteLayer: PIXI.Container
   private spiralLayer: PIXI.Container
   private guideLayer: PIXI.Container
+  private coverLayer: PIXI.Container
 
   private imageSprite: PIXI.Sprite | null = null
   private dynamicBackgroundSprite: PIXI.Sprite | null = null
@@ -250,6 +251,7 @@ export class CellRenderer {
     this.fogLayer = new PIXI.Container()
     this.fogBlobContainer = new PIXI.Container()
     this.guideLayer = new PIXI.Container()
+    this.coverLayer = new PIXI.Container()
     this.dynamicBackgroundMask = new PIXI.Graphics()
     this.imageMask = new PIXI.Graphics()
     this.echoMask = new PIXI.Graphics()
@@ -271,6 +273,7 @@ export class CellRenderer {
     this.container.addChild(this.spiralLayer)
     this.container.addChild(this.fogLayer)
     this.container.addChild(this.guideLayer)
+    this.container.addChild(this.coverLayer)
 
     this.dynamicBackgroundLayer.addChild(this.dynamicBackgroundMask)
     this.dynamicBackgroundLayer.mask = this.dynamicBackgroundMask
@@ -684,6 +687,17 @@ export class CellRenderer {
       effects,
       performance.now()
     )
+  }
+
+  showImageCover(show: boolean) {
+    this.coverLayer.removeChildren()
+    if (!show || !this.imageSprite) return
+    const sprite = new PIXI.Sprite(this.imageSprite.texture)
+    sprite.anchor.set(0.5)
+    sprite.x = this.imageSprite.x
+    sprite.y = this.imageSprite.y
+    sprite.scale.copyFrom(this.imageSprite.scale)
+    this.coverLayer.addChild(sprite)
   }
 
   destroy() {
