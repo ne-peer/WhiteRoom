@@ -50,7 +50,7 @@ xattr -d com.apple.quarantine ~/Downloads/WhiteRoom.for.Mac_arm64_v*.dmg
 
 その後、通常どおりDMGを開いてアプリをApplicationsフォルダにドラッグしてください。
 
-#### 方法2: 右クリックで開く**
+#### 方法2: 右クリックで開く
 
 1. ダウンロードしたDMGをFinderで右クリック（または Control+クリック）
 2. 「開く」を選択
