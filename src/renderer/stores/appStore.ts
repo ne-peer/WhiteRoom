@@ -477,6 +477,8 @@ export type AppState = {
   stashes: StashItem[]
   stashSlotCount: number   // 表示行数（最低3）
   stashWindowOpen: boolean
+  /** [s] ショートカットで開くときのパネル基準位置（左上）。適用後は null に戻す */
+  stashOpenAnchor: { x: number; y: number } | null
 
   // セルのタグ一時上書き（profile対象外・セッション専用）
   cellTagOverrides: Record<string, string | null>  // cellId → override image path
@@ -587,7 +589,8 @@ export type AppActions = {
   popStash: (index: number) => void
   deleteStash: (index: number) => void
   addStashSlot: () => void
-  setStashWindowOpen: (open: boolean) => void
+  setStashWindowOpen: (open: boolean, anchor?: { x: number; y: number } | null) => void
+  clearStashOpenAnchor: () => void
 
   // テキストリーダー
   setTextReaderConfig: (config: Partial<TextReaderConfig>) => void
@@ -657,6 +660,7 @@ export const useAppStore = create<AppStore>()(
     stashes: [],
     stashSlotCount: 3,
     stashWindowOpen: false,
+    stashOpenAnchor: null,
     cellTagOverrides: {},
     pendingStoryboardLoad: null,
     textReader: {
@@ -1284,8 +1288,21 @@ export const useAppStore = create<AppStore>()(
       s.stashSlotCount = Math.min(STASH_MAX_COUNT, s.stashSlotCount + 1)
     }),
 
-    setStashWindowOpen: (open) => set(s => {
+    setStashWindowOpen: (open, anchor) => set(s => {
       s.stashWindowOpen = open
+      if (!open) {
+        s.stashOpenAnchor = null
+        return
+      }
+      if (anchor != null) {
+        s.stashOpenAnchor = { x: anchor.x, y: anchor.y }
+      } else {
+        s.stashOpenAnchor = null
+      }
+    }),
+
+    clearStashOpenAnchor: () => set(s => {
+      s.stashOpenAnchor = null
     }),
 
     // ===== テキストリーダー =====

@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react'
 import { useAppStore, STASH_MAX_COUNT, STASH_MIN_SLOT_COUNT } from '../../stores/appStore'
 import { useTranslation } from '../../i18n'
 import styles from './StashWindow.module.css'
 
 const WINDOW_DEFAULT_X = 8
 const WINDOW_DEFAULT_Y = 48
+const PANEL_VIEW_MARGIN = 8
 const ICON_POS_X = 8
 const ICON_POS_Y = 8
 const MOUSE_COLLAPSE_DISTANCE = 100
@@ -26,6 +27,8 @@ export const StashWindow: React.FC = () => {
     stashes,
     stashSlotCount,
     stashWindowOpen,
+    stashOpenAnchor,
+    clearStashOpenAnchor,
     saveStash,
     popStash,
     deleteStash,
@@ -58,6 +61,22 @@ export const StashWindow: React.FC = () => {
       if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
     }
   }, [stashWindowOpen])
+
+  // [s] ショートカット: アンカー位置にパネル左上を合わせ（はみ出し時はクランプ）
+  useLayoutEffect(() => {
+    if (!stashWindowOpen || !stashOpenAnchor || !expanded) return
+    const el = panelRef.current
+    if (!el) return
+    const w = el.offsetWidth
+    const h = el.offsetHeight
+    const m = PANEL_VIEW_MARGIN
+    const maxX = Math.max(m, window.innerWidth - w - m)
+    const maxY = Math.max(m, window.innerHeight - h - m)
+    const x = Math.min(Math.max(m, stashOpenAnchor.x), maxX)
+    const y = Math.min(Math.max(m, stashOpenAnchor.y), maxY)
+    setPos({ x, y })
+    clearStashOpenAnchor()
+  }, [stashWindowOpen, stashOpenAnchor, expanded, clearStashOpenAnchor])
 
   // アイコン縮小時のフェードタイマー
   const startFadeTimer = useCallback(() => {

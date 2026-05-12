@@ -19,8 +19,12 @@ type PickCenterPoint = {
   y: number
 }
 
+/** StashWindow のデフォルト左上と揃える（mousemove 前の [s] フォールバック） */
+const STASH_POINTER_FALLBACK = { x: 8, y: 48 }
+
 export const MasterCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const lastClientPointerRef = useRef(STASH_POINTER_FALLBACK)
   const centerPickDragRef = useRef<PickCenterPoint | null>(null)
   const trailSizeDragRef = useRef<{
     cellId: string
@@ -183,6 +187,15 @@ export const MasterCanvas: React.FC = () => {
     return unsubscribe
   }, [])
 
+  // スタッシュ [s] 用: 直近のビューポート内ポインタ位置
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      lastClientPointerRef.current = { x: e.clientX, y: e.clientY }
+    }
+    document.addEventListener('mousemove', onMove, { passive: true })
+    return () => document.removeEventListener('mousemove', onMove)
+  }, [])
+
   // Escapeキーで中心位置指定キャンセル or フルスクリーン解除 / スペースキーでタイマー操作
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -210,7 +223,8 @@ export const MasterCanvas: React.FC = () => {
       }
       if (e.key.toLowerCase() === 's' && !e.repeat && !isEditable) {
         e.preventDefault()
-        state.setStashWindowOpen(true)
+        const p = lastClientPointerRef.current
+        state.setStashWindowOpen(true, { x: p.x, y: p.y })
       }
       if (e.key.toLowerCase() === 'p' && !e.repeat && !isEditable) {
         e.preventDefault()

@@ -1,5 +1,5 @@
 Created: 2026-05-12
-Last Updated: 2026-05-12 (rev 4)
+Last Updated: 2026-05-12 (rev 5)
 
 # WhiteRoom Stash Specification
 
@@ -57,8 +57,8 @@ type StashItem = {
 
 The stash window is opened via:
 
-- **Keyboard shortcut `[s]`**: opens the stash window from anywhere (same `isEditable` guard as other shortcuts).
-- **Collapsed stash icon** (top-left): hovering re-expands the window (see Stash Window below).
+- **Keyboard shortcut `[s]`**: opens the stash window from anywhere (same `isEditable` guard as other shortcuts). The panel’s **top-left** is placed at the **last known viewport mouse position** (tracked on `document` `mousemove` in `MasterCanvas`). If no move has occurred yet, the fallback matches the default window position `(8, 48)`. After layout, the position is **clamped** with an **8 px** margin so the panel stays fully inside the viewport. This uses transient store state `stashOpenAnchor`, applied in `StashWindow` via `useLayoutEffect`, then cleared with `clearStashOpenAnchor()`.
+- **Collapsed stash icon** (top-left): hovering re-expands the window (see Stash Window below). This path does **not** set an anchor; the panel stays at the default top-left after a prior collapse.
 
 ### Hamburger Menu Visibility
 
@@ -83,7 +83,7 @@ A draggable float window, styled similar to the Storyboard panel.
 - `data-stash-window` attribute is applied to both the window and the collapsed icon so hover-based suppression (floating controls, wheel scroll) works correctly.
 - Background is slightly transparent (`rgba` with `backdrop-filter: blur`).
 - When the mouse moves further than **100 px** from the window boundary, the window automatically collapses to a small icon.
-- The drag position resets to the default top-left position when the window re-expands.
+- The drag position resets to the default top-left position when the window re-expands **from the collapsed icon** (not when opening with `[s]`, which sets position from the anchor as above).
 
 #### Collapsed Icon
 
@@ -179,13 +179,14 @@ Emoji and color lists are defined as exported constants in `src/renderer/stores/
 
 ## State (Zustand store)
 
-Three fields are added to `AppState`:
+The following fields are used in `AppState` for stashes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `stashes` | `StashItem[]` | `[]` | Saved stash entries |
 | `stashSlotCount` | `number` | `3` | Number of rows displayed in the window |
 | `stashWindowOpen` | `boolean` | `false` | Signal to open the stash window |
+| `stashOpenAnchor` | `{ x, y }` or `null` | `null` | Optional viewport coordinates for `[s]`; consumed when the panel position is applied |
 
 Actions:
 
@@ -195,7 +196,8 @@ Actions:
 | `popStash(index)` | Restore state from slot (slot is kept) |
 | `deleteStash(index)` | Remove slot; compact rows |
 | `addStashSlot()` | Increment `stashSlotCount` (max 15) |
-| `setStashWindowOpen(open)` | Open/close signal consumed by `StashWindow` |
+| `setStashWindowOpen(open, anchor?)` | When `open` is `true`, optional `anchor` sets `stashOpenAnchor`; when `open` is `false`, anchor is cleared. Consumed by `StashWindow`. |
+| `clearStashOpenAnchor()` | Clears `stashOpenAnchor` after the panel has applied the anchor (internal coordination). |
 
 ---
 
