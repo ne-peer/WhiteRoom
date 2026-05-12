@@ -104,6 +104,8 @@
 .stashLabelBtn {
   flex: 1;
   min-width: 0;
+  position: relative;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.10);
   color: rgba(190, 190, 230, 0.75);
@@ -113,10 +115,10 @@
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
   transition: background 0.12s, border-color 0.12s, color 0.12s;
   height: 26px;
+  user-select: none;
 }
 
 /* 空スロット：ホバーで保存 */
@@ -131,6 +133,26 @@
   background: rgba(80, 140, 220, 0.25);
   border-color: rgba(100, 160, 255, 0.45);
   color: rgba(180, 210, 255, 0.95);
+}
+
+/* 長押しプログレスバー */
+.longPressBar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  background: rgba(100, 160, 255, 0.28);
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation: longPressGrow 800ms linear forwards;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+@keyframes longPressGrow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
 }
 
 .actionSmBtn {

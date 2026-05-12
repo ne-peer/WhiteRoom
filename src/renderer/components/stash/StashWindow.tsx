@@ -9,6 +9,7 @@ const ICON_POS_X = 8
 const ICON_POS_Y = 8
 const MOUSE_COLLAPSE_DISTANCE = 100
 const ICON_FADE_DELAY_MS = 3000
+const LONG_PRESS_MS = 800
 
 function getDistanceToRect(mx: number, my: number, rect: DOMRect): number {
   const dx = Math.max(rect.left - mx, 0, mx - rect.right)
@@ -33,6 +34,7 @@ export const StashWindow: React.FC = () => {
   const [iconVisible, setIconVisible] = useState(true)
   const [iconFaded, setIconFaded] = useState(false)
   const [hoverIdx, setHoverIdx] = useState<number | null>(null)
+  const [longPressIdx, setLongPressIdx] = useState<number | null>(null)
   const [pos, setPos] = useState({ x: WINDOW_DEFAULT_X, y: WINDOW_DEFAULT_Y })
 
   const panelRef = useRef<HTMLDivElement>(null)
@@ -41,6 +43,7 @@ export const StashWindow: React.FC = () => {
   const dragStartMouse = useRef({ x: 0, y: 0 })
   const dragStartPos = useRef({ x: 0, y: 0 })
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // stashWindowOpen の変化でウィンドウを開く
   useEffect(() => {
@@ -131,10 +134,9 @@ export const StashWindow: React.FC = () => {
     saveStash(index)
   }
 
-  const handlePop = (index: number) => {
+  const execPop = useCallback((index: number) => {
     const item = stashes[index]
     if (!item) return
-    if (!confirm(t('stashPopConfirm'))) return
     const filePath = item.textReaderFilePath
     const pageIndex = item.textReaderPageIndex
     popStash(index)
@@ -148,7 +150,25 @@ export const StashWindow: React.FC = () => {
         }
       }).catch(() => { /* ignore */ })
     }
-  }
+  }, [stashes, popStash])
+
+  const startLongPress = useCallback((index: number) => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    setLongPressIdx(index)
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null
+      setLongPressIdx(null)
+      execPop(index)
+    }, LONG_PRESS_MS)
+  }, [execPop])
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+    setLongPressIdx(null)
+  }, [])
 
   const handleDelete = (index: number) => {
     if (!confirm(t('stashDeleteConfirm'))) return
@@ -208,7 +228,7 @@ export const StashWindow: React.FC = () => {
                     borderLeft: `3px solid ${item.color}`,
                   } : undefined}
                 >
-                  {/* スタッシュラベル / スタッシュするボタン（スタッシュ済みはPOP動作） */}
+                  {/* スタッシュラベル / スタッシュするボタン（スタッシュ済みは長押しでPOP） */}
                   <button
                     className={`${styles.stashLabelBtn} ${item ? styles.filled : styles.empty}`}
                     style={item ? {
@@ -216,10 +236,15 @@ export const StashWindow: React.FC = () => {
                       borderColor: `${item.color}55`,
                     } : undefined}
                     onMouseEnter={() => setHoverIdx(i)}
-                    onMouseLeave={() => setHoverIdx(null)}
-                    onClick={() => item ? handlePop(i) : handleSave(i)}
-                    title={item ? `${item.savedAt} — ${t('stashPopButton')}` : t('stashSaveButton')}
+                    onMouseLeave={() => { setHoverIdx(null); cancelLongPress() }}
+                    onMouseDown={item ? () => startLongPress(i) : undefined}
+                    onMouseUp={item ? cancelLongPress : undefined}
+                    onClick={!item ? () => handleSave(i) : undefined}
+                    title={item ? `${item.savedAt} — ${t('stashLongPressHint')}` : t('stashSaveButton')}
                   >
+                    {item && longPressIdx === i && (
+                      <span className={styles.longPressBar} />
+                    )}
                     {item
                       ? (isHovering ? t('stashRestoreHover') : `${item.emoji} スタッシュ`)
                       : (isHovering ? t('stashSaveButton') : t('stashEmptySlot'))
