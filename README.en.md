@@ -55,31 +55,33 @@ Then open the DMG as usual and drag the app into the Applications folder.
 2. Select "Open"
 3. Click "Open" again in the warning dialog
 
-## Features
+## Applicable effects
+
+| **Category** | **Effect** | **Description** |
+|---|---|---|
+| Filter | Color filter | Simple overlay color filter |
+|  | Tone filter | Emphasizes image saturation and contrast |
+|  | Vignette effect | Peripheral darkening effect |
+|  | Blur effect | Blur visual effect |
+| Motion | Shake effect | Camera/object shake effect |
+|  | Zoom effect | Zoom in/out (scale) effect |
+|  | Breathing effect | Breathing-style visual effect |
+|  | Echo effect | Ripple-like trail effect |
+| Decoration | Asset effect | Places custom images at random positions and floats them |
+|  | Flash effect | Temporarily overlays an image |
+|  | Squish effect | Pressing/squishing visual effect |
+|  | Fog effect | Draws a fog-like visual effect |
+|  | Spiral effect | Spiral visual effect |
+|  | Text effect | Floats custom text at random positions |
+
+## Basic features
 
 1. **Grid settings**: Set columns and rows in the right panel "Grid" tab.
 2. **Assign image folders**:
     * Click a cell to select it, then click "Select Folder"
     * Or drag and drop a folder onto the canvas
 3. **Slideshow**: Turn it on from the Grid tab after selecting a cell.
-4. **Effects**: Configure effects in the Effects tab after selecting a cell.
-    * **[Filter]**
-        * Color Filter: Simple overlay color filter
-        * Tone Filter: Emphasizes image saturation and contrast
-        * Vignette Effect: Peripheral darkening effect
-        * Blur Effect: Blur visual effect
-    * **[Motion]**
-        * Shake Effect: Camera/object shake effect
-        * Zoom Effect: Zoom in/out (scale) effect
-        * Breathing Effect: Breathing-style visual effect
-        * Echo Effect: Ripple-like trail effect
-    * **[Decoration]**
-        * Asset Effect: Places custom images at random positions and floats them
-        * Flash Effect: Temporarily overlays an image
-        * Squish Effect: Pressing/squishing visual effect
-        * Fog Effect: Draws a fog-like visual effect
-        * Spiral Effect: Spiral visual effect
-        * Text Effect: Floats custom text at random positions
+4. **Effects**: Configure effects in the Effects tab after selecting a cell (see **Applicable effects** above).
 5. **Timer**: Enable and place it from the Timer tab.
     * **Timer-synced effect progress**: Applies effects based on remaining timer time
     * **End overlay image**: Displays a specified overlay image when the timer ends
