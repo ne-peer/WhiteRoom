@@ -751,6 +751,104 @@ function listSystemFonts(): string[] {
   }
 }
 
+/** スタッシュ終了確認（ネイティブ message box より読みやすいフォントサイズ用の専用子ウィンドウ） */
+const STASH_QUIT_CONFIRM_CHANNEL = 'whiteroom-stash-quit-confirm' as const
+
+function showStashQuitConfirm(parent: BrowserWindow): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false
+    let child: BrowserWindow | undefined
+
+    const finish = (quit: boolean) => {
+      if (settled) return
+      settled = true
+      ipcMain.removeListener(STASH_QUIT_CONFIRM_CHANNEL, listener)
+      if (child && !child.isDestroyed()) child.destroy()
+      resolve(quit)
+    }
+
+    const listener = (event: Electron.IpcMainEvent, quit: boolean) => {
+      if (!child || event.sender !== child.webContents) return
+      finish(quit)
+    }
+
+    ipcMain.on(STASH_QUIT_CONFIRM_CHANNEL, listener)
+
+    child = new BrowserWindow({
+      parent,
+      modal: true,
+      width: 460,
+      height: 156,
+      minWidth: 460,
+      minHeight: 156,
+      maxWidth: 460,
+      maxHeight: 156,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      show: false,
+      title: 'WhiteRoom',
+      backgroundColor: '#2d2d35',
+      autoHideMenuBar: true,
+      webPreferences: {
+        sandbox: false,
+        nodeIntegration: true,
+        contextIsolation: false,
+      },
+    })
+
+    child.on('closed', () => {
+      ipcMain.removeListener(STASH_QUIT_CONFIRM_CHANNEL, listener)
+      if (!settled) {
+        settled = true
+        resolve(false)
+      }
+    })
+
+    const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><style>
+html, body { margin: 0; height: 100%; }
+body {
+  font: 15px/1.5 Meiryo, "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
+  background: #2d2d35;
+  color: rgba(255,255,255,0.92);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 16px 20px 14px;
+}
+p { margin: 0 0 12px; font-size: 16px; flex: 1; }
+.row { display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
+button {
+  font: 14px inherit;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.08);
+  color: inherit;
+}
+button.primary { background: rgba(255, 110, 180, 0.35); border-color: rgba(255, 150, 200, 0.4); }
+button:hover { filter: brightness(1.12); }
+</style></head><body>
+<p>スタッシュが残っています。終了しますか？</p>
+<div class="row">
+<button type="button" id="cancel">キャンセル</button>
+<button type="button" id="quit" class="primary">終了する</button>
+</div>
+<script>
+const { ipcRenderer } = require('electron');
+document.getElementById('quit').addEventListener('click', () => ipcRenderer.send('${STASH_QUIT_CONFIRM_CHANNEL}', true));
+document.getElementById('cancel').addEventListener('click', () => ipcRenderer.send('${STASH_QUIT_CONFIRM_CHANNEL}', false));
+</script></body></html>`
+
+    void child.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+    child.once('ready-to-show', () => {
+      child?.show()
+    })
+  })
+}
+
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: DEFAULT_MAIN_WINDOW_WIDTH,
@@ -797,14 +895,8 @@ function createWindow(): BrowserWindow {
       hasStash = await win.webContents.executeJavaScript('window.__whiteroom_hasStash?.()')
     } catch { /* ignore */ }
     if (hasStash) {
-      const result = await dialog.showMessageBox(win, {
-        type: 'warning',
-        buttons: ['終了する', 'キャンセル'],
-        defaultId: 1,
-        cancelId: 1,
-        message: 'スタッシュに設定が残っています。終了しますか？',
-      })
-      if (result.response === 0) {
+      const quit = await showStashQuitConfirm(win)
+      if (quit) {
         win.destroy()
       }
     } else {
