@@ -372,7 +372,7 @@ function layoutCells(
     let cr = renderers.get(cell.id)
 
     if (!cr) {
-      cr = new CellRenderer(cell.id, cellW, cellH)
+      cr = new CellRenderer(cell.id, cellW, cellH, app.renderer)
       cr.configureBlankBackground(blankBackground)
       app.stage.addChild(cr.container)
       renderers.set(cell.id, cr)

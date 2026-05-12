@@ -74,14 +74,18 @@ export class ParticleSystem {
   private particles: AssetParticle[] = []
   private sprites: Map<string, PIXI.Sprite> = new Map()
   private vectorHolders: Map<string, PIXI.Container> = new Map()
+  private featherTextureCache: Map<string, PIXI.Texture> = new Map()
   private container: PIXI.Container
+  private renderer: PIXI.Renderer
   private texture: PIXI.Texture | null = null
   private textures: PIXI.Texture[] = []
   private lastSpawn = 0
   private timerProgress = 1
+  private activeFeatherRadius = 0
 
-  constructor(container: PIXI.Container) {
+  constructor(container: PIXI.Container, renderer: PIXI.Renderer) {
     this.container = container
+    this.renderer = renderer
   }
 
   setTimerProgress(progress: number) {
@@ -130,6 +134,11 @@ export class ParticleSystem {
     }
 
     const { spawnIntervalMs, maxParticles, sizeRatio, baseAlpha, pattern } = effects.dynamicAsset
+    const featherRadius = featherStrengthToRadius(effects.dynamicAsset.featherStrength ?? 0)
+    if (featherRadius !== this.activeFeatherRadius) {
+      this.clear()
+      this.activeFeatherRadius = featherRadius
+    }
     const rawBaseAlpha = clamp(baseAlpha, 0, 1)
     const assetBaseAlpha = (effects.dynamicAsset.alphaTimerSync) ? rawBaseAlpha * this.timerProgress : rawBaseAlpha
     const isEmergence = (pattern ?? 'rising') === 'emergence'
@@ -165,20 +174,28 @@ export class ParticleSystem {
         this.particles.push(p)
 
         if (useVector) {
-          const holder = createVectorDynamicAssetDisplay(effects.dynamicAsset.vectorPresetId!, particleTint)
-          if (holder) {
-            holder.x = p.x
-            holder.y = p.y
-            holder.alpha = 0
-            holder.rotation = p.rotationRad
-            holder.scale.set(0)
-            this.container.addChild(holder)
-            this.vectorHolders.set(p.id, holder)
+          const visual = this.createVectorParticleDisplay(
+            effects.dynamicAsset.vectorPresetId!,
+            particleTint,
+            effects.dynamicAsset.featherStrength ?? 0
+          )
+          if (visual) {
+            visual.x = p.x
+            visual.y = p.y
+            visual.alpha = 0
+            visual.rotation = p.rotationRad
+            visual.scale.set(0)
+            this.container.addChild(visual)
+            if (visual instanceof PIXI.Sprite) {
+              this.sprites.set(p.id, visual)
+            } else {
+              this.vectorHolders.set(p.id, visual)
+            }
           } else {
             this.particles.pop()
           }
         } else {
-          const sprite = new PIXI.Sprite(randomTexture(this.textures))
+          const sprite = new PIXI.Sprite(this.resolveRasterTexture(randomTexture(this.textures), effects.dynamicAsset.featherStrength ?? 0))
           sprite.anchor.set(0.5)
           sprite.x = p.x
           sprite.y = p.y
@@ -208,20 +225,28 @@ export class ParticleSystem {
         this.particles.push(p)
 
         if (useVector) {
-          const holder = createVectorDynamicAssetDisplay(effects.dynamicAsset.vectorPresetId!, particleTint)
-          if (holder) {
-            holder.x = p.x
-            holder.y = p.y
-            holder.alpha = p.alpha
-            holder.rotation = p.rotationRad
-            holder.scale.set(scale)
-            this.container.addChild(holder)
-            this.vectorHolders.set(p.id, holder)
+          const visual = this.createVectorParticleDisplay(
+            effects.dynamicAsset.vectorPresetId!,
+            particleTint,
+            effects.dynamicAsset.featherStrength ?? 0
+          )
+          if (visual) {
+            visual.x = p.x
+            visual.y = p.y
+            visual.alpha = p.alpha
+            visual.rotation = p.rotationRad
+            visual.scale.set(scale)
+            this.container.addChild(visual)
+            if (visual instanceof PIXI.Sprite) {
+              this.sprites.set(p.id, visual)
+            } else {
+              this.vectorHolders.set(p.id, visual)
+            }
           } else {
             this.particles.pop()
           }
         } else {
-          const sprite = new PIXI.Sprite(randomTexture(this.textures))
+          const sprite = new PIXI.Sprite(this.resolveRasterTexture(randomTexture(this.textures), effects.dynamicAsset.featherStrength ?? 0))
           sprite.anchor.set(0.5)
           sprite.x = p.x
           sprite.y = p.y
@@ -328,6 +353,67 @@ export class ParticleSystem {
 
   destroy() {
     this.clear()
+    this.featherTextureCache.forEach(texture => texture.destroy(true))
+    this.featherTextureCache.clear()
+  }
+
+  private createVectorParticleDisplay(
+    presetId: string,
+    particleTint: number,
+    featherStrength: number
+  ): PIXI.Container | PIXI.Sprite | null {
+    if (featherStrength <= 0) {
+      return createVectorDynamicAssetDisplay(presetId, particleTint)
+    }
+
+    const texture = this.resolveVectorTexture(presetId, featherStrength)
+    if (!texture) return null
+    const sprite = new PIXI.Sprite(texture)
+    sprite.anchor.set(0.5)
+    sprite.tint = particleTint
+    return sprite
+  }
+
+  private resolveRasterTexture(texture: PIXI.Texture, featherStrength: number): PIXI.Texture {
+    const radius = featherStrengthToRadius(featherStrength)
+    if (radius <= 0) return texture
+
+    const key = `raster:${texture.uid}:feather:${radius}`
+    return this.getOrCreateFeatherTexture(key, texture, radius)
+  }
+
+  private resolveVectorTexture(presetId: string, featherStrength: number): PIXI.Texture | null {
+    const radius = featherStrengthToRadius(featherStrength)
+    if (radius <= 0) return null
+
+    const key = `vector:${presetId}:feather:${radius}`
+    const cached = this.featherTextureCache.get(key)
+    if (cached) return cached
+
+    const holder = createVectorDynamicAssetDisplay(presetId, 0xffffff)
+    if (!holder) return null
+    const canvas = this.renderer.extract.canvas({
+      target: holder,
+      clearColor: [0, 0, 0, 0],
+      antialias: true,
+    }) as HTMLCanvasElement
+    holder.destroy({ children: true })
+
+    const feathered = createInnerFeatherCanvas(canvas, radius)
+    const texture = PIXI.Texture.from(feathered)
+    this.featherTextureCache.set(key, texture)
+    return texture
+  }
+
+  private getOrCreateFeatherTexture(key: string, texture: PIXI.Texture, radius: number): PIXI.Texture {
+    const cached = this.featherTextureCache.get(key)
+    if (cached) return cached
+
+    const canvas = this.renderer.extract.canvas(texture) as HTMLCanvasElement
+    const feathered = createInnerFeatherCanvas(canvas, radius)
+    const featherTexture = PIXI.Texture.from(feathered)
+    this.featherTextureCache.set(key, featherTexture)
+    return featherTexture
   }
 }
 
@@ -521,6 +607,73 @@ function sampleParticleTint(effects: CellEffects): number {
 function sampleAssetRotationRad(enabled: boolean): number {
   if (!enabled) return 0
   return (Math.random() * 2 - 1) * (Math.PI / 4)
+}
+
+function featherStrengthToRadius(strength: number): number {
+  return Math.round(clamp(strength, 0, 100) * 0.4)
+}
+
+function createInnerFeatherCanvas(source: HTMLCanvasElement, radius: number): HTMLCanvasElement {
+  if (radius <= 0) return source
+
+  const padding = radius + 1
+  const canvas = document.createElement('canvas')
+  canvas.width = source.width + padding * 2
+  canvas.height = source.height + padding * 2
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return source
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(source, padding, padding)
+
+  const image = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const { data, width, height } = image
+  const pixelCount = width * height
+  const inf = 1_000_000
+  const dist = new Float32Array(pixelCount)
+
+  for (let i = 0; i < pixelCount; i += 1) {
+    dist[i] = data[i * 4 + 3] > 8 ? inf : 0
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x
+      let d = dist[i]
+      if (x > 0) d = Math.min(d, dist[i - 1] + 1)
+      if (y > 0) {
+        d = Math.min(d, dist[i - width] + 1)
+        if (x > 0) d = Math.min(d, dist[i - width - 1] + Math.SQRT2)
+        if (x < width - 1) d = Math.min(d, dist[i - width + 1] + Math.SQRT2)
+      }
+      dist[i] = d
+    }
+  }
+
+  for (let y = height - 1; y >= 0; y -= 1) {
+    for (let x = width - 1; x >= 0; x -= 1) {
+      const i = y * width + x
+      let d = dist[i]
+      if (x < width - 1) d = Math.min(d, dist[i + 1] + 1)
+      if (y < height - 1) {
+        d = Math.min(d, dist[i + width] + 1)
+        if (x > 0) d = Math.min(d, dist[i + width - 1] + Math.SQRT2)
+        if (x < width - 1) d = Math.min(d, dist[i + width + 1] + Math.SQRT2)
+      }
+      dist[i] = d
+    }
+  }
+
+  for (let i = 0; i < pixelCount; i += 1) {
+    const alphaIndex = i * 4 + 3
+    if (data[alphaIndex] === 0) continue
+    const t = clamp(dist[i] / radius, 0, 1)
+    const eased = t * t * (3 - 2 * t)
+    data[alphaIndex] = Math.round(data[alphaIndex] * eased)
+  }
+
+  ctx.putImageData(image, 0, 0)
+  return canvas
 }
 
 function applyAssetAdditionalEffect(

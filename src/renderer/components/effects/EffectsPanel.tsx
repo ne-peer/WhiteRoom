@@ -191,6 +191,7 @@ const EFFECT_PRESET_1: CellEffects = {
     spawnIntervalMs: 600,
     riseSpeedPx: 2,
     maxParticles: 20,
+    featherStrength: 0,
     sizeRatio: 0.56,
     sizeRandomPercent: 10,
     baseAlpha: 1,
@@ -401,6 +402,7 @@ const EFFECT_PRESET_2: CellEffects = {
     spawnIntervalMs: 800,
     riseSpeedPx: 2,
     maxParticles: 20,
+    featherStrength: 0,
     sizeRatio: 1,
     sizeRandomPercent: 10,
     baseAlpha: 1,
@@ -1753,6 +1755,14 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 max={100}
                 step={1}
                 onChange={v => set('dynamicAsset', { maxParticles: v })}
+              />
+            </Row>
+            <Row label={t('assetFeather')}>
+              <Slider
+                value={effects.dynamicAsset.featherStrength ?? 0}
+                min={0}
+                max={100}
+                onChange={v => set('dynamicAsset', { featherStrength: v })}
               />
             </Row>
             <Row label={t('opacity')}>

@@ -226,7 +226,7 @@ export class CellRenderer {
   private storyboardScale: number | null = null
   private storyboardScaleActive = false
 
-  constructor(cellId: string, width: number, height: number) {
+  constructor(cellId: string, width: number, height: number, renderer: PIXI.Renderer) {
     this.cellId = cellId
     this.width = width
     this.height = height
@@ -292,7 +292,7 @@ export class CellRenderer {
 
     this.fogLayer.addChild(this.fogBlobContainer)
 
-    this.particleSystem = new ParticleSystem(this.particleContainer)
+    this.particleSystem = new ParticleSystem(this.particleContainer, renderer)
     this.textSystem = new TextSystem(this.textLayer)
     this.textSystem.resizeMask(width, height)
   }

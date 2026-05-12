@@ -209,6 +209,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     spawnIntervalMs: 800,
     riseSpeedPx: 2,
     maxParticles: 20,
+    featherStrength: 0,
     sizeRatio: 1.0,
     sizeRandomPercent: 10,
     baseAlpha: 1.0,

@@ -273,6 +273,7 @@ export type DynamicAssetEffect = {
   spawnIntervalMs: number    // 生成間隔
   riseSpeedPx: number        // 上昇速度 px/frame
   maxParticles: number
+  featherStrength: number    // 0 - 100
   sizeRatio: number          // アセットサイズ倍率 0.1 - 3.0
   /** 表示サイズを基準としたランダム幅 ±0〜200%（0 でサイズランダムなし） */
   sizeRandomPercent: number
