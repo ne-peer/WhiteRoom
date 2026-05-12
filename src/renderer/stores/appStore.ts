@@ -809,9 +809,15 @@ export const useAppStore = create<AppStore>()(
     }),
 
     setAllCellsFolder: (folder) => set(s => {
+      const selectedId = s.selectedCellId
+      const selected = selectedId ? s.cells.find(c => c.id === selectedId) : undefined
+      const sourceIndex = selected?.currentImageIndex ?? 0
+      const len = folder.images.length
+      const indexForAll =
+        len === 0 ? 0 : Math.min(Math.max(0, sourceIndex), len - 1)
       s.cells.forEach(cell => {
         cell.folder = structuredClone(folder)
-        cell.currentImageIndex = 0
+        cell.currentImageIndex = indexForAll
         delete s.cellTagOverrides[cell.id]
         if (applyImageEffectProfileToCell(s, cell)) s.effectSyncNonce += 1
       })
