@@ -153,8 +153,9 @@ Triggered by **0.4 s long press** on the label button of a filled slot. No confi
 1. Restore state via `popStash(index)`:
    - `blankColor`, `blankBackground`, `grid`, `cells`, `timer` are fully restored (with the same defaults-merge pattern used by `importProfile`).
    - `textReader.config` is restored (merged with `DEFAULT_TEXT_READER_CONFIG`).
-2. If `textReaderFilePath` is non-null, call `api.openTextFileDirect(path)` and load the file via `store.loadTextReaderFile`. If the file no longer exists, silently skip.
-3. The stash slot **remains** in the list after POP (it is not consumed).
+2. For each **local** cell folder path, `whiteroom_effects.json` is loaded into `imageEffectProfiles` in the background (cache only; restored `cell.effects` are not overwritten so the stash snapshot stays visible until the user changes image or navigates in a way that applies the per-image profile).
+3. If `textReaderFilePath` is non-null, call `api.openTextFileDirect(path)` and load the file via `store.loadTextReaderFile`. If the file no longer exists, silently skip.
+4. The stash slot **remains** in the list after POP (it is not consumed).
 
 ### Delete (スタッシュを削除)
 

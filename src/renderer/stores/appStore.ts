@@ -5,7 +5,7 @@ import type {
   AppProfile, Cell, CellBaseline, CellEffects, CellFolder, GridLayout,
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
   ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig, ReadingConfigPayload,
-  StashItem,
+  StashItem, IpcApi,
 } from '../../shared/types'
 import { parseTextFile, insertOrReplaceTagBefore, insertTagAtCharPosition, insertOrReplaceReadConfigAtTop, resolveStoryboardImageReference } from '../utils/storyboardParser'
 
@@ -430,6 +430,18 @@ function applyImageEffectProfileToCell(state: AppState, cell: Cell): boolean {
   return true
 }
 
+/** ローカルフォルダのみ（リモート画像は whiteroom_effects 対象外） */
+function collectLocalImageEffectProfileFolderPaths(cells: Cell[]): string[] {
+  const paths = new Set<string>()
+  for (const cell of cells) {
+    const folder = cell.folder
+    if (!folder || folder.source === 'remote-image') continue
+    const p = folder.path.trim()
+    if (p) paths.add(p)
+  }
+  return [...paths]
+}
+
 function buildCells(cols: number, rows: number): Cell[] {
   const cells: Cell[] = []
   for (let r = 0; r < rows; r++) {
@@ -576,7 +588,12 @@ export type AppActions = {
   setLanguage: (language: UiLanguage) => void
   showAppNotification: (text: string, type?: 'info' | 'warning' | 'error') => void
   clearAppNotification: (id?: number) => void
-  setImageEffectProfile: (folderPath: string, profile: ImageEffectProfileDocument | null) => void
+  setImageEffectProfile: (
+    folderPath: string,
+    profile: ImageEffectProfileDocument | null,
+    /** false のときキャッシュのみ更新（セル effects は触れない。スタッシュ／JSON プロファイル復元後の画像切替用） */
+    applyToCells?: boolean
+  ) => void
   applyImageEffectProfileForCell: (cellId: string) => void
 
   // プロファイル
@@ -628,6 +645,36 @@ export type AppStore = AppState & AppActions
 export const useAppStore = create<AppStore>()(
   immer((set, get) => {
     const initialCells = buildCells(1, 1)
+
+    /** 現在のセルからローカルフォルダを集め、whiteroom_effects.json を読み imageEffectProfiles に載せる */
+    const refreshImageEffectProfileCachesFromDisk = async (applyToCells: boolean) => {
+      const api = (window as unknown as { api: IpcApi }).api
+      const folderPaths = collectLocalImageEffectProfileFolderPaths(get().cells)
+      if (folderPaths.length === 0) return
+      const failures: string[] = []
+      for (const folderPath of folderPaths) {
+        const result = await api.loadImageEffectProfile(folderPath)
+        if (result.success) {
+          get().setImageEffectProfile(folderPath, result.profile ?? null, applyToCells)
+        } else {
+          get().setImageEffectProfile(folderPath, null, applyToCells)
+          failures.push(result.error ?? '')
+        }
+      }
+      if (failures.length > 0) {
+        const { language, showAppNotification } = get()
+        const base = language === 'en'
+          ? 'Failed to load image effect settings'
+          : '画像別エフェクト設定の読み込みに失敗しました'
+        const suffix = failures.length === 1
+          ? (failures[0] || '')
+          : `${failures.length}${language === 'en' ? ' folders' : ' フォルダ'}`
+        showAppNotification(
+          failures.length === 1 ? `${base}: ${suffix}` : `${base} (${suffix})`,
+          'warning'
+        )
+      }
+    }
 
     return ({
     // 初期状態
@@ -1103,8 +1150,9 @@ export const useAppStore = create<AppStore>()(
 
     // ===== プロファイル =====
 
-    setImageEffectProfile: (folderPath, profile) => set(s => {
+    setImageEffectProfile: (folderPath, profile, applyToCells = true) => set(s => {
       s.imageEffectProfiles[folderPath] = profile
+      if (!applyToCells) return
       let applied = false
       s.cells.forEach(cell => {
         if (cell.folder?.path === folderPath) {
@@ -1138,49 +1186,53 @@ export const useAppStore = create<AppStore>()(
       return profile
     },
 
-    importProfile: (profile) => set(s => {
-      s.blankColor = profile.blankColor
-      s.blankBackground = { ...DEFAULT_BLANK_BACKGROUND, ...profile.blankBackground }
-      s.grid = profile.grid
-      s.cells = profile.cells.map(cell => ({
-        ...cell,
-        imageFit: cell.imageFit ?? 'cover',
-        slideshow: { ...DEFAULT_SLIDESHOW, ...cell.slideshow },
-        effects: {
-          ...structuredClone(DEFAULT_EFFECTS),
-          ...cell.effects,
-          colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...cell.effects?.colorOverlay },
-          vignette: { ...DEFAULT_EFFECTS.vignette, ...cell.effects?.vignette },
-          spiral: { ...DEFAULT_EFFECTS.spiral, ...cell.effects?.spiral },
-          blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
-          echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
-          flash: { ...DEFAULT_EFFECTS.flash, ...cell.effects?.flash },
-          breathing: { ...DEFAULT_EFFECTS.breathing, ...cell.effects?.breathing },
-          shake: { ...DEFAULT_EFFECTS.shake, ...cell.effects?.shake },
-          squish: { ...DEFAULT_EFFECTS.squish, ...cell.effects?.squish },
-          fog: { ...DEFAULT_EFFECTS.fog, ...cell.effects?.fog },
-          dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
-          textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
-        },
-      }))
-      s.timer = {
-        ...DEFAULT_TIMER,
-        ...profile.timer,
-        endFlash: { ...DEFAULT_TIMER.endFlash, ...profile.timer?.endFlash },
-        preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY, ...profile.timer?.preOverlay },
-        autoNext: { ...DEFAULT_TIMER_AUTO_NEXT, ...profile.timer?.autoNext },
-      }
-      s.fullscreen = profile.fullscreen
-      s.showControls = profile.fullscreen ? false : (profile.showControls ?? true)
-      s.showNavigationBar = true
-      s.selectedCellId = null
-      s.imageEffectProfiles = {}
-      s.imageEffectProfileAutoApplySuspended = false
-      s.timerSuspendedSlideshow = false
-      // スタッシュを上書き復元（1.1.0 以降のみ）
-      s.stashes = profile.stashes ?? []
-      s.stashSlotCount = Math.max(3, s.stashes.length)
-    }),
+    importProfile: (profile) => {
+      set(s => {
+        s.blankColor = profile.blankColor
+        s.blankBackground = { ...DEFAULT_BLANK_BACKGROUND, ...profile.blankBackground }
+        s.grid = profile.grid
+        s.cells = profile.cells.map(cell => ({
+          ...cell,
+          imageFit: cell.imageFit ?? 'cover',
+          slideshow: { ...DEFAULT_SLIDESHOW, ...cell.slideshow },
+          effects: {
+            ...structuredClone(DEFAULT_EFFECTS),
+            ...cell.effects,
+            colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...cell.effects?.colorOverlay },
+            vignette: { ...DEFAULT_EFFECTS.vignette, ...cell.effects?.vignette },
+            spiral: { ...DEFAULT_EFFECTS.spiral, ...cell.effects?.spiral },
+            blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
+            echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
+            flash: { ...DEFAULT_EFFECTS.flash, ...cell.effects?.flash },
+            breathing: { ...DEFAULT_EFFECTS.breathing, ...cell.effects?.breathing },
+            shake: { ...DEFAULT_EFFECTS.shake, ...cell.effects?.shake },
+            zoom: { ...DEFAULT_EFFECTS.zoom, ...cell.effects?.zoom },
+            squish: { ...DEFAULT_EFFECTS.squish, ...cell.effects?.squish },
+            fog: { ...DEFAULT_EFFECTS.fog, ...cell.effects?.fog },
+            dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
+            textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
+          },
+        }))
+        s.timer = {
+          ...DEFAULT_TIMER,
+          ...profile.timer,
+          endFlash: { ...DEFAULT_TIMER.endFlash, ...profile.timer?.endFlash },
+          preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY, ...profile.timer?.preOverlay },
+          autoNext: { ...DEFAULT_TIMER_AUTO_NEXT, ...profile.timer?.autoNext },
+        }
+        s.fullscreen = profile.fullscreen
+        s.showControls = profile.fullscreen ? false : (profile.showControls ?? true)
+        s.showNavigationBar = true
+        s.selectedCellId = null
+        s.imageEffectProfiles = {}
+        s.imageEffectProfileAutoApplySuspended = false
+        s.timerSuspendedSlideshow = false
+        // スタッシュを上書き復元（1.1.0 以降のみ）
+        s.stashes = profile.stashes ?? []
+        s.stashSlotCount = Math.max(3, s.stashes.length)
+      })
+      void refreshImageEffectProfileCachesFromDisk(false)
+    },
 
     resetProfile: () => set(s => {
       const cells = buildCells(1, 1)
@@ -1228,49 +1280,55 @@ export const useAppStore = create<AppStore>()(
       get().resetProfile()
     },
 
-    popStash: (index) => set(s => {
-      const item = s.stashes[index]
-      if (!item) return
-      s.blankColor = item.blankColor
-      s.blankBackground = { ...DEFAULT_BLANK_BACKGROUND, ...item.blankBackground }
-      s.grid = item.grid
-      s.cells = item.cells.map(cell => ({
-        ...cell,
-        imageFit: cell.imageFit ?? 'cover',
-        slideshow: { ...DEFAULT_SLIDESHOW, ...cell.slideshow },
-        effects: {
-          ...structuredClone(DEFAULT_EFFECTS),
-          ...cell.effects,
-          colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...cell.effects?.colorOverlay },
-          vignette: { ...DEFAULT_EFFECTS.vignette, ...cell.effects?.vignette },
-          spiral: { ...DEFAULT_EFFECTS.spiral, ...cell.effects?.spiral },
-          blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
-          echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
-          flash: { ...DEFAULT_EFFECTS.flash, ...cell.effects?.flash },
-          breathing: { ...DEFAULT_EFFECTS.breathing, ...cell.effects?.breathing },
-          shake: { ...DEFAULT_EFFECTS.shake, ...cell.effects?.shake },
-          squish: { ...DEFAULT_EFFECTS.squish, ...cell.effects?.squish },
-          fog: { ...DEFAULT_EFFECTS.fog, ...cell.effects?.fog },
-          dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
-          textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
-        },
-      }))
-      s.timer = {
-        ...DEFAULT_TIMER,
-        ...item.timer,
-        endFlash: { ...DEFAULT_TIMER.endFlash, ...item.timer?.endFlash },
-        preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY, ...item.timer?.preOverlay },
-        autoNext: { ...DEFAULT_TIMER_AUTO_NEXT, ...item.timer?.autoNext },
-        partial: { ...DEFAULT_TIMER_PARTIAL, ...item.timer?.partial },
-      }
-      // テキストリーダー設定を復元
-      s.textReader.config = normalizeTextReaderConfig({ ...DEFAULT_TEXT_READER_CONFIG, ...item.textReaderConfig })
-      s.showNavigationBar = true
-      s.selectedCellId = null
-      s.imageEffectProfiles = {}
-      s.imageEffectProfileAutoApplySuspended = false
-      s.timerSuspendedSlideshow = false
-    }),
+    popStash: (index) => {
+      let didPop = false
+      set(s => {
+        const item = s.stashes[index]
+        if (!item) return
+        didPop = true
+        s.blankColor = item.blankColor
+        s.blankBackground = { ...DEFAULT_BLANK_BACKGROUND, ...item.blankBackground }
+        s.grid = item.grid
+        s.cells = item.cells.map(cell => ({
+          ...cell,
+          imageFit: cell.imageFit ?? 'cover',
+          slideshow: { ...DEFAULT_SLIDESHOW, ...cell.slideshow },
+          effects: {
+            ...structuredClone(DEFAULT_EFFECTS),
+            ...cell.effects,
+            colorOverlay: { ...DEFAULT_EFFECTS.colorOverlay, ...cell.effects?.colorOverlay },
+            vignette: { ...DEFAULT_EFFECTS.vignette, ...cell.effects?.vignette },
+            spiral: { ...DEFAULT_EFFECTS.spiral, ...cell.effects?.spiral },
+            blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
+            echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
+            flash: { ...DEFAULT_EFFECTS.flash, ...cell.effects?.flash },
+            breathing: { ...DEFAULT_EFFECTS.breathing, ...cell.effects?.breathing },
+            shake: { ...DEFAULT_EFFECTS.shake, ...cell.effects?.shake },
+            zoom: { ...DEFAULT_EFFECTS.zoom, ...cell.effects?.zoom },
+            squish: { ...DEFAULT_EFFECTS.squish, ...cell.effects?.squish },
+            fog: { ...DEFAULT_EFFECTS.fog, ...cell.effects?.fog },
+            dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
+            textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
+          },
+        }))
+        s.timer = {
+          ...DEFAULT_TIMER,
+          ...item.timer,
+          endFlash: { ...DEFAULT_TIMER.endFlash, ...item.timer?.endFlash },
+          preOverlay: { ...DEFAULT_TIMER_PRE_OVERLAY, ...item.timer?.preOverlay },
+          autoNext: { ...DEFAULT_TIMER_AUTO_NEXT, ...item.timer?.autoNext },
+          partial: { ...DEFAULT_TIMER_PARTIAL, ...item.timer?.partial },
+        }
+        // テキストリーダー設定を復元
+        s.textReader.config = normalizeTextReaderConfig({ ...DEFAULT_TEXT_READER_CONFIG, ...item.textReaderConfig })
+        s.showNavigationBar = true
+        s.selectedCellId = null
+        s.imageEffectProfiles = {}
+        s.imageEffectProfileAutoApplySuspended = false
+        s.timerSuspendedSlideshow = false
+      })
+      if (didPop) void refreshImageEffectProfileCachesFromDisk(false)
+    },
 
     deleteStash: (index) => set(s => {
       if (index < 0 || index >= s.stashes.length) return
