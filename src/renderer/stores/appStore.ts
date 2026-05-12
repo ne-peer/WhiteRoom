@@ -102,6 +102,8 @@ export const DEFAULT_EFFECTS: CellEffects = {
   flash: {
     enabled: false,
     imagePath: null,
+    vectorPresetId: null,
+    scaleRatio: 1,
     opacity: 1,
     surroundingTransparency: 0,
     innerRadius: 0.5,

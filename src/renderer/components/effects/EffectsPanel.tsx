@@ -10,6 +10,12 @@ import {
   type DynamicAssetAdditionalEffect,
 } from '../../../shared/types'
 
+/** フラッシュ用ベクターアセット（`Select` の候補）。追加時はここに列挙する。 */
+const FLASH_BUILTIN_VECTOR_ASSET_OPTIONS = [
+  { value: '', labelKey: 'flashAssetNone' as const },
+  { value: DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART, labelKey: 'dynamicAssetVectorHeart' as const },
+] as const
+
 const FALLBACK_FONT_OPTIONS = ['Meiryo', 'BIZ UDPGothic', 'Yu Gothic', 'MS PGothic']
   .map(font => ({ value: font, label: font }))
 
@@ -106,6 +112,8 @@ const EFFECT_PRESET_1: CellEffects = {
   flash: {
     enabled: false,
     imagePath: null,
+    vectorPresetId: null,
+    scaleRatio: 1,
     opacity: 1,
     surroundingTransparency: 0,
     innerRadius: 0.5,
@@ -320,6 +328,8 @@ const EFFECT_PRESET_2: CellEffects = {
   flash: {
     enabled: false,
     imagePath: null,
+    vectorPresetId: null,
+    scaleRatio: 1,
     opacity: 1,
     surroundingTransparency: 0,
     innerRadius: 0.5,
@@ -630,7 +640,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const handleOpenFlashImage = async () => {
     const result = await window.api.openOverlayImage(language)
     if (!result.canceled && result.filePath) {
-      set('flash', { imagePath: result.filePath })
+      set('flash', { imagePath: result.filePath, vectorPresetId: null })
     }
   }
 
@@ -1849,14 +1859,29 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 >
                   {flashRangePicking ? t('flashRangePickActive') : t('flashRangePickButton')}
                 </Button>
-                {effects.flash.imagePath && (
+                {effects.flash.imagePath?.startsWith('data:') && !effects.flash.vectorPresetId && (
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
-                    {effects.flash.imagePath.startsWith('data:')
-                      ? t('flashRangeSnapshotName')
-                      : effects.flash.imagePath.split(/[\\/]/).pop()}
+                    {t('flashRangeSnapshotName')}
+                  </div>
+                )}
+                {effects.flash.imagePath &&
+                  !effects.flash.imagePath.startsWith('data:') &&
+                  !effects.flash.vectorPresetId && (
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
+                    {effects.flash.imagePath.split(/[\\/]/).pop()}
                   </div>
                 )}
               </div>
+            </Row>
+            <Row label={t('flashAsset')}>
+              <Select
+                value={effects.flash.vectorPresetId ?? ''}
+                options={FLASH_BUILTIN_VECTOR_ASSET_OPTIONS.map(o => ({
+                  value: o.value,
+                  label: t(o.labelKey),
+                }))}
+                onChange={v => set('flash', { vectorPresetId: v === '' ? null : v })}
+              />
             </Row>
             <Row label={t('flashStartTransition')}>
               <Select
@@ -1902,6 +1927,16 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   { value: 'zoom-out', label: t('transitionZoomOut') },
                 ]}
                 onChange={v => set('flash', { endTransition: v as import('../../../shared/types').SlideShowTransition })}
+              />
+            </Row>
+            <Row label={t('flashScaleRatio')}>
+              <Slider
+                value={Math.round((effects.flash.scaleRatio ?? 1) * 100)}
+                min={10}
+                max={300}
+                step={1}
+                unit="%"
+                onChange={v => set('flash', { scaleRatio: v / 100 })}
               />
             </Row>
             <Row label={t('opacity')}>

@@ -903,7 +903,7 @@ async function finalizeFlashRangeSelection(
     const targetCell = latest.cells.find(cell => cell.id === latest.selectedCellId && cell.col === completedDrag.column)
       ?? latest.cells.find(cell => cell.col === completedDrag.column)
     if (!targetCell) throw new Error('No target cell')
-    latest.setCellEffect(targetCell.id, 'flash', { imagePath: dataUrl })
+    latest.setCellEffect(targetCell.id, 'flash', { imagePath: dataUrl, vectorPresetId: null })
     latest.setFlashRangePicking(false)
   } catch {
     const latest = useAppStore.getState()

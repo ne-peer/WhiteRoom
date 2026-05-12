@@ -128,6 +128,10 @@ export type FlashStartTransition = SlideShowTransition
 export type FlashEffect = {
   enabled: boolean
   imagePath: string | null
+  /** 非 null かつ対応プリセットのときは imagePath よりベクターアセットをフラッシュ表示に使用 */
+  vectorPresetId: string | null
+  /** 表示テクスチャの基準サイズに対する倍率（0.1–3.0） */
+  scaleRatio: number
   opacity: number
   surroundingTransparency: number
   innerRadius: number

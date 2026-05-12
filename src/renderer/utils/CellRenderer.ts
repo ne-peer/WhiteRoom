@@ -7,7 +7,11 @@ import {
   ParticleSystem,
   TextSystem,
 } from './pixiEffects'
-import { isBuiltinVectorDynamicAssetPreset } from './vectorStampRegistry'
+import {
+  BUILTIN_VECTOR_FLASH_RASTER_GEOMETRY_SCALE,
+  isBuiltinVectorDynamicAssetPreset,
+  createVectorDynamicAssetDisplay,
+} from './vectorStampRegistry'
 import { createFlashRadialFadeFilter, setFlashRadialFadeUniforms } from './flashRadialFadeFilter'
 
 type SquishOrganicShape = {
@@ -53,6 +57,7 @@ export class CellRenderer {
   private squishBlurFilter: PIXI.BlurFilter | null = null
   private echoSprite: PIXI.Sprite | null = null
   private flashOverlaySprite: PIXI.Sprite | null = null
+  private flashOwnedTexture: PIXI.Texture | null = null
   private flashOverlayVisible = false
   private flashElapsedSec = 0
   private flashCycleDurationSec = 0
@@ -227,7 +232,7 @@ export class CellRenderer {
   private storyboardScale: number | null = null
   private storyboardScaleActive = false
 
-  constructor(cellId: string, width: number, height: number, renderer: PIXI.Renderer) {
+  constructor(cellId: string, width: number, height: number, private readonly pixiRenderer: PIXI.Renderer) {
     this.cellId = cellId
     this.width = width
     this.height = height
@@ -295,7 +300,7 @@ export class CellRenderer {
 
     this.fogLayer.addChild(this.fogBlobContainer)
 
-    this.particleSystem = new ParticleSystem(this.particleContainer, renderer)
+    this.particleSystem = new ParticleSystem(this.particleContainer, this.pixiRenderer)
     this.textSystem = new TextSystem(this.textLayer)
     this.textSystem.resizeMask(width, height)
   }
@@ -2186,6 +2191,27 @@ export class CellRenderer {
     }
   }
 
+  private createFlashVectorTexture(presetId: string): PIXI.Texture | null {
+    const holder = createVectorDynamicAssetDisplay(
+      presetId,
+      0xffffff,
+      BUILTIN_VECTOR_FLASH_RASTER_GEOMETRY_SCALE,
+    )
+    if (!holder) return null
+    try {
+      const canvas = this.pixiRenderer.extract.canvas({
+        target: holder,
+        clearColor: [0, 0, 0, 0],
+        antialias: true,
+      }) as HTMLCanvasElement
+      holder.destroy({ children: true })
+      return PIXI.Texture.from(canvas)
+    } catch {
+      holder.destroy({ children: true })
+      return null
+    }
+  }
+
   private async updateFlash(effects: CellEffects) {
     const flash = effects.flash
     this.flashOverlayEffect = flash
@@ -2196,17 +2222,51 @@ export class CellRenderer {
       Math.max(0, flash.endTransitionDurationSec ?? 0) +
       Math.max(0, flash.intervalSec ?? 0)
     )
-    if (!flash.enabled || !flash.imagePath) {
+
+    const vectorId =
+      flash.vectorPresetId && isBuiltinVectorDynamicAssetPreset(flash.vectorPresetId)
+        ? flash.vectorPresetId
+        : null
+    const hasRaster = Boolean(flash.imagePath)
+    if (!flash.enabled || (!vectorId && !hasRaster)) {
       this.clearFlashOverlay()
       return
     }
 
-    const textureKey = toFileUrl(flash.imagePath)
+    const textureKey = vectorId ? `vector:${vectorId}` : toFileUrl(flash.imagePath!)
+
     if (this.flashTextureKey !== textureKey || !this.flashOverlaySprite) {
       const nonce = ++this.flashTextureRequestNonce
       this.flashTextureLoadingKey = textureKey
+
+      if (vectorId) {
+        try {
+          if (this.flashOwnedTexture) {
+            this.flashOwnedTexture.destroy(true)
+            this.flashOwnedTexture = null
+          }
+          const texture = this.createFlashVectorTexture(vectorId)
+          if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) {
+            texture?.destroy(true)
+            return
+          }
+          if (!texture) return
+          this.flashOwnedTexture = texture
+          this.ensureFlashOverlaySprite(texture)
+          this.flashTextureKey = textureKey
+          this.flashElapsedSec = 0
+        } catch {
+          // ignore
+        }
+        return
+      }
+
       try {
-        const loadableUrl = await toLoadableImageUrl(textureKey)
+        if (this.flashOwnedTexture) {
+          this.flashOwnedTexture.destroy(true)
+          this.flashOwnedTexture = null
+        }
+        const loadableUrl = await toLoadableImageUrl(toFileUrl(flash.imagePath!))
         if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) return
         const texture = await PIXI.Assets.load(loadableUrl)
         if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) return
@@ -2219,6 +2279,7 @@ export class CellRenderer {
       return
     }
     this.applyFlashRadialFadeFilter()
+    this.positionFlashOverlaySprite()
   }
 
   private ensureFlashOverlaySprite(texture: PIXI.Texture) {
@@ -2265,7 +2326,8 @@ export class CellRenderer {
     if (!this.flashOverlaySprite) return
     const texW = this.flashOverlaySprite.texture.width
     const texH = this.flashOverlaySprite.texture.height
-    const scale = this.getImageScale(texW, texH) * scaleMultiplier
+    const ratio = clamp(this.flashOverlayEffect?.scaleRatio ?? 1, 0.1, 3)
+    const scale = this.getImageScale(texW, texH) * scaleMultiplier * ratio
     this.flashOverlaySprite.scale.set(scale)
     this.flashOverlaySprite.x = this.width / 2 + offsetX
     this.flashOverlaySprite.y = this.height / 2 + offsetY
@@ -2282,7 +2344,13 @@ export class CellRenderer {
 
   private updateFlashCycle(delta: number) {
     const flash = this.flashOverlayEffect
-    if (!flash?.enabled || !flash.imagePath || !this.flashOverlaySprite) return
+    if (!flash) return
+    const vectorId =
+      flash.vectorPresetId && isBuiltinVectorDynamicAssetPreset(flash.vectorPresetId)
+        ? flash.vectorPresetId
+        : null
+    const hasRaster = Boolean(flash.imagePath)
+    if (!flash?.enabled || (!vectorId && !hasRaster) || !this.flashOverlaySprite) return
     const dtSec = Math.max(0, delta) / 60
     this.flashElapsedSec += dtSec
     while (this.flashElapsedSec >= this.flashCycleDurationSec) {
@@ -2456,6 +2524,10 @@ export class CellRenderer {
       this.overlayLayer.removeChild(this.flashOverlaySprite)
       this.flashOverlaySprite.destroy({ texture: false })
       this.flashOverlaySprite = null
+    }
+    if (this.flashOwnedTexture) {
+      this.flashOwnedTexture.destroy(true)
+      this.flashOwnedTexture = null
     }
     if (this.flashRadialFadeFilter) {
       this.flashRadialFadeFilter.destroy()
