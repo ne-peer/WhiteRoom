@@ -530,7 +530,8 @@ function applyAssetAdditionalEffect(
   speedFactor: number,
   elapsedMs: number
 ) {
-  const cycle = ((elapsedMs * clamp(speedFactor, 0.1, 5)) % 1200) / 1200
+  const effectiveSpeedFactor = clamp(speedFactor, 0.1, 5) * (effect === 'wiggle' ? 0.5 : 1)
+  const cycle = ((elapsedMs * effectiveSpeedFactor) % 1200) / 1200
   visual.x = particle.x
   visual.y = particle.y
   visual.rotation = particle.rotationRad
@@ -541,8 +542,10 @@ function applyAssetAdditionalEffect(
     visual.y += oscillateEased(cycle, easeInOutSine) * 8
   } else if (effect === 'wiggle') {
     const wave = Math.sin(cycle * Math.PI * 2)
-    visual.rotation += wave * (Math.PI / 24)
-    visual.x += wave * 8
+    const rotationOffset = wave * (Math.PI / 24)
+    const riseSpeedDistanceScale = particle.baseScale === undefined ? particle.vy / 4 : 0
+    visual.rotation += rotationOffset
+    visual.x += wave * 8 + Math.sin(rotationOffset) * 160 * riseSpeedDistanceScale
   }
 }
 
