@@ -690,6 +690,19 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     ? t('assetEffectPresetSelectPlaceholder')
     : t('assetEffectPresetNoFolders')
   const assetEffectFolderLabel = language === 'ja' ? 'プリセットアセット' : 'Preset asset'
+  const dynamicAssetPattern = effects.dynamicAsset.pattern ?? 'rising'
+  const visibleDynamicAssetAdditionalEffect =
+    dynamicAssetPattern !== 'emergence' && effects.dynamicAsset.additionalEffect === 'bounce'
+      ? 'none'
+      : effects.dynamicAsset.additionalEffect ?? 'none'
+  const dynamicAssetAdditionalEffectOptions = [
+    { value: 'none', label: t('assetAdditionalEffectNone') },
+    { value: 'jiggle', label: t('assetAdditionalEffectJiggle') },
+    ...(dynamicAssetPattern === 'emergence'
+      ? [{ value: 'bounce', label: t('assetAdditionalEffectBounce') }]
+      : []),
+    { value: 'wiggle', label: t('assetAdditionalEffectWiggle') },
+  ]
 
   return (
     <div>
@@ -1676,12 +1689,44 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             )}
             <Row label={t('assetDrawPattern')}>
               <Select
-                value={effects.dynamicAsset.pattern ?? 'rising'}
+                value={dynamicAssetPattern}
                 options={[
                   { value: 'rising', label: t('assetPatternRising') },
                   { value: 'emergence', label: t('assetPatternEmergence') },
                 ]}
-                onChange={v => set('dynamicAsset', { pattern: v as import('../../../shared/types').AssetDrawPattern })}
+                onChange={v =>
+                  set('dynamicAsset', {
+                    pattern: v as import('../../../shared/types').AssetDrawPattern,
+                    ...(
+                      v !== 'emergence' && effects.dynamicAsset.additionalEffect === 'bounce'
+                        ? { additionalEffect: 'none' as DynamicAssetAdditionalEffect }
+                        : {}
+                    ),
+                  })}
+              />
+            </Row>
+            <Row label={t('assetAdditionalEffect')}>
+              <Select
+                value={visibleDynamicAssetAdditionalEffect}
+                options={dynamicAssetAdditionalEffectOptions}
+                onChange={v => set('dynamicAsset', { additionalEffect: v as DynamicAssetAdditionalEffect })}
+              />
+            </Row>
+            {visibleDynamicAssetAdditionalEffect !== 'none' && (
+              <Row label={t('assetAdditionalEffectSpeedFactor')}>
+                <Slider
+                  value={effects.dynamicAsset.additionalEffectSpeedFactor ?? 1}
+                  min={0.1}
+                  max={5}
+                  step={0.1}
+                  onChange={v => set('dynamicAsset', { additionalEffectSpeedFactor: v })}
+                />
+              </Row>
+            )}
+            <Row label={t('assetRandomRotation')}>
+              <Toggle
+                value={effects.dynamicAsset.randomRotationEnabled ?? false}
+                onChange={v => set('dynamicAsset', { randomRotationEnabled: v })}
               />
             </Row>
             <Row label={t('spawnInterval')}>
@@ -1694,7 +1739,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('dynamicAsset', { spawnIntervalMs: v * 1000 })}
               />
             </Row>
-            {(effects.dynamicAsset.pattern ?? 'rising') === 'rising' && (
+            {dynamicAssetPattern === 'rising' && (
               <>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', margin: '8px 0 10px' }}>
                   {t('riseSpeedHelp')}
@@ -1737,36 +1782,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 unit="%"
               />
             </Row>
-            <Row label={t('assetAdditionalEffect')}>
-              <Select
-                value={effects.dynamicAsset.additionalEffect ?? 'none'}
-                options={[
-                  { value: 'none', label: t('assetAdditionalEffectNone') },
-                  { value: 'jiggle', label: t('assetAdditionalEffectJiggle') },
-                  { value: 'bounce', label: t('assetAdditionalEffectBounce') },
-                  { value: 'wiggle', label: t('assetAdditionalEffectWiggle') },
-                ]}
-                onChange={v => set('dynamicAsset', { additionalEffect: v as DynamicAssetAdditionalEffect })}
-              />
-            </Row>
-            {(effects.dynamicAsset.additionalEffect ?? 'none') !== 'none' && (
-              <Row label={t('assetAdditionalEffectSpeedFactor')}>
-                <Slider
-                  value={effects.dynamicAsset.additionalEffectSpeedFactor ?? 1}
-                  min={0.1}
-                  max={5}
-                  step={0.1}
-                  onChange={v => set('dynamicAsset', { additionalEffectSpeedFactor: v })}
-                />
-              </Row>
-            )}
-            <Row label={t('assetRandomRotation')}>
-              <Toggle
-                value={effects.dynamicAsset.randomRotationEnabled ?? false}
-                onChange={v => set('dynamicAsset', { randomRotationEnabled: v })}
-              />
-            </Row>
-            {(effects.dynamicAsset.pattern ?? 'rising') === 'emergence' && (
+            {dynamicAssetPattern === 'emergence' && (
               <Row label={t('emergenceSpeedFactor')}>
                 <Slider
                   value={effects.dynamicAsset.emergenceSpeedFactor ?? 1.0}
