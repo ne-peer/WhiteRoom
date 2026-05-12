@@ -7,6 +7,7 @@ import {
   type AssetEffectFolder,
   type Cell,
   type CellEffects,
+  type DynamicAssetAdditionalEffect,
 } from '../../../shared/types'
 
 const FALLBACK_FONT_OPTIONS = ['Meiryo', 'BIZ UDPGothic', 'Yu Gothic', 'MS PGothic']
@@ -195,6 +196,9 @@ const EFFECT_PRESET_1: CellEffects = {
     baseAlpha: 1,
     alphaTimerSync: false,
     emergenceSpeedFactor: 1,
+    additionalEffect: 'none',
+    additionalEffectSpeedFactor: 1,
+    randomRotationEnabled: false,
     colorOverlayEnabled: false,
     colorOverlayColor: { r: 255, g: 15, b: 91 },
     colorOverlayAlpha: 0.5,
@@ -402,6 +406,9 @@ const EFFECT_PRESET_2: CellEffects = {
     baseAlpha: 1,
     alphaTimerSync: false,
     emergenceSpeedFactor: 1,
+    additionalEffect: 'none',
+    additionalEffectSpeedFactor: 1,
+    randomRotationEnabled: false,
     colorOverlayEnabled: false,
     colorOverlayColor: { r: 255, g: 15, b: 91 },
     colorOverlayAlpha: 0.5,
@@ -1608,6 +1615,43 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={handleSelectAssetEffectSource}
               />
             </Row>
+            <Row label={t('assetColor')}>
+              <Toggle
+                value={effects.dynamicAsset.colorOverlayEnabled}
+                onChange={v =>
+                  set('dynamicAsset', {
+                    colorOverlayEnabled: v,
+                    ...(v ? {} : { colorOverlayAlphaRandomEnabled: false }),
+                  })}
+              />
+            </Row>
+            {effects.dynamicAsset.colorOverlayEnabled && (
+              <>
+                <ColorPicker
+                  r={effects.dynamicAsset.colorOverlayColor.r}
+                  g={effects.dynamicAsset.colorOverlayColor.g}
+                  b={effects.dynamicAsset.colorOverlayColor.b}
+                  onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
+                />
+                <Row label={t('assetColorApplyRandom')}>
+                  <Toggle
+                    value={effects.dynamicAsset.colorOverlayAlphaRandomEnabled ?? false}
+                    onChange={v => set('dynamicAsset', { colorOverlayAlphaRandomEnabled: v })}
+                  />
+                </Row>
+                {!effects.dynamicAsset.colorOverlayAlphaRandomEnabled && (
+                  <Row label={t('assetColorOpacity')}>
+                    <Slider
+                      value={Math.round(effects.dynamicAsset.colorOverlayAlpha * 100)}
+                      min={0}
+                      max={100}
+                      onChange={v => set('dynamicAsset', { colorOverlayAlpha: v / 100 })}
+                      unit="%"
+                    />
+                  </Row>
+                )}
+              </>
+            )}
             <div style={{ marginBottom: 8 }}>
               <Button variant="secondary" onClick={handleOpenAsset}>
                 {t('selectAssetImage')}
@@ -1693,6 +1737,35 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 unit="%"
               />
             </Row>
+            <Row label={t('assetAdditionalEffect')}>
+              <Select
+                value={effects.dynamicAsset.additionalEffect ?? 'none'}
+                options={[
+                  { value: 'none', label: t('assetAdditionalEffectNone') },
+                  { value: 'jiggle', label: t('assetAdditionalEffectJiggle') },
+                  { value: 'bounce', label: t('assetAdditionalEffectBounce') },
+                  { value: 'wiggle', label: t('assetAdditionalEffectWiggle') },
+                ]}
+                onChange={v => set('dynamicAsset', { additionalEffect: v as DynamicAssetAdditionalEffect })}
+              />
+            </Row>
+            {(effects.dynamicAsset.additionalEffect ?? 'none') !== 'none' && (
+              <Row label={t('assetAdditionalEffectSpeedFactor')}>
+                <Slider
+                  value={effects.dynamicAsset.additionalEffectSpeedFactor ?? 1}
+                  min={0.1}
+                  max={5}
+                  step={0.1}
+                  onChange={v => set('dynamicAsset', { additionalEffectSpeedFactor: v })}
+                />
+              </Row>
+            )}
+            <Row label={t('assetRandomRotation')}>
+              <Toggle
+                value={effects.dynamicAsset.randomRotationEnabled ?? false}
+                onChange={v => set('dynamicAsset', { randomRotationEnabled: v })}
+              />
+            </Row>
             {(effects.dynamicAsset.pattern ?? 'rising') === 'emergence' && (
               <Row label={t('emergenceSpeedFactor')}>
                 <Slider
@@ -1703,43 +1776,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   onChange={v => set('dynamicAsset', { emergenceSpeedFactor: v })}
                 />
               </Row>
-            )}
-            <Row label={t('assetColor')}>
-              <Toggle
-                value={effects.dynamicAsset.colorOverlayEnabled}
-                onChange={v =>
-                  set('dynamicAsset', {
-                    colorOverlayEnabled: v,
-                    ...(v ? {} : { colorOverlayAlphaRandomEnabled: false }),
-                  })}
-              />
-            </Row>
-            {effects.dynamicAsset.colorOverlayEnabled && (
-              <>
-                <ColorPicker
-                  r={effects.dynamicAsset.colorOverlayColor.r}
-                  g={effects.dynamicAsset.colorOverlayColor.g}
-                  b={effects.dynamicAsset.colorOverlayColor.b}
-                  onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
-                />
-                <Row label={t('assetColorApplyRandom')}>
-                  <Toggle
-                    value={effects.dynamicAsset.colorOverlayAlphaRandomEnabled ?? false}
-                    onChange={v => set('dynamicAsset', { colorOverlayAlphaRandomEnabled: v })}
-                  />
-                </Row>
-                {!effects.dynamicAsset.colorOverlayAlphaRandomEnabled && (
-                  <Row label={t('opacity')}>
-                    <Slider
-                      value={Math.round(effects.dynamicAsset.colorOverlayAlpha * 100)}
-                      min={0}
-                      max={100}
-                      onChange={v => set('dynamicAsset', { colorOverlayAlpha: v / 100 })}
-                      unit="%"
-                    />
-                  </Row>
-                )}
-              </>
             )}
             <div style={{ marginTop: 8 }}>
               <Row label={t('timerSync')}>

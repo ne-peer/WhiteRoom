@@ -8,7 +8,7 @@ export function isBuiltinVectorDynamicAssetPreset(id: string | null | undefined)
 const PARTICLE_HEART_UNIT = 96
 
 /**
- * 動的アセット用。子 `Graphics` の pivot を形状中心に合わせた `Container` を返す。
+ * 動的アセット用。親 `Container` の原点が回転・移動の基点になるよう描画した `Container` を返す。
  */
 export function createVectorDynamicAssetDisplay(
   presetId: string,
@@ -19,10 +19,13 @@ export function createVectorDynamicAssetDisplay(
   const g = new PIXI.Graphics()
   const size = PARTICLE_HEART_UNIT
   const x = 0
-  const y = -size * 0.35
+  const y = 0
   drawHeartBezierTopLeft(g, x, y, size, 0xffffff, 0xffccd5, Math.max(1, size * 0.012))
-  const b = g.getLocalBounds()
-  g.pivot.set(b.x + b.width / 2, b.y + b.height / 2)
+  const bounds = g.getLocalBounds()
+  g.position.set(
+    -(bounds.x + bounds.width / 2),
+    -(bounds.y + bounds.height * 0.42),
+  )
   holder.addChild(g)
   holder.tint = overlayTint
   return holder

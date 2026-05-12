@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { CellEffects, AssetParticle, TextEffect } from '../../shared/types'
+import type { CellEffects, AssetParticle, DynamicAssetAdditionalEffect, TextEffect } from '../../shared/types'
 import { createVectorDynamicAssetDisplay } from './vectorStampRegistry'
 
 // ===== ビネットテクスチャ生成 =====
@@ -147,6 +147,7 @@ export class ParticleSystem {
         const speedFactor = clamp(effects.dynamicAsset.emergenceSpeedFactor ?? 1.0, 0.1, 5.0)
         const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
         const baseScale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
+        const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
         const p: AssetParticle = {
           id: `p-${nowMs}-${Math.random()}`,
           assetPath: effects.dynamicAsset.assetPath ?? '',
@@ -156,6 +157,7 @@ export class ParticleSystem {
           vy: 0,
           startTime: nowMs,
           particleTint,
+          rotationRad,
           baseScale,
           phase1DurationMs: EMERGENCE_PHASE1_MS / speedFactor,
           phase2DurationMs: EMERGENCE_PHASE2_MS / speedFactor,
@@ -168,6 +170,7 @@ export class ParticleSystem {
             holder.x = p.x
             holder.y = p.y
             holder.alpha = 0
+            holder.rotation = p.rotationRad
             holder.scale.set(0)
             this.container.addChild(holder)
             this.vectorHolders.set(p.id, holder)
@@ -180,6 +183,7 @@ export class ParticleSystem {
           sprite.x = p.x
           sprite.y = p.y
           sprite.alpha = 0
+          sprite.rotation = p.rotationRad
           sprite.scale.set(0)
           sprite.tint = particleTint
           this.container.addChild(sprite)
@@ -189,6 +193,7 @@ export class ParticleSystem {
         // 上昇パターン: 表示サイズ × 設定された ±% 範囲
         const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
         const scale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
+        const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
         const p: AssetParticle = {
           id: `p-${nowMs}-${Math.random()}`,
           assetPath: effects.dynamicAsset.assetPath ?? '',
@@ -198,6 +203,7 @@ export class ParticleSystem {
           vy: randomRiseSpeed(),
           startTime: nowMs,
           particleTint,
+          rotationRad,
         }
         this.particles.push(p)
 
@@ -207,6 +213,7 @@ export class ParticleSystem {
             holder.x = p.x
             holder.y = p.y
             holder.alpha = p.alpha
+            holder.rotation = p.rotationRad
             holder.scale.set(scale)
             this.container.addChild(holder)
             this.vectorHolders.set(p.id, holder)
@@ -219,6 +226,7 @@ export class ParticleSystem {
           sprite.x = p.x
           sprite.y = p.y
           sprite.alpha = p.alpha
+          sprite.rotation = p.rotationRad
           sprite.scale.set(scale)
           sprite.tint = particleTint
           this.container.addChild(sprite)
@@ -261,6 +269,13 @@ export class ParticleSystem {
             visual.scale.set(p.baseScale * (1.0 + t * 0.15))
             visual.alpha = p.alpha * (1.0 - t)
           }
+          applyAssetAdditionalEffect(
+            visual,
+            p,
+            effects.dynamicAsset.additionalEffect ?? 'none',
+            effects.dynamicAsset.additionalEffectSpeedFactor ?? 1,
+            elapsed
+          )
           if (sprite) sprite.tint = p.particleTint
           else if (holder) holder.tint = p.particleTint
         }
@@ -270,8 +285,14 @@ export class ParticleSystem {
         p.alpha -= 0.004 * delta
 
         if (visual) {
-          visual.y = p.y
           visual.alpha = Math.max(0, p.alpha)
+          applyAssetAdditionalEffect(
+            visual,
+            p,
+            effects.dynamicAsset.additionalEffect ?? 'none',
+            effects.dynamicAsset.additionalEffectSpeedFactor ?? 1,
+            nowMs - p.startTime
+          )
           if (sprite) sprite.tint = p.particleTint
           else if (holder) holder.tint = p.particleTint
         }
@@ -495,6 +516,43 @@ function sampleParticleTint(effects: CellEffects): number {
   }
   if (da.colorOverlayAlpha <= 0) return 0xffffff
   return tintFromAssetColorOverlay(da.colorOverlayColor, da.colorOverlayAlpha)
+}
+
+function sampleAssetRotationRad(enabled: boolean): number {
+  if (!enabled) return 0
+  return (Math.random() * 2 - 1) * (Math.PI / 4)
+}
+
+function applyAssetAdditionalEffect(
+  visual: PIXI.Container,
+  particle: AssetParticle,
+  effect: DynamicAssetAdditionalEffect,
+  speedFactor: number,
+  elapsedMs: number
+) {
+  const cycle = ((elapsedMs * clamp(speedFactor, 0.1, 5)) % 1200) / 1200
+  visual.x = particle.x
+  visual.y = particle.y
+  visual.rotation = particle.rotationRad
+
+  if (effect === 'jiggle') {
+    visual.rotation += Math.sin(easeInOutSine(cycle) * Math.PI * 6) * (Math.PI / 18)
+  } else if (effect === 'bounce') {
+    visual.y += oscillateEased(cycle, easeInOutSine) * 8
+  } else if (effect === 'wiggle') {
+    const wave = Math.sin(cycle * Math.PI * 2)
+    visual.rotation += wave * (Math.PI / 24)
+    visual.x += wave * 8
+  }
+}
+
+function oscillateEased(cycle: number, ease: (x: number) => number): number {
+  const t = cycle < 0.5 ? ease(cycle * 2) : 1 - ease((cycle - 0.5) * 2)
+  return -1 + t * 2
+}
+
+function easeInOutSine(x: number): number {
+  return -(Math.cos(Math.PI * x) - 1) / 2
 }
 
 function sampleAssetSizeRandomMultiplier(sizeRandomPercent: number): number {

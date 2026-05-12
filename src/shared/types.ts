@@ -236,6 +236,7 @@ export type FogEffect = {
 }
 
 export type AssetDrawPattern = 'rising' | 'emergence'
+export type DynamicAssetAdditionalEffect = 'none' | 'jiggle' | 'bounce' | 'wiggle'
 
 /** 同梱ベクター・プリセット ID（プロファイルにパスを書かない） */
 export const DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART = 'builtin.heart.v1' as const
@@ -252,6 +253,7 @@ export type AssetParticle = {
   startTime: number
   /** スポーン時に固定（アセット色・ランダム適用度をパーティクル存続中も一定に保つ） */
   particleTint: number
+  rotationRad: number
   // emergenceパターン用フィールド
   baseScale?: number
   phase1DurationMs?: number
@@ -277,6 +279,9 @@ export type DynamicAssetEffect = {
   baseAlpha: number          // 初期透明度 0.0 - 1.0
   alphaTimerSync: boolean    // タイマー同期（透明度をタイマー進捗に比例して適用）
   emergenceSpeedFactor: number  // 発生パターンの速度係数 0.1 - 5.0 (1.0 = 標準)
+  additionalEffect: DynamicAssetAdditionalEffect
+  additionalEffectSpeedFactor: number
+  randomRotationEnabled: boolean
   colorOverlayEnabled: boolean
   colorOverlayColor: { r: number; g: number; b: number }
   colorOverlayAlpha: number
