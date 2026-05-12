@@ -1,5 +1,5 @@
 Created: 2026-05-12
-Last Updated: 2026-05-12
+Last Updated: 2026-05-12 (rev 2)
 
 # WhiteRoom Stash Specification
 
@@ -74,18 +74,19 @@ A draggable float window, styled similar to the Storyboard panel.
 - Position: **fixed top-left** (`left: 8px; top: 8px`), not draggable.
 - Color: yellow-based (`rgba(245, 158, 11, ...)` border and background).
 - After **3 seconds** of being collapsed, the icon fades to near-invisible opacity (`0.13`). Hovering restores full opacity instantly.
-- Clicking or hovering the icon re-expands the window.
+- **Hovering** the icon re-expands the window (no click required).
 
 ### Stash Row Layout
 
 Each row follows the structure:
 
 ```
-[label button]  [POP]  [×]
+[label button]  [×]
 ```
 
 - **Minimum rows displayed**: 3.
 - **Maximum stash count**: 15.
+- **Panel width**: 180 px.
 
 #### Label Button (empty state)
 
@@ -98,17 +99,15 @@ Each row follows the structure:
 - Text: `{emoji} スタッシュ` (e.g., `🍉 スタッシュ`)
 - Text color, border color: the stash's accent color
 - Left border of the row: the stash's accent color
-
-#### POP Button
-
-- Disabled when the slot is empty.
-- On click: shows a confirmation dialog → calls `popStash(index)`.
+- On hover: text changes to `取り出す` (blue highlight)
+- **Long press (0.4 s)**: restores state without confirmation dialog; a horizontal progress bar animates inside the button during the hold. Releasing before 0.4 s cancels the action.
 - After pop: if `textReaderFilePath` is non-null, attempts to reopen the file via `api.openTextFileDirect(path)` and restores `textReaderPageIndex`.
 
 #### × (Delete) Button
 
 - Disabled when the slot is empty.
-- On click: shows a confirmation dialog → calls `deleteStash(index)`.
+- Tooltip: `長押しで削除`
+- **Long press (0.4 s)**: deletes the stash without confirmation dialog; a circular SVG progress ring animates inside the button during the hold. Releasing before 0.4 s cancels the action.
 - Rows compact upward after deletion.
 - Rows added by the [+] button (beyond the minimum 3) are removed when their slot becomes empty due to deletion.
 - Deleting a slot does not reduce displayed rows below 3.
@@ -118,6 +117,7 @@ Each row follows the structure:
 - Displayed below the last row, center-aligned.
 - Adds one empty slot.
 - Hidden when slot count reaches 15.
+- **Disabled** while any slot in the current view is empty (i.e., `stashes.length < stashSlotCount`). Tooltip explains the condition.
 
 ---
 
@@ -132,19 +132,21 @@ Each row follows the structure:
 
 ### POP (設定を復元)
 
-1. Show `confirm(t('stashPopConfirm'))`.
-2. If confirmed, restore state via `popStash(index)`:
+Triggered by **0.4 s long press** on the label button of a filled slot. No confirmation dialog is shown.
+
+1. Restore state via `popStash(index)`:
    - `blankColor`, `blankBackground`, `grid`, `cells`, `timer` are fully restored (with the same defaults-merge pattern used by `importProfile`).
    - `textReader.config` is restored (merged with `DEFAULT_TEXT_READER_CONFIG`).
-3. If `textReaderFilePath` is non-null, call `api.openTextFileDirect(path)` and load the file via `store.loadTextReaderFile`. If the file no longer exists, silently skip.
-4. The stash slot **remains** in the list after POP (it is not consumed).
+2. If `textReaderFilePath` is non-null, call `api.openTextFileDirect(path)` and load the file via `store.loadTextReaderFile`. If the file no longer exists, silently skip.
+3. The stash slot **remains** in the list after POP (it is not consumed).
 
 ### Delete (スタッシュを削除)
 
-1. Show `confirm(t('stashDeleteConfirm'))`.
-2. If confirmed, call `deleteStash(index)`.
-3. Stash entries above the deleted slot shift down to fill the gap.
-4. `stashSlotCount` is adjusted: if remaining stashes ≥ 3, slot count = stash count; otherwise slot count stays at 3.
+Triggered by **0.4 s long press** on the × button of a filled slot. No confirmation dialog is shown.
+
+1. Call `deleteStash(index)`.
+2. Stash entries above the deleted slot shift down to fill the gap.
+3. `stashSlotCount` is adjusted: if remaining stashes ≥ 3, slot count = stash count; otherwise slot count stays at 3.
 
 ---
 
