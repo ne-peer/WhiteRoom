@@ -8,6 +8,7 @@ import type {
   StashItem, IpcApi,
 } from '../../shared/types'
 import { parseTextFile, insertOrReplaceTagBefore, insertTagAtCharPosition, insertOrReplaceReadConfigAtTop, resolveStoryboardImageReference } from '../utils/storyboardParser'
+import { getTimerCompletionElapsed } from '../utils/timerProgress'
 
 // ===== デフォルト値 =====
 
@@ -1086,13 +1087,22 @@ export const useAppStore = create<AppStore>()(
 
     // ===== タイマー =====
 
-    setTimer: (config) => set(s => { Object.assign(s.timer, config) }),
+    setTimer: (config) => set(s => {
+      Object.assign(s.timer, config)
+      if (s.timer.partial.enabled) {
+        if (s.timer.partial.startSec > s.timer.totalSec) {
+          s.timer.partial.startSec = s.timer.totalSec
+        }
+        const maxEndSec = Math.max(0, s.timer.partial.startSec - 1)
+        if (s.timer.partial.endSec > maxEndSec) {
+          s.timer.partial.endSec = maxEndSec
+        }
+      }
+    }),
 
     tickTimer: () => set(s => {
-      if (!s.timer.running || s.timer.elapsedSec >= s.timer.totalSec) return
-      const completionElapsed = s.timer.partial.enabled && s.timer.partial.endSec > 0
-        ? Math.max(0, s.timer.totalSec - s.timer.partial.endSec)
-        : s.timer.totalSec
+      const completionElapsed = getTimerCompletionElapsed(s.timer)
+      if (!s.timer.running || s.timer.elapsedSec >= completionElapsed) return
       s.timer.elapsedSec = Math.min(s.timer.elapsedSec + 1, completionElapsed)
       if (s.timer.elapsedSec >= completionElapsed) {
         s.timer.running = false

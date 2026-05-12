@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../stores/appStore'
+import { getTimerCompletionElapsed } from '../../utils/timerProgress'
 import styles from './TimerPreOverlay.module.css'
 
 function toFileUrl(filePath: string): string {
@@ -20,12 +21,13 @@ export const TimerPreOverlay: React.FC = () => {
   const hideTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
+    const completionElapsed = getTimerCompletionElapsed(timer)
     const endedNow =
       timer.enabled &&
       wasRunningRef.current &&
       !timer.running &&
       timer.totalSec > 0 &&
-      timer.elapsedSec >= timer.totalSec
+      timer.elapsedSec >= completionElapsed
 
     wasRunningRef.current = timer.running
 
@@ -52,7 +54,17 @@ export const TimerPreOverlay: React.FC = () => {
         }, POST_END_FADE_MS)
       }, POST_END_HOLD_MS)
     }
-  }, [timer.enabled, timer.running, timer.elapsedSec, timer.totalSec, preOverlay.enabled, preOverlay.imagePath])
+  }, [
+    timer.enabled,
+    timer.running,
+    timer.elapsedSec,
+    timer.totalSec,
+    timer.partial.enabled,
+    timer.partial.startSec,
+    timer.partial.endSec,
+    preOverlay.enabled,
+    preOverlay.imagePath,
+  ])
 
   useEffect(() => {
     return () => {
@@ -75,8 +87,9 @@ export const TimerPreOverlay: React.FC = () => {
     )
   }
 
-  const remainingSec = Math.max(0, timer.totalSec - timer.elapsedSec)
-  const isTimerCompleted = timer.elapsedSec >= timer.totalSec && timer.elapsedSec > 0
+  const completionElapsed = getTimerCompletionElapsed(timer)
+  const remainingSec = Math.max(0, completionElapsed - timer.elapsedSec)
+  const isTimerCompleted = timer.elapsedSec >= completionElapsed && timer.elapsedSec > 0
   const isInPrePeriod = timer.enabled && !isTimerCompleted && remainingSec <= preOverlay.displayStartSec && timer.elapsedSec > 0
 
   if (!isInPrePeriod) return null

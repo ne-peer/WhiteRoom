@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useTimer } from '../../hooks/useTimer'
 import { useTranslation } from '../../i18n'
+import { getTimerCompletionElapsed } from '../../utils/timerProgress'
 import type { TimerPosition } from '../../../shared/types'
 import styles from './TimerOverlay.module.css'
 
@@ -32,8 +33,9 @@ export const TimerOverlay: React.FC = () => {
   if (!timer.enabled) return null
 
   const posStyle = positionStyles[timer.position]
-  const remaining = timer.totalSec - timer.elapsedSec
-  const isEnded = !timer.running && timer.elapsedSec >= timer.totalSec && timer.elapsedSec > 0
+  const completionElapsed = getTimerCompletionElapsed(timer)
+  const remaining = Math.max(0, completionElapsed - timer.elapsedSec)
+  const isEnded = !timer.running && timer.elapsedSec >= completionElapsed && timer.elapsedSec > 0
 
   const handleBtnClick = isEnded ? reset : (timer.running ? pause : start)
   const btnLabel = isEnded ? t('reset') : (timer.running ? t('pause') : t('start'))

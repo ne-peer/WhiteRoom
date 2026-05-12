@@ -4,6 +4,7 @@ import { useTimer } from '../../hooks/useTimer'
 import { Section, Row, Toggle, NumberInput, Select, Button, ColorPicker, Slider } from '../controls/UIKit'
 import { useTranslation } from '../../i18n'
 import type { TimerPosition } from '../../../shared/types'
+import { getTimerCompletionElapsed } from '../../utils/timerProgress'
 
 function getApi() {
   return (window as unknown as { api: import('../../../shared/types').IpcApi }).api
@@ -23,7 +24,7 @@ const POSITION_OPTIONS: { value: TimerPosition; labelKey: 'topLeft' | 'topCenter
 
 export const TimerControls: React.FC = () => {
   const { setTimer, selectedCellId, enableAllTimerSyncForSelectedCell, disableAllTimerSyncForSelectedCell } = useAppStore()
-  const { timer, start, pause, reset } = useTimer()
+  const { timer, start, pause, reset, progress } = useTimer()
   const { t } = useTranslation()
   const [showPartial, setShowPartial] = useState(false)
 
@@ -129,13 +130,13 @@ export const TimerControls: React.FC = () => {
                 }}
               >
                 <span>{t('elapsed')}: {formatTime(timer.elapsedSec)}</span>
-                <span>{t('remaining')}: {formatTime(timer.totalSec - timer.elapsedSec)}</span>
+                <span>{t('remaining')}: {formatTime(Math.max(0, getTimerCompletionElapsed(timer) - timer.elapsedSec))}</span>
               </div>
               <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
                 <div
                   style={{
                     height: '100%',
-                    width: `${timer.totalSec > 0 ? (timer.elapsedSec / timer.totalSec) * 100 : 0}%`,
+                    width: `${progress * 100}%`,
                     background: 'linear-gradient(90deg, #ff6eb4, #ff9de2)',
                     borderRadius: 2,
                     transition: 'width 0.8s linear',

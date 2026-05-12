@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react'
 import * as PIXI from 'pixi.js'
 import { useAppStore } from '../stores/appStore'
 import { CellRenderer, configureRemoteImageLoading } from '../utils/CellRenderer'
+import { getTimerEffectSyncProgress } from '../utils/timerProgress'
 
 type CellRendererMap = Map<string, CellRenderer>
 
@@ -17,6 +18,9 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     elapsedSec: 0,
     totalSec: 0,
     effectCompletionLeadSec: 3,
+    partialEnabled: false,
+    partialStartSec: 0,
+    partialEndSec: 0,
     baseElapsedSec: 0,
     baseTimeMs: 0,
   })
@@ -255,13 +259,16 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
 
   useEffect(() => {
     const { timer, cells } = store
-    const progress = timer.totalSec > 0 ? timer.elapsedSec / timer.totalSec : 0
+    const progress = getTimerEffectSyncProgress(timer, timer.elapsedSec)
     smoothTimerRef.current = {
       enabled: timer.enabled,
       running: timer.running,
       elapsedSec: timer.elapsedSec,
       totalSec: timer.totalSec,
       effectCompletionLeadSec: timer.effectCompletionLeadSec,
+      partialEnabled: timer.partial.enabled,
+      partialStartSec: timer.partial.startSec,
+      partialEndSec: timer.partial.endSec,
       baseElapsedSec: timer.elapsedSec,
       baseTimeMs: performance.now(),
     }
@@ -269,7 +276,16 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       const cr = cellRenderersRef.current.get(cell.id)
       if (cr) cr.applyTimerProgress(cell.effects, timer.enabled, timer.running, progress)
     })
-  }, [store.timer.enabled, store.timer.running, store.timer.elapsedSec, store.timer.totalSec])
+  }, [
+    store.timer.enabled,
+    store.timer.running,
+    store.timer.elapsedSec,
+    store.timer.totalSec,
+    store.timer.effectCompletionLeadSec,
+    store.timer.partial.enabled,
+    store.timer.partial.startSec,
+    store.timer.partial.endSec,
+  ])
 
   const setCellImage = useCallback((cellId: string, imagePath: string) => {
     const cr = cellRenderersRef.current.get(cellId)
@@ -286,6 +302,9 @@ function getSmoothTimerProgress(
     elapsedSec: number
     totalSec: number
     effectCompletionLeadSec: number
+    partialEnabled: boolean
+    partialStartSec: number
+    partialEndSec: number
     baseElapsedSec: number
     baseTimeMs: number
   },
@@ -297,13 +316,19 @@ function getSmoothTimerProgress(
     state.running !== timer.running ||
     state.elapsedSec !== timer.elapsedSec ||
     state.totalSec !== timer.totalSec ||
-    state.effectCompletionLeadSec !== timer.effectCompletionLeadSec
+    state.effectCompletionLeadSec !== timer.effectCompletionLeadSec ||
+    state.partialEnabled !== timer.partial.enabled ||
+    state.partialStartSec !== timer.partial.startSec ||
+    state.partialEndSec !== timer.partial.endSec
   ) {
     state.enabled = timer.enabled
     state.running = timer.running
     state.elapsedSec = timer.elapsedSec
     state.totalSec = timer.totalSec
     state.effectCompletionLeadSec = timer.effectCompletionLeadSec
+    state.partialEnabled = timer.partial.enabled
+    state.partialStartSec = timer.partial.startSec
+    state.partialEndSec = timer.partial.endSec
     state.baseElapsedSec = timer.elapsedSec
     state.baseTimeMs = nowMs
   }
@@ -313,8 +338,7 @@ function getSmoothTimerProgress(
     ? state.baseElapsedSec + (nowMs - state.baseTimeMs) / 1000
     : timer.elapsedSec
 
-  const effectiveDuration = Math.max(1, timer.totalSec - (timer.effectCompletionLeadSec ?? 0))
-  return clamp(elapsedSec / effectiveDuration, 0, 1)
+  return getTimerEffectSyncProgress(timer, elapsedSec)
 }
 
 function layoutCells(
@@ -401,8 +425,4 @@ function drawCellBackground(
 
 function rgbaToHex(c: { r: number; g: number; b: number; a?: number }): number {
   return (c.r << 16) | (c.g << 8) | c.b
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
 }

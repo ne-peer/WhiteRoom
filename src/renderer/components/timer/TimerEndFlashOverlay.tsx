@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../stores/appStore'
+import { getTimerCompletionElapsed } from '../../utils/timerProgress'
 import styles from './TimerEndFlashOverlay.module.css'
 
 export const TimerEndFlashOverlay: React.FC = () => {
@@ -11,12 +12,13 @@ export const TimerEndFlashOverlay: React.FC = () => {
   const hideTimeoutRef = useRef<number | null>(null)
 
   useEffect(() => {
+    const completionElapsed = getTimerCompletionElapsed(timer)
     const endedNow =
       timer.enabled &&
       wasRunningRef.current &&
       !timer.running &&
       timer.totalSec > 0 &&
-      timer.elapsedSec >= timer.totalSec
+      timer.elapsedSec >= completionElapsed
 
     wasRunningRef.current = timer.running
 
@@ -39,6 +41,9 @@ export const TimerEndFlashOverlay: React.FC = () => {
     timer.running,
     timer.elapsedSec,
     timer.totalSec,
+    timer.partial.enabled,
+    timer.partial.startSec,
+    timer.partial.endSec,
     timer.endFlash.enabled,
     timer.endFlash.intervalSec,
     timer.endFlash.count,

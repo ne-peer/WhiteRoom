@@ -10,6 +10,7 @@ import { CellNavigationOverlay } from './CellNavigationOverlay'
 import { TextReaderWindow, calcReaderAutoHeight, calcReaderAutoWidth, READER_WINDOW_MARGIN } from '../reader/TextReaderWindow'
 import { emptyCellShortcutTipSections, useTranslation } from '../../i18n'
 import type { Cell, ImageFitMode } from '../../../shared/types'
+import { getTimerCompletionElapsed } from '../../utils/timerProgress'
 import styles from './MasterCanvas.module.css'
 
 type CircleGuideKind = 'radialBlur' | 'shakeTrail' | 'shakeTrailSecondStage'
@@ -284,7 +285,8 @@ export const MasterCanvas: React.FC = () => {
         e.preventDefault()
         const { timer, setTimer } = useAppStore.getState()
         if (!timer.enabled) return
-        const isEnded = !timer.running && timer.elapsedSec >= timer.totalSec && timer.elapsedSec > 0
+        const completionElapsed = getTimerCompletionElapsed(timer)
+        const isEnded = !timer.running && timer.elapsedSec >= completionElapsed && timer.elapsedSec > 0
         if (isEnded) {
           setTimer({ running: false, elapsedSec: 0 })
         } else if (timer.running) {
