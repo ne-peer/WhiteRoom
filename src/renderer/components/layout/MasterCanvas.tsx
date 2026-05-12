@@ -19,6 +19,11 @@ type PickCenterPoint = {
   y: number
 }
 
+/** 1 列あたりの幅がこの値以下なら空セルの Tips 文言を出さない */
+const EMPTY_CELL_TIPS_MAX_COLUMN_WIDTH_PX = 300
+/** 1 行あたりの高さがこの値以下なら空セルの Tips 文言を出さない */
+const EMPTY_CELL_TIPS_MAX_ROW_HEIGHT_PX = 500
+
 /** StashWindow のデフォルト左上と揃える（mousemove 前の [s] フォールバック） */
 const STASH_POINTER_FALLBACK = { x: 8, y: 48 }
 /** StashWindow のスロット長押し（LONG_PRESS_MS）と揃える */
@@ -115,6 +120,11 @@ export const MasterCanvas: React.FC = () => {
     width: grid.cols > 0 ? canvasSize.width / grid.cols : 0,
     height: grid.rows > 0 ? canvasSize.height / grid.rows : 0,
   }
+  const showEmptyCellTips =
+    grid.cols > 0 &&
+    grid.rows > 0 &&
+    guideCellSize.width > EMPTY_CELL_TIPS_MAX_COLUMN_WIDTH_PX &&
+    guideCellSize.height > EMPTY_CELL_TIPS_MAX_ROW_HEIGHT_PX
   const pickColumnOverlays = pickingActive && pickColumn !== null
     ? cells.filter(cell => cell.col === pickColumn).map(cell => ({
       cell,
@@ -546,23 +556,25 @@ export const MasterCanvas: React.FC = () => {
             {(!cell.folder || cell.folder.images.length === 0) && !cellTagOverrides[cell.id] && (
               <div className={styles.emptyCellContent}>
                 <span className={styles.emptyCellHint}>{t('dropImageOrFolderHere')}</span>
-                <div className={styles.emptyCellTips}>
-                  <div className={styles.emptyCellTipsGroup}>
-                    <div className={styles.emptyCellTipsTitle}>{t('emptyCellShortcutsTitle')}</div>
-                    <div className={styles.emptyCellTipsSections}>
-                      {emptyCellShortcutTipSections[language].map(section => (
-                        <section key={section.title} className={styles.emptyCellTipsSection}>
-                          <h3 className={styles.emptyCellTipsSectionTitle}>{section.title}</h3>
-                          <ul className={styles.emptyCellTipsSectionList}>
-                            {section.lines.map(line => (
-                              <li key={line}>{line}</li>
-                            ))}
-                          </ul>
-                        </section>
-                      ))}
+                {showEmptyCellTips && (
+                  <div className={styles.emptyCellTips}>
+                    <div className={styles.emptyCellTipsGroup}>
+                      <div className={styles.emptyCellTipsTitle}>{t('emptyCellShortcutsTitle')}</div>
+                      <div className={styles.emptyCellTipsSections}>
+                        {emptyCellShortcutTipSections[language].map(section => (
+                          <section key={section.title} className={styles.emptyCellTipsSection}>
+                            <h3 className={styles.emptyCellTipsSectionTitle}>{section.title}</h3>
+                            <ul className={styles.emptyCellTipsSectionList}>
+                              {section.lines.map(line => (
+                                <li key={line}>{line}</li>
+                              ))}
+                            </ul>
+                          </section>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
