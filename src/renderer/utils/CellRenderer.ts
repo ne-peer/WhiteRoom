@@ -150,6 +150,7 @@ export class CellRenderer {
   private colorTintAnimationKey: string | null = null
   private echoGsapTween: gsap.core.Tween | null = null
   private echoAnimationKey: string | null = null
+  private echoProgressProxy: { progress: number } | null = null
   private breathingKey: string | null = null
   private breathingOffsetX = 0
   private breathingOffsetY = 0
@@ -861,7 +862,10 @@ export class CellRenderer {
   private swapImageSprite(sprite: PIXI.Sprite | null, url: string | null) {
     const oldSprite = this.imageSprite
     if (oldSprite) gsap.killTweensOf(oldSprite)
-    if (sprite) this.imageLayer.addChild(sprite)
+    if (sprite) {
+      sprite.visible = true
+      this.imageLayer.addChild(sprite)
+    }
     this.imageSprite = sprite
     this.currentImageSrc = url
     this.requestedImageSrc = null
@@ -2096,13 +2100,12 @@ export class CellRenderer {
 
     const sprite = new PIXI.Sprite(this.imageSprite.texture)
     sprite.anchor.set(0.5)
-    // Normal合成で同一画像を重ねると重なり部分が見えにくいため、
-    // エコーは加算合成で全体の複製感を維持する。
-    sprite.blendMode = 'add'
+    sprite.blendMode = 'normal'
     this.echoLayer.addChild(sprite)
     this.echoSprite = sprite
 
-    const proxy = { progress: 0 }
+    this.echoProgressProxy = { progress: 0 }
+    const proxy = this.echoProgressProxy
     this.syncEchoSprite(echo, proxy.progress)
     this.echoGsapTween = gsap.to(proxy, {
       progress: 1,
@@ -2133,15 +2136,18 @@ export class CellRenderer {
     this.echoSprite.y = this.imageSprite.y
     this.echoSprite.rotation = this.imageSprite.rotation
     this.echoSprite.scale.set(this.imageSprite.scale.x * scale, this.imageSprite.scale.y * scale)
+
+    if (effectiveStartAlpha <= 0) {
+      this.echoSprite.alpha = 0
+      return
+    }
     this.echoSprite.alpha = effectiveStartAlpha * (1 - p)
   }
 
   private syncEchoToImage() {
-    if (!this.latestEffects?.echo.enabled || !this.echoSprite) return
+    if (!this.latestEffects?.echo.enabled || !this.echoSprite || !this.echoProgressProxy) return
     const echo = this.latestEffects.echo
-    const currentAlpha = this.echoSprite.alpha
-    const baseAlpha = clamp(echo.startAlpha, 0, 1)
-    const progress = baseAlpha > 0 ? clamp(1 - currentAlpha / baseAlpha, 0, 1) : 1
+    const progress = clamp(this.echoProgressProxy.progress, 0, 1)
     this.syncEchoSprite(echo, progress)
   }
 
@@ -2155,6 +2161,7 @@ export class CellRenderer {
     this.echoGsapTween?.kill()
     this.echoGsapTween = null
     this.echoAnimationKey = null
+    this.echoProgressProxy = null
     if (this.echoSprite) {
       this.echoLayer.removeChild(this.echoSprite)
       this.echoSprite.destroy({ texture: false })
