@@ -1,5 +1,5 @@
 Created: 2026-05-12
-Last Updated: 2026-05-12 (rev 3)
+Last Updated: 2026-05-12 (rev 4)
 
 # WhiteRoom Stash Specification
 
@@ -57,8 +57,8 @@ type StashItem = {
 
 The stash window is opened via:
 
-- **Hamburger menu** (bottom-left, replaces the former fullscreen/UI-hide buttons): the menu shows スタッシュ at the top, followed by フルスクリーン切り替え and UI非表示切り替え.
 - **Keyboard shortcut `[s]`**: opens the stash window from anywhere (same `isEditable` guard as other shortcuts).
+- **Collapsed stash icon** (top-left): hovering re-expands the window (see Stash Window below).
 
 ### Hamburger Menu Visibility
 
@@ -229,7 +229,7 @@ Implementation: `win.on('close', ...)` in `src/main/index.ts` calls `win.webCont
 | `src/renderer/stores/appStore.ts` | State, actions, emoji/color constants |
 | `src/renderer/components/stash/StashWindow.tsx` | Float window UI component |
 | `src/renderer/components/stash/StashWindow.module.css` | Styles |
-| `src/renderer/components/layout/TopBar.tsx` | Hamburger menu (replaces 2-button dock) |
+| `src/renderer/components/layout/TopBar.tsx` | Bottom-left hamburger menu (fullscreen / UI visibility only) |
 | `src/renderer/components/layout/TopBar.module.css` | Styles |
 | `src/renderer/components/layout/MasterCanvas.tsx` | `[s]` shortcut; wheel suppression |
 | `src/renderer/App.tsx` | `<StashWindow />` mount; hover suppression |

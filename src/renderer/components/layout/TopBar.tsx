@@ -11,7 +11,6 @@ export const TopBar: React.FC = () => {
     showControls,
     fullscreen,
     setFullscreen,
-    setStashWindowOpen,
   } = useAppStore()
   const textReaderVisible = useAppStore(s => s.textReader.visible)
   const textReaderWindowPosition = useAppStore(s => s.textReader.config.windowPosition)
@@ -51,11 +50,6 @@ export const TopBar: React.FC = () => {
 
   const handleToggleControls = () => {
     toggleControls()
-    setMenuOpen(false)
-  }
-
-  const handleStash = () => {
-    setStashWindowOpen(true)
     setMenuOpen(false)
   }
 
@@ -123,14 +117,6 @@ export const TopBar: React.FC = () => {
 
       {menuOpen && (
         <div className={styles.menu} ref={menuPanelRef}>
-          <button
-            className={styles.menuItem}
-            onClick={handleStash}
-            title={t('stashMenuTitle')}
-          >
-            📦 {t('stashMenuLabel')}
-          </button>
-          <div className={styles.menuDivider} />
           <button
             className={styles.menuItem}
             onClick={handleFullscreen}

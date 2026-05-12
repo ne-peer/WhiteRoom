@@ -149,7 +149,7 @@ For the stash feature, read `docs/WR-Stash.md` before implementation.
 - `serializeAppProfile` / `resolveAppProfile` must process stash cell effects via `mapEffectsAssetReferences`.
 - The app close guard reads `window.__whiteroom_hasStash()` (set by `StashWindow`) and shows a native dialog when stashes remain.
 - Maximum 15 stash slots; minimum 3 rows displayed.
-- Stash window is accessed via the bottom-left hamburger menu or `[s]` shortcut key.
+- Stash window is opened with the `[s]` shortcut key or by hovering the collapsed stash icon in the top-left corner.
 
 ## Documentation Workflow
 
