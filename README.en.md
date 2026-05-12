@@ -108,30 +108,29 @@ If effects are being applied unexpectedly, delete this file.
 
 ![img](/docs/img/RM_stash.png)
 
-The stash lets you snapshot the current working state into a slot, switch to another layout, and later restore that snapshot with a long press. Stashes live in memory and are included when you export/import the normal profile JSON.
+The stash lets you snapshot the current working state into a slot, switch to another layout, and later restore that snapshot with a long press. Saved data stays in memory.
 
 ### What gets saved
 
 - Background color and mode (including dynamic), grid layout, all cells (folders, effects, slideshow, etc.), timer configuration
 - Text Reader display/font settings, path of the open text file (if any), current page index
 
-The following are **not** stored in a stash: fullscreen, UI visibility, window size, language, and the in-memory per-image effect profile cache. On restore (POP), `whiteroom_effects.json` in each **local** image folder is reloaded in the background.
+The following are **not** stored in a stash: fullscreen, UI visibility, window size, language, and the in-memory per-image effect profile cache. On restore (POP), `whiteroom_effects.json` (per-image effect save file) in each **local** image folder is reloaded in the background.
 
 ### Opening the stash panel
 
-- **Keyboard `[s]`**: Opens near the last mouse position (clamped inside the viewport).
-- **Right-button long press (~0.4 s) on the image grid**: Opens anchored to the press-down point. Disabled while effect-center pick mode (`[p]`) or squish color picking is active.
 - **Hover the collapsed icon** in the top-left: Re-expands from the collapsed state.
+- **Keyboard shortcut `[s]`**: Opens near the last mouse position (clamped inside the viewport).
+- **Right-button long press on the image grid**: Opens anchored to the press-down point. Disabled while effect-center pick mode (`[p]`) or squish color picking is active.
 
 The panel is draggable. When the pointer moves far from it, it collapses to a small icon; after a few seconds it fades until you hover again.
 
 ### Slot actions
 
-- At least **3** rows are shown; you can keep up to **15** stash entries.
+- You can keep up to **15** stash entries.
 - An **empty** row shows **Empty stash**; on hover the action reads **Stash here**. **Click** saves the current state into that row, then **immediately resets** the app to a blank profile (no confirmation).
-- A **filled** row shows a food-emoji label; on hover the action reads **Pop** (**Hold to pop**). **Long press the label ~0.4 s** to restore that snapshot. The slot **stays** after POP (restore does not consume it).
-- The **×** button: **long press ~0.4 s** (**Hold to delete**) to remove that slot only.
-- When every visible row is filled, use **[+]** to add another row (up to 15). Until all visible slots are filled, **[+]** stays disabled (tooltip: **Fill all slots before adding a new one**).
+- A **filled** row shows a food-emoji label; on hover the action reads **Pop**. **Long press** the label to restore that snapshot. The slot **stays** after POP (restore does not consume it).
+- The **×** button: **long press** to remove that slot only.
 
 ### Quitting the app
 
