@@ -7,6 +7,7 @@ import {
   ParticleSystem,
   TextSystem,
 } from './pixiEffects'
+import { drawBuiltinHeartAtCell, isBuiltinVectorDynamicAssetPreset } from './vectorStampRegistry'
 
 type SquishOrganicShape = {
   radiusXScale: number
@@ -724,28 +725,16 @@ export class CellRenderer {
   clearColumnHeartPreview() {
     this.columnHeartPreviewActive = false
     this.columnHeartPreviewGraphics.clear()
+    this.columnHeartPreviewGraphics.alpha = 1
   }
 
   private redrawColumnHeartPreview() {
     if (!this.columnHeartPreviewActive) return
     const g = this.columnHeartPreviewGraphics
-    g.clear()
     const minDim = Math.min(this.width, this.height)
-    const size = minDim * 0.36
-    const cx = this.width * 0.5
-    const topY = this.height * 0.38 - size * 0.35
-    const x = cx
-    const y = topY
-    const topCurveHeight = size * 0.3
-    g.moveTo(x, y + topCurveHeight)
-    g.bezierCurveTo(x, y, x - size / 2, y, x - size / 2, y + topCurveHeight)
-    g.bezierCurveTo(x - size / 2, y + (size + topCurveHeight) / 2, x, y + (size + topCurveHeight) / 2, x, y + size)
-    g.bezierCurveTo(x, y + (size + topCurveHeight) / 2, x + size / 2, y + (size + topCurveHeight) / 2, x + size / 2, y + topCurveHeight)
-    g.bezierCurveTo(x + size / 2, y, x, y, x, y + topCurveHeight)
-    g.closePath()
     const strokeW = Math.max(1.5, minDim * 0.012)
-    g.fill({ color: 0xff3b6a, alpha: 0.88 })
-    g.stroke({ color: 0xffccd5, alpha: 0.75, width: strokeW })
+    drawBuiltinHeartAtCell(g, this.width, this.height, 0xff3b6a, 0xffccd5, strokeW)
+    g.alpha = 0.88
   }
 
   private startImageTransition(
@@ -4263,8 +4252,23 @@ export class CellRenderer {
 
   private async updateAsset(effects: CellEffects) {
     const da = effects.dynamicAsset
+    const useVector =
+      da.sourceKind === 'vector' &&
+      da.vectorPresetId !== null &&
+      isBuiltinVectorDynamicAssetPreset(da.vectorPresetId)
+
     const assetPaths = da.assetPaths?.length ? da.assetPaths : (da.assetPath ? [da.assetPath] : [])
-    const assetKey = assetPaths.join('|')
+    const assetKey = useVector ? `vector:${da.vectorPresetId}` : assetPaths.join('|')
+
+    if (useVector) {
+      if (assetKey !== this.assetTexturesKey) {
+        this.assetTexturesKey = assetKey
+        this.assetPath = null
+        this.assetTexture = null
+        this.particleSystem.setVectorPreset(da.vectorPresetId!)
+      }
+      return
+    }
 
     if (assetPaths.length > 0 && assetKey !== this.assetTexturesKey) {
       this.assetPath = da.assetPath

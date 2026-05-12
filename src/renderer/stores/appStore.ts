@@ -198,6 +198,8 @@ export const DEFAULT_EFFECTS: CellEffects = {
   dynamicAsset: {
     enabled: false,
     pattern: 'rising' as const,
+    sourceKind: 'raster' as const,
+    vectorPresetId: null,
     assetPath: null,
     assetPaths: [],
     assetFolderPath: null,

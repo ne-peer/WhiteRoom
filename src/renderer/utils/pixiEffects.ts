@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
 import type { CellEffects, AssetParticle, TextEffect } from '../../shared/types'
+import { createVectorDynamicAssetDisplay } from './vectorStampRegistry'
 
 // ===== ビネットテクスチャ生成 =====
 export function createVignetteTexture(
@@ -72,6 +73,7 @@ const EMERGENCE_PHASE2_MS = 1400  // 緩慢拡大＋フェードアウトフェ�
 export class ParticleSystem {
   private particles: AssetParticle[] = []
   private sprites: Map<string, PIXI.Sprite> = new Map()
+  private vectorHolders: Map<string, PIXI.Container> = new Map()
   private container: PIXI.Container
   private texture: PIXI.Texture | null = null
   private textures: PIXI.Texture[] = []
@@ -95,11 +97,23 @@ export class ParticleSystem {
   }
 
   setTextures(textures: PIXI.Texture[]) {
+    if (this.vectorHolders.size > 0) {
+      this.clear()
+    }
     this.textures = textures
     this.texture = textures[0] ?? null
     if (textures.length === 0) {
       this.clear()
     }
+  }
+
+  /** ベクター動的アセットへ切り替え（既存ラスタ表示を破棄） */
+  setVectorPreset(_presetId: string) {
+    if (this.sprites.size > 0) {
+      this.clear()
+    }
+    this.textures = []
+    this.texture = null
   }
 
   update(
@@ -109,7 +123,8 @@ export class ParticleSystem {
     effects: CellEffects,
     nowMs: number
   ) {
-    if (!effects.dynamicAsset.enabled || this.textures.length === 0) {
+    const useVector = effects.dynamicAsset.sourceKind === 'vector' && effects.dynamicAsset.vectorPresetId
+    if (!effects.dynamicAsset.enabled || (!useVector && this.textures.length === 0)) {
       this.clear()
       return
     }
@@ -146,15 +161,29 @@ export class ParticleSystem {
         }
         this.particles.push(p)
 
-        const sprite = new PIXI.Sprite(randomTexture(this.textures))
-        sprite.anchor.set(0.5)
-        sprite.x = p.x
-        sprite.y = p.y
-        sprite.alpha = 0
-        sprite.scale.set(0)
-        sprite.tint = overlayTint
-        this.container.addChild(sprite)
-        this.sprites.set(p.id, sprite)
+        if (useVector) {
+          const holder = createVectorDynamicAssetDisplay(effects.dynamicAsset.vectorPresetId!, overlayTint)
+          if (holder) {
+            holder.x = p.x
+            holder.y = p.y
+            holder.alpha = 0
+            holder.scale.set(0)
+            this.container.addChild(holder)
+            this.vectorHolders.set(p.id, holder)
+          } else {
+            this.particles.pop()
+          }
+        } else {
+          const sprite = new PIXI.Sprite(randomTexture(this.textures))
+          sprite.anchor.set(0.5)
+          sprite.x = p.x
+          sprite.y = p.y
+          sprite.alpha = 0
+          sprite.scale.set(0)
+          sprite.tint = overlayTint
+          this.container.addChild(sprite)
+          this.sprites.set(p.id, sprite)
+        }
       } else {
         // 上昇パターン: 既存の挙動
         const p: AssetParticle = {
@@ -168,21 +197,37 @@ export class ParticleSystem {
         }
         this.particles.push(p)
 
-        const sprite = new PIXI.Sprite(randomTexture(this.textures))
-        sprite.anchor.set(0.5)
-        sprite.x = p.x
-        sprite.y = p.y
-        sprite.alpha = p.alpha
-        sprite.scale.set((0.5 + Math.random() * 0.5) * clamp(sizeRatio, 0.1, 3.0))
-        sprite.tint = overlayTint
-        this.container.addChild(sprite)
-        this.sprites.set(p.id, sprite)
+        if (useVector) {
+          const holder = createVectorDynamicAssetDisplay(effects.dynamicAsset.vectorPresetId!, overlayTint)
+          if (holder) {
+            holder.x = p.x
+            holder.y = p.y
+            holder.alpha = p.alpha
+            holder.scale.set((0.5 + Math.random() * 0.5) * clamp(sizeRatio, 0.1, 3.0))
+            this.container.addChild(holder)
+            this.vectorHolders.set(p.id, holder)
+          } else {
+            this.particles.pop()
+          }
+        } else {
+          const sprite = new PIXI.Sprite(randomTexture(this.textures))
+          sprite.anchor.set(0.5)
+          sprite.x = p.x
+          sprite.y = p.y
+          sprite.alpha = p.alpha
+          sprite.scale.set((0.5 + Math.random() * 0.5) * clamp(sizeRatio, 0.1, 3.0))
+          sprite.tint = overlayTint
+          this.container.addChild(sprite)
+          this.sprites.set(p.id, sprite)
+        }
       }
     }
 
     // 更新・削除
     this.particles = this.particles.filter(p => {
       const sprite = this.sprites.get(p.id)
+      const holder = this.vectorHolders.get(p.id)
+      const visual = sprite ?? holder
 
       if (p.baseScale !== undefined) {
         // 発生パターンの更新
@@ -190,46 +235,50 @@ export class ParticleSystem {
         const totalDuration = (p.phase1DurationMs ?? EMERGENCE_PHASE1_MS) + (p.phase2DurationMs ?? EMERGENCE_PHASE2_MS)
 
         if (elapsed >= totalDuration) {
-          if (sprite) {
-            this.container.removeChild(sprite)
-            sprite.destroy()
+          if (visual) {
+            this.container.removeChild(visual)
+            visual.destroy({ children: true })
           }
           this.sprites.delete(p.id)
+          this.vectorHolders.delete(p.id)
           return false
         }
 
-        if (sprite) {
+        if (visual) {
           const ph1 = p.phase1DurationMs ?? EMERGENCE_PHASE1_MS
           if (elapsed < ph1) {
             // フェーズ1: 高速拡大、透過度50%→100%
             const t = elapsed / ph1
-            sprite.scale.set(p.baseScale * t)
-            sprite.alpha = p.alpha * (0.5 + t * 0.5)
+            visual.scale.set(p.baseScale * t)
+            visual.alpha = p.alpha * (0.5 + t * 0.5)
           } else {
             // フェーズ2: ゆっくり拡大（100%→115%）、透過度100%→0%
             const t = (elapsed - ph1) / (p.phase2DurationMs ?? EMERGENCE_PHASE2_MS)
-            sprite.scale.set(p.baseScale * (1.0 + t * 0.15))
-            sprite.alpha = p.alpha * (1.0 - t)
+            visual.scale.set(p.baseScale * (1.0 + t * 0.15))
+            visual.alpha = p.alpha * (1.0 - t)
           }
-          sprite.tint = overlayTint
+          if (sprite) sprite.tint = overlayTint
+          else if (holder) holder.tint = overlayTint
         }
       } else {
         // 上昇パターンの更新
         p.y -= p.vy * delta
         p.alpha -= 0.004 * delta
 
-        if (sprite) {
-          sprite.y = p.y
-          sprite.alpha = Math.max(0, p.alpha)
-          sprite.tint = overlayTint
+        if (visual) {
+          visual.y = p.y
+          visual.alpha = Math.max(0, p.alpha)
+          if (sprite) sprite.tint = overlayTint
+          else if (holder) holder.tint = overlayTint
         }
 
         if (p.alpha <= 0 || p.y < -50) {
-          if (sprite) {
-            this.container.removeChild(sprite)
-            sprite.destroy()
+          if (visual) {
+            this.container.removeChild(visual)
+            visual.destroy({ children: true })
           }
           this.sprites.delete(p.id)
+          this.vectorHolders.delete(p.id)
           return false
         }
       }
@@ -244,6 +293,11 @@ export class ParticleSystem {
       sprite.destroy()
     })
     this.sprites.clear()
+    this.vectorHolders.forEach(holder => {
+      this.container.removeChild(holder)
+      holder.destroy({ children: true })
+    })
+    this.vectorHolders.clear()
     this.particles = []
   }
 
