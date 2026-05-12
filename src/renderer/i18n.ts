@@ -27,7 +27,7 @@ export const emptyCellShortcutTipSections: Record<
   ja: [
     {
       title: '画像操作',
-      lines: ['[ z / ← ] 前画像', '[ x / → ] 次画像', '[ ホイール ] 画像移動', '[ P ] 中心位置指定'],
+      lines: ['[ z / ← ] 前画像', '[ x / → ] 次画像', '[ ホイール ] 画像移動', '[ p ] 中心位置指定'],
     },
     {
       title: 'UI操作',
@@ -49,7 +49,7 @@ export const emptyCellShortcutTipSections: Record<
         '[ z / ← ] previous image',
         '[ x / → ] next image',
         '[ Wheel ] navigate images',
-        '[ P ] pick center',
+        '[ p ] pick center',
       ],
     },
     {
