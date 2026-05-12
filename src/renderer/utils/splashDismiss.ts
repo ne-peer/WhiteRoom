@@ -24,7 +24,7 @@ export function fadeOutAndRemoveWhiteroomSplash(): void {
   }
 
   const onEnd = (event: TransitionEvent) => {
-    if (event.propertyName !== 'opacity') return
+    if (event.target !== el || event.propertyName !== 'opacity') return
     el.removeEventListener('transitionend', onEnd)
     window.clearTimeout(fallbackId)
     finish()
@@ -37,7 +37,13 @@ export function fadeOutAndRemoveWhiteroomSplash(): void {
     finish()
   }, SPLASH_REMOVE_FALLBACK_MS)
 
+  // 本番(asar)では単一 rAF 直後のクラス付与だけだと遷移がバッチされて opacity アニメが飛ぶことがある。
+  // インライン style + reflow で開始状態と終了状態を確実に分離する。
   requestAnimationFrame(() => {
-    el.classList.add('splash--out')
+    el.style.pointerEvents = 'none'
+    el.style.transition = `opacity ${SPLASH_FADE_MS}ms ease-out`
+    el.style.opacity = '1'
+    void el.offsetWidth
+    el.style.opacity = '0'
   })
 }
