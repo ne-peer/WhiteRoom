@@ -131,21 +131,22 @@ export function normalizeDeprecatedFlashTransition(trans: SlideShowTransition): 
   return trans
 }
 
-export function normalizeFlashEffectTransitionFields(flash: FlashEffect): FlashEffect {
-  return {
-    ...flash,
-    startTransition: normalizeDeprecatedFlashTransition(flash.startTransition) as FlashStartTransition,
-    endTransition: normalizeDeprecatedFlashTransition(flash.endTransition),
-  }
-}
+/** フラッシュの表示テクスチャの取得元（EffectsPanel の「表示ファイル」） */
+export type FlashDisplayFileMode = 'pickFile' | 'displayCrop' | 'asset'
 
-export function sanitizeFlashEffectTransitionsInPlace(flash: FlashEffect): void {
-  flash.startTransition = normalizeDeprecatedFlashTransition(flash.startTransition) as FlashStartTransition
-  flash.endTransition = normalizeDeprecatedFlashTransition(flash.endTransition)
+export function inferFlashDisplayFileMode(
+  imagePath: string | null,
+  vectorPresetId: string | null,
+): FlashDisplayFileMode {
+  if (vectorPresetId) return 'asset'
+  if (imagePath?.startsWith('data:')) return 'displayCrop'
+  return 'pickFile'
 }
 
 export type FlashEffect = {
   enabled: boolean
+  /** UI: 表示ファイル。旧プロファイルは読み込み時に推定される */
+  displayFileMode: FlashDisplayFileMode
   imagePath: string | null
   /** 非 null かつ対応プリセットのときは imagePath よりベクターアセットをフラッシュ表示に使用 */
   vectorPresetId: string | null
@@ -168,6 +169,37 @@ export type FlashEffect = {
   startTransitionDurationSec: number
   endTransition: SlideShowTransition
   endTransitionDurationSec: number
+}
+
+export function normalizeFlashEffectTransitionFields(flash: FlashEffect): FlashEffect {
+  const displayFileMode: FlashDisplayFileMode =
+    flash.displayFileMode === 'pickFile' ||
+    flash.displayFileMode === 'displayCrop' ||
+    flash.displayFileMode === 'asset'
+      ? flash.displayFileMode
+      : inferFlashDisplayFileMode(flash.imagePath, flash.vectorPresetId)
+  return {
+    ...flash,
+    displayFileMode,
+    startTransition: normalizeDeprecatedFlashTransition(flash.startTransition) as FlashStartTransition,
+    endTransition: normalizeDeprecatedFlashTransition(flash.endTransition),
+  }
+}
+
+export function sanitizeFlashEffectTransitionsInPlace(flash: FlashEffect): void {
+  flash.startTransition = normalizeDeprecatedFlashTransition(flash.startTransition) as FlashStartTransition
+  flash.endTransition = normalizeDeprecatedFlashTransition(flash.endTransition)
+}
+
+export function sanitizeFlashEffectInPlace(flash: FlashEffect): void {
+  sanitizeFlashEffectTransitionsInPlace(flash)
+  if (
+    flash.displayFileMode !== 'pickFile' &&
+    flash.displayFileMode !== 'displayCrop' &&
+    flash.displayFileMode !== 'asset'
+  ) {
+    flash.displayFileMode = inferFlashDisplayFileMode(flash.imagePath, flash.vectorPresetId)
+  }
 }
 
 export type BreathingEffect = {

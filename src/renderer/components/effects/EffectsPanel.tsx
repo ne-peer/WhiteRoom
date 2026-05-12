@@ -8,6 +8,7 @@ import {
   type Cell,
   type CellEffects,
   type DynamicAssetAdditionalEffect,
+  type FlashDisplayFileMode,
 } from '../../../shared/types'
 
 /** フラッシュ用ベクターアセット（`Select` の候補）。追加時はここに列挙する。 */
@@ -111,6 +112,7 @@ const EFFECT_PRESET_1: CellEffects = {
   },
   flash: {
     enabled: false,
+    displayFileMode: 'pickFile',
     imagePath: null,
     vectorPresetId: null,
     scaleRatio: 1,
@@ -332,6 +334,7 @@ const EFFECT_PRESET_2: CellEffects = {
   },
   flash: {
     enabled: false,
+    displayFileMode: 'pickFile',
     imagePath: null,
     vectorPresetId: null,
     scaleRatio: 1,
@@ -650,8 +653,34 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const handleOpenFlashImage = async () => {
     const result = await window.api.openOverlayImage(language)
     if (!result.canceled && result.filePath) {
-      set('flash', { imagePath: result.filePath, vectorPresetId: null })
+      set('flash', { imagePath: result.filePath, vectorPresetId: null, displayFileMode: 'pickFile' })
     }
+  }
+
+  const handleFlashDisplayFileModeChange = (mode: FlashDisplayFileMode) => {
+    const f = effects.flash
+    if (mode === f.displayFileMode) return
+    setFlashRangePicking(false)
+    if (mode === 'pickFile') {
+      set('flash', {
+        displayFileMode: 'pickFile',
+        vectorPresetId: null,
+        ...(f.imagePath?.startsWith('data:') ? { imagePath: null } : {}),
+      })
+      return
+    }
+    if (mode === 'displayCrop') {
+      set('flash', {
+        displayFileMode: 'displayCrop',
+        vectorPresetId: null,
+        ...(!f.imagePath?.startsWith('data:') ? { imagePath: null } : {}),
+      })
+      return
+    }
+    set('flash', {
+      displayFileMode: 'asset',
+      imagePath: null,
+    })
   }
 
   const handleSelectAssetEffectSource = (value: string) => {
@@ -1858,77 +1887,100 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         </Row>
         {effects.flash.enabled && (
           <>
-            <Row label={t('flashImage')}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-                <Button variant="secondary" onClick={handleOpenFlashImage}>
-                  {t('selectImage')}
-                </Button>
-                <Button
-                  variant={flashRangePicking ? 'primary' : 'secondary'}
-                  onClick={() => setFlashRangePicking(!flashRangePicking)}
-                >
-                  {flashRangePicking ? t('flashRangePickActive') : t('flashRangePickButton')}
-                </Button>
-                {effects.flash.imagePath?.startsWith('data:') && !effects.flash.vectorPresetId && (
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
-                    {t('flashRangeSnapshotName')}
-                  </div>
-                )}
-                {effects.flash.imagePath &&
-                  !effects.flash.imagePath.startsWith('data:') &&
-                  !effects.flash.vectorPresetId && (
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
-                    {effects.flash.imagePath.split(/[\\/]/).pop()}
-                  </div>
-                )}
-              </div>
-            </Row>
-            <Row label={t('flashAsset')}>
+            <Row label={t('flashDisplayFile')}>
               <Select
-                value={effects.flash.vectorPresetId ?? ''}
-                options={FLASH_BUILTIN_VECTOR_ASSET_OPTIONS.map(o => ({
-                  value: o.value,
-                  label: t(o.labelKey),
-                }))}
-                onChange={v => set('flash', { vectorPresetId: v === '' ? null : v })}
+                value={effects.flash.displayFileMode}
+                options={[
+                  { value: 'pickFile', label: t('flashDisplayFilePickFile') },
+                  { value: 'displayCrop', label: t('flashDisplayFileDisplayCrop') },
+                  { value: 'asset', label: t('flashDisplayFileAsset') },
+                ]}
+                onChange={v => handleFlashDisplayFileModeChange(v as FlashDisplayFileMode)}
               />
             </Row>
-            {effects.flash.vectorPresetId && (
+            {effects.flash.displayFileMode === 'pickFile' && (
+              <Row label={t('flashImage')}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+                  <Button variant="secondary" onClick={handleOpenFlashImage}>
+                    {t('selectImage')}
+                  </Button>
+                  {effects.flash.imagePath &&
+                    !effects.flash.imagePath.startsWith('data:') &&
+                    !effects.flash.vectorPresetId && (
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
+                      {effects.flash.imagePath.split(/[\\/]/).pop()}
+                    </div>
+                  )}
+                </div>
+              </Row>
+            )}
+            {effects.flash.displayFileMode === 'displayCrop' && (
+              <Row label={t('flashImage')}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+                  <Button
+                    variant={flashRangePicking ? 'primary' : 'secondary'}
+                    onClick={() => setFlashRangePicking(!flashRangePicking)}
+                  >
+                    {flashRangePicking ? t('flashRangePickActive') : t('flashRangePickButton')}
+                  </Button>
+                </div>
+              </Row>
+            )}
+            {effects.flash.displayFileMode === 'asset' && (
               <>
-                <Row label={t('assetColor')}>
-                  <Toggle
-                    value={effects.flash.colorOverlayEnabled}
+                <Row label={t('flashAsset')}>
+                  <Select
+                    value={effects.flash.vectorPresetId ?? ''}
+                    options={FLASH_BUILTIN_VECTOR_ASSET_OPTIONS.map(o => ({
+                      value: o.value,
+                      label: t(o.labelKey),
+                    }))}
                     onChange={v =>
                       set('flash', {
-                        colorOverlayEnabled: v,
-                        ...(v ? {} : { colorOverlayAlphaRandomEnabled: false }),
+                        vectorPresetId: v === '' ? null : v,
+                        displayFileMode: 'asset',
+                        imagePath: null,
                       })}
                   />
                 </Row>
-                {effects.flash.colorOverlayEnabled && (
+                {effects.flash.vectorPresetId && (
                   <>
-                    <ColorPicker
-                      r={effects.flash.colorOverlayColor.r}
-                      g={effects.flash.colorOverlayColor.g}
-                      b={effects.flash.colorOverlayColor.b}
-                      onChange={(r, g, b) => set('flash', { colorOverlayColor: { r, g, b } })}
-                    />
-                    <Row label={t('assetColorApplyRandom')}>
+                    <Row label={t('assetColor')}>
                       <Toggle
-                        value={effects.flash.colorOverlayAlphaRandomEnabled ?? false}
-                        onChange={v => set('flash', { colorOverlayAlphaRandomEnabled: v })}
+                        value={effects.flash.colorOverlayEnabled}
+                        onChange={v =>
+                          set('flash', {
+                            colorOverlayEnabled: v,
+                            ...(v ? {} : { colorOverlayAlphaRandomEnabled: false }),
+                          })}
                       />
                     </Row>
-                    {!effects.flash.colorOverlayAlphaRandomEnabled && (
-                      <Row label={t('assetColorOpacity')}>
-                        <Slider
-                          value={Math.round(effects.flash.colorOverlayAlpha * 100)}
-                          min={0}
-                          max={100}
-                          onChange={v => set('flash', { colorOverlayAlpha: v / 100 })}
-                          unit="%"
+                    {effects.flash.colorOverlayEnabled && (
+                      <>
+                        <ColorPicker
+                          r={effects.flash.colorOverlayColor.r}
+                          g={effects.flash.colorOverlayColor.g}
+                          b={effects.flash.colorOverlayColor.b}
+                          onChange={(r, g, b) => set('flash', { colorOverlayColor: { r, g, b } })}
                         />
-                      </Row>
+                        <Row label={t('assetColorApplyRandom')}>
+                          <Toggle
+                            value={effects.flash.colorOverlayAlphaRandomEnabled ?? false}
+                            onChange={v => set('flash', { colorOverlayAlphaRandomEnabled: v })}
+                          />
+                        </Row>
+                        {!effects.flash.colorOverlayAlphaRandomEnabled && (
+                          <Row label={t('assetColorOpacity')}>
+                            <Slider
+                              value={Math.round(effects.flash.colorOverlayAlpha * 100)}
+                              min={0}
+                              max={100}
+                              onChange={v => set('flash', { colorOverlayAlpha: v / 100 })}
+                              unit="%"
+                            />
+                          </Row>
+                        )}
+                      </>
                     )}
                   </>
                 )}

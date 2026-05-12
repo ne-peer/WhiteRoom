@@ -10,7 +10,7 @@ import type {
 import {
   DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
   normalizeFlashEffectTransitionFields,
-  sanitizeFlashEffectTransitionsInPlace,
+  sanitizeFlashEffectInPlace,
 } from '../../shared/types'
 import { parseTextFile, insertOrReplaceTagBefore, insertTagAtCharPosition, insertOrReplaceReadConfigAtTop, resolveStoryboardImageReference } from '../utils/storyboardParser'
 import { getTimerCompletionElapsed } from '../utils/timerProgress'
@@ -105,6 +105,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
   },
   flash: {
     enabled: false,
+    displayFileMode: 'pickFile',
     imagePath: null,
     vectorPresetId: null,
     scaleRatio: 1,
@@ -914,13 +915,13 @@ export const useAppStore = create<AppStore>()(
             ? normalizeShakePatch(value)
             : structuredClone(value)
           Object.assign(targetCell.effects[effectKey], targetPatch)
-          if (effectKey === 'flash') sanitizeFlashEffectTransitionsInPlace(targetCell.effects.flash)
+          if (effectKey === 'flash') sanitizeFlashEffectInPlace(targetCell.effects.flash)
         })
         s.effectGuideNonce += 1
         return
       }
       Object.assign(cell.effects[effectKey], patch)
-      if (effectKey === 'flash') sanitizeFlashEffectTransitionsInPlace(cell.effects.flash)
+      if (effectKey === 'flash') sanitizeFlashEffectInPlace(cell.effects.flash)
       s.effectGuideNonce += 1
     }),
 
@@ -934,7 +935,7 @@ export const useAppStore = create<AppStore>()(
         if (effects.echo !== undefined) Object.assign(cell.effects.echo, effects.echo)
         if (effects.flash !== undefined) {
           Object.assign(cell.effects.flash, effects.flash)
-          sanitizeFlashEffectTransitionsInPlace(cell.effects.flash)
+          sanitizeFlashEffectInPlace(cell.effects.flash)
         }
         if (effects.breathing !== undefined) Object.assign(cell.effects.breathing, effects.breathing)
         if (effects.shake !== undefined) Object.assign(cell.effects.shake, normalizeShakePatch(effects.shake))
@@ -1002,7 +1003,7 @@ export const useAppStore = create<AppStore>()(
           ? normalizeShakePatch(value)
           : structuredClone(value)
         Object.assign(cell.effects[effectKey], patch)
-        if (effectKey === 'flash') sanitizeFlashEffectTransitionsInPlace(cell.effects.flash)
+        if (effectKey === 'flash') sanitizeFlashEffectInPlace(cell.effects.flash)
       })
       s.effectGuideNonce += 1
     }),
