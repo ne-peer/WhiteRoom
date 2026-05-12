@@ -1,4 +1,5 @@
 [![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/ne-peer/WhiteRoom/total?style=flat&color=FF6496)](https://github.com/ne-peer/WhiteRoom/releases)
+[![Japanese](https://img.shields.io/badge/Japanese-Available-red)](https://github.com/ne-peer/WhiteRoom/blob/main/README.md)
 
 <div>
    <h1 align="center">WhiteRoom</h1> 
