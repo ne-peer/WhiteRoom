@@ -696,7 +696,7 @@ function applyAssetAdditionalEffect(
   } else if (effect === 'wiggle') {
     const wave = Math.sin(cycle * Math.PI * 2)
     const rotationOffset = wave * (Math.PI / 9)
-    const riseSpeedDistanceScale = particle.baseScale === undefined ? particle.vy / 4 : 0
+    const riseSpeedDistanceScale = particle.baseScale === undefined ? clamp((8 - particle.vy) / 4, 0.5, 1.5) : 0
     visual.rotation += rotationOffset
     visual.x += wave * 8 + Math.sin(rotationOffset) * 160 * riseSpeedDistanceScale
   }
