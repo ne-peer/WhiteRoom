@@ -3,6 +3,11 @@
   bottom: 12px;
   left: 12px;
   z-index: 220;
+  transition: opacity 1.4s ease;
+}
+
+.dock:hover {
+  transition: opacity 0.12s ease;
 }
 
 /* ハンバーガーボタン */

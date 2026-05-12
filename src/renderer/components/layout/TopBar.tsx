@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useTranslation } from '../../i18n'
 import styles from './TopBar.module.css'
+
+const ICON_FADE_DELAY_MS = 3000
 
 export const TopBar: React.FC = () => {
   const {
@@ -11,10 +13,33 @@ export const TopBar: React.FC = () => {
     setFullscreen,
     setStashWindowOpen,
   } = useAppStore()
+  const textReaderVisible = useAppStore(s => s.textReader.visible)
+  const textReaderWindowPosition = useAppStore(s => s.textReader.config.windowPosition)
   const { t } = useTranslation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [iconFaded, setIconFaded] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuPanelRef = useRef<HTMLDivElement>(null)
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // テキストウィンドウが左下ハンバーガーと重なる位置にあるか
+  const overlapsTextWindow = textReaderVisible &&
+    (textReaderWindowPosition === 'bottom' || textReaderWindowPosition === 'left')
+
+  const startFadeTimer = useCallback(() => {
+    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
+    setIconFaded(false)
+    fadeTimerRef.current = setTimeout(() => {
+      setIconFaded(true)
+    }, ICON_FADE_DELAY_MS)
+  }, [])
+
+  // 初回マウント時にフェードタイマー開始
+  useEffect(() => {
+    startFadeTimer()
+    return () => { if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current) }
+  }, [startFadeTimer])
 
   const handleFullscreen = () => {
     const next = !fullscreen
@@ -60,17 +85,32 @@ export const TopBar: React.FC = () => {
       if (menuRef.current) rects.push(menuRef.current.getBoundingClientRect())
       if (menuPanelRef.current) rects.push(menuPanelRef.current.getBoundingClientRect())
       const minDist = rects.reduce((min, r) => Math.min(min, distToRect(e.clientX, e.clientY, r)), Infinity)
-      if (minDist > CLOSE_DISTANCE) setMenuOpen(false)
+      if (minDist > CLOSE_DISTANCE) {
+        setMenuOpen(false)
+        startFadeTimer()
+      }
     }
     document.addEventListener('mousemove', onMouseMove)
     return () => document.removeEventListener('mousemove', onMouseMove)
-  }, [menuOpen])
+  }, [menuOpen, startFadeTimer])
+
+  const dockOpacity = (overlapsTextWindow && !isHovered) ? 0 : iconFaded ? 0.13 : 0.9
 
   return (
     <div
       className={styles.dock}
       ref={menuRef}
-      onMouseEnter={() => setMenuOpen(true)}
+      style={{ opacity: dockOpacity }}
+      onMouseEnter={() => {
+        setIsHovered(true)
+        setMenuOpen(true)
+        setIconFaded(false)
+        if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current)
+      }}
+      onMouseLeave={() => {
+        setIsHovered(false)
+        startFadeTimer()
+      }}
     >
       <button
         className={`${styles.hamburgerBtn} ${menuOpen ? styles.hamburgerBtnOpen : ''}`}
