@@ -1490,14 +1490,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('breathing', { maxOffsetPx: v })}
               />
             </Row>
-            <Row label={t('timerSync')}>
-              <Toggle
-                value={effects.breathing.timerSync ?? false}
-                onChange={v => set('breathing', { timerSync: v })}
-                theme="timerSync"
-
-              />
-            </Row>
             <Row label={t('scale')}>
               <Toggle
                 value={effects.breathing.scaleEnabled}
@@ -1516,6 +1508,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 />
               </Row>
             )}
+            <div style={{ marginTop: 8 }}>
+              <Row label={t('timerSync')}>
+                <Toggle
+                  value={effects.breathing.timerSync ?? false}
+                  onChange={v => set('breathing', { timerSync: v })}
+                  theme="timerSync"
+                />
+              </Row>
+            </div>
           </>
         )}
       </Section>
@@ -1674,13 +1675,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 unit="%"
               />
             </Row>
-            <Row label={t('timerSync')}>
-              <Toggle
-                value={effects.dynamicAsset.alphaTimerSync ?? false}
-                onChange={v => set('dynamicAsset', { alphaTimerSync: v })}
-                theme="timerSync"
-              />
-            </Row>
             <Row label={t('size')}>
               <Slider
                 value={Math.round(effects.dynamicAsset.sizeRatio * 100)}
@@ -1747,6 +1741,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 )}
               </>
             )}
+            <div style={{ marginTop: 8 }}>
+              <Row label={t('timerSync')}>
+                <Toggle
+                  value={effects.dynamicAsset.alphaTimerSync ?? false}
+                  onChange={v => set('dynamicAsset', { alphaTimerSync: v })}
+                  theme="timerSync"
+                />
+              </Row>
+            </div>
           </>
         )}
       </Section>
@@ -2482,15 +2485,17 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     onChange={v => set('spiral', { dynamicDurationMs: v * 1000 })}
                   />
                 </Row>
-                <Row label={t('timerSync')}>
-                  <Toggle
-                    value={effects.spiral.dynamicTimerSync ?? false}
-                    onChange={v => set('spiral', { dynamicTimerSync: v })}
-                    theme="timerSync"
-                  />
-                </Row>
               </>
             )}
+            <div style={{ marginTop: 8 }}>
+              <Row label={t('timerSync')}>
+                <Toggle
+                  value={effects.spiral.dynamicTimerSync ?? false}
+                  onChange={v => set('spiral', { dynamicTimerSync: v })}
+                  theme="timerSync"
+                />
+              </Row>
+            </div>
           </>
         )}
       </Section>
@@ -2560,14 +2565,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 unit="%"
               />
             </Row>
-            <Row label={t('timerSync')}>
-              <Toggle
-                value={effects.textEffect.alphaTimerSync ?? false}
-                onChange={v => set('textEffect', { alphaTimerSync: v })}
-                theme="timerSync"
-
-              />
-            </Row>
             <Row label={t('fontSize')}>
               <Slider
                 value={effects.textEffect.fontSize}
@@ -2608,6 +2605,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('textEffect', { intervalMs: v })}
               />
             </Row>
+            <div style={{ marginTop: 8 }}>
+              <Row label={t('timerSync')}>
+                <Toggle
+                  value={effects.textEffect.alphaTimerSync ?? false}
+                  onChange={v => set('textEffect', { alphaTimerSync: v })}
+                  theme="timerSync"
+                />
+              </Row>
+            </div>
           </>
         )}
       </Section>
