@@ -14,6 +14,14 @@ const FALLBACK_FONT_OPTIONS = ['Meiryo', 'BIZ UDPGothic', 'Yu Gothic', 'MS PGoth
 
 type Props = { selectedCell: Cell | undefined | null }
 
+/** Zoom/Squish modes that use one-shot style UI (repeat interval, random position, etc.). */
+function isZoomSquishOneshotLikeMode(
+  mode: 'oneshot' | 'oneshotA' | 'oneshotB' | 'permanentA' | 'permanentB' | undefined,
+): boolean {
+  const m = mode ?? 'oneshotA'
+  return m === 'oneshot' || m === 'oneshotA' || m === 'oneshotB'
+}
+
 const assetEffectFoldersStartupPromise = typeof window !== 'undefined'
   ? window.api.listAssetEffectFolders().catch(() => ({ folders: [] }))
   : Promise.resolve({ folders: [] })
@@ -1402,7 +1410,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('zoom', { speedFactor: v })}
               />
             </Row>
-            {(['oneshot', 'oneshotA', 'oneshotB'] as const).includes(effects.zoom.mode ?? 'oneshotA') && (
+            {isZoomSquishOneshotLikeMode(effects.zoom.mode) && (
               <>
                 <Row label={t('shakeRepeat')}>
                   <Toggle
@@ -1844,7 +1852,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('squish', { mode: v as 'oneshot' | 'oneshotA' | 'oneshotB' | 'permanentA' | 'permanentB' })}
               />
             </Row>
-            {(['oneshot', 'oneshotA', 'oneshotB'] as const).includes(effects.squish.mode ?? 'oneshotA') && (
+            {isZoomSquishOneshotLikeMode(effects.squish.mode) && (
               <Row label={t('squishRandomPosition')}>
                 <Toggle
                   value={effects.squish.randomPosition ?? false}
@@ -1852,7 +1860,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 />
               </Row>
             )}
-            {!(effects.squish.randomPosition && (['oneshot', 'oneshotA', 'oneshotB'] as const).includes(effects.squish.mode ?? 'oneshotA')) && (
+            {!(effects.squish.randomPosition && isZoomSquishOneshotLikeMode(effects.squish.mode)) && (
               <Row label={t('squishCirclePositionY')}>
                 <Slider
                   value={Math.round((effects.squish.circlePositionY ?? 0.5) * 100)}
@@ -1971,7 +1979,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('squish', { speedFactor: v })}
               />
             </Row>
-            {(['oneshot', 'oneshotA', 'oneshotB'] as const).includes(effects.squish.mode ?? 'oneshotA') && (
+            {isZoomSquishOneshotLikeMode(effects.squish.mode) && (
               <>
                 <Row label={t('shakeRepeat')}>
                   <Toggle
