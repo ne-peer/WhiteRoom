@@ -254,18 +254,6 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   }, [store.effectColumnSyncNonce])
 
   useEffect(() => {
-    const { cells, columnHeartPreviewCol } = useAppStore.getState()
-    if (columnHeartPreviewCol === null) return
-    const map = cellRenderersRef.current
-    cells.forEach(cell => {
-      const cr = map.get(cell.id)
-      if (!cr) return
-      if (cell.col === columnHeartPreviewCol) cr.showColumnHeartPreview()
-      else cr.clearColumnHeartPreview()
-    })
-  }, [store.columnHeartPreviewNonce])
-
-  useEffect(() => {
     const { timer, cells } = store
     const progress = timer.totalSec > 0 ? timer.elapsedSec / timer.totalSec : 0
     smoothTimerRef.current = {

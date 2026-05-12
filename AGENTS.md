@@ -138,15 +138,15 @@ For the per-image effect profile save/load feature, read `docs/WR-EffectProfile.
 - Text Reader / Storyboard activity suspends automatic application until the text file is closed.
 - Remote URL images cannot be saved because there is no local target folder.
 
-## Vector Stamp Spec（ドラフト）
+## Vector Stamp Spec (draft)
 
-手続きベクター（ベジェ等）によるスタンプと、既存ラスタ・アセットエフェクトの併存設計は、**ドラフト**仕様書 [`docs/WR-VectorStamp.md`](docs/WR-VectorStamp.md) に記載する。実装や `src/shared/types.ts` を変更する前に当該ドキュメントを読むこと。
+For procedural vector stamps (e.g. Bézier paths) alongside raster dynamic assets, read the **draft** spec [`docs/WR-VectorStamp.md`](docs/WR-VectorStamp.md) before changing implementation or `src/shared/types.ts`.
 
-- 同梱プリセットはパス非依存のプリセット ID で参照し、ユーザーが読み込む画像パスによるラスタ描画の機能・仕様は維持する。
-- 基本形状を編集可能とする制御点ベースの「歪み」はスコープ外とし、コード上の一定ロジックによる変形（スケール・回転・透明度・パターン用オフセット等）までとする。
-- 複数スタンプのグループは、セル正規化座標（0–1）のアンカーとグループローカルでの子配置を前提とする。
+- Built-in presets use path-independent preset IDs; user-loaded image paths for raster drawing remain supported.
+- User-editable control-point “warping” of the base shape is out of scope; transforms are limited to fixed code paths (scale, rotation, alpha, pattern offsets, etc.).
+- Stamp groups assume a normalized cell anchor (0–1) and child placement in group-local space.
 
-**正式リリース時:** [`docs/WR-VectorStamp.md`](docs/WR-VectorStamp.md) 冒頭の **DRAFT** 表示およびドラフト向けの注意書きを削除し、本文を確定版として整えること。`AGENTS.md` の本節から「ドラフト」の表記およびこのリリース作業の段落を削除し、他の仕様節と同様の参照のみ残すこと。
+**At stable release:** Remove the **DRAFT** banner and draft-only notes at the top of [`docs/WR-VectorStamp.md`](docs/WR-VectorStamp.md), align the body with shipped behavior, and trim this `AGENTS.md` section to a normal spec pointer (drop “draft” and the release-instructions paragraph).
 
 ## Stash Spec
 

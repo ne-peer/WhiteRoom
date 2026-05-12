@@ -478,9 +478,6 @@ export type AppState = {
   effectGuideNonce: number
   effectColumnSyncNonce: number
   effectColumnSyncCol: number | null
-  /** グリッドタブの仮ハート描画トリガ（列は選択セル由来） */
-  columnHeartPreviewNonce: number
-  columnHeartPreviewCol: number | null
   applyEffectChangesToAllColumns: boolean
   shakeTrailPositionPicking: boolean
   spiralRadialPositionPicking: boolean
@@ -561,7 +558,6 @@ export type AppActions = {
   setShakeTrailPositionPicking: (flag: boolean) => void
   setSpiralRadialPositionPicking: (flag: boolean) => void
   setSquishColorPicking: (flag: boolean) => void
-  requestColumnHeartPreview: () => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -702,8 +698,6 @@ export const useAppStore = create<AppStore>()(
     effectGuideNonce: 0,
     effectColumnSyncNonce: 0,
     effectColumnSyncCol: null,
-    columnHeartPreviewNonce: 0,
-    columnHeartPreviewCol: null,
     applyEffectChangesToAllColumns: true,
     shakeTrailPositionPicking: false,
     spiralRadialPositionPicking: false,
@@ -1072,19 +1066,6 @@ export const useAppStore = create<AppStore>()(
         s.shakeTrailPositionPicking = false
         s.spiralRadialPositionPicking = false
       }
-    }),
-
-    requestColumnHeartPreview: () => set(s => {
-      const selectedCell = s.cells.find(c => c.id === s.selectedCellId)
-      if (!selectedCell) {
-        const text = s.language === 'en'
-          ? 'Select a cell on the canvas first.'
-          : '先にキャンバス上でセルを選択してください。'
-        s.appNotification = { id: Date.now(), text, type: 'warning' }
-        return
-      }
-      s.columnHeartPreviewCol = selectedCell.col
-      s.columnHeartPreviewNonce += 1
     }),
 
     // ===== 表示設定 =====

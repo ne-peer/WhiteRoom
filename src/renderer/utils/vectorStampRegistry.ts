@@ -5,22 +5,6 @@ export function isBuiltinVectorDynamicAssetPreset(id: string | null | undefined)
   return id === DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART
 }
 
-/** セル座標系でハートを描画（列プレビュー用。中心付近の従来ジオメトリ） */
-export function drawBuiltinHeartAtCell(
-  g: PIXI.Graphics,
-  cellWidth: number,
-  cellHeight: number,
-  fillColor: number,
-  strokeColor: number,
-  strokeWidth: number,
-): void {
-  const minDim = Math.min(cellWidth, cellHeight)
-  const size = minDim * 0.36
-  const cx = cellWidth * 0.5
-  const topY = cellHeight * 0.38 - size * 0.35
-  drawHeartBezierTopLeft(g, cx, topY, size, fillColor, strokeColor, strokeWidth)
-}
-
 const PARTICLE_HEART_UNIT = 48
 
 /**

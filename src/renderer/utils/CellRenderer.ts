@@ -7,7 +7,7 @@ import {
   ParticleSystem,
   TextSystem,
 } from './pixiEffects'
-import { drawBuiltinHeartAtCell, isBuiltinVectorDynamicAssetPreset } from './vectorStampRegistry'
+import { isBuiltinVectorDynamicAssetPreset } from './vectorStampRegistry'
 
 type SquishOrganicShape = {
   radiusXScale: number
@@ -178,8 +178,6 @@ export class CellRenderer {
   private squishPrevOrganicShape: SquishOrganicShape | null = null
   private squishRandomPosition: { x: number; y: number } | null = null
   private squishBurstGraphics: PIXI.Graphics
-  private columnHeartPreviewGraphics: PIXI.Graphics
-  private columnHeartPreviewActive = false
   private squishBurstActiveSec: number | null = null
   private squishBurstTriggeredThisCycle = false
   private squishBurstCenters: { x: number; y: number }[] = []
@@ -287,8 +285,6 @@ export class CellRenderer {
     this.overlayLayer.addChild(this.squishBurstGraphics)
     this.squishGraphics = new PIXI.Graphics()
     this.overlayLayer.addChild(this.squishGraphics)
-    this.columnHeartPreviewGraphics = new PIXI.Graphics()
-    this.overlayLayer.addChild(this.columnHeartPreviewGraphics)
     this.spiralGraphics = new PIXI.Graphics()
     this.spiralLayer.addChild(this.spiralGraphics)
 
@@ -320,7 +316,6 @@ export class CellRenderer {
     this.textSystem.resizeMask(width, height)
     this.positionFlashOverlaySprite()
     if (this.latestEffects) this.updateSpiral(this.latestEffects)
-    if (this.columnHeartPreviewActive) this.redrawColumnHeartPreview()
   }
 
   private updateHitArea() {
@@ -712,29 +707,7 @@ export class CellRenderer {
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.clearSpiralMask()
-    this.clearColumnHeartPreview()
     this.container.destroy({ children: true })
-  }
-
-  /** 仮: ベジェ曲線のハートをセル上に表示（フォント・画像アセット不使用） */
-  showColumnHeartPreview() {
-    this.columnHeartPreviewActive = true
-    this.redrawColumnHeartPreview()
-  }
-
-  clearColumnHeartPreview() {
-    this.columnHeartPreviewActive = false
-    this.columnHeartPreviewGraphics.clear()
-    this.columnHeartPreviewGraphics.alpha = 1
-  }
-
-  private redrawColumnHeartPreview() {
-    if (!this.columnHeartPreviewActive) return
-    const g = this.columnHeartPreviewGraphics
-    const minDim = Math.min(this.width, this.height)
-    const strokeW = Math.max(1.5, minDim * 0.012)
-    drawBuiltinHeartAtCell(g, this.width, this.height, 0xff3b6a, 0xffccd5, strokeW)
-    g.alpha = 0.88
   }
 
   private startImageTransition(
