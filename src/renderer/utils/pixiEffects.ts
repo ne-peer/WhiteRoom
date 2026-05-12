@@ -684,7 +684,7 @@ function applyAssetAdditionalEffect(
   speedFactor: number,
   elapsedMs: number
 ) {
-  const effectiveSpeedFactor = clamp(speedFactor, 0.1, 5) * (effect === 'wiggle' ? 0.7 : 1)
+  const effectiveSpeedFactor = clamp(speedFactor, 0.1, 5) * (effect === 'wiggle' ? 0.5 : 1)
   const cycle = ((elapsedMs * effectiveSpeedFactor) % 1200) / 1200
   visual.x = particle.x
   visual.y = particle.y
@@ -698,7 +698,7 @@ function applyAssetAdditionalEffect(
     const wave = Math.sin(cycle * Math.PI * 2)
     const rotationOffset = wave * (Math.PI / 9)
     visual.rotation += rotationOffset
-    visual.x += wave * 8
+    visual.x += oscillateEased(cycle, easeInOutSine) * 20
   }
 }
 
