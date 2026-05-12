@@ -2553,7 +2553,7 @@ export class CellRenderer {
       incomingOffsetY: 0,
       outgoingOffsetX: 0,
       outgoingOffsetY: 0,
-      outgoingScaleMultiplier: flash.endTransition === 'zoom-in' ? 1.12 : 0.88,
+      outgoingScaleMultiplier: 1,
     }
     this.flashEndProxy = proxy
     this.flashEndTween = gsap.to(proxy, {
