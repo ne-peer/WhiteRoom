@@ -177,6 +177,8 @@ export class CellRenderer {
   private squishPrevOrganicShape: SquishOrganicShape | null = null
   private squishRandomPosition: { x: number; y: number } | null = null
   private squishBurstGraphics: PIXI.Graphics
+  private columnHeartPreviewGraphics: PIXI.Graphics
+  private columnHeartPreviewActive = false
   private squishBurstActiveSec: number | null = null
   private squishBurstTriggeredThisCycle = false
   private squishBurstCenters: { x: number; y: number }[] = []
@@ -284,6 +286,8 @@ export class CellRenderer {
     this.overlayLayer.addChild(this.squishBurstGraphics)
     this.squishGraphics = new PIXI.Graphics()
     this.overlayLayer.addChild(this.squishGraphics)
+    this.columnHeartPreviewGraphics = new PIXI.Graphics()
+    this.overlayLayer.addChild(this.columnHeartPreviewGraphics)
     this.spiralGraphics = new PIXI.Graphics()
     this.spiralLayer.addChild(this.spiralGraphics)
 
@@ -315,6 +319,7 @@ export class CellRenderer {
     this.textSystem.resizeMask(width, height)
     this.positionFlashOverlaySprite()
     if (this.latestEffects) this.updateSpiral(this.latestEffects)
+    if (this.columnHeartPreviewActive) this.redrawColumnHeartPreview()
   }
 
   private updateHitArea() {
@@ -706,7 +711,41 @@ export class CellRenderer {
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.clearSpiralMask()
+    this.clearColumnHeartPreview()
     this.container.destroy({ children: true })
+  }
+
+  /** 仮: ベジェ曲線のハートをセル上に表示（フォント・画像アセット不使用） */
+  showColumnHeartPreview() {
+    this.columnHeartPreviewActive = true
+    this.redrawColumnHeartPreview()
+  }
+
+  clearColumnHeartPreview() {
+    this.columnHeartPreviewActive = false
+    this.columnHeartPreviewGraphics.clear()
+  }
+
+  private redrawColumnHeartPreview() {
+    if (!this.columnHeartPreviewActive) return
+    const g = this.columnHeartPreviewGraphics
+    g.clear()
+    const minDim = Math.min(this.width, this.height)
+    const size = minDim * 0.36
+    const cx = this.width * 0.5
+    const topY = this.height * 0.38 - size * 0.35
+    const x = cx
+    const y = topY
+    const topCurveHeight = size * 0.3
+    g.moveTo(x, y + topCurveHeight)
+    g.bezierCurveTo(x, y, x - size / 2, y, x - size / 2, y + topCurveHeight)
+    g.bezierCurveTo(x - size / 2, y + (size + topCurveHeight) / 2, x, y + (size + topCurveHeight) / 2, x, y + size)
+    g.bezierCurveTo(x, y + (size + topCurveHeight) / 2, x + size / 2, y + (size + topCurveHeight) / 2, x + size / 2, y + topCurveHeight)
+    g.bezierCurveTo(x + size / 2, y, x, y, x, y + topCurveHeight)
+    g.closePath()
+    const strokeW = Math.max(1.5, minDim * 0.012)
+    g.fill({ color: 0xff3b6a, alpha: 0.88 })
+    g.stroke({ color: 0xffccd5, alpha: 0.75, width: strokeW })
   }
 
   private startImageTransition(

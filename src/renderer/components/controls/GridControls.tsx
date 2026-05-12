@@ -24,6 +24,7 @@ export const GridControls: React.FC = () => {
     resetAllCellFolders,
     showAppNotification,
     setImageEffectProfile,
+    requestColumnHeartPreview,
   } = useAppStore()
   const { language, t } = useTranslation()
   const [remoteImageUrl, setRemoteImageUrl] = useState('')
@@ -260,6 +261,12 @@ export const GridControls: React.FC = () => {
           ))}
         </div>
       </Section>
+
+      <div style={{ marginTop: 18, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <Button variant="secondary" onClick={() => requestColumnHeartPreview()}>
+          {t('columnHeartPreviewButton')}
+        </Button>
+      </div>
     </div>
   )
 }
