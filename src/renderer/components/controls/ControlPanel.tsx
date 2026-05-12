@@ -33,6 +33,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
   const [activeTab, setActiveTab] = useState<Tab>('grid')
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const menuHoverRef = useRef(false)
   const selectedCell = useAppStore(selectSelectedCell)
   const showControls = useAppStore(s => s.showControls)
   const storyboardFileActive = useAppStore(s => s.textReader.storyboardFileActive)
@@ -65,6 +66,21 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
     setMenuOpen(false)
   }
 
+  const handleMenuMouseEnter = () => {
+    menuHoverRef.current = true
+    setMenuOpen(true)
+  }
+
+  const handleMenuMouseLeave = () => {
+    menuHoverRef.current = false
+    setMenuOpen(false)
+  }
+
+  const handleMenuTriggerClick = () => {
+    if (menuHoverRef.current && menuOpen) return
+    setMenuOpen(v => !v)
+  }
+
   const activeMenuTab = MENU_TABS.find(tab => tab.id === activeTab)
 
   return (
@@ -92,13 +108,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
           <div
             className={styles.menuPopover}
             ref={menuRef}
-            onMouseEnter={() => setMenuOpen(true)}
-            onMouseLeave={() => setMenuOpen(false)}
+            onMouseEnter={handleMenuMouseEnter}
+            onMouseLeave={handleMenuMouseLeave}
           >
             <button
               type="button"
               className={`${styles.tab} ${styles.menuTrigger} ${isMenuTabActive ? styles.tabActive : ''}`}
-              onClick={() => setMenuOpen(v => !v)}
+              onClick={handleMenuTriggerClick}
               aria-expanded={menuOpen}
               aria-haspopup="menu"
               title="外観 / プロファイル"
