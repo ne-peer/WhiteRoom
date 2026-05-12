@@ -143,6 +143,9 @@ export function inferFlashDisplayFileMode(
   return 'pickFile'
 }
 
+/** 同梱ベクター・プリセット ID（プロファイルにパスを書かない） */
+export const DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART = 'builtin.heart.v1' as const
+
 export type FlashEffect = {
   enabled: boolean
   /** UI: 表示ファイル。旧プロファイルは読み込み時に推定される */
@@ -152,8 +155,6 @@ export type FlashEffect = {
   vectorPresetId: string | null
   /** 表示テクスチャの基準サイズに対する倍率（0.1–3.0） */
   scaleRatio: number
-  /** ベクターアセット選択時のみ有効。動的アセットの `colorOverlay*` と同じ挙動 */
-  colorOverlayEnabled: boolean
   colorOverlayColor: { r: number; g: number; b: number }
   colorOverlayAlpha: number
   colorOverlayAlphaRandomEnabled: boolean
@@ -172,17 +173,31 @@ export type FlashEffect = {
 }
 
 export function normalizeFlashEffectTransitionFields(flash: FlashEffect): FlashEffect {
+  const incoming = { ...(flash as unknown as Record<string, unknown>) }
+  delete incoming.colorOverlayEnabled
+  const base = incoming as FlashEffect
+
   const displayFileMode: FlashDisplayFileMode =
-    flash.displayFileMode === 'pickFile' ||
-    flash.displayFileMode === 'displayCrop' ||
-    flash.displayFileMode === 'asset'
-      ? flash.displayFileMode
-      : inferFlashDisplayFileMode(flash.imagePath, flash.vectorPresetId)
+    base.displayFileMode === 'pickFile' ||
+    base.displayFileMode === 'displayCrop' ||
+    base.displayFileMode === 'asset'
+      ? base.displayFileMode
+      : inferFlashDisplayFileMode(base.imagePath, base.vectorPresetId)
+
+  let vectorPresetId = base.vectorPresetId
+  if (
+    displayFileMode === 'asset' &&
+    (vectorPresetId === null || vectorPresetId === undefined || vectorPresetId === '')
+  ) {
+    vectorPresetId = DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART
+  }
+
   return {
-    ...flash,
+    ...base,
     displayFileMode,
-    startTransition: normalizeDeprecatedFlashTransition(flash.startTransition) as FlashStartTransition,
-    endTransition: normalizeDeprecatedFlashTransition(flash.endTransition),
+    vectorPresetId,
+    startTransition: normalizeDeprecatedFlashTransition(base.startTransition) as FlashStartTransition,
+    endTransition: normalizeDeprecatedFlashTransition(base.endTransition),
   }
 }
 
@@ -199,6 +214,10 @@ export function sanitizeFlashEffectInPlace(flash: FlashEffect): void {
     flash.displayFileMode !== 'asset'
   ) {
     flash.displayFileMode = inferFlashDisplayFileMode(flash.imagePath, flash.vectorPresetId)
+  }
+  delete (flash as unknown as Record<string, unknown>).colorOverlayEnabled
+  if (flash.displayFileMode === 'asset' && !flash.vectorPresetId) {
+    flash.vectorPresetId = DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART
   }
 }
 
@@ -300,9 +319,6 @@ export type FogEffect = {
 
 export type AssetDrawPattern = 'rising' | 'emergence'
 export type DynamicAssetAdditionalEffect = 'none' | 'jiggle' | 'bounce' | 'wiggle'
-
-/** 同梱ベクター・プリセット ID（プロファイルにパスを書かない） */
-export const DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART = 'builtin.heart.v1' as const
 
 export type DynamicAssetSourceKind = 'raster' | 'vector'
 

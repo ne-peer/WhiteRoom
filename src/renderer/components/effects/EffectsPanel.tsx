@@ -13,7 +13,6 @@ import {
 
 /** フラッシュ用ベクターアセット（`Select` の候補）。追加時はここに列挙する。 */
 const FLASH_BUILTIN_VECTOR_ASSET_OPTIONS = [
-  { value: '', labelKey: 'flashAssetNone' as const },
   { value: DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART, labelKey: 'dynamicAssetVectorHeart' as const },
 ] as const
 
@@ -116,9 +115,8 @@ const EFFECT_PRESET_1: CellEffects = {
     imagePath: null,
     vectorPresetId: null,
     scaleRatio: 1,
-    colorOverlayEnabled: false,
     colorOverlayColor: { r: 255, g: 15, b: 91 },
-    colorOverlayAlpha: 0.5,
+    colorOverlayAlpha: 1,
     colorOverlayAlphaRandomEnabled: false,
     opacity: 1,
     blurStrength: 0,
@@ -338,9 +336,8 @@ const EFFECT_PRESET_2: CellEffects = {
     imagePath: null,
     vectorPresetId: null,
     scaleRatio: 1,
-    colorOverlayEnabled: false,
     colorOverlayColor: { r: 255, g: 15, b: 91 },
-    colorOverlayAlpha: 0.5,
+    colorOverlayAlpha: 1,
     colorOverlayAlphaRandomEnabled: false,
     opacity: 1,
     blurStrength: 0,
@@ -680,6 +677,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     set('flash', {
       displayFileMode: 'asset',
       imagePath: null,
+      vectorPresetId: f.vectorPresetId ?? DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
     })
   }
 
@@ -1930,59 +1928,41 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <>
                 <Row label={t('flashAsset')}>
                   <Select
-                    value={effects.flash.vectorPresetId ?? ''}
+                    value={effects.flash.vectorPresetId ?? DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART}
                     options={FLASH_BUILTIN_VECTOR_ASSET_OPTIONS.map(o => ({
                       value: o.value,
                       label: t(o.labelKey),
                     }))}
                     onChange={v =>
                       set('flash', {
-                        vectorPresetId: v === '' ? null : v,
+                        vectorPresetId: v,
                         displayFileMode: 'asset',
                         imagePath: null,
                       })}
                   />
                 </Row>
-                {effects.flash.vectorPresetId && (
-                  <>
-                    <Row label={t('assetColor')}>
-                      <Toggle
-                        value={effects.flash.colorOverlayEnabled}
-                        onChange={v =>
-                          set('flash', {
-                            colorOverlayEnabled: v,
-                            ...(v ? {} : { colorOverlayAlphaRandomEnabled: false }),
-                          })}
-                      />
-                    </Row>
-                    {effects.flash.colorOverlayEnabled && (
-                      <>
-                        <ColorPicker
-                          r={effects.flash.colorOverlayColor.r}
-                          g={effects.flash.colorOverlayColor.g}
-                          b={effects.flash.colorOverlayColor.b}
-                          onChange={(r, g, b) => set('flash', { colorOverlayColor: { r, g, b } })}
-                        />
-                        <Row label={t('assetColorApplyRandom')}>
-                          <Toggle
-                            value={effects.flash.colorOverlayAlphaRandomEnabled ?? false}
-                            onChange={v => set('flash', { colorOverlayAlphaRandomEnabled: v })}
-                          />
-                        </Row>
-                        {!effects.flash.colorOverlayAlphaRandomEnabled && (
-                          <Row label={t('assetColorOpacity')}>
-                            <Slider
-                              value={Math.round(effects.flash.colorOverlayAlpha * 100)}
-                              min={0}
-                              max={100}
-                              onChange={v => set('flash', { colorOverlayAlpha: v / 100 })}
-                              unit="%"
-                            />
-                          </Row>
-                        )}
-                      </>
-                    )}
-                  </>
+                <ColorPicker
+                  r={effects.flash.colorOverlayColor.r}
+                  g={effects.flash.colorOverlayColor.g}
+                  b={effects.flash.colorOverlayColor.b}
+                  onChange={(r, g, b) => set('flash', { colorOverlayColor: { r, g, b } })}
+                />
+                <Row label={t('assetColorApplyRandom')}>
+                  <Toggle
+                    value={effects.flash.colorOverlayAlphaRandomEnabled ?? false}
+                    onChange={v => set('flash', { colorOverlayAlphaRandomEnabled: v })}
+                  />
+                </Row>
+                {!effects.flash.colorOverlayAlphaRandomEnabled && (
+                  <Row label={t('assetColorOpacity')}>
+                    <Slider
+                      value={Math.round(effects.flash.colorOverlayAlpha * 100)}
+                      min={0}
+                      max={100}
+                      onChange={v => set('flash', { colorOverlayAlpha: v / 100 })}
+                      unit="%"
+                    />
+                  </Row>
                 )}
               </>
             )}

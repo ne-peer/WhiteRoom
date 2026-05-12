@@ -2384,10 +2384,6 @@ export class CellRenderer {
       sprite.tint = 0xffffff
       return
     }
-    if (!flash.colorOverlayEnabled) {
-      sprite.tint = 0xffffff
-      return
-    }
     if (flash.colorOverlayAlphaRandomEnabled) {
       if (fromCycleStart) {
         const alpha = 0.4 + Math.random() * 0.6
