@@ -22,9 +22,10 @@ export function createVectorDynamicAssetDisplay(
   const y = 0
   drawHeartBezierTopLeft(g, x, y, size, 0xffffff, 0xffccd5, Math.max(1, size * 0.012))
   const bounds = g.getLocalBounds()
+  // Keep the holder origin at the visible asset center for rotation effects.
   g.position.set(
     -(bounds.x + bounds.width / 2),
-    -(bounds.y + bounds.height * 0.42),
+    -(bounds.y + bounds.height / 2),
   )
   holder.addChild(g)
   holder.tint = overlayTint
