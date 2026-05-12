@@ -493,6 +493,7 @@ export type AppState = {
   shakeTrailPositionPicking: boolean
   spiralRadialPositionPicking: boolean
   squishColorPicking: boolean
+  flashRangePicking: boolean
   appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error' } | null
   imageEffectProfiles: Record<string, ImageEffectProfileDocument | null>
   imageEffectProfileAutoApplySuspended: boolean
@@ -569,6 +570,7 @@ export type AppActions = {
   setShakeTrailPositionPicking: (flag: boolean) => void
   setSpiralRadialPositionPicking: (flag: boolean) => void
   setSquishColorPicking: (flag: boolean) => void
+  setFlashRangePicking: (flag: boolean) => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -713,6 +715,7 @@ export const useAppStore = create<AppStore>()(
     shakeTrailPositionPicking: false,
     spiralRadialPositionPicking: false,
     squishColorPicking: false,
+    flashRangePicking: false,
     appNotification: null,
     imageEffectProfiles: {},
     imageEffectProfileAutoApplySuspended: false,
@@ -1069,12 +1072,18 @@ export const useAppStore = create<AppStore>()(
 
     setShakeTrailPositionPicking: (flag) => set(s => {
       s.shakeTrailPositionPicking = flag
-      if (flag) s.squishColorPicking = false
+      if (flag) {
+        s.squishColorPicking = false
+        s.flashRangePicking = false
+      }
     }),
 
     setSpiralRadialPositionPicking: (flag) => set(s => {
       s.spiralRadialPositionPicking = flag
-      if (flag) s.squishColorPicking = false
+      if (flag) {
+        s.squishColorPicking = false
+        s.flashRangePicking = false
+      }
     }),
 
     setSquishColorPicking: (flag) => set(s => {
@@ -1082,6 +1091,16 @@ export const useAppStore = create<AppStore>()(
       if (flag) {
         s.shakeTrailPositionPicking = false
         s.spiralRadialPositionPicking = false
+        s.flashRangePicking = false
+      }
+    }),
+
+    setFlashRangePicking: (flag) => set(s => {
+      s.flashRangePicking = flag
+      if (flag) {
+        s.shakeTrailPositionPicking = false
+        s.spiralRadialPositionPicking = false
+        s.squishColorPicking = false
       }
     }),
 

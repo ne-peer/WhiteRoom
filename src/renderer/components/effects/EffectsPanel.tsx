@@ -473,6 +473,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setSpiralRadialPositionPicking,
     squishColorPicking,
     setSquishColorPicking,
+    flashRangePicking,
+    setFlashRangePicking,
     syncZoomSquish,
   } = useAppStore()
   const { language, t } = useTranslation()
@@ -1841,9 +1843,17 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <Button variant="secondary" onClick={handleOpenFlashImage}>
                   {t('selectImage')}
                 </Button>
+                <Button
+                  variant={flashRangePicking ? 'primary' : 'secondary'}
+                  onClick={() => setFlashRangePicking(!flashRangePicking)}
+                >
+                  {flashRangePicking ? t('flashRangePickActive') : t('flashRangePickButton')}
+                </Button>
                 {effects.flash.imagePath && (
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
-                    {effects.flash.imagePath.split(/[\\/]/).pop()}
+                    {effects.flash.imagePath.startsWith('data:')
+                      ? t('flashRangeSnapshotName')
+                      : effects.flash.imagePath.split(/[\\/]/).pop()}
                   </div>
                 )}
               </div>

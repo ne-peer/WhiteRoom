@@ -8,7 +8,7 @@ import { TimerEndFlashOverlay } from '../timer/TimerEndFlashOverlay'
 import { TimerPreOverlay } from '../timer/TimerPreOverlay'
 import { CellNavigationOverlay } from './CellNavigationOverlay'
 import { TextReaderWindow, calcReaderAutoHeight, calcReaderAutoWidth, READER_WINDOW_MARGIN } from '../reader/TextReaderWindow'
-import { emptyCellShortcutTipSections, useTranslation } from '../../i18n'
+import { emptyCellShortcutTipSections, useTranslation, type TranslationKey } from '../../i18n'
 import type { Cell, ImageFitMode } from '../../../shared/types'
 import { getTimerCompletionElapsed } from '../../utils/timerProgress'
 import styles from './MasterCanvas.module.css'
@@ -18,6 +18,13 @@ type PickCenterPoint = {
   cellId: string
   x: number
   y: number
+}
+type FlashRangeDrag = {
+  column: number
+  startX: number
+  startY: number
+  currentX: number
+  currentY: number
 }
 
 /** 1 列あたりの幅がこの値以下なら空セルの Tips 文言を出さない */
@@ -45,6 +52,7 @@ export const MasterCanvas: React.FC = () => {
     startTrailHeight: number
     startRadialHeight: number
   } | null>(null)
+  const flashRangeDragRef = useRef<FlashRangeDrag | null>(null)
   const showControls = useAppStore(s => s.showControls)
   const grid = useAppStore(s => s.grid)
   const cells = useAppStore(s => s.cells)
@@ -52,6 +60,7 @@ export const MasterCanvas: React.FC = () => {
   const shakeTrailPositionPicking = useAppStore(s => s.shakeTrailPositionPicking)
   const spiralRadialPositionPicking = useAppStore(s => s.spiralRadialPositionPicking)
   const squishColorPicking = useAppStore(s => s.squishColorPicking)
+  const flashRangePicking = useAppStore(s => s.flashRangePicking)
   const selectedCellId = useAppStore(s => s.selectedCellId)
   const textReaderVisible = useAppStore(s => s.textReader.visible)
   const textReaderConfig = useAppStore(s => s.textReader.config)
@@ -65,6 +74,7 @@ export const MasterCanvas: React.FC = () => {
     y: number
   } | null>(null)
   const [pickPreviewCenter, setPickPreviewCenter] = useState<PickCenterPoint | null>(null)
+  const [flashRangeDrag, setFlashRangeDrag] = useState<FlashRangeDrag | null>(null)
   const [lockedPickColumn, setLockedPickColumn] = useState<number | null>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const { t, language } = useTranslation()
@@ -103,9 +113,10 @@ export const MasterCanvas: React.FC = () => {
   const { setCellImage } = usePixiStage(containerRef)
   const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
   const pickingActive = shakeTrailPositionPicking || spiralRadialPositionPicking
-  const anyPickModeActive = pickingActive || squishColorPicking
+  const anyPickModeActive = pickingActive || squishColorPicking || flashRangePicking
   const selectedCell = cells.find(cell => cell.id === selectedCellId) ?? null
   const pickColumn = pickingActive ? lockedPickColumn ?? selectedCell?.col ?? null : null
+  const flashRangeColumn = flashRangePicking ? lockedPickColumn ?? selectedCell?.col ?? null : null
   const pickColumnBounds = React.useMemo((): React.CSSProperties | null => {
     if (!pickingActive || pickColumn === null || grid.cols <= 0) return null
     const left = Math.round((pickColumn * canvasSize.width) / grid.cols)
@@ -117,6 +128,17 @@ export const MasterCanvas: React.FC = () => {
       height: canvasSize.height,
     }
   }, [canvasSize.height, canvasSize.width, grid.cols, pickColumn, pickingActive])
+  const flashRangeColumnBounds = React.useMemo((): React.CSSProperties | null => {
+    if (!flashRangePicking || flashRangeColumn === null || grid.cols <= 0) return null
+    const left = Math.round((flashRangeColumn * canvasSize.width) / grid.cols)
+    const nextLeft = Math.round(((flashRangeColumn + 1) * canvasSize.width) / grid.cols)
+    return {
+      left,
+      top: 0,
+      width: nextLeft - left,
+      height: canvasSize.height,
+    }
+  }, [canvasSize.height, canvasSize.width, flashRangeColumn, flashRangePicking, grid.cols])
   const guideCellSize = {
     width: grid.cols > 0 ? canvasSize.width / grid.cols : 0,
     height: grid.rows > 0 ? canvasSize.height / grid.rows : 0,
@@ -137,11 +159,14 @@ export const MasterCanvas: React.FC = () => {
     state.setShakeTrailPositionPicking(false)
     state.setSpiralRadialPositionPicking(false)
     state.setSquishColorPicking(false)
+    state.setFlashRangePicking(false)
     centerPickDragRef.current = null
     trailSizeDragRef.current = null
+    flashRangeDragRef.current = null
     setLockedPickColumn(null)
     setPickPreviewCenter(null)
     setPickGuide(null)
+    setFlashRangeDrag(null)
   }, [])
 
   const clearStashRmbLongPressTimer = useCallback(() => {
@@ -152,7 +177,7 @@ export const MasterCanvas: React.FC = () => {
   }, [])
 
   React.useLayoutEffect(() => {
-    if (!pickingActive) {
+    if (!pickingActive && !flashRangePicking) {
       setLockedPickColumn(null)
       return
     }
@@ -161,7 +186,7 @@ export const MasterCanvas: React.FC = () => {
       const state = useAppStore.getState()
       return state.cells.find(cell => cell.id === state.selectedCellId)?.col ?? null
     })
-  }, [pickingActive, selectedCell?.col])
+  }, [flashRangePicking, pickingActive, selectedCell?.col])
 
   useEffect(() => {
     const onMouseUp = (e: MouseEvent) => {
@@ -170,6 +195,15 @@ export const MasterCanvas: React.FC = () => {
         clearStashRmbLongPressTimer()
       }
       if (e.button !== 0) return
+
+      const rangeDrag = flashRangeDragRef.current
+      const rangeEl = containerRef.current
+      if (rangeDrag && rangeEl) {
+        flashRangeDragRef.current = null
+        setFlashRangeDrag(null)
+        void finalizeFlashRangeSelection(rangeDrag, rangeEl.getBoundingClientRect(), e.clientX, e.clientY, t)
+        return
+      }
 
       const drag = centerPickDragRef.current
       const el = containerRef.current
@@ -230,7 +264,7 @@ export const MasterCanvas: React.FC = () => {
       const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable
       const state = useAppStore.getState()
       const centerPickModeActive = state.shakeTrailPositionPicking || state.spiralRadialPositionPicking
-      if (e.key === 'Escape' && centerPickModeActive) {
+      if (e.key === 'Escape' && (centerPickModeActive || state.flashRangePicking)) {
         e.preventDefault()
         e.stopPropagation()
         cancelPickMode()
@@ -329,18 +363,37 @@ export const MasterCanvas: React.FC = () => {
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const { grid, cells, shakeTrailPositionPicking, spiralRadialPositionPicking, squishColorPicking } = useAppStore.getState()
-    const activePickColumn = lockedPickColumn
+    const { grid, cells, selectedCellId, shakeTrailPositionPicking, spiralRadialPositionPicking, squishColorPicking, flashRangePicking } = useAppStore.getState()
+    const activePickColumn = lockedPickColumn ?? cells.find(c => c.id === selectedCellId)?.col ?? null
     const relX = e.clientX - rect.left
     const relY = e.clientY - rect.top
     const col = Math.max(0, Math.min(Math.floor(relX / (rect.width / grid.cols)), grid.cols - 1))
     const row = Math.max(0, Math.min(Math.floor(relY / (rect.height / grid.rows)), grid.rows - 1))
     const cell = cells.find(c => c.col === col && c.row === row)
     setHoveredCellId(
-      (shakeTrailPositionPicking || spiralRadialPositionPicking) && cell?.col !== activePickColumn
+      ((shakeTrailPositionPicking || spiralRadialPositionPicking || flashRangePicking) && cell?.col !== activePickColumn)
         ? null
         : cell?.id ?? null
     )
+
+    const rangeDrag = flashRangeDragRef.current
+    if (rangeDrag && flashRangePicking) {
+      const bounds = getColumnGuideRect(rect, rangeDrag.column, grid)
+      const nextDrag = {
+        ...rangeDrag,
+        currentX: clamp(e.clientX - rect.left, bounds.left, bounds.left + bounds.width),
+        currentY: clamp(e.clientY - rect.top, bounds.top, bounds.top + bounds.height),
+      }
+      flashRangeDragRef.current = nextDrag
+      setFlashRangeDrag(nextDrag)
+      setPickGuide(null)
+      return
+    }
+
+    if (flashRangePicking) {
+      setPickGuide(null)
+      return
+    }
 
     if (squishColorPicking) {
       setPickGuide(null)
@@ -410,6 +463,28 @@ export const MasterCanvas: React.FC = () => {
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const state = useAppStore.getState()
+    if (state.flashRangePicking) {
+      e.preventDefault()
+      if (e.button !== 0) return
+      const cell = getCellAtClientPoint(e.clientX, e.clientY, rect, state.grid, state.cells)
+      const activePickColumn = lockedPickColumn ?? state.cells.find(c => c.id === state.selectedCellId)?.col ?? null
+      if (!cell || activePickColumn === null || cell.col !== activePickColumn) {
+        cancelPickMode()
+        return
+      }
+      state.selectCell(cell.id)
+      const bounds = getColumnGuideRect(rect, activePickColumn, state.grid)
+      const drag = {
+        column: activePickColumn,
+        startX: clamp(e.clientX - rect.left, bounds.left, bounds.left + bounds.width),
+        startY: clamp(e.clientY - rect.top, bounds.top, bounds.top + bounds.height),
+        currentX: clamp(e.clientX - rect.left, bounds.left, bounds.left + bounds.width),
+        currentY: clamp(e.clientY - rect.top, bounds.top, bounds.top + bounds.height),
+      }
+      flashRangeDragRef.current = drag
+      setFlashRangeDrag(drag)
+      return
+    }
     if (state.squishColorPicking) {
       e.preventDefault()
       const cell = getCellAtClientPoint(e.clientX, e.clientY, rect, state.grid, state.cells)
@@ -500,6 +575,13 @@ export const MasterCanvas: React.FC = () => {
       clearStashRmbLongPressTimer()
     }
     if (e.button !== 0) return
+    const rangeDrag = flashRangeDragRef.current
+    if (rangeDrag) {
+      flashRangeDragRef.current = null
+      setFlashRangeDrag(null)
+      void finalizeFlashRangeSelection(rangeDrag, e.currentTarget.getBoundingClientRect(), e.clientX, e.clientY, t)
+      return
+    }
     const drag = centerPickDragRef.current
     if (!drag) return
     const rect = e.currentTarget.getBoundingClientRect()
@@ -521,7 +603,7 @@ export const MasterCanvas: React.FC = () => {
       return
     }
     const state = useAppStore.getState()
-    if (state.shakeTrailPositionPicking || state.spiralRadialPositionPicking || state.squishColorPicking) {
+    if (state.shakeTrailPositionPicking || state.spiralRadialPositionPicking || state.squishColorPicking || state.flashRangePicking) {
       e.preventDefault()
     }
   }, [])
@@ -652,6 +734,23 @@ export const MasterCanvas: React.FC = () => {
           <div className={styles.pickHint}>{t('squishColorPickHint')}</div>
         </div>
       )}
+      {flashRangePicking && flashRangeColumnBounds && (
+        <div className={styles.pickUiLayer} style={flashRangeColumnBounds}>
+          <div className={styles.pickHint}>
+            <div>{t('flashRangePickHint')}</div>
+            <div className={styles.pickHintTip}>{t('flashRangePickTip')}</div>
+          </div>
+        </div>
+      )}
+      {flashRangePicking && flashRangeColumnBounds && (
+        <div className={styles.flashRangeColumnMask} style={flashRangeColumnBounds} />
+      )}
+      {flashRangePicking && flashRangeDrag && (
+        <div
+          className={styles.flashRangeSelection}
+          style={toFlashRangeSelectionStyle(flashRangeDrag)}
+        />
+      )}
       {pickingActive && pickColumnBounds && (
         <div className={styles.pickUiLayer} style={pickColumnBounds}>
           <div className={styles.pickLegend}>
@@ -748,6 +847,155 @@ function getCellGuideRect(
     width: nextLeft - left,
     height: nextTop - top,
   }
+}
+
+function getColumnGuideRect(
+  rect: DOMRect,
+  column: number,
+  grid: ReturnType<typeof useAppStore.getState>['grid']
+): { left: number; top: number; width: number; height: number } {
+  const left = Math.round((column * rect.width) / grid.cols)
+  const nextLeft = Math.round(((column + 1) * rect.width) / grid.cols)
+  return {
+    left,
+    top: 0,
+    width: nextLeft - left,
+    height: rect.height,
+  }
+}
+
+function toFlashRangeSelectionStyle(drag: FlashRangeDrag): React.CSSProperties {
+  const left = Math.min(drag.startX, drag.currentX)
+  const top = Math.min(drag.startY, drag.currentY)
+  const width = Math.abs(drag.currentX - drag.startX)
+  const height = Math.abs(drag.currentY - drag.startY)
+  return {
+    left,
+    top,
+    width,
+    height,
+  }
+}
+
+async function finalizeFlashRangeSelection(
+  drag: FlashRangeDrag,
+  rect: DOMRect,
+  clientX: number,
+  clientY: number,
+  t: (key: TranslationKey) => string
+): Promise<void> {
+  const state = useAppStore.getState()
+  const bounds = getColumnGuideRect(rect, drag.column, state.grid)
+  const completedDrag: FlashRangeDrag = {
+    ...drag,
+    currentX: clamp(clientX - rect.left, bounds.left, bounds.left + bounds.width),
+    currentY: clamp(clientY - rect.top, bounds.top, bounds.top + bounds.height),
+  }
+  const selection = toAbsoluteSelectionRect(completedDrag)
+  if (selection.width < 4 || selection.height < 4) {
+    state.setFlashRangePicking(false)
+    return
+  }
+
+  try {
+    const dataUrl = await createFlashRangeSnapshot(completedDrag, rect)
+    const latest = useAppStore.getState()
+    const targetCell = latest.cells.find(cell => cell.id === latest.selectedCellId && cell.col === completedDrag.column)
+      ?? latest.cells.find(cell => cell.col === completedDrag.column)
+    if (!targetCell) throw new Error('No target cell')
+    latest.setCellEffect(targetCell.id, 'flash', { imagePath: dataUrl })
+    latest.setFlashRangePicking(false)
+  } catch {
+    const latest = useAppStore.getState()
+    latest.showAppNotification(t('flashRangePickFailed'), 'warning')
+    latest.setFlashRangePicking(false)
+  }
+}
+
+function toAbsoluteSelectionRect(drag: FlashRangeDrag): { left: number; top: number; width: number; height: number } {
+  const left = Math.min(drag.startX, drag.currentX)
+  const top = Math.min(drag.startY, drag.currentY)
+  return {
+    left,
+    top,
+    width: Math.abs(drag.currentX - drag.startX),
+    height: Math.abs(drag.currentY - drag.startY),
+  }
+}
+
+async function createFlashRangeSnapshot(drag: FlashRangeDrag, rect: DOMRect): Promise<string> {
+  const state = useAppStore.getState()
+  const columnBounds = getColumnGuideRect(rect, drag.column, state.grid)
+  const selection = toAbsoluteSelectionRect(drag)
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+  const columnCanvas = document.createElement('canvas')
+  columnCanvas.width = Math.max(1, Math.round(columnBounds.width * pixelRatio))
+  columnCanvas.height = Math.max(1, Math.round(columnBounds.height * pixelRatio))
+  const columnContext = columnCanvas.getContext('2d')
+  if (!columnContext) throw new Error('Canvas is unavailable')
+  columnContext.scale(pixelRatio, pixelRatio)
+
+  const cellsInColumn = state.cells
+    .filter(cell => cell.col === drag.column)
+    .sort((a, b) => a.row - b.row)
+
+  for (const cell of cellsInColumn) {
+    const imageSrc = state.cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null
+    if (!imageSrc) continue
+    const image = await loadSnapshotImage(imageSrc)
+    drawCellImageToColumnCanvas(columnContext, image, cell, state.grid, columnBounds.width, columnBounds.height)
+  }
+
+  const outputCanvas = document.createElement('canvas')
+  outputCanvas.width = Math.max(1, Math.round(selection.width * pixelRatio))
+  outputCanvas.height = Math.max(1, Math.round(selection.height * pixelRatio))
+  const outputContext = outputCanvas.getContext('2d')
+  if (!outputContext) throw new Error('Canvas is unavailable')
+  outputContext.drawImage(
+    columnCanvas,
+    Math.round((selection.left - columnBounds.left) * pixelRatio),
+    Math.round(selection.top * pixelRatio),
+    Math.round(selection.width * pixelRatio),
+    Math.round(selection.height * pixelRatio),
+    0,
+    0,
+    outputCanvas.width,
+    outputCanvas.height,
+  )
+  return outputCanvas.toDataURL('image/png')
+}
+
+function drawCellImageToColumnCanvas(
+  context: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  cell: Cell,
+  grid: ReturnType<typeof useAppStore.getState>['grid'],
+  columnWidth: number,
+  columnHeight: number
+): void {
+  if (image.naturalWidth <= 0 || image.naturalHeight <= 0 || grid.rows <= 0) return
+  const cellWidth = columnWidth
+  const cellHeight = columnHeight / grid.rows
+  const cellTop = cell.row * cellHeight
+  const scale = getImageFitScale(cell.imageFit, cellWidth, cellHeight, image.naturalWidth, image.naturalHeight)
+  const drawnWidth = image.naturalWidth * scale
+  const drawnHeight = image.naturalHeight * scale
+  const imageLeft = (cellWidth - drawnWidth) / 2
+  const imageTop = cellTop + (cellHeight - drawnHeight) / 2
+
+  context.save()
+  context.beginPath()
+  context.rect(0, cellTop, cellWidth, cellHeight)
+  context.clip()
+  context.drawImage(image, imageLeft, imageTop, drawnWidth, drawnHeight)
+  context.restore()
+}
+
+async function loadSnapshotImage(src: string): Promise<HTMLImageElement> {
+  if (!/^https?:\/\//i.test(src)) return loadHtmlImage(toImageSrc(src))
+  const result = await window.api.loadRemoteImageAsDataUrl(src)
+  if (!result.success || !result.dataUrl) throw new Error(result.error ?? 'Remote image load failed')
+  return loadHtmlImage(result.dataUrl)
 }
 
 function clamp(value: number, min: number, max: number): number {
