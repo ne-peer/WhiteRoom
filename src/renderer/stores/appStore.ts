@@ -7,7 +7,11 @@ import type {
   ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig, ReadingConfigPayload,
   StashItem, IpcApi,
 } from '../../shared/types'
-import { DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART } from '../../shared/types'
+import {
+  DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
+  normalizeFlashEffectTransitionFields,
+  sanitizeFlashEffectTransitionsInPlace,
+} from '../../shared/types'
 import { parseTextFile, insertOrReplaceTagBefore, insertTagAtCharPosition, insertOrReplaceReadConfigAtTop, resolveStoryboardImageReference } from '../utils/storyboardParser'
 import { getTimerCompletionElapsed } from '../utils/timerProgress'
 
@@ -405,7 +409,7 @@ function mergeEffectsWithDefaults(effects: Partial<CellEffects> | undefined): Ce
     spiral: { ...DEFAULT_EFFECTS.spiral, ...effects?.spiral },
     blur: { ...DEFAULT_EFFECTS.blur, ...effects?.blur },
     echo: { ...DEFAULT_EFFECTS.echo, ...effects?.echo },
-    flash: { ...DEFAULT_EFFECTS.flash, ...effects?.flash },
+    flash: normalizeFlashEffectTransitionFields({ ...DEFAULT_EFFECTS.flash, ...effects?.flash }),
     breathing: { ...DEFAULT_EFFECTS.breathing, ...effects?.breathing },
     shake: { ...DEFAULT_EFFECTS.shake, ...effects?.shake },
     zoom: { ...DEFAULT_EFFECTS.zoom, ...effects?.zoom },
@@ -910,11 +914,13 @@ export const useAppStore = create<AppStore>()(
             ? normalizeShakePatch(value)
             : structuredClone(value)
           Object.assign(targetCell.effects[effectKey], targetPatch)
+          if (effectKey === 'flash') sanitizeFlashEffectTransitionsInPlace(targetCell.effects.flash)
         })
         s.effectGuideNonce += 1
         return
       }
       Object.assign(cell.effects[effectKey], patch)
+      if (effectKey === 'flash') sanitizeFlashEffectTransitionsInPlace(cell.effects.flash)
       s.effectGuideNonce += 1
     }),
 
@@ -926,7 +932,10 @@ export const useAppStore = create<AppStore>()(
         if (effects.spiral !== undefined) Object.assign(cell.effects.spiral, effects.spiral)
         if (effects.blur !== undefined) Object.assign(cell.effects.blur, effects.blur)
         if (effects.echo !== undefined) Object.assign(cell.effects.echo, effects.echo)
-        if (effects.flash !== undefined) Object.assign(cell.effects.flash, effects.flash)
+        if (effects.flash !== undefined) {
+          Object.assign(cell.effects.flash, effects.flash)
+          sanitizeFlashEffectTransitionsInPlace(cell.effects.flash)
+        }
         if (effects.breathing !== undefined) Object.assign(cell.effects.breathing, effects.breathing)
         if (effects.shake !== undefined) Object.assign(cell.effects.shake, normalizeShakePatch(effects.shake))
         if (effects.zoom !== undefined) Object.assign(cell.effects.zoom, effects.zoom)
@@ -993,6 +1002,7 @@ export const useAppStore = create<AppStore>()(
           ? normalizeShakePatch(value)
           : structuredClone(value)
         Object.assign(cell.effects[effectKey], patch)
+        if (effectKey === 'flash') sanitizeFlashEffectTransitionsInPlace(cell.effects.flash)
       })
       s.effectGuideNonce += 1
     }),
@@ -1257,7 +1267,7 @@ export const useAppStore = create<AppStore>()(
             spiral: { ...DEFAULT_EFFECTS.spiral, ...cell.effects?.spiral },
             blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
             echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
-            flash: { ...DEFAULT_EFFECTS.flash, ...cell.effects?.flash },
+            flash: normalizeFlashEffectTransitionFields({ ...DEFAULT_EFFECTS.flash, ...cell.effects?.flash }),
             breathing: { ...DEFAULT_EFFECTS.breathing, ...cell.effects?.breathing },
             shake: { ...DEFAULT_EFFECTS.shake, ...cell.effects?.shake },
             zoom: { ...DEFAULT_EFFECTS.zoom, ...cell.effects?.zoom },
@@ -1355,7 +1365,7 @@ export const useAppStore = create<AppStore>()(
             spiral: { ...DEFAULT_EFFECTS.spiral, ...cell.effects?.spiral },
             blur: { ...DEFAULT_EFFECTS.blur, ...cell.effects?.blur },
             echo: { ...DEFAULT_EFFECTS.echo, ...cell.effects?.echo },
-            flash: { ...DEFAULT_EFFECTS.flash, ...cell.effects?.flash },
+            flash: normalizeFlashEffectTransitionFields({ ...DEFAULT_EFFECTS.flash, ...cell.effects?.flash }),
             breathing: { ...DEFAULT_EFFECTS.breathing, ...cell.effects?.breathing },
             shake: { ...DEFAULT_EFFECTS.shake, ...cell.effects?.shake },
             zoom: { ...DEFAULT_EFFECTS.zoom, ...cell.effects?.zoom },

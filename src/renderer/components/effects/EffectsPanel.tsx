@@ -1940,10 +1940,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 options={[
                   { value: 'none', label: t('transitionNone') },
                   { value: 'fade', label: t('transitionFade') },
-                  { value: 'slide-left', label: t('transitionSlideLeft') },
-                  { value: 'slide-right', label: t('transitionSlideRight') },
-                  { value: 'slide-up', label: t('transitionSlideUp') },
-                  { value: 'slide-down', label: t('transitionSlideDown') },
                   { value: 'zoom-in', label: t('transitionZoomIn') },
                   { value: 'zoom-out', label: t('transitionZoomOut') },
                 ]}
@@ -1970,10 +1966,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 options={[
                   { value: 'none', label: t('transitionNone') },
                   { value: 'fade', label: t('transitionFade') },
-                  { value: 'slide-left', label: t('transitionSlideLeft') },
-                  { value: 'slide-right', label: t('transitionSlideRight') },
-                  { value: 'slide-up', label: t('transitionSlideUp') },
-                  { value: 'slide-down', label: t('transitionSlideDown') },
                   { value: 'zoom-in', label: t('transitionZoomIn') },
                   { value: 'zoom-out', label: t('transitionZoomOut') },
                 ]}

@@ -15,6 +15,9 @@ import {
 } from './vectorStampRegistry'
 import { createFlashRadialFadeFilter, setFlashRadialFadeUniforms } from './flashRadialFadeFilter'
 
+/** ズームイン／アウトで新規レイヤーを完全透明から表示へ切り替える時間（秒） */
+const ZOOM_TRANSITION_ALPHA_IN_SEC = 0.5
+
 type SquishOrganicShape = {
   radiusXScale: number
   radiusYScale: number
@@ -67,7 +70,7 @@ export class CellRenderer {
   private flashTextureRequestNonce = 0
   private flashCurrentShowNonce = 0
   private flashCurrentHideNonce = 0
-  private flashStartTween: gsap.core.Tween | null = null
+  private flashStartTween: gsap.core.Tween | gsap.core.Timeline | null = null
   private flashEndTween: gsap.core.Tween | null = null
   private flashStartProxy:
     | {
@@ -859,8 +862,8 @@ export class CellRenderer {
           },
           onComplete: finish,
         })
-        gsap.to(sprite, { alpha: 1, duration, ease: 'sine.out' })
-        gsap.to(oldSprite, { alpha: 0, duration, ease: 'sine.out' })
+        gsap.to(sprite, { alpha: 1, duration: ZOOM_TRANSITION_ALPHA_IN_SEC, ease: 'sine.out' })
+        gsap.to(oldSprite, { alpha: 0, duration: ZOOM_TRANSITION_ALPHA_IN_SEC, ease: 'sine.out' })
         break
       }
       default:
@@ -985,8 +988,8 @@ export class CellRenderer {
           onComplete: () => this.finishDynamicBackgroundTransition(oldSprite),
         })
         this.positionDynamicBackgroundSprite(sprite, 0, 0, proxy.scaleMultiplier)
-        gsap.to(sprite, { alpha: 1, duration, ease: 'sine.out' })
-        gsap.to(oldSprite, { alpha: 0, duration, ease: 'sine.out' })
+        gsap.to(sprite, { alpha: 1, duration: ZOOM_TRANSITION_ALPHA_IN_SEC, ease: 'sine.out' })
+        gsap.to(oldSprite, { alpha: 0, duration: ZOOM_TRANSITION_ALPHA_IN_SEC, ease: 'sine.out' })
         break
       }
       default:
@@ -2295,7 +2298,9 @@ export class CellRenderer {
     } else {
       this.flashOverlaySprite.texture = texture
     }
-    this.flashOverlaySprite.alpha = this.flashBaseOpacity
+    const startTr = this.flashOverlayEffect?.startTransition ?? 'none'
+    this.flashOverlaySprite.alpha =
+      startTr === 'fade' || startTr === 'zoom-in' || startTr === 'zoom-out' ? 0 : this.flashBaseOpacity
     this.applyFlashOverlayFilters()
     this.positionFlashOverlaySprite()
     this.syncFlashVectorTint(false)
@@ -2469,15 +2474,31 @@ export class CellRenderer {
       return
     }
     this.flashStartProxy = proxy
-    this.flashStartTween = gsap.to(proxy, {
-      incomingScaleMultiplier: 1,
-      duration,
-      ease: 'sine.out',
-      onUpdate: () => {
-        if (nonce !== this.flashCurrentShowNonce || !this.flashOverlayVisible || !this.flashOverlaySprite) return
-        this.positionFlashOverlaySprite(0, 0, proxy.incomingScaleMultiplier)
+    sprite.alpha = 0
+    const tl = gsap.timeline()
+    tl.to(
+      proxy,
+      {
+        incomingScaleMultiplier: 1,
+        duration,
+        ease: 'sine.out',
+        onUpdate: () => {
+          if (nonce !== this.flashCurrentShowNonce || !this.flashOverlayVisible || !this.flashOverlaySprite) return
+          this.positionFlashOverlaySprite(0, 0, proxy.incomingScaleMultiplier)
+        },
       },
-    })
+      0,
+    )
+    tl.to(
+      sprite,
+      {
+        alpha: this.flashBaseOpacity,
+        duration: ZOOM_TRANSITION_ALPHA_IN_SEC,
+        ease: 'sine.out',
+      },
+      0,
+    )
+    this.flashStartTween = tl
   }
 
   private startFlashHide(nonce: number) {

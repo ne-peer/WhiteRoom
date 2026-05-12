@@ -125,6 +125,25 @@ export type EchoEffect = {
 
 export type FlashStartTransition = SlideShowTransition
 
+/** フラッシュの開始／終了から削除済みの slide 系を旧データ互換でフェードへ読み替え */
+export function normalizeDeprecatedFlashTransition(trans: SlideShowTransition): SlideShowTransition {
+  if (trans === 'slide-left' || trans === 'slide-right' || trans === 'slide-up' || trans === 'slide-down') return 'fade'
+  return trans
+}
+
+export function normalizeFlashEffectTransitionFields(flash: FlashEffect): FlashEffect {
+  return {
+    ...flash,
+    startTransition: normalizeDeprecatedFlashTransition(flash.startTransition) as FlashStartTransition,
+    endTransition: normalizeDeprecatedFlashTransition(flash.endTransition),
+  }
+}
+
+export function sanitizeFlashEffectTransitionsInPlace(flash: FlashEffect): void {
+  flash.startTransition = normalizeDeprecatedFlashTransition(flash.startTransition) as FlashStartTransition
+  flash.endTransition = normalizeDeprecatedFlashTransition(flash.endTransition)
+}
+
 export type FlashEffect = {
   enabled: boolean
   imagePath: string | null
