@@ -1,6 +1,6 @@
 /* ===== カテゴリセクション ===== */
 .categorySection {
-  margin-bottom: 20px;
+  margin-bottom: 0;
   margin-left: -16px;
   margin-right: -16px;
   overflow: hidden;
@@ -20,6 +20,10 @@
 }
 
 /* ===== セクション ===== */
+.categorySection + .section {
+  margin-top: 20px;
+}
+
 .section {
   margin-bottom: 20px;
 }
