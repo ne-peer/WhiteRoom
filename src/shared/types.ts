@@ -138,6 +138,8 @@ export type FlashEffect = {
   colorOverlayAlpha: number
   colorOverlayAlphaRandomEnabled: boolean
   opacity: number
+  /** フラッシュ表示中のブラー強度（0–100）。セルブラーと同様に Pixi BlurFilter の strength に渡す */
+  blurStrength: number
   surroundingTransparency: number
   innerRadius: number
   displayDurationSec: number

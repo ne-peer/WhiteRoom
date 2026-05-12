@@ -109,6 +109,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     colorOverlayAlpha: 0.5,
     colorOverlayAlphaRandomEnabled: false,
     opacity: 1,
+    blurStrength: 0,
     surroundingTransparency: 0,
     innerRadius: 0.5,
     displayDurationSec: 1,

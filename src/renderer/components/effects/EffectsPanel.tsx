@@ -119,6 +119,7 @@ const EFFECT_PRESET_1: CellEffects = {
     colorOverlayAlpha: 0.5,
     colorOverlayAlphaRandomEnabled: false,
     opacity: 1,
+    blurStrength: 0,
     surroundingTransparency: 0,
     innerRadius: 0.5,
     displayDurationSec: 1,
@@ -339,6 +340,7 @@ const EFFECT_PRESET_2: CellEffects = {
     colorOverlayAlpha: 0.5,
     colorOverlayAlphaRandomEnabled: false,
     opacity: 1,
+    blurStrength: 0,
     surroundingTransparency: 0,
     innerRadius: 0.5,
     displayDurationSec: 1,
@@ -1996,6 +1998,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 step={1}
                 unit="%"
                 onChange={v => set('flash', { opacity: v / 100 })}
+              />
+            </Row>
+            <Row label={t('flashBlur')}>
+              <Slider
+                value={Math.round(effects.flash.blurStrength ?? 0)}
+                min={0}
+                max={100}
+                step={1}
+                onChange={v => set('flash', { blurStrength: v })}
               />
             </Row>
             <Row label={t('flashSurroundingTransparency')}>

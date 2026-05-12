@@ -90,6 +90,7 @@ export class CellRenderer {
   private flashOverlayEffect: import('../../shared/types').FlashEffect | null = null
   private flashBaseOpacity = 1
   private flashRadialFadeFilter: PIXI.Filter | null = null
+  private flashBlurFilter: PIXI.BlurFilter | null = null
   private vignetteSprite: PIXI.Sprite | null = null
   private vignetteTextureKey: string | null = null
   private fogLayer: PIXI.Container
@@ -2279,7 +2280,7 @@ export class CellRenderer {
       }
       return
     }
-    this.applyFlashRadialFadeFilter()
+    this.applyFlashOverlayFilters()
     this.positionFlashOverlaySprite()
     this.syncFlashVectorTint(false)
   }
@@ -2295,34 +2296,51 @@ export class CellRenderer {
       this.flashOverlaySprite.texture = texture
     }
     this.flashOverlaySprite.alpha = this.flashBaseOpacity
-    this.applyFlashRadialFadeFilter()
+    this.applyFlashOverlayFilters()
     this.positionFlashOverlaySprite()
     this.syncFlashVectorTint(false)
   }
 
-  private applyFlashRadialFadeFilter() {
+  private applyFlashOverlayFilters() {
     const sprite = this.flashOverlaySprite
     if (!sprite) return
     const flash = this.flashOverlayEffect
     const surroundingTransparency = flash?.surroundingTransparency ?? 0
     const innerRadius = flash?.innerRadius ?? 0.5
+    const blurStrength = clamp(flash?.blurStrength ?? 0, 0, 100)
 
-    if (surroundingTransparency <= 0) {
-      sprite.filters = []
-      return
+    const filters: PIXI.Filter[] = []
+
+    if (blurStrength > 0) {
+      if (!this.flashBlurFilter) {
+        this.flashBlurFilter = new PIXI.BlurFilter({ strength: blurStrength, quality: 4 })
+      } else {
+        this.flashBlurFilter.strength = blurStrength
+      }
+      filters.push(this.flashBlurFilter)
+    } else if (this.flashBlurFilter) {
+      this.flashBlurFilter.destroy()
+      this.flashBlurFilter = null
     }
 
-    if (!this.flashRadialFadeFilter) {
-      this.flashRadialFadeFilter = createFlashRadialFadeFilter()
+    if (surroundingTransparency > 0) {
+      if (!this.flashRadialFadeFilter) {
+        this.flashRadialFadeFilter = createFlashRadialFadeFilter()
+      }
+      setFlashRadialFadeUniforms(this.flashRadialFadeFilter, {
+        uInnerRadius: innerRadius,
+        uSurroundingTransparency: surroundingTransparency,
+        uAspect: this.height > 0 ? this.width / this.height : 1,
+        uRadialCenterX: 0.5,
+        uRadialCenterY: 0.5,
+      })
+      filters.push(this.flashRadialFadeFilter)
+    } else if (this.flashRadialFadeFilter) {
+      this.flashRadialFadeFilter.destroy()
+      this.flashRadialFadeFilter = null
     }
-    setFlashRadialFadeUniforms(this.flashRadialFadeFilter, {
-      uInnerRadius: innerRadius,
-      uSurroundingTransparency: surroundingTransparency,
-      uAspect: this.height > 0 ? this.width / this.height : 1,
-      uRadialCenterX: 0.5,
-      uRadialCenterY: 0.5,
-    })
-    sprite.filters = [this.flashRadialFadeFilter]
+
+    sprite.filters = filters
   }
 
   private positionFlashOverlaySprite(offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
@@ -2556,6 +2574,7 @@ export class CellRenderer {
     this.flashTextureLoadingKey = null
     this.flashOverlayEffect = null
     if (this.flashOverlaySprite) {
+      this.flashOverlaySprite.filters = null
       this.overlayLayer.removeChild(this.flashOverlaySprite)
       this.flashOverlaySprite.destroy({ texture: false })
       this.flashOverlaySprite = null
@@ -2563,6 +2582,10 @@ export class CellRenderer {
     if (this.flashOwnedTexture) {
       this.flashOwnedTexture.destroy(true)
       this.flashOwnedTexture = null
+    }
+    if (this.flashBlurFilter) {
+      this.flashBlurFilter.destroy()
+      this.flashBlurFilter = null
     }
     if (this.flashRadialFadeFilter) {
       this.flashRadialFadeFilter.destroy()
