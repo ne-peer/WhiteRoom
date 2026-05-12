@@ -19,6 +19,54 @@ export const languageOptions: { value: UiLanguage; label: string }[] = [
   { value: 'en', label: 'English' },
 ]
 
+/** ブランクセルのショートカット Tips（カテゴリ見出し + 箇条書き行） */
+export const emptyCellShortcutTipSections: Record<
+  UiLanguage,
+  readonly { readonly title: string; readonly lines: readonly string[] }[]
+> = {
+  ja: [
+    {
+      title: '画像操作',
+      lines: ['[ z / ← ] 前画像', '[ x / → ] 次画像', '[ ホイール ] 画像移動', '[ P ] 中心位置指定'],
+    },
+    {
+      title: 'UI操作',
+      lines: ['[ u ] 表示・非表示', '[ Esc ] フルスクリーン終了', '[ s ] スタッシュ（またはグリッド上で右長押し）'],
+    },
+    {
+      title: 'タイマー操作',
+      lines: ['[ Space ] 開始・一時停止・リセット'],
+    },
+    {
+      title: 'テキスト操作',
+      lines: ['[ n ] 前ページ', '[ m ] 次ページ', '[ ホイール ] ページ移動'],
+    },
+  ],
+  en: [
+    {
+      title: 'Image controls',
+      lines: [
+        '[ z / ← ] previous image',
+        '[ x / → ] next image',
+        '[ Wheel ] navigate images',
+        '[ P ] pick center',
+      ],
+    },
+    {
+      title: 'UI controls',
+      lines: ['[ u ] show/hide', '[ Esc ] exit fullscreen', '[ s ] stash (or right-click hold on grid)'],
+    },
+    {
+      title: 'Timer controls',
+      lines: ['[ Space ] start/pause/reset'],
+    },
+    {
+      title: 'Text controls',
+      lines: ['[ n ] prev page', '[ m ] next page', '[ Wheel ] navigate'],
+    },
+  ],
+}
+
 export const translations = {
   ja: {
     tabGrid: 'グリッド',
@@ -69,10 +117,7 @@ export const translations = {
     dropImageOrFolderHere: '画像またはフォルダをドロップ',
     tipScrollToNavigate: '画像上でホイールスクロールで画像を移動',
     tipSpaceTimer: 'スペースキーでタイマーを操作',
-    shortcutImageControls: '画像操作: [ z / ← ]前画像 / [ x / → ]次画像 / [ ホイール ]画像移動 / [ P ]中心位置指定',
-    shortcutUiControls: 'UI表示切り替え: [ u ]表示・非表示 / [ Esc ]フルスクリーン終了 / [ s ]スタッシュ（またはグリッド上で右長押し）',
-    shortcutTimerControls: 'タイマー操作: [ Space ]開始・一時停止・リセット',
-    shortcutTextReaderControls: 'テキストリーダー操作: [ n ]前ページ / [ m ]次ページ / [ ホイール ]ページ移動',
+    emptyCellShortcutsTitle: 'Shortcuts',
     imageFit: '画像フィット',
     fitHeight: '高さに合わせる',
     fitWidth: '横幅に合わせる',
@@ -496,10 +541,7 @@ export const translations = {
     dropImageOrFolderHere: 'Drop image or folder here',
     tipScrollToNavigate: 'Scroll on image to navigate',
     tipSpaceTimer: 'Space key to control timer',
-    shortcutImageControls: 'Image controls: [ z / ← ]previous image / [ x / → ]next image / [ Wheel ]navigate images / [ P ]pick center',
-    shortcutUiControls: 'Toggle UI: [ u ]show/hide / [ Esc ]exit fullscreen / [ s ]stash (or right-click hold on grid)',
-    shortcutTimerControls: 'Timer controls: [ Space ]start/pause/reset',
-    shortcutTextReaderControls: 'Text reader controls: [ n ]prev page / [ m ]next page / [ Wheel ]navigate',
+    emptyCellShortcutsTitle: 'Shortcuts',
     imageFit: 'Image Fit',
     fitHeight: 'Fit height',
     fitWidth: 'Fit width',

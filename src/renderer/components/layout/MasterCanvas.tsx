@@ -8,7 +8,7 @@ import { TimerEndFlashOverlay } from '../timer/TimerEndFlashOverlay'
 import { TimerPreOverlay } from '../timer/TimerPreOverlay'
 import { CellNavigationOverlay } from './CellNavigationOverlay'
 import { TextReaderWindow, calcReaderAutoHeight, calcReaderAutoWidth, READER_WINDOW_MARGIN } from '../reader/TextReaderWindow'
-import { useTranslation } from '../../i18n'
+import { emptyCellShortcutTipSections, useTranslation } from '../../i18n'
 import type { Cell, ImageFitMode } from '../../../shared/types'
 import styles from './MasterCanvas.module.css'
 
@@ -61,7 +61,7 @@ export const MasterCanvas: React.FC = () => {
   const [pickPreviewCenter, setPickPreviewCenter] = useState<PickCenterPoint | null>(null)
   const [lockedPickColumn, setLockedPickColumn] = useState<number | null>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
 
   const canvasShrinkStyle = React.useMemo((): React.CSSProperties => {
     if (!textReaderVisible || (textReaderConfig.overlayOnImage ?? true)) return {}
@@ -548,13 +548,19 @@ export const MasterCanvas: React.FC = () => {
                 <span className={styles.emptyCellHint}>{t('dropImageOrFolderHere')}</span>
                 <div className={styles.emptyCellTips}>
                   <div className={styles.emptyCellTipsGroup}>
-                    <div className={styles.emptyCellTipsTitle}>Shortcuts:</div>
-                    <ul className={styles.emptyCellTipsList}>
-                      <li>{t('shortcutImageControls')}</li>
-                      <li>{t('shortcutUiControls')}</li>
-                      <li>{t('shortcutTimerControls')}</li>
-                      <li>{t('shortcutTextReaderControls')}</li>
-                    </ul>
+                    <div className={styles.emptyCellTipsTitle}>{t('emptyCellShortcutsTitle')}</div>
+                    <div className={styles.emptyCellTipsSections}>
+                      {emptyCellShortcutTipSections[language].map(section => (
+                        <section key={section.title} className={styles.emptyCellTipsSection}>
+                          <h3 className={styles.emptyCellTipsSectionTitle}>{section.title}</h3>
+                          <ul className={styles.emptyCellTipsSectionList}>
+                            {section.lines.map(line => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        </section>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
