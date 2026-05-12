@@ -9,6 +9,7 @@ import type {
 } from '../../shared/types'
 import {
   DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
+  normalizeDynamicAssetEffect,
   normalizeFlashEffectTransitionFields,
   sanitizeFlashEffectInPlace,
 } from '../../shared/types'
@@ -213,6 +214,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
   dynamicAsset: {
     enabled: false,
     pattern: 'rising' as const,
+    displayFileMode: 'asset' as const,
     sourceKind: 'vector' as const,
     vectorPresetId: DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
     assetPath: null,
@@ -399,6 +401,20 @@ function getRelativeImageProfileKey(folderPath: string, imagePath: string): stri
   return image.slice(prefix.length)
 }
 
+function getAssetEffectPresetFolderNames(): string[] {
+  return typeof __ASSET_EFFECT_FOLDERS__ !== 'undefined'
+    ? __ASSET_EFFECT_FOLDERS__.map(f => f.name)
+    : []
+}
+
+function sanitizeDynamicAssetEffectInPlace(da: CellEffects['dynamicAsset']): void {
+  const normalized = normalizeDynamicAssetEffect(
+    { ...DEFAULT_EFFECTS.dynamicAsset, ...da },
+    getAssetEffectPresetFolderNames(),
+  )
+  Object.assign(da, normalized)
+}
+
 function mergeEffectsWithDefaults(effects: Partial<CellEffects> | undefined): CellEffects {
   return {
     ...structuredClone(DEFAULT_EFFECTS),
@@ -415,7 +431,10 @@ function mergeEffectsWithDefaults(effects: Partial<CellEffects> | undefined): Ce
     zoom: { ...DEFAULT_EFFECTS.zoom, ...effects?.zoom },
     squish: { ...DEFAULT_EFFECTS.squish, ...effects?.squish },
     fog: { ...DEFAULT_EFFECTS.fog, ...effects?.fog },
-    dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...effects?.dynamicAsset },
+    dynamicAsset: normalizeDynamicAssetEffect(
+      { ...DEFAULT_EFFECTS.dynamicAsset, ...effects?.dynamicAsset },
+      getAssetEffectPresetFolderNames(),
+    ),
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...effects?.textEffect },
   }
 }
@@ -915,12 +934,14 @@ export const useAppStore = create<AppStore>()(
             : structuredClone(value)
           Object.assign(targetCell.effects[effectKey], targetPatch)
           if (effectKey === 'flash') sanitizeFlashEffectInPlace(targetCell.effects.flash)
+          if (effectKey === 'dynamicAsset') sanitizeDynamicAssetEffectInPlace(targetCell.effects.dynamicAsset)
         })
         s.effectGuideNonce += 1
         return
       }
       Object.assign(cell.effects[effectKey], patch)
       if (effectKey === 'flash') sanitizeFlashEffectInPlace(cell.effects.flash)
+      if (effectKey === 'dynamicAsset') sanitizeDynamicAssetEffectInPlace(cell.effects.dynamicAsset)
       s.effectGuideNonce += 1
     }),
 
@@ -940,7 +961,10 @@ export const useAppStore = create<AppStore>()(
         if (effects.shake !== undefined) Object.assign(cell.effects.shake, normalizeShakePatch(effects.shake))
         if (effects.zoom !== undefined) Object.assign(cell.effects.zoom, effects.zoom)
         if (effects.squish !== undefined) Object.assign(cell.effects.squish, effects.squish)
-        if (effects.dynamicAsset !== undefined) Object.assign(cell.effects.dynamicAsset, effects.dynamicAsset)
+        if (effects.dynamicAsset !== undefined) {
+          Object.assign(cell.effects.dynamicAsset, effects.dynamicAsset)
+          sanitizeDynamicAssetEffectInPlace(cell.effects.dynamicAsset)
+        }
         if (effects.textEffect !== undefined) Object.assign(cell.effects.textEffect, effects.textEffect)
       }
       if (s.applyEffectChangesToAllColumns) {
@@ -1273,7 +1297,10 @@ export const useAppStore = create<AppStore>()(
             zoom: { ...DEFAULT_EFFECTS.zoom, ...cell.effects?.zoom },
             squish: { ...DEFAULT_EFFECTS.squish, ...cell.effects?.squish },
             fog: { ...DEFAULT_EFFECTS.fog, ...cell.effects?.fog },
-            dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
+            dynamicAsset: normalizeDynamicAssetEffect(
+              { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
+              getAssetEffectPresetFolderNames(),
+            ),
             textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
           },
         }))
@@ -1371,7 +1398,10 @@ export const useAppStore = create<AppStore>()(
             zoom: { ...DEFAULT_EFFECTS.zoom, ...cell.effects?.zoom },
             squish: { ...DEFAULT_EFFECTS.squish, ...cell.effects?.squish },
             fog: { ...DEFAULT_EFFECTS.fog, ...cell.effects?.fog },
-            dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
+            dynamicAsset: normalizeDynamicAssetEffect(
+              { ...DEFAULT_EFFECTS.dynamicAsset, ...cell.effects?.dynamicAsset },
+              getAssetEffectPresetFolderNames(),
+            ),
             textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
           },
         }))

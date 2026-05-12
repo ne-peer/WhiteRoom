@@ -4,10 +4,12 @@ import { CategorySection, Section, Row, Toggle, Slider, ColorPicker, NumberInput
 import { formatCount, useTranslation } from '../../i18n'
 import {
   DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
+  normalizeDynamicAssetEffect,
   type AssetEffectFolder,
   type Cell,
   type CellEffects,
   type DynamicAssetAdditionalEffect,
+  type DynamicAssetDisplayFileMode,
   type FlashDisplayFileMode,
 } from '../../../shared/types'
 
@@ -196,6 +198,7 @@ const EFFECT_PRESET_1: CellEffects = {
   dynamicAsset: {
     enabled: true,
     pattern: 'rising',
+    displayFileMode: 'asset',
     sourceKind: 'vector',
     vectorPresetId: DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
     assetPath: null,
@@ -415,6 +418,7 @@ const EFFECT_PRESET_2: CellEffects = {
   dynamicAsset: {
     enabled: false,
     pattern: 'rising',
+    displayFileMode: 'asset',
     sourceKind: 'raster',
     vectorPresetId: null,
     assetPath: null,
@@ -570,7 +574,10 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     shake: { ...DEFAULT_EFFECTS.shake, ...rawEffects.shake },
     squish: { ...DEFAULT_EFFECTS.squish, ...rawEffects.squish },
     fog: { ...DEFAULT_EFFECTS.fog, ...rawEffects.fog },
-    dynamicAsset: { ...DEFAULT_EFFECTS.dynamicAsset, ...rawEffects.dynamicAsset },
+    dynamicAsset: normalizeDynamicAssetEffect(
+      { ...DEFAULT_EFFECTS.dynamicAsset, ...rawEffects.dynamicAsset },
+      __ASSET_EFFECT_FOLDERS__.map(f => f.name),
+    ),
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...rawEffects.textEffect },
   }
   const set = <K extends keyof typeof effects>(key: K, val: Partial<typeof effects[K]>) =>
@@ -626,6 +633,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     const result = await window.api.openAsset(language)
     if (!result.canceled && result.filePath) {
       set('dynamicAsset', {
+        displayFileMode: 'pickImage',
         sourceKind: 'raster',
         vectorPresetId: null,
         assetPath: result.filePath,
@@ -639,6 +647,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     const result = await window.api.openAssetFolder(language)
     if (!result.canceled && result.folderPath && result.images && result.images.length > 0) {
       set('dynamicAsset', {
+        displayFileMode: 'pickImage',
         sourceKind: 'raster',
         vectorPresetId: null,
         assetPath: result.images[0],
@@ -647,6 +656,30 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       })
     }
   }
+
+  const handleDynamicAssetDisplayFileModeChange = (mode: DynamicAssetDisplayFileMode) => {
+    if (mode === effects.dynamicAsset.displayFileMode) return
+    if (mode === 'asset') {
+      set('dynamicAsset', {
+        displayFileMode: 'asset',
+        sourceKind: 'vector',
+        vectorPresetId: DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
+        assetPath: null,
+        assetPaths: [],
+        assetFolderPath: null,
+      })
+      return
+    }
+    set('dynamicAsset', {
+      displayFileMode: 'pickImage',
+      sourceKind: 'raster',
+      vectorPresetId: null,
+      assetPath: null,
+      assetPaths: [],
+      assetFolderPath: null,
+    })
+  }
+
   const handleOpenFlashImage = async () => {
     const result = await window.api.openOverlayImage(language)
     if (!result.canceled && result.filePath) {
@@ -685,18 +718,9 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     if (value.startsWith('__vector:')) {
       const id = value.slice('__vector:'.length)
       set('dynamicAsset', {
+        displayFileMode: 'asset',
         sourceKind: 'vector',
         vectorPresetId: id,
-        assetPath: null,
-        assetPaths: [],
-        assetFolderPath: null,
-      })
-      return
-    }
-    if (!value) {
-      set('dynamicAsset', {
-        sourceKind: 'raster',
-        vectorPresetId: null,
         assetPath: null,
         assetPaths: [],
         assetFolderPath: null,
@@ -711,6 +735,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     const folder = assetEffectFolders.find(item => item.name === folderName)
     if (!folder) return
     set('dynamicAsset', {
+      displayFileMode: 'asset',
       sourceKind: 'raster',
       vectorPresetId: null,
       assetPath: folder.images[0],
@@ -739,9 +764,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
       setEffectCenterHighlightTick(tick + 1)
     }, 220)
   }
-  const assetEffectFolderPlaceholder = __ASSET_EFFECT_FOLDERS__.length > 0
-    ? t('assetEffectPresetSelectPlaceholder')
-    : t('assetEffectPresetNoFolders')
   const assetEffectFolderLabel = language === 'ja' ? 'プリセットアセット' : 'Preset asset'
   const dynamicAssetPattern = effects.dynamicAsset.pattern ?? 'rising'
   const visibleDynamicAssetAdditionalEffect =
@@ -1655,82 +1677,94 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         </Row>
         {effects.dynamicAsset.enabled && (
           <>
-            <Row label={assetEffectFolderLabel}>
+            <Row label={t('flashDisplayFile')}>
               <Select
-                value={(() => {
-                  if (effects.dynamicAsset.sourceKind === 'vector' && effects.dynamicAsset.vectorPresetId) {
-                    return `__vector:${effects.dynamicAsset.vectorPresetId}`
-                  }
-                  const currentName = effects.dynamicAsset.assetFolderPath?.split(/[/\\]/).pop() ?? ''
-                  return __ASSET_EFFECT_FOLDERS__.some(f => f.name === currentName) ? currentName : ''
-                })()}
+                value={effects.dynamicAsset.displayFileMode}
                 options={[
-                  {
-                    value: '',
-                    label: assetEffectFolderPlaceholder,
-                  },
-                  {
-                    value: `__vector:${DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART}`,
-                    label: t('dynamicAssetVectorHeart'),
-                  },
-                  ...__ASSET_EFFECT_FOLDERS__.map(folder => ({
-                    value: folder.name,
-                    label: `${folder.name} (${formatCount(language, folder.count, t('imagesUnit'))})`,
-                  })),
+                  { value: 'asset', label: t('flashDisplayFileAsset') },
+                  { value: 'pickImage', label: t('flashDisplayFilePickFile') },
                 ]}
-                onChange={handleSelectAssetEffectSource}
+                onChange={v => handleDynamicAssetDisplayFileModeChange(v as DynamicAssetDisplayFileMode)}
               />
             </Row>
-            <Row label={t('assetColor')}>
-              <Toggle
-                value={effects.dynamicAsset.colorOverlayEnabled}
-                onChange={v =>
-                  set('dynamicAsset', {
-                    colorOverlayEnabled: v,
-                    ...(v ? {} : { colorOverlayAlphaRandomEnabled: false }),
-                  })}
-              />
-            </Row>
-            {effects.dynamicAsset.colorOverlayEnabled && (
+            {effects.dynamicAsset.displayFileMode === 'asset' && (
               <>
-                <ColorPicker
-                  r={effects.dynamicAsset.colorOverlayColor.r}
-                  g={effects.dynamicAsset.colorOverlayColor.g}
-                  b={effects.dynamicAsset.colorOverlayColor.b}
-                  onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
-                />
-                <Row label={t('assetColorApplyRandom')}>
-                  <Toggle
-                    value={effects.dynamicAsset.colorOverlayAlphaRandomEnabled ?? false}
-                    onChange={v => set('dynamicAsset', { colorOverlayAlphaRandomEnabled: v })}
+                <Row label={assetEffectFolderLabel}>
+                  <Select
+                    value={(() => {
+                      if (effects.dynamicAsset.sourceKind === 'vector' && effects.dynamicAsset.vectorPresetId) {
+                        return `__vector:${effects.dynamicAsset.vectorPresetId}`
+                      }
+                      const currentName = effects.dynamicAsset.assetFolderPath?.split(/[/\\]/).pop() ?? ''
+                      return __ASSET_EFFECT_FOLDERS__.some(f => f.name === currentName)
+                        ? currentName
+                        : `__vector:${DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART}`
+                    })()}
+                    options={[
+                      {
+                        value: `__vector:${DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART}`,
+                        label: t('dynamicAssetVectorHeart'),
+                      },
+                      ...__ASSET_EFFECT_FOLDERS__.map(folder => ({
+                        value: folder.name,
+                        label: `${folder.name} (${formatCount(language, folder.count, t('imagesUnit'))})`,
+                      })),
+                    ]}
+                    onChange={handleSelectAssetEffectSource}
                   />
                 </Row>
-                {!effects.dynamicAsset.colorOverlayAlphaRandomEnabled && (
-                  <Row label={t('assetColorOpacity')}>
-                    <Slider
-                      value={Math.round(effects.dynamicAsset.colorOverlayAlpha * 100)}
-                      min={0}
-                      max={100}
-                      onChange={v => set('dynamicAsset', { colorOverlayAlpha: v / 100 })}
-                      unit="%"
+                <Row label={t('assetColor')}>
+                  <Toggle
+                    value={effects.dynamicAsset.colorOverlayEnabled}
+                    onChange={v =>
+                      set('dynamicAsset', {
+                        colorOverlayEnabled: v,
+                        ...(v ? {} : { colorOverlayAlphaRandomEnabled: false }),
+                      })}
+                  />
+                </Row>
+                {effects.dynamicAsset.colorOverlayEnabled && (
+                  <>
+                    <ColorPicker
+                      r={effects.dynamicAsset.colorOverlayColor.r}
+                      g={effects.dynamicAsset.colorOverlayColor.g}
+                      b={effects.dynamicAsset.colorOverlayColor.b}
+                      onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
                     />
-                  </Row>
+                    <Row label={t('assetColorApplyRandom')}>
+                      <Toggle
+                        value={effects.dynamicAsset.colorOverlayAlphaRandomEnabled ?? false}
+                        onChange={v => set('dynamicAsset', { colorOverlayAlphaRandomEnabled: v })}
+                      />
+                    </Row>
+                    {!effects.dynamicAsset.colorOverlayAlphaRandomEnabled && (
+                      <Row label={t('assetColorOpacity')}>
+                        <Slider
+                          value={Math.round(effects.dynamicAsset.colorOverlayAlpha * 100)}
+                          min={0}
+                          max={100}
+                          onChange={v => set('dynamicAsset', { colorOverlayAlpha: v / 100 })}
+                          unit="%"
+                        />
+                      </Row>
+                    )}
+                  </>
+                )}
+                {effects.dynamicAsset.sourceKind === 'vector' && effects.dynamicAsset.vectorPresetId && (
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.42)', marginBottom: 8 }}>
+                    {t('dynamicAssetVectorActiveHint')}
+                  </div>
                 )}
               </>
             )}
-            <div style={{ marginBottom: 8 }}>
-              <Button variant="secondary" onClick={handleOpenAsset}>
-                {t('selectAssetImage')}
-              </Button>
-            </div>
-            <div style={{ marginBottom: 8 }}>
-              <Button variant="secondary" onClick={handleOpenAssetFolder}>
-                {t('drawRandomFromFolder')}
-              </Button>
-            </div>
-            {effects.dynamicAsset.sourceKind === 'vector' && effects.dynamicAsset.vectorPresetId && (
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.42)', marginBottom: 8 }}>
-                {t('dynamicAssetVectorActiveHint')}
+            {effects.dynamicAsset.displayFileMode === 'pickImage' && (
+              <div style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <Button variant="secondary" onClick={handleOpenAsset}>
+                  {t('selectImage')}
+                </Button>
+                <Button variant="secondary" onClick={handleOpenAssetFolder}>
+                  {t('drawRandomFromFolder')}
+                </Button>
               </div>
             )}
             {effects.dynamicAsset.sourceKind === 'raster' && effects.dynamicAsset.assetPath && (

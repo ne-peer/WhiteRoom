@@ -322,6 +322,9 @@ export type DynamicAssetAdditionalEffect = 'none' | 'jiggle' | 'bounce' | 'wiggl
 
 export type DynamicAssetSourceKind = 'raster' | 'vector'
 
+/** アセットエフェクトの表示テクスチャ取得元（EffectsPanel の「表示ファイル」） */
+export type DynamicAssetDisplayFileMode = 'asset' | 'pickImage'
+
 export type AssetParticle = {
   id: string
   assetPath: string
@@ -342,6 +345,8 @@ export type AssetParticle = {
 export type DynamicAssetEffect = {
   enabled: boolean
   pattern: AssetDrawPattern
+  /** UI: 表示ファイル。旧プロファイルは読み込み時に推定 */
+  displayFileMode: DynamicAssetDisplayFileMode
   /** raster: assetPath(s) を使用。vector: vectorPresetId のみ（パスは保存・参照に使わない） */
   sourceKind: DynamicAssetSourceKind
   /** sourceKind === 'vector' のとき必須想定（未対応 ID は描画スキップ） */
@@ -368,6 +373,49 @@ export type DynamicAssetEffect = {
   colorOverlayAlpha: number
   /** アセット色 ON 時、アセット色の適用度を 40%〜100% の範囲でパーティクルごとにランダム */
   colorOverlayAlphaRandomEnabled: boolean
+}
+
+export function inferDynamicAssetDisplayFileMode(
+  da: Pick<DynamicAssetEffect, 'sourceKind' | 'vectorPresetId' | 'assetPath' | 'assetFolderPath'> & {
+    displayFileMode?: DynamicAssetDisplayFileMode
+  },
+  presetFolderBasenames: readonly string[],
+): DynamicAssetDisplayFileMode {
+  if (da.displayFileMode === 'asset' || da.displayFileMode === 'pickImage') return da.displayFileMode
+  if (da.sourceKind === 'vector') return 'asset'
+  if (da.sourceKind === 'raster' && da.assetPath && da.assetFolderPath) {
+    const base = da.assetFolderPath.split(/[/\\]/).filter(Boolean).pop() ?? ''
+    if (presetFolderBasenames.includes(base)) return 'asset'
+    return 'pickImage'
+  }
+  if (da.sourceKind === 'raster' && da.assetPath) return 'pickImage'
+  return 'asset'
+}
+
+/** プリセットフォルダ名一覧はビルド時の同梱アセットに依存するため、レンダラーから渡す */
+export function normalizeDynamicAssetEffect(
+  da: DynamicAssetEffect,
+  presetFolderBasenames: readonly string[],
+): DynamicAssetEffect {
+  const displayFileMode = inferDynamicAssetDisplayFileMode(da, presetFolderBasenames)
+  const base: DynamicAssetEffect = { ...da, displayFileMode }
+  if (displayFileMode === 'pickImage') return base
+  const folderBase = base.assetFolderPath?.split(/[/\\]/).filter(Boolean).pop() ?? ''
+  const isVectorOk = base.sourceKind === 'vector' && !!base.vectorPresetId
+  const isPresetRasterOk =
+    base.sourceKind === 'raster' &&
+    !!base.assetPath &&
+    !!base.assetFolderPath &&
+    presetFolderBasenames.includes(folderBase)
+  if (isVectorOk || isPresetRasterOk) return base
+  return {
+    ...base,
+    sourceKind: 'vector',
+    vectorPresetId: base.vectorPresetId ?? DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
+    assetPath: null,
+    assetPaths: [],
+    assetFolderPath: null,
+  }
 }
 
 export type TextEffect = {
