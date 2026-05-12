@@ -2,10 +2,6 @@ import { useEffect, useRef } from 'react'
 import { useAppStore } from '../stores/appStore'
 import { getTimerCompletionElapsed } from '../utils/timerProgress'
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
-}
-
 export function useTimer() {
   const { timer, timerCompletedNonce, tickTimer, setTimer, timerAutoNextImages } = useAppStore()
   const intervalRef = useRef<number | null>(null)
@@ -15,14 +11,7 @@ export function useTimer() {
     ? Math.max(0, timer.totalSec - timer.partial.startSec)
     : 0
 
-  const progress = (() => {
-    if (timer.totalSec <= 0) return 0
-    if (timer.partial.enabled) {
-      const span = Math.max(1e-6, completionElapsed - partialStartElapsed)
-      return clamp((timer.elapsedSec - partialStartElapsed) / span, 0, 1)
-    }
-    return timer.elapsedSec / timer.totalSec
-  })()
+  const progress = timer.totalSec > 0 ? timer.elapsedSec / timer.totalSec : 0
 
   useEffect(() => {
     const ce = getTimerCompletionElapsed(timer)

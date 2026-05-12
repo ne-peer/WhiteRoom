@@ -34,7 +34,7 @@ export const TimerOverlay: React.FC = () => {
 
   const posStyle = positionStyles[timer.position]
   const completionElapsed = getTimerCompletionElapsed(timer)
-  const remaining = Math.max(0, completionElapsed - timer.elapsedSec)
+  const remaining = Math.max(0, timer.totalSec - timer.elapsedSec)
   const isEnded = !timer.running && timer.elapsedSec >= completionElapsed && timer.elapsedSec > 0
 
   const handleBtnClick = isEnded ? reset : (timer.running ? pause : start)

@@ -88,7 +88,7 @@ export const TimerPreOverlay: React.FC = () => {
   }
 
   const completionElapsed = getTimerCompletionElapsed(timer)
-  const remainingSec = Math.max(0, completionElapsed - timer.elapsedSec)
+  const remainingSec = Math.max(0, timer.totalSec - timer.elapsedSec)
   const isTimerCompleted = timer.elapsedSec >= completionElapsed && timer.elapsedSec > 0
   const isInPrePeriod = timer.enabled && !isTimerCompleted && remainingSec <= preOverlay.displayStartSec && timer.elapsedSec > 0
 

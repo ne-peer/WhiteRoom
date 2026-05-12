@@ -4,7 +4,6 @@ import { useTimer } from '../../hooks/useTimer'
 import { Section, Row, Toggle, NumberInput, Select, Button, ColorPicker, Slider } from '../controls/UIKit'
 import { useTranslation } from '../../i18n'
 import type { TimerPosition } from '../../../shared/types'
-import { getTimerCompletionElapsed } from '../../utils/timerProgress'
 
 function getApi() {
   return (window as unknown as { api: import('../../../shared/types').IpcApi }).api
@@ -130,7 +129,7 @@ export const TimerControls: React.FC = () => {
                 }}
               >
                 <span>{t('elapsed')}: {formatTime(timer.elapsedSec)}</span>
-                <span>{t('remaining')}: {formatTime(Math.max(0, getTimerCompletionElapsed(timer) - timer.elapsedSec))}</span>
+                <span>{t('remaining')}: {formatTime(Math.max(0, timer.totalSec - timer.elapsedSec))}</span>
               </div>
               <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
                 <div
