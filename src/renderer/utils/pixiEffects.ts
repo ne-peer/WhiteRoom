@@ -132,7 +132,6 @@ export class ParticleSystem {
     const { spawnIntervalMs, maxParticles, sizeRatio, baseAlpha, pattern } = effects.dynamicAsset
     const rawBaseAlpha = clamp(baseAlpha, 0, 1)
     const assetBaseAlpha = (effects.dynamicAsset.alphaTimerSync) ? rawBaseAlpha * this.timerProgress : rawBaseAlpha
-    const overlayTint = getAssetOverlayTint(effects)
     const isEmergence = (pattern ?? 'rising') === 'emergence'
 
     // スポーン
@@ -141,12 +140,13 @@ export class ParticleSystem {
       this.particles.length < maxParticles
     ) {
       this.lastSpawn = nowMs
+      const particleTint = sampleParticleTint(effects)
 
       if (isEmergence) {
-        // 発生パターン: ランダム位置、サイズ係数1.0-1.4のランダムばらつき
+        // 発生パターン: ランダム位置、サイズは表示サイズ × 設定された ±% 範囲
         const speedFactor = clamp(effects.dynamicAsset.emergenceSpeedFactor ?? 1.0, 0.1, 5.0)
-        const randomFactor = 1.0 + Math.random() * 0.4
-        const baseScale = clamp(sizeRatio, 0.1, 3.0) * randomFactor
+        const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
+        const baseScale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
         const p: AssetParticle = {
           id: `p-${nowMs}-${Math.random()}`,
           assetPath: effects.dynamicAsset.assetPath ?? '',
@@ -155,6 +155,7 @@ export class ParticleSystem {
           alpha: assetBaseAlpha,
           vy: 0,
           startTime: nowMs,
+          particleTint,
           baseScale,
           phase1DurationMs: EMERGENCE_PHASE1_MS / speedFactor,
           phase2DurationMs: EMERGENCE_PHASE2_MS / speedFactor,
@@ -162,7 +163,7 @@ export class ParticleSystem {
         this.particles.push(p)
 
         if (useVector) {
-          const holder = createVectorDynamicAssetDisplay(effects.dynamicAsset.vectorPresetId!, overlayTint)
+          const holder = createVectorDynamicAssetDisplay(effects.dynamicAsset.vectorPresetId!, particleTint)
           if (holder) {
             holder.x = p.x
             holder.y = p.y
@@ -180,12 +181,14 @@ export class ParticleSystem {
           sprite.y = p.y
           sprite.alpha = 0
           sprite.scale.set(0)
-          sprite.tint = overlayTint
+          sprite.tint = particleTint
           this.container.addChild(sprite)
           this.sprites.set(p.id, sprite)
         }
       } else {
-        // 上昇パターン: 既存の挙動
+        // 上昇パターン: 表示サイズ × 設定された ±% 範囲
+        const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
+        const scale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
         const p: AssetParticle = {
           id: `p-${nowMs}-${Math.random()}`,
           assetPath: effects.dynamicAsset.assetPath ?? '',
@@ -194,16 +197,17 @@ export class ParticleSystem {
           alpha: assetBaseAlpha,
           vy: randomRiseSpeed(),
           startTime: nowMs,
+          particleTint,
         }
         this.particles.push(p)
 
         if (useVector) {
-          const holder = createVectorDynamicAssetDisplay(effects.dynamicAsset.vectorPresetId!, overlayTint)
+          const holder = createVectorDynamicAssetDisplay(effects.dynamicAsset.vectorPresetId!, particleTint)
           if (holder) {
             holder.x = p.x
             holder.y = p.y
             holder.alpha = p.alpha
-            holder.scale.set((0.5 + Math.random() * 0.5) * clamp(sizeRatio, 0.1, 3.0))
+            holder.scale.set(scale)
             this.container.addChild(holder)
             this.vectorHolders.set(p.id, holder)
           } else {
@@ -215,8 +219,8 @@ export class ParticleSystem {
           sprite.x = p.x
           sprite.y = p.y
           sprite.alpha = p.alpha
-          sprite.scale.set((0.5 + Math.random() * 0.5) * clamp(sizeRatio, 0.1, 3.0))
-          sprite.tint = overlayTint
+          sprite.scale.set(scale)
+          sprite.tint = particleTint
           this.container.addChild(sprite)
           this.sprites.set(p.id, sprite)
         }
@@ -257,8 +261,8 @@ export class ParticleSystem {
             visual.scale.set(p.baseScale * (1.0 + t * 0.15))
             visual.alpha = p.alpha * (1.0 - t)
           }
-          if (sprite) sprite.tint = overlayTint
-          else if (holder) holder.tint = overlayTint
+          if (sprite) sprite.tint = p.particleTint
+          else if (holder) holder.tint = p.particleTint
         }
       } else {
         // 上昇パターンの更新
@@ -268,8 +272,8 @@ export class ParticleSystem {
         if (visual) {
           visual.y = p.y
           visual.alpha = Math.max(0, p.alpha)
-          if (sprite) sprite.tint = overlayTint
-          else if (holder) holder.tint = overlayTint
+          if (sprite) sprite.tint = p.particleTint
+          else if (holder) holder.tint = p.particleTint
         }
 
         if (p.alpha <= 0 || p.y < -50) {
@@ -470,15 +474,34 @@ export class TextSystem {
   }
 }
 
-function getAssetOverlayTint(effects: CellEffects): number {
-  const da = effects.dynamicAsset
-  if (!da.colorOverlayEnabled || da.colorOverlayAlpha <= 0) return 0xffffff
-
-  const alpha = Math.max(0, Math.min(1, da.colorOverlayAlpha))
-  const r = Math.round(255 + (da.colorOverlayColor.r - 255) * alpha)
-  const g = Math.round(255 + (da.colorOverlayColor.g - 255) * alpha)
-  const b = Math.round(255 + (da.colorOverlayColor.b - 255) * alpha)
+function tintFromAssetColorOverlay(
+  color: { r: number; g: number; b: number },
+  alpha: number
+): number {
+  const a = Math.max(0, Math.min(1, alpha))
+  const r = Math.round(255 + (color.r - 255) * a)
+  const g = Math.round(255 + (color.g - 255) * a)
+  const b = Math.round(255 + (color.b - 255) * a)
   return (r << 16) | (g << 8) | b
+}
+
+/** パーティクル生成時のティント（アセット色ランダム時はその場で透明度をサンプル） */
+function sampleParticleTint(effects: CellEffects): number {
+  const da = effects.dynamicAsset
+  if (!da.colorOverlayEnabled) return 0xffffff
+  if (da.colorOverlayAlphaRandomEnabled) {
+    const alpha = 0.4 + Math.random() * 0.6
+    return tintFromAssetColorOverlay(da.colorOverlayColor, alpha)
+  }
+  if (da.colorOverlayAlpha <= 0) return 0xffffff
+  return tintFromAssetColorOverlay(da.colorOverlayColor, da.colorOverlayAlpha)
+}
+
+function sampleAssetSizeRandomMultiplier(sizeRandomPercent: number): number {
+  const spread = clamp(sizeRandomPercent ?? 0, 0, 200) / 100
+  if (spread <= 0) return 1
+  const factor = 1 + (Math.random() * 2 - 1) * spread
+  return Math.max(0.05, factor)
 }
 
 function randomRiseSpeed(): number {

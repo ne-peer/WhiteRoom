@@ -250,6 +250,8 @@ export type AssetParticle = {
   alpha: number
   vy: number  // 上昇速度（risingパターン用）
   startTime: number
+  /** スポーン時に固定（アセット色・ランダム適用度をパーティクル存続中も一定に保つ） */
+  particleTint: number
   // emergenceパターン用フィールド
   baseScale?: number
   phase1DurationMs?: number
@@ -270,12 +272,16 @@ export type DynamicAssetEffect = {
   riseSpeedPx: number        // 上昇速度 px/frame
   maxParticles: number
   sizeRatio: number          // アセットサイズ倍率 0.1 - 3.0
+  /** 表示サイズを基準としたランダム幅 ±0〜200%（0 でサイズランダムなし） */
+  sizeRandomPercent: number
   baseAlpha: number          // 初期透明度 0.0 - 1.0
   alphaTimerSync: boolean    // タイマー同期（透明度をタイマー進捗に比例して適用）
   emergenceSpeedFactor: number  // 発生パターンの速度係数 0.1 - 5.0 (1.0 = 標準)
   colorOverlayEnabled: boolean
   colorOverlayColor: { r: number; g: number; b: number }
   colorOverlayAlpha: number
+  /** アセット色 ON 時、アセット色の適用度を 40%〜100% の範囲でパーティクルごとにランダム */
+  colorOverlayAlphaRandomEnabled: boolean
 }
 
 export type TextEffect = {
