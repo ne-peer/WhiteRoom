@@ -84,14 +84,14 @@ Then open the DMG as usual and drag the app into the Applications folder.
     * **Timer-synced effect progress**: Applies effects based on remaining timer time
     * **End overlay image**: Displays a specified overlay image when the timer ends
 6. **Text Reader**: Loads `.txt` files and displays text in an RPG-style reading UI.
-    * **Storyboard feature**: Embed tags in text files to auto-switch images/effects while reading (details below)
+    * **Storyboard feature**: Embed tags in text files to auto-switch images/effects while reading
 7. **Appearance settings**:
     * UI language: ja/en
     * Background: Color (manual color) / Dynamic (blurred current image)
     * Fullscreen/window mode toggle
     * UI visibility toggle
 8. **Profile save/load**: Save/load JSON from the Profile tab.
-9. **Stash**: Save the current grid, cells, timer, background, Text Reader state, and more to slots; restore with a long press (details below).
+9. **Stash**: Save the current grid, cells, timer, background, Text Reader state, and more to slots so you can restore them later.
 
 ## Effect Save Feature
 
