@@ -29,6 +29,7 @@ const api: IpcApi = {
   cleanupTextReaderTempFile: (tempFilePath) => ipcRenderer.invoke('cleanup-text-reader-temp-file', tempFilePath),
   loadRemoteImageAsDataUrl: (url) => ipcRenderer.invoke('load-remote-image-data-url', url),
   getRemoteImageStats: () => ipcRenderer.invoke('get-remote-image-stats'),
+  checkHasStash: () => ipcRenderer.invoke('check-has-stash'),
   onFullscreenChange: (cb) => {
     const handler = (_: Electron.IpcRendererEvent, isFullscreen: boolean) => cb(isFullscreen)
     ipcRenderer.on('fullscreen-change', handler)

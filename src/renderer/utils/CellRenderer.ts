@@ -146,6 +146,8 @@ export class CellRenderer {
   private colorMatrixFilter: PIXI.ColorMatrixFilter | null = null
   private colorAdjustGsapTween: gsap.core.Tween | null = null
   private colorAdjustAnimationKey: string | null = null
+  private colorTintGsapTween: gsap.core.Tween | null = null
+  private colorTintAnimationKey: string | null = null
   private echoGsapTween: gsap.core.Tween | null = null
   private echoAnimationKey: string | null = null
   private breathingKey: string | null = null
@@ -421,6 +423,7 @@ export class CellRenderer {
     this.updateBreathing(effects.breathing)
     this.updateShake(effects.shake, showCircleGuides)
     this.updateColorOverlay(effects)
+    this.updateColorOverlayTint(effects)
     this.updateBlur(effects, showCircleGuides)
     this.updateColorAdjustment(effects.colorOverlay)
     this.updateVignette(effects)
@@ -447,6 +450,7 @@ export class CellRenderer {
     const durationMs = Math.max(
       effects.vignette.dynamicDurationMs,
       effects.spiral.dynamicDurationMs,
+      effects.colorOverlay.dynamicDurationMs,
       effects.colorOverlay.dynamicAdjustDurationMs,
       effects.blur.gradualDurationSec * 1000,
       effects.echo.durationSec * 1000,
@@ -461,6 +465,7 @@ export class CellRenderer {
     this.vignetteGsapTween?.kill()
     this.blurGsapTween?.kill()
     this.colorAdjustGsapTween?.kill()
+    this.colorTintGsapTween?.kill()
     this.echoGsapTween?.kill()
     this.flashStartTween?.kill()
     this.flashEndTween?.kill()
@@ -475,6 +480,7 @@ export class CellRenderer {
     this.vignetteGsapTween = null
     this.blurGsapTween = null
     this.colorAdjustGsapTween = null
+    this.colorTintGsapTween = null
     this.echoGsapTween = null
     this.flashStartTween = null
     this.flashEndTween = null
@@ -482,6 +488,7 @@ export class CellRenderer {
     this.spiralAlphaDynamicProgress = 0
     this.blurAnimationKey = null
     this.colorAdjustAnimationKey = null
+    this.colorTintAnimationKey = null
     this.echoAnimationKey = null
     this.clearFlashOverlay()
     this.breathingKey = null
@@ -515,6 +522,11 @@ export class CellRenderer {
       this.spiralAlphaDynamicProgress = 0
     }
 
+    if (effects.colorOverlay.enabled && effects.colorOverlay.dynamic) {
+      this.colorTintGsapTween?.kill()
+      this.colorTintGsapTween = null
+      this.colorTintAnimationKey = null
+    }
     if (effects.colorOverlay.imageAdjustEnabled && effects.colorOverlay.dynamicAdjust) {
       this.colorAdjustGsapTween?.kill()
       this.colorAdjustGsapTween = null
@@ -553,8 +565,14 @@ export class CellRenderer {
       this.vignetteSprite.alpha = vig.dynamicFrom + (vig.dynamicTo - vig.dynamicFrom) * progress
     }
 
-    // 画像強調フィルタ（動的強調＋タイマー同期）
+    // カラーフィルタ（動的反映＋タイマー同期）
     const co = effects.colorOverlay
+    if (co.enabled && co.dynamic && co.dynamicTimerSync) {
+      this.colorOverlayGraphics.alpha =
+        co.dynamicFrom + (co.dynamicTo - co.dynamicFrom) * progress
+    }
+
+    // 画像強調フィルタ（動的強調＋タイマー同期）
     const spiral = effects.spiral
     if (spiral.enabled && spiral.dynamic && spiral.dynamicTimerSync) {
       this.applySpiralAlpha(effects, progress)
@@ -592,11 +610,14 @@ export class CellRenderer {
       this.vignetteGsapTween = null
       this.blurGsapTween?.kill()
       this.blurGsapTween = null
+      this.colorTintGsapTween?.kill()
+      this.colorTintGsapTween = null
     } else if (this.storyboardScaleActive && scale === null) {
       // 終了: キーリセットで次のupdateEffects呼び出し時にGSAP再起動
       this.storyboardScaleActive = false
       this.vignetteAnimationKey = null
       this.blurAnimationKey = null
+      this.colorTintAnimationKey = null
     }
     this.storyboardScale = scale
   }
@@ -616,9 +637,11 @@ export class CellRenderer {
       this.spiralGraphics.alpha = clamp(target * scale, 0, 1)
     }
 
-    // カラーオーバーレイ
-    if (effects.colorOverlay.enabled) {
-      this.colorOverlayGraphics.alpha = scale
+    // カラーフィルタ（タイマー同期の動的反映中はストーリーボードで上書きしない）
+    const coSb = effects.colorOverlay
+    if (coSb.enabled && !(coSb.dynamic && coSb.dynamicTimerSync)) {
+      const target = coSb.dynamic ? coSb.dynamicTo : coSb.alpha
+      this.colorOverlayGraphics.alpha = target * scale
     }
 
     // ブラー（timerSync 以外）
@@ -663,6 +686,7 @@ export class CellRenderer {
     this.vignetteGsapTween?.kill()
     this.blurGsapTween?.kill()
     this.colorAdjustGsapTween?.kill()
+    this.colorTintGsapTween?.kill()
     this.echoGsapTween?.kill()
     this.imageTransitionTween?.kill()
     this.dynamicBackgroundTransitionTween?.kill()
@@ -1066,6 +1090,65 @@ export class CellRenderer {
 
   private updateColorOverlay(effects: CellEffects) {
     updateColorOverlay(this.colorOverlayGraphics, this.width, this.height, effects)
+  }
+
+  /** カラーフィルタの不透明度（動的反映・タイマー同期はビネットと同仕様） */
+  private updateColorOverlayTint(effects: CellEffects) {
+    const co = effects.colorOverlay
+
+    if (!co.enabled) {
+      if (this.colorTintGsapTween) {
+        this.colorTintGsapTween.kill()
+        this.colorTintGsapTween = null
+      }
+      this.colorTintAnimationKey = null
+      return
+    }
+
+    if (co.dynamic) {
+      if (co.dynamicTimerSync) {
+        const animationKey = `timer-sync:${co.dynamicFrom}:${co.dynamicTo}`
+        if (this.colorTintAnimationKey !== animationKey) {
+          this.colorTintGsapTween?.kill()
+          this.colorTintGsapTween = null
+          this.colorTintAnimationKey = animationKey
+          this.colorOverlayGraphics.alpha =
+            co.dynamicFrom + (co.dynamicTo - co.dynamicFrom) * this.timerProgress
+        }
+      } else if (this.storyboardScaleActive) {
+        this.colorTintGsapTween?.kill()
+        this.colorTintGsapTween = null
+      } else {
+        const animationKey = [co.dynamicFrom, co.dynamicTo, co.dynamicDurationMs].join(':')
+
+        if (this.colorTintAnimationKey !== animationKey) {
+          this.colorTintGsapTween?.kill()
+          this.colorTintAnimationKey = animationKey
+          const proxy = { alpha: co.dynamicFrom }
+          this.colorOverlayGraphics.alpha = co.dynamicFrom
+          this.colorTintGsapTween = gsap.to(proxy, {
+            alpha: co.dynamicTo,
+            duration: co.dynamicDurationMs / 1000,
+            ease: 'sine.inOut',
+            repeat: -1,
+            yoyo: false,
+            onComplete: () => { proxy.alpha = co.dynamicFrom },
+            onUpdate: () => {
+              this.colorOverlayGraphics.alpha = proxy.alpha
+            },
+          })
+        }
+      }
+    } else {
+      if (this.colorTintGsapTween) {
+        this.colorTintGsapTween.kill()
+        this.colorTintGsapTween = null
+      }
+      this.colorTintAnimationKey = null
+      if (!this.storyboardScaleActive) {
+        this.colorOverlayGraphics.alpha = co.alpha
+      }
+    }
   }
 
   private redrawDynamicBackgroundMask() {

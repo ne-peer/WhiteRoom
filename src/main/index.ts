@@ -278,6 +278,13 @@ function serializeAppProfile(profile: AppProfile): AppProfile {
       ...cell,
       effects: mapEffectsAssetReferences(cell.effects, serializeAssetEffectReference) as CellEffects,
     })),
+    stashes: profile.stashes?.map(stash => ({
+      ...stash,
+      cells: stash.cells.map(cell => ({
+        ...cell,
+        effects: mapEffectsAssetReferences(cell.effects, serializeAssetEffectReference) as CellEffects,
+      })),
+    })),
   }
 }
 
@@ -287,6 +294,13 @@ function resolveAppProfile(profile: AppProfile): AppProfile {
     cells: profile.cells.map(cell => ({
       ...cell,
       effects: mapEffectsAssetReferences(cell.effects, resolveAssetEffectReference) as CellEffects,
+    })),
+    stashes: profile.stashes?.map(stash => ({
+      ...stash,
+      cells: stash.cells.map(cell => ({
+        ...cell,
+        effects: mapEffectsAssetReferences(cell.effects, resolveAssetEffectReference) as CellEffects,
+      })),
     })),
   }
 }
@@ -773,6 +787,29 @@ function createWindow(): BrowserWindow {
     win.webContents.send('fullscreen-change', false)
   })
 
+  // スタッシュ残存時の終了確認
+  win.on('close', async (e) => {
+    e.preventDefault()
+    let hasStash = false
+    try {
+      hasStash = await win.webContents.executeJavaScript('window.__whiteroom_hasStash?.()')
+    } catch { /* ignore */ }
+    if (hasStash) {
+      const result = await dialog.showMessageBox(win, {
+        type: 'warning',
+        buttons: ['終了する', 'キャンセル'],
+        defaultId: 1,
+        cancelId: 1,
+        message: 'スタッシュに設定が残っています。終了しますか？',
+      })
+      if (result.response === 0) {
+        win.destroy()
+      }
+    } else {
+      win.destroy()
+    }
+  })
+
   return win
 }
 
@@ -1079,6 +1116,16 @@ ipcMain.handle('get-remote-image-stats', async (): Promise<RemoteImageStatsResul
   return {
     pixivUniqueImageCount: countedPixivImageUrls.size,
     pixivUniqueImageLimit: MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP,
+  }
+})
+
+ipcMain.handle('check-has-stash', async (): Promise<boolean> => {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  if (!win) return false
+  try {
+    return await win.webContents.executeJavaScript('window.__whiteroom_hasStash?.() ?? false')
+  } catch {
+    return false
   }
 })
 

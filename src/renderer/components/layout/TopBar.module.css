@@ -2,34 +2,85 @@
   position: fixed;
   bottom: 12px;
   left: 12px;
-  display: flex;
-  gap: 6px;
   z-index: 220;
 }
 
-.dockBtn {
-  min-width: 56px;
-  height: 16px;
-  padding: 0 8px;
-  border-radius: 4px;
+/* ハンバーガーボタン */
+.hamburgerBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
   border: none;
   background: rgba(8, 8, 12, 0.72);
-  color: rgba(255,255,255,0.76);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 16px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 16px;
   cursor: pointer;
   backdrop-filter: blur(10px);
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+
+.hamburgerBtn:hover,
+.hamburgerBtnOpen {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.hamburgerIcon {
+  display: block;
+  line-height: 1;
+}
+
+/* フロートメニュー（左下詰め、ボタン上に展開） */
+.menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  background: rgba(10, 10, 18, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 7px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.60);
+  display: flex;
+  flex-direction: column;
+  min-width: 130px;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  animation: menuFadeIn 0.10s ease;
+}
+
+@keyframes menuFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.menuItem {
+  background: none;
+  border: none;
+  color: rgba(220, 220, 255, 0.88);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 8px 14px;
+  text-align: left;
+  cursor: pointer;
   white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
 }
 
-.dockBtn:hover {
-  background: rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.96);
+.menuItem:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.98);
 }
 
-.dockBtnActive {
-  color: #fff;
+.menuItemActive {
+  color: rgba(253, 200, 100, 0.92);
+}
+
+.menuDivider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 2px 8px;
 }

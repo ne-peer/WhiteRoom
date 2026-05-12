@@ -208,6 +208,10 @@ export const MasterCanvas: React.FC = () => {
         e.preventDefault()
         state.toggleControls()
       }
+      if (e.key.toLowerCase() === 's' && !e.repeat && !isEditable) {
+        e.preventDefault()
+        state.setStashWindowOpen(true)
+      }
       if (e.key.toLowerCase() === 'p' && !e.repeat && !isEditable) {
         e.preventDefault()
         const state = useAppStore.getState()
@@ -261,7 +265,7 @@ export const MasterCanvas: React.FC = () => {
     if (!el) return
     const onWheel = (e: WheelEvent) => {
       const target = e.target as Element | null
-      if (target?.closest('[data-reader-window], [data-storyboard-window]')) return
+      if (target?.closest('[data-reader-window], [data-storyboard-window], [data-stash-window]')) return
       const rect = el.getBoundingClientRect()
       const { grid, cells, nextCellImage, prevCellImage, textReader } = useAppStore.getState()
       if (textReader.storyboardFileActive) return

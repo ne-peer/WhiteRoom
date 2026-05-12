@@ -67,6 +67,12 @@ export type ColorOverlayEffect = {
   enabled: boolean
   color: { r: number; g: number; b: number }
   alpha: number  // 0.0 - 1.0
+  /** 動的反映（開始／終了透明度と変化時間でオーバーレイ強度を変化） */
+  dynamic: boolean
+  dynamicFrom: number
+  dynamicTo: number
+  dynamicDurationMs: number
+  dynamicTimerSync: boolean
   imageAdjustEnabled: boolean
   /** RGB 乗算。1.0 が無変更（暗く＜1、明るく＞1） */
   brightness: number
@@ -372,6 +378,21 @@ export type GridLayout = {
 
 // ===== アプリ全体状態（プロファイルと同一構造）=====
 
+export type StashItem = {
+  id: string
+  emoji: string
+  color: string        // hex アクセントカラー（例: '#f59e0b'）
+  savedAt: string      // ISO 日時
+  blankColor: BlankColor
+  blankBackground?: BlankBackground
+  grid: GridLayout
+  cells: Cell[]
+  timer: TimerConfig
+  textReaderConfig: TextReaderConfig
+  textReaderFilePath: string | null
+  textReaderPageIndex: number
+}
+
 export type AppProfile = {
   version: string
   createdAt: string
@@ -384,6 +405,7 @@ export type AppProfile = {
   fullscreen: boolean
   windowSize?: WindowSize
   showControls?: boolean
+  stashes?: StashItem[]
 }
 
 // ===== ストーリーボードタグ =====
@@ -580,5 +602,6 @@ export type IpcApi = {
   cleanupTextReaderTempFile: (tempFilePath: string) => Promise<CleanupTextReaderTempFileResult>
   loadRemoteImageAsDataUrl: (url: string) => Promise<RemoteImageResult>
   getRemoteImageStats: () => Promise<RemoteImageStatsResult>
+  checkHasStash: () => Promise<boolean>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void
 }
