@@ -97,9 +97,20 @@
   scrollbar-color: rgba(255,255,255,0.15) transparent;
 }
 
+.menuPopover {
+  position: relative;
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-width: 48px;
+}
+
 .menuTrigger {
+  flex: 1;
   flex-shrink: 0;
   min-width: 48px;
+  width: 100%;
 }
 
 .menuDropdown {

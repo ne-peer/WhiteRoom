@@ -70,7 +70,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
   return (
     <div className={`${styles.panel} ${floating ? styles.panelFloating : ''} ${isHidden ? styles.panelHidden : ''}`}>
       {/* タブナビゲーション — ラッパーで overflow visible を確保 */}
-      <div className={styles.tabsContainer} ref={menuRef}>
+      <div className={styles.tabsContainer}>
         <div className={styles.tabs}>
           {MAIN_TABS.map(tab => {
             const locked = storyboardFileActive && STORYBOARD_LOCKED_TABS.includes(tab.id)
@@ -88,34 +88,44 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
             )
           })}
 
-          {/* ハンバーガーメニュー */}
-          <button
-            className={`${styles.tab} ${styles.menuTrigger} ${isMenuTabActive ? styles.tabActive : ''}`}
-            onClick={() => setMenuOpen(v => !v)}
-            title="外観 / プロファイル"
+          {/* その他: ホバーでメニュー表示（タッチはクリックでトグル） */}
+          <div
+            className={styles.menuPopover}
+            ref={menuRef}
+            onMouseEnter={() => setMenuOpen(true)}
+            onMouseLeave={() => setMenuOpen(false)}
           >
-            <span className={styles.tabIcon}>≡</span>
-            <span className={styles.tabLabel}>
-              {activeMenuTab ? t(activeMenuTab.labelKey) : 'その他'}
-            </span>
-          </button>
-        </div>
-
-        {/* ドロップダウン — tabs の外・tabsContainer 内で overflow: visible */}
-        {menuOpen && (
-          <div className={styles.menuDropdown}>
-            {MENU_TABS.map(tab => (
-              <button
-                key={tab.id}
-                className={`${styles.menuItem} ${activeTab === tab.id ? styles.menuItemActive : ''}`}
-                onClick={() => handleMenuTabSelect(tab.id)}
-              >
-                <span className={styles.menuItemIcon}>{tab.icon}</span>
-                <span>{t(tab.labelKey)}</span>
-              </button>
-            ))}
+            <button
+              type="button"
+              className={`${styles.tab} ${styles.menuTrigger} ${isMenuTabActive ? styles.tabActive : ''}`}
+              onClick={() => setMenuOpen(v => !v)}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+              title="外観 / プロファイル"
+            >
+              <span className={styles.tabIcon}>≡</span>
+              <span className={styles.tabLabel}>
+                {activeMenuTab ? t(activeMenuTab.labelKey) : 'その他'}
+              </span>
+            </button>
+            {menuOpen && (
+              <div className={styles.menuDropdown} role="menu">
+                {MENU_TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="menuitem"
+                    className={`${styles.menuItem} ${activeTab === tab.id ? styles.menuItemActive : ''}`}
+                    onClick={() => handleMenuTabSelect(tab.id)}
+                  >
+                    <span className={styles.menuItemIcon}>{tab.icon}</span>
+                    <span>{t(tab.labelKey)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* コンテンツ */}
