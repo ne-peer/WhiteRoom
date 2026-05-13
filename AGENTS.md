@@ -138,6 +138,13 @@ For the per-image effect profile save/load feature, read `docs/WR-EffectProfile.
 - Text Reader / Storyboard activity suspends automatic application until the text file is closed.
 - Remote URL images cannot be saved because there is no local target folder.
 
+## SUT Brush Raster Spec
+
+For `.sut` (Clip Studio SQLite brush material) import, PNG extraction, IPC, and renderer integration, read [`docs/WR-SutBrushRaster.md`](docs/WR-SutBrushRaster.md) before implementation.
+
+- Reference script: `lib/wr_cspbrushextract.py` (offline extraction and schema notes).
+- Runtime behavior should keep user-visible paths as `.sut` while Pixi loads resolved PNG bytes or cached `.png` files under `userData`.
+
 ## Vector Stamp Spec (draft)
 
 For procedural vector stamps (e.g. Bézier paths) alongside raster dynamic assets, read the **draft** spec [`docs/WR-VectorStamp.md`](docs/WR-VectorStamp.md) before changing implementation or `src/shared/types.ts`.
