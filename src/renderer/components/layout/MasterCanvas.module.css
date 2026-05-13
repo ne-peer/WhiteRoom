@@ -232,6 +232,31 @@
     inset 0 0 18px rgba(176, 112, 248, 0.28);
 }
 
+.selectedCellOutline {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  pointer-events: none;
+  border: 3px solid rgba(255, 224, 48, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(255, 200, 0, 0.45),
+    0 0 14px rgba(255, 214, 64, 0.55),
+    inset 0 0 10px rgba(255, 220, 80, 0.08);
+  animation: selectedCellOutlineFade 2.4s ease-out forwards;
+}
+
+@keyframes selectedCellOutlineFade {
+  0% {
+    opacity: 1;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .emptyCellHints {
   position: absolute;
   inset: 0;

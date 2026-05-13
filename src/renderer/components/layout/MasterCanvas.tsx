@@ -150,6 +150,21 @@ export const MasterCanvas: React.FC = () => {
       height: canvasSize.height,
     }
   }, [canvasSize.height, canvasSize.width, flashRangeColumn, flashRangePicking, grid.cols])
+  const selectedCellOutlineBounds = React.useMemo((): React.CSSProperties | null => {
+    if (anyPickModeActive) return null
+    if (!selectedCell || grid.cols <= 0 || grid.rows <= 0) return null
+    if (canvasSize.width <= 0 || canvasSize.height <= 0) return null
+    const left = Math.round((selectedCell.col * canvasSize.width) / grid.cols)
+    const top = Math.round((selectedCell.row * canvasSize.height) / grid.rows)
+    const nextLeft = Math.round(((selectedCell.col + 1) * canvasSize.width) / grid.cols)
+    const nextTop = Math.round(((selectedCell.row + 1) * canvasSize.height) / grid.rows)
+    return {
+      left,
+      top,
+      width: nextLeft - left,
+      height: nextTop - top,
+    }
+  }, [anyPickModeActive, canvasSize.height, canvasSize.width, grid.cols, grid.rows, selectedCell])
   const guideCellSize = {
     width: grid.cols > 0 ? canvasSize.width / grid.cols : 0,
     height: grid.rows > 0 ? canvasSize.height / grid.rows : 0,
@@ -675,6 +690,13 @@ export const MasterCanvas: React.FC = () => {
           </div>
         ))}
       </div>
+      {selectedCellOutlineBounds && selectedCellId !== null && (
+        <div
+          key={selectedCellId}
+          className={styles.selectedCellOutline}
+          style={selectedCellOutlineBounds}
+        />
+      )}
       <TimerPreOverlay />
       {pickingActive && pickColumnBounds && (
         <div
