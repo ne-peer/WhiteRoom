@@ -1,18 +1,18 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
-import { resolve, join, extname } from 'path'
+import { resolve, join } from 'path'
 import { readdirSync } from 'fs'
 import pkg from './package.json'
+import { isPresetRasterListingFilename } from './src/shared/rasterSourceExtensions'
 
 function scanAssetEffectFolders(): { name: string; count: number }[] {
-  const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif']
   const basePath = join(__dirname, 'assets', 'asset-effect')
   try {
     return readdirSync(basePath, { withFileTypes: true })
       .filter(e => e.isDirectory())
       .map(e => {
         const count = readdirSync(join(basePath, e.name))
-          .filter(f => IMAGE_EXTENSIONS.includes(extname(f).toLowerCase()))
+          .filter(f => isPresetRasterListingFilename(f))
           .length
         return { name: e.name, count }
       })

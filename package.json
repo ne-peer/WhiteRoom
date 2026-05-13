@@ -13,13 +13,15 @@
     "dev": "node scripts/electron-vite.cjs dev",
     "build": "node scripts/electron-vite.cjs build",
     "preview": "node scripts/electron-vite.cjs preview",
-    "package": "electron-builder"
+    "package": "electron-builder",
+    "extract:sut-presets": "node scripts/extract-sut-presets.cjs"
   },
   "dependencies": {
-    "pixi.js": "^8.4.0",
-    "zustand": "^4.5.2",
     "gsap": "^3.12.5",
-    "immer": "^10.0.4"
+    "immer": "^10.0.4",
+    "pixi.js": "^8.4.0",
+    "sql.js": "^1.11.0",
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",

@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useAppStore } from '../stores/appStore'
 import type { CellFolder, IpcApi } from '../../shared/types'
 import { parseTextFile } from '../utils/storyboardParser'
+import { isRasterSourceListingFilename } from '../../shared/rasterSourceExtensions'
 
 function isProfileFile(name: string): boolean {
   return name.toLowerCase().endsWith('.json')
@@ -9,14 +10,6 @@ function isProfileFile(name: string): boolean {
 
 function isTextFile(name: string): boolean {
   return name.toLowerCase().endsWith('.txt')
-}
-
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
-
-function isImageFile(name: string): boolean {
-  const dotIndex = name.lastIndexOf('.')
-  if (dotIndex < 0) return false
-  return IMAGE_EXTENSIONS.includes(name.slice(dotIndex).toLowerCase())
 }
 
 function getApi(): IpcApi {
@@ -115,7 +108,7 @@ export function useDropHandler(
         }
       }
 
-      if (isImageFile(file.name)) {
+      if (isRasterSourceListingFilename(file.name)) {
         const parentFolderPath = getParentFolderPath(filePath)
         if (!parentFolderPath) continue
 

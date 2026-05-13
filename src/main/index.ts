@@ -24,8 +24,11 @@ import type {
   CleanupTextReaderTempFileResult,
   UiLanguage,
 } from '../shared/types'
+import { isRasterSourceListingFilename, isSutFilename } from '../shared/rasterSourceExtensions'
+import { resolveRasterSourcePaths } from './sut/resolveRasterSourcePaths'
+import { readSutMaterialRows } from './sut/readSutMaterialFile'
+import { extractPngFromMaterialFileData } from '../shared/sut/extractPngFromMaterialBlob'
 
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.avif']
 const IMAGE_EFFECT_PROFILE_FILE = 'whiteroom_effects.json'
 const PORTABLE_ASSET_EFFECT_PREFIX = 'whiteroom://asset-effect/'
 const MAX_REMOTE_IMAGE_BYTES = 25 * 1024 * 1024
@@ -77,13 +80,13 @@ function getDialogText(language?: UiLanguage): typeof DIALOG_TEXT.ja {
   return DIALOG_TEXT[language === 'en' ? 'en' : 'ja']
 }
 
-function isImageFile(filename: string): boolean {
-  return IMAGE_EXTENSIONS.includes(extname(filename).toLowerCase())
+function isRasterListingFile(filename: string): boolean {
+  return isRasterSourceListingFilename(filename)
 }
 
 function readImagePaths(folderPath: string): string[] {
   return readdirSync(folderPath)
-    .filter(isImageFile)
+    .filter(isRasterListingFile)
     .map(f => join(folderPath, f))
     .sort()
 }
@@ -939,7 +942,7 @@ ipcMain.handle('open-asset', async (_event, language?: UiLanguage) => {
   const text = getDialogText(language)
   const result = await dialog.showOpenDialog({
     properties: ['openFile'],
-    filters: [{ name: text.imageFileFilter, extensions: ['png', 'webp', 'gif'] }],
+    filters: [{ name: text.imageFileFilter, extensions: ['png', 'webp', 'gif', 'sut'] }],
     title: text.assetImageTitle
   })
   if (result.canceled || !result.filePaths[0]) {
@@ -1000,9 +1003,19 @@ ipcMain.handle('list-asset-effect-folders', async (): Promise<AssetEffectFolders
   }
 })
 
-// 画像をBase64で読み込み
+// 画像をBase64で読み込み（.sut は先頭ティップのみ）
 ipcMain.handle('read-image-base64', async (_event, filePath: string): Promise<string> => {
   try {
+    if (isSutFilename(filePath)) {
+      const rows = await readSutMaterialRows(filePath)
+      for (const row of rows) {
+        const png = extractPngFromMaterialFileData(row.fileData)
+        if (png?.byteLength) {
+          return `data:image/png;base64,${Buffer.from(png).toString('base64')}`
+        }
+      }
+      return ''
+    }
     const data = readFileSync(filePath)
     const ext = extname(filePath).toLowerCase().replace('.', '')
     const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
@@ -1014,6 +1027,13 @@ ipcMain.handle('read-image-base64', async (_event, filePath: string): Promise<st
   } catch {
     return ''
   }
+})
+
+ipcMain.handle('resolve-raster-source-paths', async (_event, paths: string[]) => {
+  if (!Array.isArray(paths)) {
+    return { kind: 'error' as const, message: 'paths must be an array' }
+  }
+  return resolveRasterSourcePaths(paths, app.getPath('userData'))
 })
 
 // プロファイル保存

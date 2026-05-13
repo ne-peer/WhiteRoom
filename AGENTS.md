@@ -140,10 +140,11 @@ For the per-image effect profile save/load feature, read `docs/WR-EffectProfile.
 
 ## SUT Brush Raster Spec
 
-For `.sut` (Clip Studio SQLite brush material) import, PNG extraction, IPC, and renderer integration, read [`docs/WR-SutBrushRaster.md`](docs/WR-SutBrushRaster.md) before implementation.
+For `.sut` (Clip Studio SQLite brush material) import, PNG extraction, IPC, and renderer integration, read [`docs/WR-SutBrushRaster.md`](docs/WR-SutBrushRaster.md).
 
 - Reference script: `lib/wr_cspbrushextract.py` (offline extraction and schema notes).
-- Runtime behavior should keep user-visible paths as `.sut` while Pixi loads resolved PNG bytes or cached `.png` files under `userData`.
+- Runtime: user-visible paths stay `.sut`; Pixi loads cached `tip-*.png` under `userData/sut-cache/` via `resolveRasterSourcePaths` IPC.
+- Optional preset authoring: `npm run extract:sut-presets` (Python + `lib/wr_cspbrushextract.py` per `assets/asset-effect` subfolder that contains `.sut`).
 
 ## Vector Stamp Spec (draft)
 

@@ -4629,19 +4629,38 @@ export class CellRenderer {
       return
     }
 
-    if (assetPaths.length > 0 && assetKey !== this.assetTexturesKey) {
-      this.assetPath = da.assetPath
-      this.assetTexturesKey = assetKey
-      const textures: PIXI.Texture[] = []
-      for (const path of assetPaths) {
+    if (assetPaths.length > 0) {
+      const api = (typeof window !== 'undefined' ? (window as unknown as { api?: IpcApi }).api : undefined)
+      let loadablePaths = assetPaths
+      let texturesKey = assetKey
+      if (api?.resolveRasterSourcePaths) {
         try {
-          textures.push(await PIXI.Assets.load(toFileUrl(path)))
+          const res = await api.resolveRasterSourcePaths(assetPaths)
+          if (res.kind === 'ok') {
+            texturesKey = `${assetPaths.join('|')}#${res.entries.map(e => e.sourceFingerprint).join('!')}`
+            loadablePaths = res.entries.flatMap(e => e.loadablePaths)
+          } else {
+            console.warn('[アセットエフェクト] resolveRasterSourcePaths:', res.message)
+          }
         } catch (error) {
-          console.warn(`[アセットエフェクト] テクスチャ読み込みに失敗: ${path}`, error)
+          console.warn('[アセットエフェクト] resolveRasterSourcePaths に失敗', error)
         }
       }
-      this.assetTexture = textures[0] ?? null
-      this.particleSystem.setTextures(textures)
+
+      if (texturesKey !== this.assetTexturesKey) {
+        this.assetPath = da.assetPath
+        this.assetTexturesKey = texturesKey
+        const textures: PIXI.Texture[] = []
+        for (const path of loadablePaths) {
+          try {
+            textures.push(await PIXI.Assets.load(toFileUrl(path)))
+          } catch (error) {
+            console.warn(`[アセットエフェクト] テクスチャ読み込みに失敗: ${path}`, error)
+          }
+        }
+        this.assetTexture = textures[0] ?? null
+        this.particleSystem.setTextures(textures)
+      }
     } else if (assetPaths.length === 0) {
       this.assetPath = null
       this.assetTexturesKey = null

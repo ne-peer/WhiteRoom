@@ -733,6 +733,15 @@ export type ReadingConfigPayload = {
   showControls: boolean
 }
 
+export type ResolveRasterSourceEntry = {
+  loadablePaths: string[]
+  sourceFingerprint: string
+}
+
+export type ResolveRasterSourcePathsResult =
+  | { kind: 'ok'; entries: ResolveRasterSourceEntry[] }
+  | { kind: 'error'; message: string }
+
 export type IpcApi = {
   openFolder: (language?: UiLanguage) => Promise<OpenFolderResult>
   readFolderPath: (folderPath: string) => Promise<OpenFolderResult>
@@ -742,6 +751,7 @@ export type IpcApi = {
   openAssetFolder: (language?: UiLanguage) => Promise<OpenAssetResult>
   listAssetEffectFolders: () => Promise<AssetEffectFoldersResult>
   readImageAsBase64: (filePath: string) => Promise<string>
+  resolveRasterSourcePaths: (paths: string[]) => Promise<ResolveRasterSourcePathsResult>
   saveProfile: (profile: AppProfile, language?: UiLanguage) => Promise<SaveProfileResult>
   loadProfile: (language?: UiLanguage) => Promise<LoadProfileResult>
   loadProfileFromPath: (filePath: string) => Promise<LoadProfileResult>

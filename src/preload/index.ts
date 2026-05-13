@@ -10,6 +10,7 @@ const api: IpcApi = {
   openAssetFolder: (language) => ipcRenderer.invoke('open-asset-folder', language),
   listAssetEffectFolders: () => ipcRenderer.invoke('list-asset-effect-folders'),
   readImageAsBase64: (filePath) => ipcRenderer.invoke('read-image-base64', filePath),
+  resolveRasterSourcePaths: (paths) => ipcRenderer.invoke('resolve-raster-source-paths', paths),
   saveProfile: (profile, language) => ipcRenderer.invoke('save-profile', profile, language),
   loadProfile: (language) => ipcRenderer.invoke('load-profile', language),
   loadProfileFromPath: (filePath) => ipcRenderer.invoke('load-profile-from-path', filePath),

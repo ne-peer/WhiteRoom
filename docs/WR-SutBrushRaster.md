@@ -82,40 +82,27 @@ Isolate DB access behind a small interface, e.g. `queryMaterialFileRows(sutPath:
 
 Extend the typed API in [`src/shared/types.ts`](../src/shared/types.ts) and expose via [`src/preload/index.ts`](../src/preload/index.ts).
 
-### Recommended: dedicated handler
+### Shipped handler (batch)
 
-**Name (example):** `resolve-raster-sources` (or `expandSutToPngPaths`)
+**Channel:** `resolve-raster-source-paths`  
+**Preload:** `resolveRasterSourcePaths(paths: string[])`
 
-**Input:** `filePath: string` (absolute or normalizable).
+**Input:** `paths: string[]` — same order as `dynamicAsset.assetPaths` (or equivalent).
 
-**Output (conceptual):**
+**Output:** `ResolveRasterSourcePathsResult` in shared types:
 
-```typescript
-type ResolveRasterSourcesResult =
-  | { kind: 'image'; filePath: string }           // already a normal raster file
-  | { kind: 'sut'; pngPaths: string[] }           // cached PNG files, stable for Pixi
-  | { kind: 'error'; message: string }
-```
+- `{ kind: 'ok', entries }` — one `ResolveRasterSourceEntry` per input path, in order. Each entry has `loadablePaths: string[]` (one path for a normal image, many for `.sut` after cache expansion) and `sourceFingerprint` (`mtime:size` for cache invalidation).
+- `{ kind: 'error', message }` — invalid input (e.g. non-array).
 
-For **folder workflows**, either:
+### `read-image-base64` and `.sut`
 
-- Call the handler per `.sut` when building the effective texture list, or  
-- Add a batch variant `resolve-raster-sources-batch(paths: string[])` that preserves order.
-
-### Optional: extend `read-image-base64`
-
-If existing callers need a single data URL, `read-image-base64` may detect `.sut` and return **only the first** successfully extracted tip — document this limitation clearly. **Multi-tip** flows must use the dedicated API above.
+For a `.sut` path, the handler returns a `data:image/png;base64,...` URL for the **first** successfully extracted brush tip only. Multi-tip sequences use `resolveRasterSourcePaths` (renderer: dynamic asset / `CellRenderer.updateAsset`).
 
 ---
 
 ## Folder Listing and File Dialogs
 
-Today [`readImagePaths`](../src/main/index.ts) filters by `IMAGE_EXTENSIONS` (e.g. `.png`, `.jpg`, …). To surface `.sut` in asset folders and drag-and-drop:
-
-- Add `.sut` to the allowed extension list **or** introduce `readRasterSourcePaths` that unions image extensions and `.sut`.
-- Update open-dialog filters where relevant (e.g. `open-asset`, `open-asset-folder` consumers) so users can pick `.sut` when appropriate.
-
-Keep extension constants in **shared** code if both main and renderer need the same list for UI hints.
+Shared helpers live in [`src/shared/rasterSourceExtensions.ts`](../src/shared/rasterSourceExtensions.ts). [`readImagePaths`](../src/main/index.ts) lists raster images plus `.sut`. The single-file asset dialog includes `.sut` where applicable.
 
 ---
 
