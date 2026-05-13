@@ -598,7 +598,11 @@ function sampleParticleTint(effects: CellEffects): number {
   const da = effects.dynamicAsset
   if (!da.colorOverlayEnabled) return 0xffffff
   if (da.colorOverlayAlphaRandomEnabled) {
-    const alpha = 0.4 + Math.random() * 0.6
+    const rawLo = da.colorOverlayAlphaRandomMin ?? 0.4
+    const rawHi = da.colorOverlayAlphaRandomMax ?? 1
+    const lo = Math.max(0, Math.min(1, Math.min(rawLo, rawHi)))
+    const hi = Math.max(0, Math.min(1, Math.max(rawLo, rawHi)))
+    const alpha = lo + Math.random() * Math.max(0, hi - lo)
     return tintFromAssetColorOverlay(da.colorOverlayColor, alpha)
   }
   if (da.colorOverlayAlpha <= 0) return 0xffffff

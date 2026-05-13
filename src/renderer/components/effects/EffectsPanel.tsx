@@ -226,6 +226,8 @@ const EFFECT_PRESET_1: CellEffects = {
     colorOverlayColor: { r: 255, g: 15, b: 91 },
     colorOverlayAlpha: 0.5,
     colorOverlayAlphaRandomEnabled: false,
+    colorOverlayAlphaRandomMin: 0.4,
+    colorOverlayAlphaRandomMax: 1,
     sutTipMode: 'allTipsRandom',
   },
   textEffect: {
@@ -450,6 +452,8 @@ const EFFECT_PRESET_2: CellEffects = {
     colorOverlayColor: { r: 255, g: 15, b: 91 },
     colorOverlayAlpha: 0.5,
     colorOverlayAlphaRandomEnabled: false,
+    colorOverlayAlphaRandomMin: 0.4,
+    colorOverlayAlphaRandomMax: 1,
     sutTipMode: 'allTipsRandom',
   },
   textEffect: {
@@ -1719,7 +1723,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               <Select
                 value={effects.dynamicAsset.displayFileMode}
                 options={[
-                  { value: 'asset', label: t('flashDisplayFileAsset') },
+                  { value: 'asset', label: t('dynamicAssetDisplayFilePreset') },
                   { value: 'pickImage', label: t('flashDisplayFilePickFile') },
                 ]}
                 onChange={v => handleDynamicAssetDisplayFileModeChange(v as DynamicAssetDisplayFileMode)}
@@ -1751,43 +1755,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     onChange={handleSelectAssetEffectSource}
                   />
                 </Row>
-                <Row label={t('assetColor')}>
-                  <Toggle
-                    value={effects.dynamicAsset.colorOverlayEnabled}
-                    onChange={v =>
-                      set('dynamicAsset', {
-                        colorOverlayEnabled: v,
-                        ...(v ? {} : { colorOverlayAlphaRandomEnabled: false }),
-                      })}
-                  />
-                </Row>
-                {effects.dynamicAsset.colorOverlayEnabled && (
-                  <>
-                    <ColorPicker
-                      r={effects.dynamicAsset.colorOverlayColor.r}
-                      g={effects.dynamicAsset.colorOverlayColor.g}
-                      b={effects.dynamicAsset.colorOverlayColor.b}
-                      onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
-                    />
-                    <Row label={t('assetColorApplyRandom')}>
-                      <Toggle
-                        value={effects.dynamicAsset.colorOverlayAlphaRandomEnabled ?? false}
-                        onChange={v => set('dynamicAsset', { colorOverlayAlphaRandomEnabled: v })}
-                      />
-                    </Row>
-                    {!effects.dynamicAsset.colorOverlayAlphaRandomEnabled && (
-                      <Row label={t('assetColorOpacity')}>
-                        <Slider
-                          value={Math.round(effects.dynamicAsset.colorOverlayAlpha * 100)}
-                          min={0}
-                          max={100}
-                          onChange={v => set('dynamicAsset', { colorOverlayAlpha: v / 100 })}
-                          unit="%"
-                        />
-                      </Row>
-                    )}
-                  </>
-                )}
                 {effects.dynamicAsset.sourceKind === 'vector' && effects.dynamicAsset.vectorPresetId && (
                   <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.42)', marginBottom: 8 }}>
                     {t('dynamicAssetVectorActiveHint')}
@@ -1824,6 +1791,79 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   onChange={v => set('dynamicAsset', { sutTipMode: v as DynamicAssetSutTipMode })}
                 />
               </Row>
+            )}
+            <Row label={t('assetColor')}>
+              <Toggle
+                value={effects.dynamicAsset.colorOverlayEnabled}
+                onChange={v =>
+                  set('dynamicAsset', {
+                    colorOverlayEnabled: v,
+                    ...(v ? {} : { colorOverlayAlphaRandomEnabled: false }),
+                  })}
+              />
+            </Row>
+            {effects.dynamicAsset.colorOverlayEnabled && (
+              <>
+                <ColorPicker
+                  r={effects.dynamicAsset.colorOverlayColor.r}
+                  g={effects.dynamicAsset.colorOverlayColor.g}
+                  b={effects.dynamicAsset.colorOverlayColor.b}
+                  onChange={(r, g, b) => set('dynamicAsset', { colorOverlayColor: { r, g, b } })}
+                />
+                <Row label={t('assetColorApplyRandom')}>
+                  <Toggle
+                    value={effects.dynamicAsset.colorOverlayAlphaRandomEnabled ?? false}
+                    onChange={v => set('dynamicAsset', { colorOverlayAlphaRandomEnabled: v })}
+                  />
+                </Row>
+                {effects.dynamicAsset.colorOverlayAlphaRandomEnabled && (
+                  <>
+                    <Row label={t('assetColorRandomMin')}>
+                      <Slider
+                        value={Math.round((effects.dynamicAsset.colorOverlayAlphaRandomMin ?? 0.4) * 100)}
+                        min={0}
+                        max={100}
+                        onChange={v => {
+                          const min = v / 100
+                          const max = effects.dynamicAsset.colorOverlayAlphaRandomMax ?? 1
+                          set('dynamicAsset', {
+                            colorOverlayAlphaRandomMin: Math.min(min, max),
+                            colorOverlayAlphaRandomMax: Math.max(min, max),
+                          })
+                        }}
+                        unit="%"
+                      />
+                    </Row>
+                    <Row label={t('assetColorRandomMax')}>
+                      <Slider
+                        value={Math.round((effects.dynamicAsset.colorOverlayAlphaRandomMax ?? 1) * 100)}
+                        min={0}
+                        max={100}
+                        onChange={v => {
+                          const max = v / 100
+                          const min = effects.dynamicAsset.colorOverlayAlphaRandomMin ?? 0.4
+                          set('dynamicAsset', {
+                            colorOverlayAlphaRandomMin: Math.min(min, max),
+                            colorOverlayAlphaRandomMax: Math.max(min, max),
+                          })
+                        }}
+                        unit="%"
+                      />
+                    </Row>
+                  </>
+                )}
+                {!effects.dynamicAsset.colorOverlayAlphaRandomEnabled && (
+                  <Row label={t('assetColorOpacity')}>
+                    <Slider
+                      value={Math.round(effects.dynamicAsset.colorOverlayAlpha * 100)}
+                      min={0}
+                      max={100}
+                      onChange={v => set('dynamicAsset', { colorOverlayAlpha: v / 100 })}
+                      unit="%"
+                    />
+                  </Row>
+                )}
+              </>
             )}
             <Row label={t('assetDrawPattern')}>
               <Select

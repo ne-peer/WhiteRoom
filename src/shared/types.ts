@@ -386,8 +386,12 @@ export type DynamicAssetEffect = {
   colorOverlayEnabled: boolean
   colorOverlayColor: { r: number; g: number; b: number }
   colorOverlayAlpha: number
-  /** アセット色 ON 時、アセット色の適用度を 40%〜100% の範囲でパーティクルごとにランダム */
+  /** アセット色 ON 時、色適用度をパーティクルごとにランダム（範囲は min/max） */
   colorOverlayAlphaRandomEnabled: boolean
+  /** `colorOverlayAlphaRandomEnabled` 時の適用度ランダム下限 0–1 */
+  colorOverlayAlphaRandomMin: number
+  /** `colorOverlayAlphaRandomEnabled` 時の適用度ランダム上限 0–1 */
+  colorOverlayAlphaRandomMax: number
   /** `sourceKind === 'raster'` かつ `.sut` を含むとき、複数ティップをどうテクスチャプールに載せるか */
   sutTipMode: DynamicAssetSutTipMode
 }
@@ -418,11 +422,26 @@ export function normalizeDynamicAssetEffect(
   da: DynamicAssetEffect,
   presetFolderBasenames: readonly string[],
 ): DynamicAssetEffect {
+  const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
+  const rawMin =
+    typeof da.colorOverlayAlphaRandomMin === 'number' ? da.colorOverlayAlphaRandomMin : 0.4
+  const rawMax =
+    typeof da.colorOverlayAlphaRandomMax === 'number' ? da.colorOverlayAlphaRandomMax : 1
+  let colorOverlayAlphaRandomMin = clamp01(rawMin)
+  let colorOverlayAlphaRandomMax = clamp01(rawMax)
+  if (colorOverlayAlphaRandomMin > colorOverlayAlphaRandomMax) {
+    const t = colorOverlayAlphaRandomMin
+    colorOverlayAlphaRandomMin = colorOverlayAlphaRandomMax
+    colorOverlayAlphaRandomMax = t
+  }
+
   const displayFileMode = inferDynamicAssetDisplayFileMode(da, presetFolderBasenames)
   const base: DynamicAssetEffect = {
     ...da,
     displayFileMode,
     sutTipMode: normalizeDynamicAssetSutTipMode(da.sutTipMode),
+    colorOverlayAlphaRandomMin,
+    colorOverlayAlphaRandomMax,
   }
   if (displayFileMode === 'pickImage') return base
   const folderBase = base.assetFolderPath?.split(/[/\\]/).filter(Boolean).pop() ?? ''
