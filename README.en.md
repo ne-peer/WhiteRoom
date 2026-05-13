@@ -61,7 +61,7 @@ Then open the DMG as usual and drag the app into the Applications folder.
 | **Category** | **Effect** | **Description** |
 |---|---|---|
 | Filter | Color filter | Simple overlay color filter |
-|  | Tone filter | Emphasizes image saturation and contrast |
+|  | Tone filter | Emphasizes image saturation / contrast / brightness |
 |  | Vignette effect | Peripheral darkening effect |
 |  | Blur effect | Blur visual effect |
 | Motion | Shake effect | Camera/object shake effect |
