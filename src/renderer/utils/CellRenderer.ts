@@ -1764,15 +1764,10 @@ export class CellRenderer {
     const sprite = new PIXI.Sprite(this.imageSprite.texture)
     sprite.anchor.set(0.5)
     const maskSprite = shake.trailDuplicateCirclesEnabled
-      ? this.createDualEllipseMaskSprite(
-        this.latestEffects?.effectCenter?.x ?? 0.5,
-        this.latestEffects?.effectCenter?.y ?? 0.5,
-        shake.trailSize ?? 0.7,
-        shake.trailHeight ?? 1,
-        shake.trailDuplicateSpacingShift ?? 0,
-        shake.trailDuplicateVerticalSpacingShift ?? 0,
-        0.18,
-      )
+      ? (() => {
+        const p = this.getShakeTrailDupGuideEllipseLayout(shake, 'first')
+        return this.createDualEllipseMaskFromCenters(p.cx1, p.cy1, p.cx2, p.cy2, p.rx, p.ry, 0.18)
+      })()
       : this.createEllipseMaskSprite(
         this.latestEffects?.effectCenter?.x ?? 0.5,
         this.latestEffects?.effectCenter?.y ?? 0.5,
@@ -1805,15 +1800,10 @@ export class CellRenderer {
       secondSprite.anchor.set(0.5)
       const secondSize = (shake.trailSize ?? 0.7) * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
       const secondMaskSprite = shake.trailDuplicateCirclesEnabled
-        ? this.createDualEllipseMaskSprite(
-          this.latestEffects?.effectCenter?.x ?? 0.5,
-          this.latestEffects?.effectCenter?.y ?? 0.5,
-          secondSize,
-          shake.trailHeight ?? 1,
-          shake.trailDuplicateSpacingShift ?? 0,
-          shake.trailDuplicateVerticalSpacingShift ?? 0,
-          0.16,
-        )
+        ? (() => {
+          const p = this.getShakeTrailDupGuideEllipseLayout(shake, 'second')
+          return this.createDualEllipseMaskFromCenters(p.cx1, p.cy1, p.cx2, p.cy2, p.rx, p.ry, 0.16)
+        })()
         : this.createEllipseMaskSprite(
           this.latestEffects?.effectCenter?.x ?? 0.5,
           this.latestEffects?.effectCenter?.y ?? 0.5,
@@ -2045,27 +2035,34 @@ export class CellRenderer {
     this.shakeTrailGuideRemainingSec = 1
   }
 
-  /** 複製ON時のガイド用楕円パラメータ（ピクセル座標） */
+  /** 複製ON時のガイド／マスク用楕円。左右中心は常に第1段（青）と同一、rx/ry のみ mode で第1／第2段 */
   private getShakeTrailDupGuideEllipseLayout(shake: ShakeEffect, mode: 'first' | 'second') {
     const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
-    const guideSize = mode === 'second'
-      ? size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
-      : size
     const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
     const cx0 = this.width * clamp(this.latestEffects?.effectCenter?.x ?? 0.5, 0, 1)
     const cy0 = this.height * clamp(this.latestEffects?.effectCenter?.y ?? 0.5, 0, 1)
     const baseSize = Math.min(this.width, this.height)
-    const rx = Math.max(1, baseSize * guideSize * 0.5)
-    const ry = Math.max(1, baseSize * guideSize * heightRatio * 0.5)
+    const rx1 = Math.max(1, baseSize * size * 0.5)
+    const ry1 = Math.max(1, baseSize * size * heightRatio * 0.5)
     const shift = clamp(shake.trailDuplicateSpacingShift ?? 0, -0.5, 0.5)
-    const halfSep = rx * (1 + shift)
+    const halfSep = rx1 * (1 + shift)
     const vShift = clamp(shake.trailDuplicateVerticalSpacingShift ?? 0, -0.5, 0.5)
-    const stagger = ry * vShift
+    const stagger = ry1 * vShift
+    const cx1 = cx0 - halfSep
+    const cy1 = cy0 - stagger
+    const cx2 = cx0 + halfSep
+    const cy2 = cy0 + stagger
+
+    const guideSize2 = mode === 'second'
+      ? size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+      : size
+    const rx = Math.max(1, baseSize * guideSize2 * 0.5)
+    const ry = Math.max(1, baseSize * guideSize2 * heightRatio * 0.5)
     return {
-      cx1: cx0 - halfSep,
-      cy1: cy0 - stagger,
-      cx2: cx0 + halfSep,
-      cy2: cy0 + stagger,
+      cx1,
+      cy1,
+      cx2,
+      cy2,
       rx,
       ry,
     }
@@ -4476,14 +4473,14 @@ export class CellRenderer {
     return new PIXI.Sprite(texture)
   }
 
-  /** 同サイズの2楕円マスク（左右配置＋任意の上下交互オフセット）。重なりはアルファの max で結合 */
-  private createDualEllipseMaskSprite(
-    centerXRatio: number,
-    centerYRatio: number,
-    size: number,
-    heightRatio: number,
-    spacingShift: number,
-    verticalSpacingShift: number,
+  /** 2楕円マスク（ピクセル中心・半径指定）。重なりはアルファの max で結合 */
+  private createDualEllipseMaskFromCenters(
+    cx1: number,
+    cy1: number,
+    cx2: number,
+    cy2: number,
+    rx: number,
+    ry: number,
     feather = 0.08,
   ): PIXI.Sprite {
     const canvas = document.createElement('canvas')
@@ -4491,19 +4488,6 @@ export class CellRenderer {
     canvas.height = Math.ceil(this.height)
     const ctx = canvas.getContext('2d')!
     const image = ctx.createImageData(canvas.width, canvas.height)
-    const baseSize = Math.min(this.width, this.height)
-    const cx0 = this.width * clamp(centerXRatio, 0, 1)
-    const cy0 = this.height * clamp(centerYRatio, 0, 1)
-    const rx = Math.max(1, baseSize * clamp(size, 0.05, 3) * 0.5)
-    const ry = Math.max(1, baseSize * clamp(size, 0.05, 3) * clamp(heightRatio, 0.05, 3) * 0.5)
-    const shift = clamp(spacingShift, -0.5, 0.5)
-    const halfSep = rx * (1 + shift)
-    const cx1 = cx0 - halfSep
-    const cx2 = cx0 + halfSep
-    const vShift = clamp(verticalSpacingShift, -0.5, 0.5)
-    const stagger = ry * vShift
-    const cy1 = cy0 - stagger
-    const cy2 = cy0 + stagger
 
     for (let y = 0; y < canvas.height; y += 1) {
       for (let x = 0; x < canvas.width; x += 1) {

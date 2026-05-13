@@ -414,7 +414,7 @@ export const MasterCanvas: React.FC = () => {
     const trailSizeDrag = trailSizeDragRef.current
     if (trailSizeDrag && (shakeTrailPositionPicking || spiralRadialPositionPicking)) {
       e.preventDefault()
-      const nextSize = clamp(trailSizeDrag.startSize + (e.clientX - trailSizeDrag.startX) * 0.003, 0.25, 1.5)
+      const nextSize = clamp(trailSizeDrag.startSize + (e.clientX - trailSizeDrag.startX) * 0.003, 0.05, 1.5)
       const nextTrailHeight = clamp(trailSizeDrag.startTrailHeight + (e.clientY - trailSizeDrag.startY) * 0.003, 0.25, 2)
       const nextRadialHeight = clamp(trailSizeDrag.startRadialHeight + (e.clientY - trailSizeDrag.startY) * 0.003, 0.25, 2)
       const state = useAppStore.getState()
@@ -1209,18 +1209,17 @@ function toCircleGuides(
     }
 
     if (effects.shake.trailSecondStageEnabled) {
-      const secondSize = shakeSize * clamp(effects.shake?.trailSecondStageSize ?? 0.62, 0.1, 1)
       if (dupEnabled) {
-        const halfNorm2 = trailDuplicateHalfSeparationNormX(
+        const halfNormSec = trailDuplicateHalfSeparationNormX(
           cellSize.width,
           cellSize.height,
-          secondSize,
+          shakeSize,
           effects.shake.trailDuplicateSpacingShift ?? 0,
         )
-        const staggerY2 = trailDuplicateVerticalStaggerOffsetsNormY(
+        const staggerYSec = trailDuplicateVerticalStaggerOffsetsNormY(
           cellSize.width,
           cellSize.height,
-          secondSize,
+          shakeSize,
           effects.shake?.trailHeight ?? 1,
           effects.shake.trailDuplicateVerticalSpacingShift ?? 0,
         )
@@ -1229,8 +1228,8 @@ function toCircleGuides(
           kind: 'shakeTrailSecondStage',
           dupGroupId: 'shakeTrailSecond',
           style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize, previewCenter, {
-            x: baseX - halfNorm2,
-            y: baseY + staggerY2.left,
+            x: baseX - halfNormSec,
+            y: baseY + staggerYSec.left,
           }),
         })
         guides.push({
@@ -1238,8 +1237,8 @@ function toCircleGuides(
           kind: 'shakeTrailSecondStage',
           dupGroupId: 'shakeTrailSecond',
           style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize, previewCenter, {
-            x: baseX + halfNorm2,
-            y: baseY + staggerY2.right,
+            x: baseX + halfNormSec,
+            y: baseY + staggerYSec.right,
           }),
         })
       } else {

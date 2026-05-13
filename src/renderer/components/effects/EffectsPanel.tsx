@@ -1397,7 +1397,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <Row label={t('radialBlurSize')}>
                   <Slider
                     value={Math.round((effects.shake.trailSize ?? DEFAULT_EFFECTS.shake.trailSize) * 100)}
-                    min={25}
+                    min={5}
                     max={150}
                     onChange={v => set('shake', { trailSize: v / 100 })}
                     unit="%"
