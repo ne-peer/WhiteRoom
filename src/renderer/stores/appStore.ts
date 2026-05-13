@@ -156,6 +156,9 @@ export const DEFAULT_EFFECTS: CellEffects = {
     trailCenterY: 0.5,
     trailSize: 0.7,
     trailHeight: 1,
+    trailDuplicateCirclesEnabled: false,
+    trailDuplicateSpacingShift: 0,
+    trailDuplicateVerticalSpacingShift: 0,
     lockBaseImage: false,
   },
   zoom: {
@@ -371,6 +374,20 @@ function normalizeShakePatch(
       patch.trailSecondStageSize = 1
     } else if (patch.trailSecondStageSize < 0.1) {
       patch.trailSecondStageSize = 0.1
+    }
+  }
+  if (patch.trailDuplicateSpacingShift !== undefined) {
+    if (patch.trailDuplicateSpacingShift < -0.5) {
+      patch.trailDuplicateSpacingShift = -0.5
+    } else if (patch.trailDuplicateSpacingShift > 0.5) {
+      patch.trailDuplicateSpacingShift = 0.5
+    }
+  }
+  if (patch.trailDuplicateVerticalSpacingShift !== undefined) {
+    if (patch.trailDuplicateVerticalSpacingShift < -0.5) {
+      patch.trailDuplicateVerticalSpacingShift = -0.5
+    } else if (patch.trailDuplicateVerticalSpacingShift > 0.5) {
+      patch.trailDuplicateVerticalSpacingShift = 0.5
     }
   }
   return patch

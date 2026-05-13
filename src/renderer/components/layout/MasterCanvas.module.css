@@ -85,6 +85,17 @@
   box-shadow: 0 0 7px rgba(255, 226, 102, 0.72);
 }
 
+.pickCircleGuideDupGroup {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.pickCircleGuideDupGroup > .pickCircleGuideEllipse {
+  mix-blend-mode: screen;
+}
+
 .pickUiLayer {
   position: absolute;
   z-index: 6;

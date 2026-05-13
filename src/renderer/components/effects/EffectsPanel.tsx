@@ -163,6 +163,9 @@ const EFFECT_PRESET_1: CellEffects = {
     trailCenterY: 0.5,
     trailSize: 0.7,
     trailHeight: 1,
+    trailDuplicateCirclesEnabled: false,
+    trailDuplicateSpacingShift: 0,
+    trailDuplicateVerticalSpacingShift: 0,
   },
   zoom: {
     enabled: false,
@@ -385,6 +388,9 @@ const EFFECT_PRESET_2: CellEffects = {
     trailCenterY: 0.5,
     trailSize: 0.59,
     trailHeight: 0.92,
+    trailDuplicateCirclesEnabled: false,
+    trailDuplicateSpacingShift: 0,
+    trailDuplicateVerticalSpacingShift: 0,
   },
   zoom: {
     enabled: false,
@@ -1406,6 +1412,34 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     unit="%"
                   />
                 </Row>
+                <Row label={t('shakeTrailDuplicateCircles')}>
+                  <Toggle
+                    value={effects.shake.trailDuplicateCirclesEnabled ?? DEFAULT_EFFECTS.shake.trailDuplicateCirclesEnabled}
+                    onChange={v => set('shake', { trailDuplicateCirclesEnabled: v })}
+                  />
+                </Row>
+                {(effects.shake.trailDuplicateCirclesEnabled ?? DEFAULT_EFFECTS.shake.trailDuplicateCirclesEnabled) && (
+                  <>
+                    <Row label={t('shakeTrailDuplicateGap')}>
+                      <Slider
+                        value={Math.round((effects.shake.trailDuplicateSpacingShift ?? 0) * 100)}
+                        min={-50}
+                        max={50}
+                        onChange={v => set('shake', { trailDuplicateSpacingShift: v / 100 })}
+                        unit="%"
+                      />
+                    </Row>
+                    <Row label={t('shakeTrailDuplicateVerticalGap')}>
+                      <Slider
+                        value={Math.round((effects.shake.trailDuplicateVerticalSpacingShift ?? 0) * 100)}
+                        min={-50}
+                        max={50}
+                        onChange={v => set('shake', { trailDuplicateVerticalSpacingShift: v / 100 })}
+                        unit="%"
+                      />
+                    </Row>
+                  </>
+                )}
                 <Row label={t('shakeTrailSecondStage')}>
                   <Toggle
                     value={effects.shake.trailSecondStageEnabled ?? DEFAULT_EFFECTS.shake.trailSecondStageEnabled}

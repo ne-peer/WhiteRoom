@@ -11,9 +11,20 @@ import { TextReaderWindow, calcReaderAutoHeight, calcReaderAutoWidth, READER_WIN
 import { emptyCellShortcutTipSections, useTranslation, type TranslationKey } from '../../i18n'
 import type { Cell, ImageFitMode } from '../../../shared/types'
 import { getTimerCompletionElapsed } from '../../utils/timerProgress'
+import {
+  trailDuplicateHalfSeparationNormX,
+  trailDuplicateVerticalStaggerOffsetsNormY,
+} from '../../utils/shakeTrailDuplicateGeometry'
 import styles from './MasterCanvas.module.css'
 
 type CircleGuideKind = 'radialBlur' | 'shakeTrail' | 'shakeTrailSecondStage'
+
+type CircleGuideItem = {
+  key: string
+  kind: CircleGuideKind
+  style: React.CSSProperties
+  dupGroupId?: string
+}
 type PickCenterPoint = {
   cellId: string
   x: number
@@ -710,13 +721,31 @@ export const MasterCanvas: React.FC = () => {
                 gridRow: cell.row + 1,
               }}
             >
-              {toCircleGuides(cell.effects, guideCellSize, pickPreviewCenter?.cellId === cell.id ? pickPreviewCenter : null).map(guide => (
-                <div
-                  key={guide.kind}
-                  className={`${styles.pickCircleGuideEllipse} ${toCircleGuideClassName(guide.kind)}`}
-                  style={guide.style}
-                />
-              ))}
+              {groupCircleGuides(
+                toCircleGuides(
+                  cell.effects,
+                  guideCellSize,
+                  pickPreviewCenter?.cellId === cell.id ? pickPreviewCenter : null,
+                ),
+              ).map(group =>
+                group.length === 1 ? (
+                  <div
+                    key={group[0].key}
+                    className={`${styles.pickCircleGuideEllipse} ${toCircleGuideClassName(group[0].kind)}`}
+                    style={group[0].style}
+                  />
+                ) : (
+                  <div key={group[0].dupGroupId ?? group[0].key} className={styles.pickCircleGuideDupGroup}>
+                    {group.map(g => (
+                      <div
+                        key={g.key}
+                        className={`${styles.pickCircleGuideEllipse} ${toCircleGuideClassName(g.kind)}`}
+                        style={g.style}
+                      />
+                    ))}
+                  </div>
+                ),
+              )}
             </div>
           ))}
         </div>
@@ -1101,21 +1130,125 @@ function loadHtmlImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
+function groupCircleGuides(guides: CircleGuideItem[]): CircleGuideItem[][] {
+  const out: CircleGuideItem[][] = []
+  let i = 0
+  while (i < guides.length) {
+    const g = guides[i]
+    const next = guides[i + 1]
+    if (g.dupGroupId !== undefined && next?.dupGroupId === g.dupGroupId) {
+      out.push([g, next])
+      i += 2
+    } else {
+      out.push([g])
+      i += 1
+    }
+  }
+  return out
+}
+
 function toCircleGuides(
   effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects'],
   cellSize: { width: number; height: number },
-  previewCenter: PickCenterPoint | null = null
-): { kind: CircleGuideKind; style: React.CSSProperties }[] {
-  const guides: { kind: CircleGuideKind; style: React.CSSProperties }[] = []
+  previewCenter: PickCenterPoint | null = null,
+): CircleGuideItem[] {
+  const guides: CircleGuideItem[] = []
 
   if (effects.blur?.radialEnabled) {
-    guides.push({ kind: 'radialBlur', style: toCircleGuideStyle(effects, 'radialBlur', cellSize, previewCenter) })
+    guides.push({
+      key: 'radialBlur',
+      kind: 'radialBlur',
+      style: toCircleGuideStyle(effects, 'radialBlur', cellSize, previewCenter),
+    })
   }
 
   if (effects.shake?.trailEnabled) {
-    guides.push({ kind: 'shakeTrail', style: toCircleGuideStyle(effects, 'shakeTrail', cellSize, previewCenter) })
+    const baseX = previewCenter?.x ?? effects.effectCenter?.x ?? 0.5
+    const baseY = previewCenter?.y ?? effects.effectCenter?.y ?? 0.5
+    const shakeSize = clamp(effects.shake?.trailSize ?? 0.7, 0.05, 3)
+    const dupEnabled = effects.shake.trailDuplicateCirclesEnabled ?? false
+
+    if (dupEnabled) {
+      const halfNorm = trailDuplicateHalfSeparationNormX(
+        cellSize.width,
+        cellSize.height,
+        shakeSize,
+        effects.shake.trailDuplicateSpacingShift ?? 0,
+      )
+      const staggerY = trailDuplicateVerticalStaggerOffsetsNormY(
+        cellSize.width,
+        cellSize.height,
+        shakeSize,
+        effects.shake?.trailHeight ?? 1,
+        effects.shake.trailDuplicateVerticalSpacingShift ?? 0,
+      )
+      guides.push({
+        key: 'shakeTrailDupL',
+        kind: 'shakeTrail',
+        dupGroupId: 'shakeTrail',
+        style: toCircleGuideStyle(effects, 'shakeTrail', cellSize, previewCenter, {
+          x: baseX - halfNorm,
+          y: baseY + staggerY.left,
+        }),
+      })
+      guides.push({
+        key: 'shakeTrailDupR',
+        kind: 'shakeTrail',
+        dupGroupId: 'shakeTrail',
+        style: toCircleGuideStyle(effects, 'shakeTrail', cellSize, previewCenter, {
+          x: baseX + halfNorm,
+          y: baseY + staggerY.right,
+        }),
+      })
+    } else {
+      guides.push({
+        key: 'shakeTrail',
+        kind: 'shakeTrail',
+        style: toCircleGuideStyle(effects, 'shakeTrail', cellSize, previewCenter),
+      })
+    }
+
     if (effects.shake.trailSecondStageEnabled) {
-      guides.push({ kind: 'shakeTrailSecondStage', style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize, previewCenter) })
+      const secondSize = shakeSize * clamp(effects.shake?.trailSecondStageSize ?? 0.62, 0.1, 1)
+      if (dupEnabled) {
+        const halfNorm2 = trailDuplicateHalfSeparationNormX(
+          cellSize.width,
+          cellSize.height,
+          secondSize,
+          effects.shake.trailDuplicateSpacingShift ?? 0,
+        )
+        const staggerY2 = trailDuplicateVerticalStaggerOffsetsNormY(
+          cellSize.width,
+          cellSize.height,
+          secondSize,
+          effects.shake?.trailHeight ?? 1,
+          effects.shake.trailDuplicateVerticalSpacingShift ?? 0,
+        )
+        guides.push({
+          key: 'shakeTrailSecDupL',
+          kind: 'shakeTrailSecondStage',
+          dupGroupId: 'shakeTrailSecond',
+          style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize, previewCenter, {
+            x: baseX - halfNorm2,
+            y: baseY + staggerY2.left,
+          }),
+        })
+        guides.push({
+          key: 'shakeTrailSecDupR',
+          kind: 'shakeTrailSecondStage',
+          dupGroupId: 'shakeTrailSecond',
+          style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize, previewCenter, {
+            x: baseX + halfNorm2,
+            y: baseY + staggerY2.right,
+          }),
+        })
+      } else {
+        guides.push({
+          key: 'shakeTrailSecond',
+          kind: 'shakeTrailSecondStage',
+          style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize, previewCenter),
+        })
+      }
     }
   }
 
@@ -1126,10 +1259,15 @@ function toCircleGuideStyle(
   effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects'],
   kind: CircleGuideKind,
   cellSize: { width: number; height: number },
-  previewCenter: PickCenterPoint | null
+  previewCenter: PickCenterPoint | null,
+  centerNormOverride?: { x: number; y: number },
 ): React.CSSProperties {
-  const centerX = clamp(previewCenter?.x ?? effects.effectCenter?.x ?? 0.5, 0, 1)
-  const centerY = clamp(previewCenter?.y ?? effects.effectCenter?.y ?? 0.5, 0, 1)
+  const centerX = centerNormOverride
+    ? centerNormOverride.x
+    : clamp(previewCenter?.x ?? effects.effectCenter?.x ?? 0.5, 0, 1)
+  const centerY = centerNormOverride
+    ? centerNormOverride.y
+    : clamp(previewCenter?.y ?? effects.effectCenter?.y ?? 0.5, 0, 1)
   const shakeSize = clamp(effects.shake?.trailSize ?? 0.7, 0.05, 3)
   const size = kind === 'radialBlur'
     ? clamp(effects.blur?.radialSize ?? 1, 0.05, 3)

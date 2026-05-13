@@ -1694,6 +1694,9 @@ export class CellRenderer {
       this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSize ?? 0.7,
       shake.trailHeight ?? 1,
+      shake.trailDuplicateCirclesEnabled ?? false,
+      shake.trailDuplicateSpacingShift ?? 0,
+      shake.trailDuplicateVerticalSpacingShift ?? 0,
     ].join(':')
     const secondGuideKey = [
       this.width,
@@ -1702,9 +1705,15 @@ export class CellRenderer {
       this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSecondStageEnabled ?? false,
       shake.trailSecondStageSize ?? 0.62,
+      shake.trailDuplicateCirclesEnabled ?? false,
+      shake.trailDuplicateSpacingShift ?? 0,
+      shake.trailDuplicateVerticalSpacingShift ?? 0,
     ].join(':')
     const shouldShowFirstGuide = showCircleGuides && this.shakeTrailFirstGuideKey !== null && this.shakeTrailFirstGuideKey !== firstGuideKey
-    const shouldShowSecondGuide = showCircleGuides && Boolean(shake.trailSecondStageEnabled) && this.shakeTrailSecondGuideKey !== null && this.shakeTrailSecondGuideKey !== secondGuideKey
+    const shouldShowSecondGuide = showCircleGuides
+      && Boolean(shake.trailSecondStageEnabled)
+      && this.shakeTrailSecondGuideKey !== null
+      && this.shakeTrailSecondGuideKey !== secondGuideKey
     this.shakeTrailFirstGuideKey = firstGuideKey
     this.shakeTrailSecondGuideKey = secondGuideKey
     if (shouldShowSecondGuide) {
@@ -1724,19 +1733,32 @@ export class CellRenderer {
       shake.trailSecondStageEnabled ?? false,
       shake.trailSecondStageSize ?? 0.62,
       shake.trailSecondStageDelayFactor ?? 0.25,
+      shake.trailDuplicateCirclesEnabled ?? false,
+      shake.trailDuplicateSpacingShift ?? 0,
+      shake.trailDuplicateVerticalSpacingShift ?? 0,
     ].join(':')
     if (this.shakeTrailKey === key && this.shakeTrailSprite) return
 
     this.clearShakeTrail()
     const sprite = new PIXI.Sprite(this.imageSprite.texture)
     sprite.anchor.set(0.5)
-    const maskSprite = this.createEllipseMaskSprite(
-      this.latestEffects?.effectCenter?.x ?? 0.5,
-      this.latestEffects?.effectCenter?.y ?? 0.5,
-      shake.trailSize ?? 0.7,
-      shake.trailHeight ?? 1,
-      0.18
-    )
+    const maskSprite = shake.trailDuplicateCirclesEnabled
+      ? this.createDualEllipseMaskSprite(
+        this.latestEffects?.effectCenter?.x ?? 0.5,
+        this.latestEffects?.effectCenter?.y ?? 0.5,
+        shake.trailSize ?? 0.7,
+        shake.trailHeight ?? 1,
+        shake.trailDuplicateSpacingShift ?? 0,
+        shake.trailDuplicateVerticalSpacingShift ?? 0,
+        0.18,
+      )
+      : this.createEllipseMaskSprite(
+        this.latestEffects?.effectCenter?.x ?? 0.5,
+        this.latestEffects?.effectCenter?.y ?? 0.5,
+        shake.trailSize ?? 0.7,
+        shake.trailHeight ?? 1,
+        0.18,
+      )
     const maskFilter = new PIXI.MaskFilter({ sprite: maskSprite, channel: 'alpha' })
     const blurFilter = new PIXI.BlurFilter({
       strength: clamp(shake.trailBlurStrength ?? 0, 0, 12),
@@ -1760,13 +1782,24 @@ export class CellRenderer {
       const secondLayer = new PIXI.Container()
       const secondSprite = new PIXI.Sprite(this.imageSprite.texture)
       secondSprite.anchor.set(0.5)
-      const secondMaskSprite = this.createEllipseMaskSprite(
-        this.latestEffects?.effectCenter?.x ?? 0.5,
-        this.latestEffects?.effectCenter?.y ?? 0.5,
-        (shake.trailSize ?? 0.7) * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1),
-        shake.trailHeight ?? 1,
-        0.16
-      )
+      const secondSize = (shake.trailSize ?? 0.7) * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+      const secondMaskSprite = shake.trailDuplicateCirclesEnabled
+        ? this.createDualEllipseMaskSprite(
+          this.latestEffects?.effectCenter?.x ?? 0.5,
+          this.latestEffects?.effectCenter?.y ?? 0.5,
+          secondSize,
+          shake.trailHeight ?? 1,
+          shake.trailDuplicateSpacingShift ?? 0,
+          shake.trailDuplicateVerticalSpacingShift ?? 0,
+          0.16,
+        )
+        : this.createEllipseMaskSprite(
+          this.latestEffects?.effectCenter?.x ?? 0.5,
+          this.latestEffects?.effectCenter?.y ?? 0.5,
+          secondSize,
+          shake.trailHeight ?? 1,
+          0.16,
+        )
       const secondMaskFilter = new PIXI.MaskFilter({ sprite: secondMaskSprite, channel: 'alpha' })
       const secondBlurFilter = new PIXI.BlurFilter({
         strength: clamp((shake.trailBlurStrength ?? 0) * 0.6, 0, 12),
@@ -1991,11 +2024,63 @@ export class CellRenderer {
     this.shakeTrailGuideRemainingSec = 1
   }
 
+  /** 追従遅延の左右2円ガイド（重なりは1回の塗りで結合）。縦方向は左右で交互オフセット可 */
+  private showCircleGuideDuplicate(
+    mode: 'first' | 'second',
+    cx1: number,
+    cy1: number,
+    cx2: number,
+    cy2: number,
+    rx: number,
+    ry: number,
+  ) {
+    if (!this.shakeTrailGuideGraphics) {
+      this.shakeTrailGuideGraphics = new PIXI.Graphics()
+      this.guideLayer.addChild(this.shakeTrailGuideGraphics)
+    }
+
+    this.shakeTrailGuideMode = mode
+    this.shakeTrailGuideGraphics.clear()
+    this.shakeTrailGuideGraphics.ellipse(cx1, cy1, rx, ry)
+    this.shakeTrailGuideGraphics.ellipse(cx2, cy2, rx, ry)
+    if (mode === 'first') {
+      this.shakeTrailGuideGraphics.fill({ color: 0x66ccff, alpha: 0.14 })
+      this.shakeTrailGuideGraphics.ellipse(cx1, cy1, rx, ry)
+      this.shakeTrailGuideGraphics.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
+      this.shakeTrailGuideGraphics.ellipse(cx2, cy2, rx, ry)
+      this.shakeTrailGuideGraphics.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
+    } else {
+      this.shakeTrailGuideGraphics.fill({ color: 0xffe266, alpha: 0.22 })
+      this.shakeTrailGuideGraphics.ellipse(cx1, cy1, rx, ry)
+      this.shakeTrailGuideGraphics.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
+      this.shakeTrailGuideGraphics.ellipse(cx2, cy2, rx, ry)
+      this.shakeTrailGuideGraphics.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
+    }
+    this.shakeTrailGuideGraphics.alpha = 1
+    this.shakeTrailGuideRemainingSec = 1
+  }
+
   private showShakeTrailGuide(shake: ShakeEffect, mode: 'first' | 'second' = 'first') {
     const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
     const guideSize = mode === 'second'
       ? size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
       : size
+    const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
+    if (shake.trailDuplicateCirclesEnabled) {
+      const cx0 = this.width * clamp(this.latestEffects?.effectCenter?.x ?? 0.5, 0, 1)
+      const cy0 = this.height * clamp(this.latestEffects?.effectCenter?.y ?? 0.5, 0, 1)
+      const baseSize = Math.min(this.width, this.height)
+      const rx = Math.max(1, baseSize * guideSize * 0.5)
+      const ry = Math.max(1, baseSize * guideSize * heightRatio * 0.5)
+      const shift = clamp(shake.trailDuplicateSpacingShift ?? 0, -0.5, 0.5)
+      const halfSep = rx * (1 + shift)
+      const vShift = clamp(shake.trailDuplicateVerticalSpacingShift ?? 0, -0.5, 0.5)
+      const stagger = ry * vShift
+      const cy1 = cy0 - stagger
+      const cy2 = cy0 + stagger
+      this.showCircleGuideDuplicate(mode, cx0 - halfSep, cy1, cx0 + halfSep, cy2, rx, ry)
+      return
+    }
     this.showCircleGuide(
       mode,
       this.latestEffects?.effectCenter?.x ?? 0.5,
@@ -4312,6 +4397,59 @@ export class CellRenderer {
         const dy = y + 0.5 - cy
         const distance = Math.sqrt((dx / rx) ** 2 + (dy / ry) ** 2)
         const alpha = Math.round((1 - smoothstep(1, 1 + feather, distance)) * 255)
+        const index = (y * canvas.width + x) * 4
+        image.data[index] = 255
+        image.data[index + 1] = 255
+        image.data[index + 2] = 255
+        image.data[index + 3] = alpha
+      }
+    }
+
+    ctx.putImageData(image, 0, 0)
+    const texture = PIXI.Texture.from(canvas)
+    return new PIXI.Sprite(texture)
+  }
+
+  /** 同サイズの2楕円マスク（左右配置＋任意の上下交互オフセット）。重なりはアルファの max で結合 */
+  private createDualEllipseMaskSprite(
+    centerXRatio: number,
+    centerYRatio: number,
+    size: number,
+    heightRatio: number,
+    spacingShift: number,
+    verticalSpacingShift: number,
+    feather = 0.08,
+  ): PIXI.Sprite {
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.ceil(this.width)
+    canvas.height = Math.ceil(this.height)
+    const ctx = canvas.getContext('2d')!
+    const image = ctx.createImageData(canvas.width, canvas.height)
+    const baseSize = Math.min(this.width, this.height)
+    const cx0 = this.width * clamp(centerXRatio, 0, 1)
+    const cy0 = this.height * clamp(centerYRatio, 0, 1)
+    const rx = Math.max(1, baseSize * clamp(size, 0.05, 3) * 0.5)
+    const ry = Math.max(1, baseSize * clamp(size, 0.05, 3) * clamp(heightRatio, 0.05, 3) * 0.5)
+    const shift = clamp(spacingShift, -0.5, 0.5)
+    const halfSep = rx * (1 + shift)
+    const cx1 = cx0 - halfSep
+    const cx2 = cx0 + halfSep
+    const vShift = clamp(verticalSpacingShift, -0.5, 0.5)
+    const stagger = ry * vShift
+    const cy1 = cy0 - stagger
+    const cy2 = cy0 + stagger
+
+    for (let y = 0; y < canvas.height; y += 1) {
+      for (let x = 0; x < canvas.width; x += 1) {
+        const dx1 = x + 0.5 - cx1
+        const dy1 = y + 0.5 - cy1
+        const d1 = Math.sqrt((dx1 / rx) ** 2 + (dy1 / ry) ** 2)
+        const a1 = 1 - smoothstep(1, 1 + feather, d1)
+        const dx2 = x + 0.5 - cx2
+        const dy2 = y + 0.5 - cy2
+        const d2 = Math.sqrt((dx2 / rx) ** 2 + (dy2 / ry) ** 2)
+        const a2 = 1 - smoothstep(1, 1 + feather, d2)
+        const alpha = Math.round(Math.max(a1, a2) * 255)
         const index = (y * canvas.width + x) * 4
         image.data[index] = 255
         image.data[index + 1] = 255

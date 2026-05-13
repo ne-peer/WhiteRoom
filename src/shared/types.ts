@@ -254,6 +254,18 @@ export type ShakeEffect = {
   trailCenterY: number
   trailSize: number
   trailHeight: number
+  /** 追従遅延の円エリアを、共通中心の左右に同サイズの2円として扱う */
+  trailDuplicateCirclesEnabled: boolean
+  /**
+   * 左右の円中心までの距離の微調整。基準は外接配置（中心から各円中心までの距離 = 横半径 rx）とし、
+   * その距離に対して -50%〜+50%（-0.5〜+0.5）を加味する（実距離 = rx × (1 + 値)）。
+   */
+  trailDuplicateSpacingShift: number
+  /**
+   * 複製した左右の円を上下交互にずらす量の調整。縦半径 ry を基準に -50%〜+50%（-0.5〜+0.5）。
+   * 左円中心の Y オフセット = -ry×値、右円中心 = +ry×値（ピクセル）。
+   */
+  trailDuplicateVerticalSpacingShift: number
   lockBaseImage?: boolean
 }
 
