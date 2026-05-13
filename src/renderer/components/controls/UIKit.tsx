@@ -1,4 +1,5 @@
-import React from 'react'
+import React, { useCallback, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import styles from './UIKit.module.css'
 
 // ===== カテゴリセクション =====
@@ -33,6 +34,51 @@ export const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ la
     <div className={styles.control}>{children}</div>
   </div>
 )
+
+// ===== ホバー表示ツールチップ（ネイティブ title よりスタイル可能）=====
+export const HoverTooltip: React.FC<{ content: string; children: React.ReactNode }> = ({ content, children }) => {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const triggerRef = useRef<HTMLSpanElement>(null)
+
+  const updatePos = useCallback(() => {
+    const el = triggerRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const maxW = 280
+    const margin = 8
+    let left = r.left
+    left = Math.max(margin, Math.min(left, window.innerWidth - maxW - margin))
+    setPos({ top: r.bottom + 6, left })
+  }, [])
+
+  return (
+    <>
+      <span
+        ref={triggerRef}
+        className={styles.hoverTooltipTrigger}
+        onMouseEnter={() => {
+          updatePos()
+          setOpen(true)
+        }}
+        onMouseLeave={() => setOpen(false)}
+      >
+        {children}
+      </span>
+      {open &&
+        createPortal(
+          <div
+            role="tooltip"
+            className={styles.hoverTooltipBubble}
+            style={{ top: pos.top, left: pos.left, maxWidth: 280 }}
+          >
+            {content}
+          </div>,
+          document.body,
+        )}
+    </>
+  )
+}
 
 // ===== トグルスイッチ =====
 export const Toggle: React.FC<{

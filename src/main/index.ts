@@ -942,7 +942,10 @@ ipcMain.handle('open-asset', async (_event, language?: UiLanguage) => {
   const text = getDialogText(language)
   const result = await dialog.showOpenDialog({
     properties: ['openFile'],
-    filters: [{ name: text.imageFileFilter, extensions: ['png', 'webp', 'gif', 'sut'] }],
+    filters: [{
+      name: text.imageFileFilter,
+      extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'avif', 'sut'],
+    }],
     title: text.assetImageTitle
   })
   if (result.canceled || !result.filePaths[0]) {

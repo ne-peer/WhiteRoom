@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore, DEFAULT_EFFECTS } from '../../stores/appStore'
-import { CategorySection, Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select, IconButton } from '../controls/UIKit'
+import { CategorySection, Section, Row, Toggle, Slider, ColorPicker, NumberInput, Button, Select, IconButton, HoverTooltip } from '../controls/UIKit'
 import { formatCount, useTranslation } from '../../i18n'
 import {
   DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
@@ -13,7 +13,7 @@ import {
   type DynamicAssetSutTipMode,
   type FlashDisplayFileMode,
 } from '../../../shared/types'
-import { isSutFilename } from '../../../shared/rasterSourceExtensions'
+import { formatRasterSourceListingExtensionsForTooltip, isSutFilename } from '../../../shared/rasterSourceExtensions'
 
 /** フラッシュ用ベクターアセット（`Select` の候補）。追加時はここに列挙する。 */
 const FLASH_BUILTIN_VECTOR_ASSET_OPTIONS = [
@@ -36,6 +36,8 @@ function isZoomSquishOneshotLikeMode(
 const assetEffectFoldersStartupPromise = typeof window !== 'undefined'
   ? window.api.listAssetEffectFolders().catch(() => ({ folders: [] }))
   : Promise.resolve({ folders: [] })
+
+const DYNAMIC_ASSET_RASTER_FORMATS_TOOLTIP = formatRasterSourceListingExtensionsForTooltip()
 
 const EFFECT_PRESET_1: CellEffects = {
   effectCenter: { x: 0.5, y: 0.5 },
@@ -1729,6 +1731,22 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => handleDynamicAssetDisplayFileModeChange(v as DynamicAssetDisplayFileMode)}
               />
             </Row>
+            {effects.dynamicAsset.displayFileMode === 'pickImage' && (
+              <div
+                style={{
+                  fontSize: 10,
+                  lineHeight: 1.35,
+                  marginTop: -2,
+                  marginBottom: 8,
+                  width: '100%',
+                  textAlign: 'right',
+                }}
+              >
+                <HoverTooltip content={DYNAMIC_ASSET_RASTER_FORMATS_TOOLTIP}>
+                  {t('dynamicAssetSupportedFormatsLink')}
+                </HoverTooltip>
+              </div>
+            )}
             {effects.dynamicAsset.displayFileMode === 'asset' && (
               <>
                 <Row label={assetEffectFolderLabel}>

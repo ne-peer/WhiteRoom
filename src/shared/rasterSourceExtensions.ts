@@ -48,3 +48,9 @@ export function isPresetRasterListingFilename(filename: string): boolean {
   const ext = lowercaseExtension(filename)
   return PRESET_RASTER_EXTENSIONS.includes(ext) || ext === SUT_EXTENSION
 }
+
+/** ツールチップ用: ラスタ拡張子を「 / 」区切り、末尾にのみ `.sut` を「 / .sut」で付与 */
+export function formatRasterSourceListingExtensionsForTooltip(): string {
+  const sorted = [...RASTER_IMAGE_EXTENSIONS].sort()
+  return `${sorted.join(' / ')} / .sut`
+}
