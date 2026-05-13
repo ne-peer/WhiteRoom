@@ -139,6 +139,8 @@ export class CellRenderer {
   private radialBlurGuideKey: string | null = null
   private shakeTrailFirstGuideKey: string | null = null
   private shakeTrailSecondGuideKey: string | null = null
+  /** 円の間隔／縦の間隔スライダー用に直前の値を保持（両ガイド表示の変化検出） */
+  private shakeTrailDupSpacingSliderRef: { h: number; v: number } | null = null
   private shakeTrailGuideGraphics: PIXI.Graphics | null = null
   private shakeTrailGuideRemainingSec = 0
   private shakeTrailGuideMode: 'radial' | 'first' | 'second' = 'first'
@@ -1684,8 +1686,19 @@ export class CellRenderer {
   private updateShakeTrail(shake?: ShakeEffect, showCircleGuides = false) {
     if (!shake?.enabled || !shake.trailEnabled || !this.imageSprite) {
       this.clearShakeTrail()
+      this.shakeTrailDupSpacingSliderRef = null
       return
     }
+
+    const dupHoriz = shake.trailDuplicateSpacingShift ?? 0
+    const dupVert = shake.trailDuplicateVerticalSpacingShift ?? 0
+    const prevDupSpacing = this.shakeTrailDupSpacingSliderRef
+    const dupSpacingSlidersChanged =
+      showCircleGuides
+      && (shake.trailDuplicateCirclesEnabled ?? false)
+      && (shake.trailSecondStageEnabled ?? false)
+      && prevDupSpacing !== null
+      && (prevDupSpacing.h !== dupHoriz || prevDupSpacing.v !== dupVert)
 
     const firstGuideKey = [
       this.width,
@@ -1716,10 +1729,18 @@ export class CellRenderer {
       && this.shakeTrailSecondGuideKey !== secondGuideKey
     this.shakeTrailFirstGuideKey = firstGuideKey
     this.shakeTrailSecondGuideKey = secondGuideKey
-    if (shouldShowSecondGuide) {
+    if (dupSpacingSlidersChanged) {
+      this.showShakeTrailDupSpacingBothGuides(shake)
+    } else if (shouldShowSecondGuide) {
       this.showShakeTrailGuide(shake, 'second')
     } else if (shouldShowFirstGuide) {
       this.showShakeTrailGuide(shake, 'first')
+    }
+
+    if (shake.trailDuplicateCirclesEnabled && shake.trailSecondStageEnabled) {
+      this.shakeTrailDupSpacingSliderRef = { h: dupHoriz, v: dupVert }
+    } else {
+      this.shakeTrailDupSpacingSliderRef = null
     }
 
     const key = [
@@ -2024,6 +2045,61 @@ export class CellRenderer {
     this.shakeTrailGuideRemainingSec = 1
   }
 
+  /** 複製ON時のガイド用楕円パラメータ（ピクセル座標） */
+  private getShakeTrailDupGuideEllipseLayout(shake: ShakeEffect, mode: 'first' | 'second') {
+    const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
+    const guideSize = mode === 'second'
+      ? size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+      : size
+    const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
+    const cx0 = this.width * clamp(this.latestEffects?.effectCenter?.x ?? 0.5, 0, 1)
+    const cy0 = this.height * clamp(this.latestEffects?.effectCenter?.y ?? 0.5, 0, 1)
+    const baseSize = Math.min(this.width, this.height)
+    const rx = Math.max(1, baseSize * guideSize * 0.5)
+    const ry = Math.max(1, baseSize * guideSize * heightRatio * 0.5)
+    const shift = clamp(shake.trailDuplicateSpacingShift ?? 0, -0.5, 0.5)
+    const halfSep = rx * (1 + shift)
+    const vShift = clamp(shake.trailDuplicateVerticalSpacingShift ?? 0, -0.5, 0.5)
+    const stagger = ry * vShift
+    return {
+      cx1: cx0 - halfSep,
+      cy1: cy0 - stagger,
+      cx2: cx0 + halfSep,
+      cy2: cy0 + stagger,
+      rx,
+      ry,
+    }
+  }
+
+  /** 「円の間隔」「縦の間隔」変更時に第1段（青）と第2段（黄）を同時表示 */
+  private showShakeTrailDupSpacingBothGuides(shake: ShakeEffect) {
+    const p1 = this.getShakeTrailDupGuideEllipseLayout(shake, 'first')
+    const p2 = this.getShakeTrailDupGuideEllipseLayout(shake, 'second')
+    if (!this.shakeTrailGuideGraphics) {
+      this.shakeTrailGuideGraphics = new PIXI.Graphics()
+      this.guideLayer.addChild(this.shakeTrailGuideGraphics)
+    }
+    this.shakeTrailGuideMode = 'first'
+    const g = this.shakeTrailGuideGraphics
+    g.clear()
+    g.ellipse(p1.cx1, p1.cy1, p1.rx, p1.ry)
+    g.ellipse(p1.cx2, p1.cy2, p1.rx, p1.ry)
+    g.fill({ color: 0x66ccff, alpha: 0.14 })
+    g.ellipse(p1.cx1, p1.cy1, p1.rx, p1.ry)
+    g.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
+    g.ellipse(p1.cx2, p1.cy2, p1.rx, p1.ry)
+    g.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
+    g.ellipse(p2.cx1, p2.cy1, p2.rx, p2.ry)
+    g.ellipse(p2.cx2, p2.cy2, p2.rx, p2.ry)
+    g.fill({ color: 0xffe266, alpha: 0.22 })
+    g.ellipse(p2.cx1, p2.cy1, p2.rx, p2.ry)
+    g.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
+    g.ellipse(p2.cx2, p2.cy2, p2.rx, p2.ry)
+    g.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
+    g.alpha = 1
+    this.shakeTrailGuideRemainingSec = 1
+  }
+
   /** 追従遅延の左右2円ガイド（重なりは1回の塗りで結合）。縦方向は左右で交互オフセット可 */
   private showCircleGuideDuplicate(
     mode: 'first' | 'second',
@@ -2067,18 +2143,8 @@ export class CellRenderer {
       : size
     const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
     if (shake.trailDuplicateCirclesEnabled) {
-      const cx0 = this.width * clamp(this.latestEffects?.effectCenter?.x ?? 0.5, 0, 1)
-      const cy0 = this.height * clamp(this.latestEffects?.effectCenter?.y ?? 0.5, 0, 1)
-      const baseSize = Math.min(this.width, this.height)
-      const rx = Math.max(1, baseSize * guideSize * 0.5)
-      const ry = Math.max(1, baseSize * guideSize * heightRatio * 0.5)
-      const shift = clamp(shake.trailDuplicateSpacingShift ?? 0, -0.5, 0.5)
-      const halfSep = rx * (1 + shift)
-      const vShift = clamp(shake.trailDuplicateVerticalSpacingShift ?? 0, -0.5, 0.5)
-      const stagger = ry * vShift
-      const cy1 = cy0 - stagger
-      const cy2 = cy0 + stagger
-      this.showCircleGuideDuplicate(mode, cx0 - halfSep, cy1, cx0 + halfSep, cy2, rx, ry)
+      const p = this.getShakeTrailDupGuideEllipseLayout(shake, mode)
+      this.showCircleGuideDuplicate(mode, p.cx1, p.cy1, p.cx2, p.cy2, p.rx, p.ry)
       return
     }
     this.showCircleGuide(
