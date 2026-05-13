@@ -4,7 +4,8 @@ import { getTimerCompletionElapsed } from '../../utils/timerProgress'
 import styles from './TimerPreOverlay.module.css'
 
 function toFileUrl(filePath: string): string {
-  return 'file:///' + filePath.replace(/\\/g, '/')
+  // 日本語などの非 ASCII 文字を含むパスは encodeURI でパーセントエンコードする
+  return 'file:///' + encodeURI(filePath.replace(/\\/g, '/'))
 }
 
 const POST_END_HOLD_MS = 3000

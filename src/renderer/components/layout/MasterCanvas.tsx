@@ -1130,7 +1130,9 @@ function clamp(value: number, min: number, max: number): number {
 function toImageSrc(src: string): string {
   if (src.startsWith('file://') || src.startsWith('http') || src.startsWith('data:')) return src
   const normalized = src.replace(/\\/g, '/')
-  return normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`
+  // 日本語などの非 ASCII 文字を含むパスは encodeURI でパーセントエンコードする
+  const encoded = encodeURI(normalized)
+  return encoded.startsWith('/') ? `file://${encoded}` : `file:///${encoded}`
 }
 
 function toFreezeImageStyle(imageFit: ReturnType<typeof useAppStore.getState>['cells'][number]['imageFit']): React.CSSProperties {

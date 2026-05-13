@@ -4636,8 +4636,8 @@ export class CellRenderer {
       for (const path of assetPaths) {
         try {
           textures.push(await PIXI.Assets.load(toFileUrl(path)))
-        } catch {
-          // skip unreadable assets
+        } catch (error) {
+          console.warn(`[アセットエフェクト] テクスチャ読み込みに失敗: ${path}`, error)
         }
       }
       this.assetTexture = textures[0] ?? null
@@ -4794,7 +4794,10 @@ function toFileUrl(src: string): string {
     return src
   }
   const normalized = src.replace(/\\/g, '/')
-  return normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`
+  // 日本語などの非 ASCII 文字を含むパスは encodeURI でパーセントエンコードする
+  // （PIXI.Assets.load や fetch がワーカー越しに非エンコード URL を扱えないため）
+  const encoded = encodeURI(normalized)
+  return encoded.startsWith('/') ? `file://${encoded}` : `file:///${encoded}`
 }
 
 const remoteImageDataUrlCache = new Map<string, string>()
