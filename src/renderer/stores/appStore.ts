@@ -242,6 +242,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     colorOverlayAlphaRandomEnabled: true,
     colorOverlayAlphaRandomMin: 0.4,
     colorOverlayAlphaRandomMax: 1,
+    rasterColorInvertEnabled: false,
     sutTipMode: 'allTipsRandom',
   },
   textEffect: {

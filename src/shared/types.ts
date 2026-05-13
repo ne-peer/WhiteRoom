@@ -392,6 +392,11 @@ export type DynamicAssetEffect = {
   colorOverlayAlphaRandomMin: number
   /** `colorOverlayAlphaRandomEnabled` 時の適用度ランダム上限 0–1 */
   colorOverlayAlphaRandomMax: number
+  /**
+   * `sourceKind === 'raster'` のとき、読み込んだ画像の RGB を反転（各チャンネル 255−値）。
+   * アルファは変更しない（白文字↔黒文字の切り替え向け）。
+   */
+  rasterColorInvertEnabled: boolean
   /** `sourceKind === 'raster'` かつ `.sut` を含むとき、複数ティップをどうテクスチャプールに載せるか */
   sutTipMode: DynamicAssetSutTipMode
 }
@@ -442,6 +447,7 @@ export function normalizeDynamicAssetEffect(
     sutTipMode: normalizeDynamicAssetSutTipMode(da.sutTipMode),
     colorOverlayAlphaRandomMin,
     colorOverlayAlphaRandomMax,
+    rasterColorInvertEnabled: da.rasterColorInvertEnabled === true,
   }
   if (displayFileMode === 'pickImage') return base
   const folderBase = base.assetFolderPath?.split(/[/\\]/).filter(Boolean).pop() ?? ''

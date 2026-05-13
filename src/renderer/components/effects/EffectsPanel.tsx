@@ -230,6 +230,7 @@ const EFFECT_PRESET_1: CellEffects = {
     colorOverlayAlphaRandomEnabled: false,
     colorOverlayAlphaRandomMin: 0.4,
     colorOverlayAlphaRandomMax: 1,
+    rasterColorInvertEnabled: false,
     sutTipMode: 'allTipsRandom',
   },
   textEffect: {
@@ -456,6 +457,7 @@ const EFFECT_PRESET_2: CellEffects = {
     colorOverlayAlphaRandomEnabled: false,
     colorOverlayAlphaRandomMin: 0.4,
     colorOverlayAlphaRandomMax: 1,
+    rasterColorInvertEnabled: false,
     sutTipMode: 'allTipsRandom',
   },
   textEffect: {
@@ -1807,6 +1809,14 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     { value: 'firstTipOnly', label: t('dynamicAssetSutTipModeFirstTipOnly') },
                   ]}
                   onChange={v => set('dynamicAsset', { sutTipMode: v as DynamicAssetSutTipMode })}
+                />
+              </Row>
+            )}
+            {effects.dynamicAsset.sourceKind === 'raster' && (
+              <Row label={t('assetColorInvert')}>
+                <Toggle
+                  value={effects.dynamicAsset.rasterColorInvertEnabled}
+                  onChange={v => set('dynamicAsset', { rasterColorInvertEnabled: v })}
                 />
               </Row>
             )}

@@ -82,6 +82,7 @@ export class ParticleSystem {
   private lastSpawn = 0
   private timerProgress = 1
   private activeFeatherRadius = 0
+  private activeRasterColorInvert = false
 
   constructor(container: PIXI.Container, renderer: PIXI.Renderer) {
     this.container = container
@@ -135,9 +136,12 @@ export class ParticleSystem {
 
     const { spawnIntervalMs, maxParticles, sizeRatio, baseAlpha, pattern } = effects.dynamicAsset
     const featherRadius = featherStrengthToRadius(effects.dynamicAsset.featherStrength ?? 0)
-    if (featherRadius !== this.activeFeatherRadius) {
+    const rasterInvert =
+      effects.dynamicAsset.sourceKind === 'raster' && effects.dynamicAsset.rasterColorInvertEnabled
+    if (featherRadius !== this.activeFeatherRadius || rasterInvert !== this.activeRasterColorInvert) {
       this.clear()
       this.activeFeatherRadius = featherRadius
+      this.activeRasterColorInvert = rasterInvert
     }
     const rawBaseAlpha = clamp(baseAlpha, 0, 1)
     const assetBaseAlpha = (effects.dynamicAsset.alphaTimerSync) ? rawBaseAlpha * this.timerProgress : rawBaseAlpha
@@ -195,7 +199,13 @@ export class ParticleSystem {
             this.particles.pop()
           }
         } else {
-          const sprite = new PIXI.Sprite(this.resolveRasterTexture(randomTexture(this.textures), effects.dynamicAsset.featherStrength ?? 0))
+          const sprite = new PIXI.Sprite(
+            this.resolveRasterTexture(
+              randomTexture(this.textures),
+              effects.dynamicAsset.featherStrength ?? 0,
+              rasterInvert,
+            ),
+          )
           sprite.anchor.set(0.5)
           sprite.x = p.x
           sprite.y = p.y
@@ -247,7 +257,13 @@ export class ParticleSystem {
             this.particles.pop()
           }
         } else {
-          const sprite = new PIXI.Sprite(this.resolveRasterTexture(randomTexture(this.textures), effects.dynamicAsset.featherStrength ?? 0))
+          const sprite = new PIXI.Sprite(
+            this.resolveRasterTexture(
+              randomTexture(this.textures),
+              effects.dynamicAsset.featherStrength ?? 0,
+              rasterInvert,
+            ),
+          )
           sprite.anchor.set(0.5)
           sprite.x = p.x
           sprite.y = p.y
@@ -375,12 +391,37 @@ export class ParticleSystem {
     return sprite
   }
 
-  private resolveRasterTexture(texture: PIXI.Texture, featherStrength: number): PIXI.Texture {
+  private resolveRasterTexture(texture: PIXI.Texture, featherStrength: number, invertRgb: boolean): PIXI.Texture {
     const radius = featherStrengthToRadius(featherStrength)
-    if (radius <= 0) return texture
+    const base =
+      radius <= 0 ? texture : this.getOrCreateFeatherTexture(`raster:${texture.uid}:feather:${radius}`, texture, radius)
+    if (!invertRgb) return base
+    return this.getOrCreateInvertTexture(`invert:${base.uid}`, base)
+  }
 
-    const key = `raster:${texture.uid}:feather:${radius}`
-    return this.getOrCreateFeatherTexture(key, texture, radius)
+  private getOrCreateInvertTexture(key: string, texture: PIXI.Texture): PIXI.Texture {
+    const cached = this.featherTextureCache.get(key)
+    if (cached) return cached
+
+    const canvas = this.renderer.extract.canvas(texture) as HTMLCanvasElement
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      const t = PIXI.Texture.from(canvas)
+      this.featherTextureCache.set(key, t)
+      return t
+    }
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const d = imageData.data
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] === 0) continue
+      d[i] = 255 - d[i]
+      d[i + 1] = 255 - d[i + 1]
+      d[i + 2] = 255 - d[i + 2]
+    }
+    ctx.putImageData(imageData, 0, 0)
+    const out = PIXI.Texture.from(canvas)
+    this.featherTextureCache.set(key, out)
+    return out
   }
 
   private resolveVectorTexture(presetId: string, featherStrength: number): PIXI.Texture | null {
