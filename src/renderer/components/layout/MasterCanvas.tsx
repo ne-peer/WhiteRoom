@@ -64,6 +64,7 @@ export const MasterCanvas: React.FC = () => {
     startRadialHeight: number
   } | null>(null)
   const flashRangeDragRef = useRef<FlashRangeDrag | null>(null)
+  const flashRangeFreezeRef = useRef<HTMLDivElement | null>(null)
   const showControls = useAppStore(s => s.showControls)
   const grid = useAppStore(s => s.grid)
   const cells = useAppStore(s => s.cells)
@@ -180,6 +181,15 @@ export const MasterCanvas: React.FC = () => {
       imageSrc: cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null,
     }))
     : []
+  const flashRangeColumnOverlays =
+    flashRangePicking && flashRangeColumn !== null
+      ? cells
+        .filter(cell => cell.col === flashRangeColumn)
+        .map(cell => ({
+          cell,
+          imageSrc: cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null,
+        }))
+      : []
   const cancelPickMode = useCallback(() => {
     const state = useAppStore.getState()
     state.setShakeTrailPositionPicking(false)
@@ -227,7 +237,14 @@ export const MasterCanvas: React.FC = () => {
       if (rangeDrag && rangeEl) {
         flashRangeDragRef.current = null
         setFlashRangeDrag(null)
-        void finalizeFlashRangeSelection(rangeDrag, rangeEl.getBoundingClientRect(), e.clientX, e.clientY, t)
+        void finalizeFlashRangeSelection(
+          rangeDrag,
+          rangeEl.getBoundingClientRect(),
+          e.clientX,
+          e.clientY,
+          t,
+          flashRangeFreezeRef.current,
+        )
         return
       }
 
@@ -248,7 +265,7 @@ export const MasterCanvas: React.FC = () => {
     }
     window.addEventListener('mouseup', onMouseUp)
     return () => window.removeEventListener('mouseup', onMouseUp)
-  }, [clearStashRmbLongPressTimer])
+  }, [clearStashRmbLongPressTimer, t])
 
   useEffect(() => {
     const el = containerRef.current
@@ -605,7 +622,14 @@ export const MasterCanvas: React.FC = () => {
     if (rangeDrag) {
       flashRangeDragRef.current = null
       setFlashRangeDrag(null)
-      void finalizeFlashRangeSelection(rangeDrag, e.currentTarget.getBoundingClientRect(), e.clientX, e.clientY, t)
+      void finalizeFlashRangeSelection(
+        rangeDrag,
+        e.currentTarget.getBoundingClientRect(),
+        e.clientX,
+        e.clientY,
+        t,
+        flashRangeFreezeRef.current,
+      )
       return
     }
     const drag = centerPickDragRef.current
@@ -698,6 +722,37 @@ export const MasterCanvas: React.FC = () => {
         />
       )}
       <TimerPreOverlay />
+      {flashRangePicking && flashRangeColumnBounds && (
+        <div
+          ref={flashRangeFreezeRef}
+          className={styles.pickFreezeLayer}
+          style={{
+            ...flashRangeColumnBounds,
+            gridTemplateRows: `repeat(${grid.rows}, minmax(0, 1fr))`,
+          }}
+        >
+          {flashRangeColumnOverlays.map(({ cell, imageSrc }) => (
+            <div
+              key={cell.id}
+              className={styles.pickFreezeCell}
+              style={{
+                gridRow: cell.row + 1,
+              }}
+            >
+              {imageSrc && (
+                <img
+                  src={toImageSrc(imageSrc)}
+                  className={styles.pickFreezeImage}
+                  style={toFreezeImageStyle(cell.imageFit)}
+                  alt=""
+                  draggable={false}
+                  data-flash-freeze-cell={cell.id}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {pickingActive && pickColumnBounds && (
         <div
           className={styles.pickFreezeLayer}
@@ -933,7 +988,8 @@ async function finalizeFlashRangeSelection(
   rect: DOMRect,
   clientX: number,
   clientY: number,
-  t: (key: TranslationKey) => string
+  t: (key: TranslationKey) => string,
+  flashFreezeRoot: HTMLElement | null,
 ): Promise<void> {
   const state = useAppStore.getState()
   const bounds = getColumnGuideRect(rect, drag.column, state.grid)
@@ -949,7 +1005,7 @@ async function finalizeFlashRangeSelection(
   }
 
   try {
-    const dataUrl = await createFlashRangeSnapshot(completedDrag, rect)
+    const dataUrl = await createFlashRangeSnapshot(completedDrag, rect, flashFreezeRoot)
     const latest = useAppStore.getState()
     const targetCell = latest.cells.find(cell => cell.id === latest.selectedCellId && cell.col === completedDrag.column)
       ?? latest.cells.find(cell => cell.col === completedDrag.column)
@@ -978,7 +1034,20 @@ function toAbsoluteSelectionRect(drag: FlashRangeDrag): { left: number; top: num
   }
 }
 
-async function createFlashRangeSnapshot(drag: FlashRangeDrag, rect: DOMRect): Promise<string> {
+function findFlashFreezeImage(root: HTMLElement | null, cellId: string): HTMLImageElement | null {
+  if (!root) return null
+  const img = root.querySelector(
+    `img[data-flash-freeze-cell="${CSS.escape(cellId)}"]`,
+  ) as HTMLImageElement | null
+  if (!img || !img.complete || img.naturalWidth <= 0) return null
+  return img
+}
+
+async function createFlashRangeSnapshot(
+  drag: FlashRangeDrag,
+  rect: DOMRect,
+  flashFreezeRoot: HTMLElement | null,
+): Promise<string> {
   const state = useAppStore.getState()
   const columnBounds = getColumnGuideRect(rect, drag.column, state.grid)
   const selection = toAbsoluteSelectionRect(drag)
@@ -997,7 +1066,8 @@ async function createFlashRangeSnapshot(drag: FlashRangeDrag, rect: DOMRect): Pr
   for (const cell of cellsInColumn) {
     const imageSrc = state.cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null
     if (!imageSrc) continue
-    const image = await loadSnapshotImage(imageSrc)
+    const overlayImg = findFlashFreezeImage(flashFreezeRoot, cell.id)
+    const image = overlayImg ?? await loadSnapshotImage(imageSrc)
     drawCellImageToColumnCanvas(columnContext, image, cell, state.grid, columnBounds.width, columnBounds.height)
   }
 

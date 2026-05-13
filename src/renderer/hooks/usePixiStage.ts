@@ -258,18 +258,6 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
   }, [store.effectColumnSyncNonce])
 
   useEffect(() => {
-    const { flashRangePicking, cells, selectedCellId } = store
-    const col = flashRangePicking
-      ? (cells.find(c => c.id === selectedCellId)?.col ?? null)
-      : null
-    cells.forEach(cell => {
-      const cr = cellRenderersRef.current.get(cell.id)
-      if (!cr) return
-      cr.showImageCover(col !== null && cell.col === col)
-    })
-  }, [store.flashRangePicking])  // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
     const { timer, cells } = store
     const progress = getTimerEffectSyncProgress(timer, timer.elapsedSec)
     smoothTimerRef.current = {
