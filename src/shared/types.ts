@@ -332,6 +332,9 @@ export type FogEffect = {
 export type AssetDrawPattern = 'rising' | 'emergence'
 export type DynamicAssetAdditionalEffect = 'none' | 'jiggle' | 'bounce' | 'wiggle'
 
+/** `.sut` に複数ティップがあるときのプール化（アセットエフェクトのラスタのみ）。 */
+export type DynamicAssetSutTipMode = 'allTipsRandom' | 'firstTipOnly'
+
 export type DynamicAssetSourceKind = 'raster' | 'vector'
 
 /** アセットエフェクトの表示テクスチャ取得元（EffectsPanel の「表示ファイル」） */
@@ -385,6 +388,12 @@ export type DynamicAssetEffect = {
   colorOverlayAlpha: number
   /** アセット色 ON 時、アセット色の適用度を 40%〜100% の範囲でパーティクルごとにランダム */
   colorOverlayAlphaRandomEnabled: boolean
+  /** `sourceKind === 'raster'` かつ `.sut` を含むとき、複数ティップをどうテクスチャプールに載せるか */
+  sutTipMode: DynamicAssetSutTipMode
+}
+
+export function normalizeDynamicAssetSutTipMode(mode: unknown): DynamicAssetSutTipMode {
+  return mode === 'firstTipOnly' ? 'firstTipOnly' : 'allTipsRandom'
 }
 
 export function inferDynamicAssetDisplayFileMode(
@@ -410,7 +419,11 @@ export function normalizeDynamicAssetEffect(
   presetFolderBasenames: readonly string[],
 ): DynamicAssetEffect {
   const displayFileMode = inferDynamicAssetDisplayFileMode(da, presetFolderBasenames)
-  const base: DynamicAssetEffect = { ...da, displayFileMode }
+  const base: DynamicAssetEffect = {
+    ...da,
+    displayFileMode,
+    sutTipMode: normalizeDynamicAssetSutTipMode(da.sutTipMode),
+  }
   if (displayFileMode === 'pickImage') return base
   const folderBase = base.assetFolderPath?.split(/[/\\]/).filter(Boolean).pop() ?? ''
   const isVectorOk = base.sourceKind === 'vector' && !!base.vectorPresetId

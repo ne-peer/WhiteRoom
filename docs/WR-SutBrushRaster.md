@@ -1,5 +1,5 @@
 Created: 2026-05-13  
-Last Updated: 2026-05-13 (initial development instructions)
+Last Updated: 2026-05-14 (multi-tip asset effect behavior; `sutTipMode`)
 
 # WhiteRoom SUT Brush Material Rasterization — Development Specification
 
@@ -115,6 +115,27 @@ In [`CellRenderer.updateAsset`](../src/renderer/utils/CellRenderer.ts), before `
 3. If resolution fails, log and skip that entry (consistent with current per-path `try/catch` behavior).
 
 **Do not** persist expanded paths into Zustand for long-term storage.
+
+---
+
+## Multi-tip `.sut` and the asset-effect texture pool
+
+After `resolveRasterSourcePaths`, [`CellRenderer.updateAsset`](../src/renderer/utils/CellRenderer.ts) flattens each entry’s `loadablePaths` into one array (preserving `assetPaths` order; within each `.sut`, tips follow stable cache file order from `_PW_ID` sorting in [`sutPngCache.ts`](../src/main/sut/sutPngCache.ts)).
+
+[`ParticleSystem`](../src/renderer/utils/pixiEffects.ts) raster spawns call `randomTexture(this.textures)` — **uniform random over the entire flattened list**. Therefore:
+
+- **Multiple tips in one `.sut`** behave like **multiple PNG files in one virtual folder**: every spawn picks a random texture from the pool.
+- **“Single file” vs “folder” in the UI** is expressed by how many **paths** are in `assetPaths`, but **random vs effectively single-image** is determined by the **resolved texture count** after expansion. A single picked `brush.sut` with five tips still yields **five** textures and random spawns unless restricted (see `sutTipMode` below).
+- **`AssetParticle.assetPath`** on spawn remains the effect’s representative `dynamicAsset.assetPath`; it may **not** match the specific cached PNG path used for that particle’s sprite (debugging only).
+
+### `sutTipMode` (dynamic asset, raster, when any path is `.sut`)
+
+| Value | Behavior |
+|-------|----------|
+| `allTipsRandom` (default) | All extracted tips from each `.sut` join the pool (same as today’s multi-tip default). |
+| `firstTipOnly` | For each input path that is a `.sut`, only the **first** `loadablePaths` entry is kept before flattening; other raster files unchanged. Spawns then use a single texture for that file. |
+
+The renderer includes `sutTipMode` in the internal texture cache key so switching the mode reloads textures. The field is part of [`DynamicAssetEffect`](../src/shared/types.ts) and is normalized on profile load via `normalizeDynamicAssetEffect`.
 
 ---
 

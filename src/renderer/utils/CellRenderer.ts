@@ -14,6 +14,7 @@ import {
   createVectorDynamicAssetDisplay,
 } from './vectorStampRegistry'
 import { createFlashRadialFadeFilter, setFlashRadialFadeUniforms } from './flashRadialFadeFilter'
+import { isSutFilename } from '../../shared/rasterSourceExtensions'
 
 /** ズームイン／アウトで新規レイヤーを完全透明から表示へ切り替える時間（秒） */
 const ZOOM_TRANSITION_ALPHA_IN_SEC = 0.5
@@ -4631,14 +4632,21 @@ export class CellRenderer {
 
     if (assetPaths.length > 0) {
       const api = (typeof window !== 'undefined' ? (window as unknown as { api?: IpcApi }).api : undefined)
+      let texturesKey = `${assetKey}#${da.sutTipMode}`
       let loadablePaths = assetPaths
-      let texturesKey = assetKey
       if (api?.resolveRasterSourcePaths) {
         try {
           const res = await api.resolveRasterSourcePaths(assetPaths)
           if (res.kind === 'ok') {
-            texturesKey = `${assetPaths.join('|')}#${res.entries.map(e => e.sourceFingerprint).join('!')}`
-            loadablePaths = res.entries.flatMap(e => e.loadablePaths)
+            let entries = res.entries
+            if (da.sutTipMode === 'firstTipOnly') {
+              entries = res.entries.map((e, i) => {
+                const src = assetPaths[i] ?? ''
+                return isSutFilename(src) ? { ...e, loadablePaths: e.loadablePaths.slice(0, 1) } : e
+              })
+            }
+            texturesKey = `${assetPaths.join('|')}#${entries.map(e => e.sourceFingerprint).join('!')}#${da.sutTipMode}`
+            loadablePaths = entries.flatMap(e => e.loadablePaths)
           } else {
             console.warn('[アセットエフェクト] resolveRasterSourcePaths:', res.message)
           }

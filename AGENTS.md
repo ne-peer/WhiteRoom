@@ -145,6 +145,7 @@ For `.sut` (Clip Studio SQLite brush material) import, PNG extraction, IPC, and 
 - Reference script: `lib/wr_cspbrushextract.py` (offline extraction and schema notes).
 - Runtime: user-visible paths stay `.sut`; Pixi loads cached `tip-*.png` under `userData/sut-cache/` via `resolveRasterSourcePaths` IPC.
 - Optional preset authoring: `npm run extract:sut-presets` (Python + `lib/wr_cspbrushextract.py` per `assets/asset-effect` subfolder that contains `.sut`).
+- **Multi-tip `.sut`:** resolved tips flatten into one texture pool; `ParticleSystem` picks uniformly at random per spawn (`randomTexture`). UI **`sutTipMode`** (`allTipsRandom` / `firstTipOnly`) limits `.sut` expansion when users want a single tip from one file.
 
 ## Vector Stamp Spec (draft)
 

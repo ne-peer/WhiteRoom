@@ -10,8 +10,10 @@ import {
   type CellEffects,
   type DynamicAssetAdditionalEffect,
   type DynamicAssetDisplayFileMode,
+  type DynamicAssetSutTipMode,
   type FlashDisplayFileMode,
 } from '../../../shared/types'
+import { isSutFilename } from '../../../shared/rasterSourceExtensions'
 
 /** フラッシュ用ベクターアセット（`Select` の候補）。追加時はここに列挙する。 */
 const FLASH_BUILTIN_VECTOR_ASSET_OPTIONS = [
@@ -224,6 +226,7 @@ const EFFECT_PRESET_1: CellEffects = {
     colorOverlayColor: { r: 255, g: 15, b: 91 },
     colorOverlayAlpha: 0.5,
     colorOverlayAlphaRandomEnabled: false,
+    sutTipMode: 'allTipsRandom',
   },
   textEffect: {
     enabled: false,
@@ -447,6 +450,7 @@ const EFFECT_PRESET_2: CellEffects = {
     colorOverlayColor: { r: 255, g: 15, b: 91 },
     colorOverlayAlpha: 0.5,
     colorOverlayAlphaRandomEnabled: false,
+    sutTipMode: 'allTipsRandom',
   },
   textEffect: {
     enabled: false,
@@ -1807,6 +1811,19 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   ? `${effects.dynamicAsset.assetFolderPath} (${formatCount(language, effects.dynamicAsset.assetPaths.length, t('imagesUnit'))})`
                   : effects.dynamicAsset.assetPath.split(/[\\/]/).pop()}
               </div>
+            )}
+            {effects.dynamicAsset.sourceKind === 'raster' &&
+              effects.dynamicAsset.assetPaths.some(p => isSutFilename(p)) && (
+              <Row label={t('dynamicAssetSutTipMode')}>
+                <Select
+                  value={effects.dynamicAsset.sutTipMode}
+                  options={[
+                    { value: 'allTipsRandom', label: t('dynamicAssetSutTipModeAllTipsRandom') },
+                    { value: 'firstTipOnly', label: t('dynamicAssetSutTipModeFirstTipOnly') },
+                  ]}
+                  onChange={v => set('dynamicAsset', { sutTipMode: v as DynamicAssetSutTipMode })}
+                />
+              </Row>
             )}
             <Row label={t('assetDrawPattern')}>
               <Select

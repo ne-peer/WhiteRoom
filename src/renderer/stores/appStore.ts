@@ -240,6 +240,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     colorOverlayColor: { r: 255, g: 15, b: 91 },
     colorOverlayAlpha: 0.5,
     colorOverlayAlphaRandomEnabled: true,
+    sutTipMode: 'allTipsRandom',
   },
   textEffect: {
     enabled: false,
