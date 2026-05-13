@@ -68,7 +68,7 @@ Then open the DMG as usual and drag the app into the Applications folder.
 |  | Zoom effect | Zoom in/out (scale) effect |
 |  | Breathing effect | Breathing-style visual effect |
 |  | Echo effect | Ripple-like trail effect |
-| Decoration | Asset effect | Places custom images at random positions and floats them |
+| Decoration | Asset effect | Effect that makes assets float |
 |  | Flash effect | Temporarily overlays an image |
 |  | Squish effect | Pressing/squishing visual effect |
 |  | Fog effect | Draws a fog-like visual effect |
