@@ -2188,11 +2188,11 @@ export class CellRenderer {
     const r = clamp(radius, 0, 1) * Math.min(this.width, this.height) / 2
     const g = this.peripheralGuideGraphics
     g.clear()
-    // 外周エリア: キャンバス全体から内円を切り抜いて塗りつぶし
+    // 外周エリア: キャンバス全体を塗りつぶしてから内円を cut() で除外
     g.rect(0, 0, this.width, this.height)
-    g.cut()
-    g.circle(cx, cy, r)
     g.fill({ color: 0xff8833, alpha: 0.18 })
+    g.circle(cx, cy, r)
+    g.cut()
     // 境界ストローク
     g.circle(cx, cy, r)
     g.stroke({ color: 0xffbb66, alpha: 0.92, width: 2 })
