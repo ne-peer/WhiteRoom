@@ -32,7 +32,6 @@ export type CensorEffect = {
   color: { r: number; g: number; b: number }  // fill color; default { r:13, g:13, b:13 } (#0d0d0d)
   alpha: number                                // fill opacity; 0–1; default 0.9
   linkToFocus: boolean                         // show rects only near focus center; default false
-  linkToFocusRadius: number                    // max distance from focus center; 0.1–1.0; default 0.3
   linkToShake: boolean                         // also censor the Shake trail area; default false
 }
 ```
@@ -50,7 +49,6 @@ censor: {
   color: { r: 13, g: 13, b: 13 },
   alpha: 0.9,
   linkToFocus: false,
-  linkToFocusRadius: 0.3,
   linkToShake: false,
 }
 ```
@@ -87,7 +85,6 @@ Added rects are listed with index numbers (e.g. "① x:0.10 y:0.20 w:0.30 h:0.15
 | Label (JA) | Label (EN) | Control | Notes |
 |---|---|---|---|
 | フォーカスエフェクト連動 | Focus Effect link | Toggle | `linkToFocus` |
-| 連動範囲 | Link radius | Slider | 10–100 % → `linkToFocusRadius = v / 100`; shown only when `linkToFocus` is ON |
 | シェイクエフェクトエリアを検閲 | Censor Shake area | Toggle | `linkToShake` |
 
 ---
@@ -115,10 +112,6 @@ Clear and redraw `censorGraphics: PIXI.Graphics` every frame.
 
 ```
 for each rect in censor.rects:
-  if linkToFocus:
-    dx = (rect.x + rect.w/2) - focusCurrentX
-    dy = (rect.y + rect.h/2) - focusCurrentY
-    if sqrt(dx*dx + dy*dy) > linkToFocusRadius: skip
   draw filled rect at (rect.x*W, rect.y*H, rect.w*W, rect.h*H)
     fill color(r,g,b) alpha
 ```
@@ -192,5 +185,4 @@ Old profiles (no `censor` field) load with defaults (`enabled: false`, `rects: [
 | `censorClear` | クリア | Clear |
 | `censorAreas` | 検閲エリア | Censor areas |
 | `censorLinkToFocus` | フォーカスエフェクト連動 | Focus Effect link |
-| `censorLinkToFocusRadius` | 連動範囲 | Link radius |
 | `censorLinkToShake` | シェイクエフェクトエリアを検閲 | Censor Shake area |

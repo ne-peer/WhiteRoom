@@ -518,7 +518,6 @@ export type CensorEffect = {
   color: { r: number; g: number; b: number }
   alpha: number
   feather: number        // 0-50 blur radius for edge feathering
-  textEnabled: boolean
   text: string
   textFontFamily: string
   textFontSize: number
@@ -527,7 +526,6 @@ export type CensorEffect = {
   textColor: { r: number; g: number; b: number }
   textAlpha: number
   linkToFocus: boolean
-  linkToFocusRadius: number
   linkToShake: boolean
 }
 

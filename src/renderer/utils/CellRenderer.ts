@@ -131,6 +131,7 @@ export class CellRenderer {
   private focusWaypointProgress = 0
 
   private censorLayer: PIXI.Container
+  private censorBarLayer: PIXI.Container
   private censorGraphics: PIXI.Graphics
   private censorFocusMask: PIXI.Sprite | null = null
   private censorFocusMaskCanvas: HTMLCanvasElement | null = null
@@ -292,6 +293,7 @@ export class CellRenderer {
     this.fogBlobContainer = new PIXI.Container()
     this.focusLayer = new PIXI.Container()
     this.censorLayer = new PIXI.Container()
+    this.censorBarLayer = new PIXI.Container()
     this.guideLayer = new PIXI.Container()
     this.dynamicBackgroundMask = new PIXI.Graphics()
     this.imageMask = new PIXI.Graphics()
@@ -338,7 +340,8 @@ export class CellRenderer {
     this.fogLayer.addChild(this.fogBlobContainer)
 
     this.censorGraphics = new PIXI.Graphics()
-    this.censorLayer.addChild(this.censorGraphics)
+    this.censorBarLayer.addChild(this.censorGraphics)
+    this.censorLayer.addChild(this.censorBarLayer)
 
     this.particleSystem = new ParticleSystem(this.particleContainer, this.pixiRenderer)
     this.textSystem = new TextSystem(this.textLayer)
@@ -4064,14 +4067,14 @@ export class CellRenderer {
     if (feather > 0) {
       if (!this.censorBlurFilter) {
         this.censorBlurFilter = new PIXI.BlurFilter()
-        this.censorLayer.filterArea = new PIXI.Rectangle(0, 0, W, H)
+        this.censorBarLayer.filterArea = new PIXI.Rectangle(0, 0, W, H)
       }
       this.censorBlurFilter.strength = feather
-      if (!this.censorLayer.filters?.includes(this.censorBlurFilter)) {
-        this.censorLayer.filters = [this.censorBlurFilter]
+      if (!this.censorBarLayer.filters?.includes(this.censorBlurFilter)) {
+        this.censorBarLayer.filters = [this.censorBlurFilter]
       }
     } else if (this.censorBlurFilter) {
-      this.censorLayer.filters = []
+      this.censorBarLayer.filters = []
       this.censorBlurFilter.destroy()
       this.censorBlurFilter = null
     }
@@ -4106,8 +4109,8 @@ export class CellRenderer {
       }
     }
 
-    // テキスト繰り返し
-    if ((censor.textEnabled ?? false) && censor.text && censor.rects.length > 0) {
+    // 表示テキスト
+    if (censor.text.trim() && censor.rects.length > 0) {
       this.updateCensorText(censor, W, H)
     } else {
       this.clearCensorText()
@@ -4312,7 +4315,7 @@ export class CellRenderer {
     this.removeCensorFocusMask()
     this.clearCensorText()
     if (this.censorBlurFilter) {
-      this.censorLayer.filters = []
+      this.censorBarLayer.filters = []
       this.censorBlurFilter.destroy()
       this.censorBlurFilter = null
     }

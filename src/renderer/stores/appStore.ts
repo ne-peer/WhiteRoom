@@ -274,7 +274,6 @@ export const DEFAULT_EFFECTS: CellEffects = {
     color: { r: 252, g: 66, b: 255 },
     alpha: 0.8,
     feather: 2,
-    textEnabled: true,
     text: 'censored',
     textFontFamily: 'sans-serif',
     textFontSize: 16,
@@ -283,7 +282,6 @@ export const DEFAULT_EFFECTS: CellEffects = {
     textColor: { r: 200, g: 200, b: 200 },
     textAlpha: 0.7,
     linkToFocus: true,
-    linkToFocusRadius: 0.3,
     linkToShake: false,
   } satisfies CensorEffect,
 }
