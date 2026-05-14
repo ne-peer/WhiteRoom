@@ -144,6 +144,9 @@ export class CellRenderer {
   private shakeTrailGuideGraphics: PIXI.Graphics | null = null
   private shakeTrailGuideRemainingSec = 0
   private shakeTrailGuideMode: 'radial' | 'first' | 'second' = 'first'
+  private peripheralGuideGraphics: PIXI.Graphics | null = null
+  private peripheralGuideRemainingSec = 0
+  private peripheralGuideKey: string | null = null
   private shakeTrailSamples: { timeSec: number; offsetY: number }[] = []
   private shakeTrailFirstStageSamples: { timeSec: number; offsetY: number }[] = []
   private shakeTrailElapsedSec = 0
@@ -455,6 +458,7 @@ export class CellRenderer {
     this.updateFog(effects.fog)
     this.updateAsset(effects)
     this.updateText(effects)
+    this.updatePeripheralGuideOnChange(effects, showCircleGuides)
   }
 
   resetEffectTiming(effects: CellEffects, withRandomDelay = false) {
@@ -685,6 +689,7 @@ export class CellRenderer {
     this.applyImageMotionTransform()
     this.syncShakeTrail(delta, effects.shake)
     this.updateShakeTrailGuide(delta)
+    this.updatePeripheralGuide(delta)
     this.createPendingShakeAfterimage(effects.shake)
     this.updateShakeAfterimages(delta)
     this.tickSquish(delta, effects.squish)
@@ -719,6 +724,7 @@ export class CellRenderer {
     this.clearShakeAfterimages()
     this.clearShakeTrail()
     this.clearShakeTrailGuide()
+    this.clearPeripheralGuide()
     this.clearFlashOverlay()
     this.clearSquish()
     this.clearFog()
@@ -2158,6 +2164,56 @@ export class CellRenderer {
     this.guideLayer.removeChild(this.shakeTrailGuideGraphics)
     this.shakeTrailGuideGraphics.destroy()
     this.shakeTrailGuideGraphics = null
+  }
+
+  // ===== 周辺のみ ビジュアライザ =====
+
+  private updatePeripheralGuideOnChange(effects: CellEffects, showCircleGuides: boolean) {
+    if (!effects.dynamicAsset.peripheralOnlyEnabled) return
+    const r = effects.dynamicAsset.peripheralOnlyRadius
+    const key = `${this.width}_${this.height}_${r}`
+    if (showCircleGuides && this.peripheralGuideKey !== null && this.peripheralGuideKey !== key) {
+      this.showPeripheralGuide(r)
+    }
+    this.peripheralGuideKey = key
+  }
+
+  private showPeripheralGuide(radius: number) {
+    if (!this.peripheralGuideGraphics) {
+      this.peripheralGuideGraphics = new PIXI.Graphics()
+      this.guideLayer.addChild(this.peripheralGuideGraphics)
+    }
+    const cx = this.width / 2
+    const cy = this.height / 2
+    const r = clamp(radius, 0, 1) * Math.min(this.width, this.height) / 2
+    const g = this.peripheralGuideGraphics
+    g.clear()
+    // 外周エリア: キャンバス全体から内円を切り抜いて塗りつぶし
+    g.rect(0, 0, this.width, this.height)
+    g.cut()
+    g.circle(cx, cy, r)
+    g.fill({ color: 0xff8833, alpha: 0.18 })
+    // 境界ストローク
+    g.circle(cx, cy, r)
+    g.stroke({ color: 0xffbb66, alpha: 0.92, width: 2 })
+    g.alpha = 1
+    this.peripheralGuideRemainingSec = 1
+  }
+
+  private updatePeripheralGuide(delta: number) {
+    if (!this.peripheralGuideGraphics || this.peripheralGuideRemainingSec <= 0) return
+    const dtSec = Math.max(0, delta) / 60
+    this.peripheralGuideRemainingSec = Math.max(0, this.peripheralGuideRemainingSec - dtSec)
+    this.peripheralGuideGraphics.alpha = clamp(this.peripheralGuideRemainingSec / 0.25, 0, 1)
+    if (this.peripheralGuideRemainingSec <= 0) this.clearPeripheralGuide()
+  }
+
+  private clearPeripheralGuide() {
+    this.peripheralGuideRemainingSec = 0
+    if (!this.peripheralGuideGraphics) return
+    this.guideLayer.removeChild(this.peripheralGuideGraphics)
+    this.peripheralGuideGraphics.destroy()
+    this.peripheralGuideGraphics = null
   }
 
   private resetBreathingMotion(randomize: boolean) {
