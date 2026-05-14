@@ -207,6 +207,12 @@ export const MasterCanvas: React.FC = () => {
       imageSrc: cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null,
     }))
     : []
+  const pickModeColumnOverlays = (focusWaypointPicking || censorRectPicking) && pickModeColumn !== null
+    ? cells.filter(cell => cell.col === pickModeColumn).map(cell => ({
+      cell,
+      imageSrc: cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null,
+    }))
+    : []
   const flashRangeColumnOverlays =
     flashRangePicking && flashRangeColumn !== null
       ? cells
@@ -877,6 +883,35 @@ export const MasterCanvas: React.FC = () => {
           }}
         >
           {pickColumnOverlays.map(({ cell, imageSrc }) => (
+            <div
+              key={cell.id}
+              className={styles.pickFreezeCell}
+              style={{
+                gridRow: cell.row + 1,
+              }}
+            >
+              {imageSrc && (
+                <img
+                  src={toImageSrc(imageSrc)}
+                  className={styles.pickFreezeImage}
+                  style={toFreezeImageStyle(cell.imageFit)}
+                  alt=""
+                  draggable={false}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {(focusWaypointPicking || censorRectPicking) && pickModeColumnBounds && (
+        <div
+          className={styles.pickFreezeLayer}
+          style={{
+            ...pickModeColumnBounds,
+            gridTemplateRows: `repeat(${grid.rows}, minmax(0, 1fr))`,
+          }}
+        >
+          {pickModeColumnOverlays.map(({ cell, imageSrc }) => (
             <div
               key={cell.id}
               className={styles.pickFreezeCell}
