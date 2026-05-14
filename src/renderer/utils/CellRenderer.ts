@@ -3984,6 +3984,8 @@ export class CellRenderer {
     if (!focus?.enabled) return
     const waypoints = focus.waypoints
     if (waypoints.length < 2) {
+      this.focusWaypointIndex = 0
+      this.focusWaypointProgress = 0
       const cx = waypoints.length === 1 ? waypoints[0].x : (this.latestEffects?.effectCenter.x ?? 0.5)
       const cy = waypoints.length === 1 ? waypoints[0].y : (this.latestEffects?.effectCenter.y ?? 0.5)
       if (this.focusCurrentX !== cx || this.focusCurrentY !== cy) {
@@ -3996,7 +3998,11 @@ export class CellRenderer {
       return
     }
 
-    const durationMs = focus.movementSpeedSec * 1000
+    if (this.focusWaypointIndex >= waypoints.length) {
+      this.focusWaypointIndex %= waypoints.length
+      this.focusWaypointProgress = 0
+    }
+    const durationMs = Math.max(1, focus.movementSpeedSec * 1000)
     const deltaMs = delta * (1000 / 60)
     this.focusWaypointProgress += deltaMs / durationMs
     if (this.focusWaypointProgress >= 1) {
