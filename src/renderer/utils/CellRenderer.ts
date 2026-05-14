@@ -22,6 +22,10 @@ const ZOOM_TRANSITION_ALPHA_IN_SEC = 0.5
 /** 維持時間が 0 のときの表示フェーズ下限（秒）。状態遷移用の極小値（開始トランジション長とは独立） */
 const FLASH_DISPLAY_PHASE_MIN_SEC = 0.0001
 
+type CensorDrawRegion =
+  | { type: 'rect'; x: number; y: number; w: number; h: number }
+  | { type: 'ellipses'; ellipses: { cx: number; cy: number; rx: number; ry: number }[] }
+
 type SquishOrganicShape = {
   radiusXScale: number
   radiusYScale: number
@@ -133,6 +137,9 @@ export class CellRenderer {
   private censorLayer: PIXI.Container
   private censorBarLayer: PIXI.Container
   private censorGraphics: PIXI.Graphics
+  private censorShakeSprite: PIXI.Sprite | null = null
+  private censorShakeCanvas: HTMLCanvasElement | null = null
+  private censorShakeKey: string | null = null
   private censorFocusMask: PIXI.Sprite | null = null
   private censorFocusMaskCanvas: HTMLCanvasElement | null = null
   private censorBlurFilter: PIXI.BlurFilter | null = null
@@ -4040,6 +4047,7 @@ export class CellRenderer {
     const censor = effects.censor
     if (!censor?.enabled) {
       this.censorGraphics.clear()
+      this.clearCensorShakeSprite()
       this.censorLayer.visible = false
       return
     }
@@ -4091,35 +4099,117 @@ export class CellRenderer {
         .fill({ color, alpha: censor.alpha })
     }
 
-    if (censor.linkToShake && effects.shake?.enabled) {
-      const shake = effects.shake
-      const cx = (this.latestEffects?.effectCenter.x ?? 0.5) * W
-      const cy = (this.latestEffects?.effectCenter.y ?? 0.5) * H
-      const rx = (shake.trailSize ?? 0.7) * Math.min(W, H) / 2
-      const ry = rx * (shake.trailHeight ?? 1)
-      this.censorGraphics
-        .ellipse(cx, cy, rx, ry)
-        .fill({ color, alpha: censor.alpha })
+    const shakeRegions = this.getCensorShakeRegions(effects, W, H)
+    this.updateCensorShakeSprite(censor, shakeRegions, W, H)
 
-      if (shake.trailDuplicateCirclesEnabled) {
-        const spacingShift = shake.trailDuplicateSpacingShift ?? 0
-        const vertShift = shake.trailDuplicateVerticalSpacingShift ?? 0
-        const dist = rx * (1 + spacingShift)
-        const vOff = ry * vertShift
-        this.censorGraphics
-          .ellipse(cx - dist, cy - vOff, rx, ry)
-          .fill({ color, alpha: censor.alpha })
-        this.censorGraphics
-          .ellipse(cx + dist, cy + vOff, rx, ry)
-          .fill({ color, alpha: censor.alpha })
+    const textRegions: CensorDrawRegion[] = [
+      ...censor.rects.map(rect => ({
+        type: 'rect' as const,
+        x: rect.x * W,
+        y: rect.y * H,
+        w: rect.w * W,
+        h: rect.h * H,
+      })),
+      ...shakeRegions,
+    ]
+    if (censor.text.trim() && textRegions.length > 0) {
+      this.updateCensorText(censor, W, H, textRegions)
+    } else {
+      this.clearCensorText()
+    }
+  }
+
+  private getCensorShakeRegions(effects: CellEffects, W: number, H: number): Extract<CensorDrawRegion, { type: 'ellipses' }>[] {
+    const censor = effects.censor
+    const shake = effects.shake
+    if (!censor.linkToShake) return []
+    const censorScale = 1.15
+
+    if (shake.trailDuplicateCirclesEnabled) {
+      const p = this.getShakeTrailDupGuideEllipseLayout(shake, 'first')
+      return [{
+        type: 'ellipses',
+        ellipses: [
+          { cx: p.cx1, cy: p.cy1, rx: p.rx * censorScale, ry: p.ry * censorScale },
+          { cx: p.cx2, cy: p.cy2, rx: p.rx * censorScale, ry: p.ry * censorScale },
+        ],
+      }]
+    }
+
+    const cx = (this.latestEffects?.effectCenter.x ?? 0.5) * W
+    const cy = (this.latestEffects?.effectCenter.y ?? 0.5) * H
+    const rx = Math.max(1, clamp(shake.trailSize ?? 0.7, 0.05, 3) * Math.min(W, H) * censorScale / 2)
+    const ry = Math.max(1, rx * clamp(shake.trailHeight ?? 1, 0.05, 3))
+    return [{ type: 'ellipses', ellipses: [{ cx, cy, rx, ry }] }]
+  }
+
+  private updateCensorShakeSprite(
+    censor: import('../../shared/types').CensorEffect,
+    regions: Extract<CensorDrawRegion, { type: 'ellipses' }>[],
+    W: number,
+    H: number,
+  ): void {
+    if (regions.length === 0) {
+      this.clearCensorShakeSprite()
+      return
+    }
+
+    const { r, g, b } = censor.color
+    const key = [
+      W,
+      H,
+      r,
+      g,
+      b,
+      regions.map(region => region.ellipses.map(e => `${e.cx.toFixed(1)},${e.cy.toFixed(1)},${e.rx.toFixed(1)},${e.ry.toFixed(1)}`).join(',')).join(';'),
+    ].join('|')
+
+    if (key !== this.censorShakeKey) {
+      this.censorShakeKey = key
+      const needsRebuild = !this.censorShakeCanvas ||
+        this.censorShakeCanvas.width !== W ||
+        this.censorShakeCanvas.height !== H
+
+      if (needsRebuild) {
+        if (this.censorShakeSprite) {
+          this.censorBarLayer.removeChild(this.censorShakeSprite)
+          this.censorShakeSprite.texture.destroy(true)
+          this.censorShakeSprite.destroy()
+          this.censorShakeSprite = null
+        }
+        if (!this.censorShakeCanvas) this.censorShakeCanvas = document.createElement('canvas')
+        this.censorShakeCanvas.width = W
+        this.censorShakeCanvas.height = H
+      }
+
+      const canvas = this.censorShakeCanvas!
+      const ctx = canvas.getContext('2d')!
+      ctx.clearRect(0, 0, W, H)
+      ctx.fillStyle = `rgb(${r},${g},${b})`
+
+      for (const region of regions) {
+        ctx.beginPath()
+        this.traceCensorRegionPath(ctx, region)
+        ctx.fill()
+      }
+
+      if (!this.censorShakeSprite) {
+        const tex = PIXI.Texture.from(canvas)
+        this.pixiRenderer.texture.initSource(tex.source)
+        const sprite = new PIXI.Sprite(tex)
+        sprite.width = W
+        sprite.height = H
+        this.censorBarLayer.addChild(sprite)
+        this.censorShakeSprite = sprite
+      } else {
+        this.censorShakeSprite.texture.source.update()
+        this.censorShakeSprite.width = W
+        this.censorShakeSprite.height = H
       }
     }
 
-    // 表示テキスト
-    if (censor.text.trim() && censor.rects.length > 0) {
-      this.updateCensorText(censor, W, H)
-    } else {
-      this.clearCensorText()
+    if (this.censorShakeSprite) {
+      this.censorShakeSprite.alpha = censor.alpha
     }
   }
 
@@ -4127,6 +4217,7 @@ export class CellRenderer {
     censor: import('../../shared/types').CensorEffect,
     W: number,
     H: number,
+    regions: CensorDrawRegion[],
   ) {
     const textAlpha = censor.textAlpha ?? 0.5
     const fontSize = censor.textFontSize ?? 14
@@ -4140,7 +4231,12 @@ export class CellRenderer {
       censor.textItalic ? '1' : '0',
       col.r, col.g, col.b,
       W, H,
-      censor.rects.map(r => `${r.x.toFixed(3)},${r.y.toFixed(3)},${r.w.toFixed(3)},${r.h.toFixed(3)}`).join(';'),
+      regions.map(region => {
+        if (region.type === 'rect') {
+          return `r:${region.x.toFixed(1)},${region.y.toFixed(1)},${region.w.toFixed(1)},${region.h.toFixed(1)}`
+        }
+        return `e:${region.ellipses.map(e => `${e.cx.toFixed(1)},${e.cy.toFixed(1)},${e.rx.toFixed(1)},${e.ry.toFixed(1)}`).join(',')}`
+      }).join(';'),
     ].join('|')
 
     if (key !== this.censorTextLayerKey) {
@@ -4178,16 +4274,18 @@ export class CellRenderer {
       const unitW = Math.max(1, textW + hSpacing)
       const lineH = Math.max(1, fontSize + vSpacing)
 
-      for (const rect of censor.rects) {
-        const rx = Math.round(rect.x * W)
-        const ry = Math.round(rect.y * H)
-        const rw = Math.round(rect.w * W)
-        const rh = Math.round(rect.h * H)
+      for (const region of regions) {
+        const bounds = this.getCensorRegionBounds(region)
+        if (!bounds) continue
+        const rx = Math.round(bounds.x)
+        const ry = Math.round(bounds.y)
+        const rw = Math.round(bounds.w)
+        const rh = Math.round(bounds.h)
         if (rw <= 0 || rh <= 0) continue
 
         ctx.save()
         ctx.beginPath()
-        ctx.rect(rx, ry, rw, rh)
+        this.traceCensorRegionPath(ctx, region)
         ctx.clip()
 
         const rowStart = Math.floor(ry / lineH) - 1
@@ -4236,6 +4334,43 @@ export class CellRenderer {
     }
     this.censorTextCanvas = null
     this.censorTextLayerKey = null
+  }
+
+  private clearCensorShakeSprite() {
+    if (this.censorShakeSprite) {
+      this.censorBarLayer.removeChild(this.censorShakeSprite)
+      this.censorShakeSprite.texture.destroy(true)
+      this.censorShakeSprite.destroy()
+      this.censorShakeSprite = null
+    }
+    this.censorShakeCanvas = null
+    this.censorShakeKey = null
+  }
+
+  private getCensorRegionBounds(region: CensorDrawRegion): { x: number; y: number; w: number; h: number } | null {
+    if (region.type === 'rect') return region
+    if (region.ellipses.length === 0) return null
+    let left = Number.POSITIVE_INFINITY
+    let top = Number.POSITIVE_INFINITY
+    let right = Number.NEGATIVE_INFINITY
+    let bottom = Number.NEGATIVE_INFINITY
+    for (const ellipse of region.ellipses) {
+      left = Math.min(left, ellipse.cx - ellipse.rx)
+      top = Math.min(top, ellipse.cy - ellipse.ry)
+      right = Math.max(right, ellipse.cx + ellipse.rx)
+      bottom = Math.max(bottom, ellipse.cy + ellipse.ry)
+    }
+    return { x: left, y: top, w: right - left, h: bottom - top }
+  }
+
+  private traceCensorRegionPath(ctx: CanvasRenderingContext2D, region: CensorDrawRegion): void {
+    if (region.type === 'rect') {
+      ctx.rect(region.x, region.y, region.w, region.h)
+      return
+    }
+    for (const ellipse of region.ellipses) {
+      ctx.ellipse(ellipse.cx, ellipse.cy, ellipse.rx, ellipse.ry, 0, 0, Math.PI * 2)
+    }
   }
 
   private updateCensorFocusMask(
@@ -4318,6 +4453,7 @@ export class CellRenderer {
 
   private clearCensor() {
     this.censorGraphics.clear()
+    this.clearCensorShakeSprite()
     this.removeCensorFocusMask()
     this.clearCensorText()
     if (this.censorBlurFilter) {
