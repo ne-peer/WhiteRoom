@@ -4,6 +4,7 @@ import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOv
 import {
   createVignetteTexture,
   createFocusMaskTexture,
+  drawFocusMaskToCanvas,
   updateColorOverlay,
   ParticleSystem,
   TextSystem,
@@ -121,6 +122,7 @@ export class CellRenderer {
   private focusLayer: PIXI.Container
   private focusBlurSprite: PIXI.Sprite | null = null
   private focusMaskSprite: PIXI.Sprite | null = null
+  private focusMaskCanvas: HTMLCanvasElement | null = null
   private focusBlurFilter: PIXI.BlurFilter | null = null
   private focusMaskKey: string | null = null
   private focusCurrentX = 0.5
@@ -3862,24 +3864,39 @@ export class CellRenderer {
   private rebuildFocusMask(focus: FocusEffect) {
     const cx = this.focusCurrentX
     const cy = this.focusCurrentY
-    const key = [focus.pattern, focus.viewSizeRatio, cx.toFixed(3), cy.toFixed(3), this.width, this.height].join(',')
+    const w = Math.max(1, Math.round(this.width))
+    const h = Math.max(1, Math.round(this.height))
+    const key = [focus.pattern, focus.viewSizeRatio, cx.toFixed(3), cy.toFixed(3), w, h].join(',')
     if (key === this.focusMaskKey) return
     this.focusMaskKey = key
 
-    const tex = createFocusMaskTexture(focus.pattern, focus.viewSizeRatio, cx, cy, this.width, this.height)
-    // Force GPU upload before using as alpha mask — lazy upload causes BindGroup.getResource null error
-    this.pixiRenderer.texture.initSource(tex.source)
+    // Recreate canvas only when size changes; reuse otherwise to avoid GPU texture churn
+    const sizeChanged = !this.focusMaskCanvas || this.focusMaskCanvas.width !== w || this.focusMaskCanvas.height !== h
+    if (sizeChanged) {
+      this.focusMaskCanvas = document.createElement('canvas')
+      this.focusMaskCanvas.width = w
+      this.focusMaskCanvas.height = h
+    }
+    drawFocusMaskToCanvas(this.focusMaskCanvas!, focus.pattern, focus.viewSizeRatio, cx, cy)
 
-    if (this.focusMaskSprite) {
-      const old = this.focusMaskSprite.texture
-      this.focusMaskSprite.texture = tex
-      old.destroy(true)
-    } else {
+    if (!this.focusMaskSprite || sizeChanged) {
+      // First creation or size change: build sprite from canvas texture once
+      if (this.focusMaskSprite) {
+        this.focusMaskSprite.texture.destroy(true)
+        this.focusLayer.removeChild(this.focusMaskSprite)
+        this.focusMaskSprite.destroy()
+        this.focusMaskSprite = null
+      }
+      const tex = createFocusMaskTexture(focus.pattern, focus.viewSizeRatio, cx, cy, w, h)
+      this.pixiRenderer.texture.initSource(tex.source)
       this.focusMaskSprite = new PIXI.Sprite(tex)
       this.focusMaskSprite.x = 0
       this.focusMaskSprite.y = 0
       this.focusLayer.addChild(this.focusMaskSprite)
       if (this.focusBlurSprite) this.focusBlurSprite.mask = this.focusMaskSprite
+    } else {
+      // Update in place: signal the canvas source to re-upload, no destroy/create
+      this.focusMaskSprite.texture.source.update()
     }
     this.focusMaskSprite.width = this.width
     this.focusMaskSprite.height = this.height
@@ -3944,6 +3961,7 @@ export class CellRenderer {
       this.focusMaskSprite = null
     }
     this.focusBlurFilter = null
+    this.focusMaskCanvas = null
     this.focusMaskKey = null
     this.focusCurrentX = 0.5
     this.focusCurrentY = 0.5

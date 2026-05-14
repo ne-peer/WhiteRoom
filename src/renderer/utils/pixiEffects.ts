@@ -36,18 +36,17 @@ export function createVignetteTexture(
 }
 
 // ===== フォーカスエフェクト マスクテクスチャ生成 =====
-export function createFocusMaskTexture(
+export function drawFocusMaskToCanvas(
+  canvas: HTMLCanvasElement,
   pattern: FocusBlurPattern,
   viewSizeRatio: number,
-  cx: number,  // normalized 0–1
-  cy: number,  // normalized 0–1
-  width: number,
-  height: number,
-): PIXI.Texture {
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.max(1, Math.round(width))
-  canvas.height = Math.max(1, Math.round(height))
+  cx: number,
+  cy: number,
+): void {
+  const width = canvas.width
+  const height = canvas.height
   const ctx = canvas.getContext('2d')!
+  ctx.clearRect(0, 0, width, height)
 
   if (pattern === 'circular') {
     const r = viewSizeRatio * Math.min(width, height) / 2
@@ -68,19 +67,16 @@ export function createFocusMaskTexture(
     const rightClear = cx * width + halfClear
     ctx.fillStyle = 'white'
     ctx.fillRect(0, 0, width, height)
-    // left gradient: edge→clear
     const gradL = ctx.createLinearGradient(Math.max(0, leftClear - feather), 0, leftClear + feather, 0)
     gradL.addColorStop(0, 'rgba(255,255,255,1)')
     gradL.addColorStop(1, 'rgba(0,0,0,1)')
     ctx.fillStyle = gradL
     ctx.fillRect(Math.max(0, leftClear - feather), 0, feather * 2, height)
-    // right gradient: clear→edge
     const gradR = ctx.createLinearGradient(rightClear - feather, 0, Math.min(width, rightClear + feather), 0)
     gradR.addColorStop(0, 'rgba(0,0,0,1)')
     gradR.addColorStop(1, 'rgba(255,255,255,1)')
     ctx.fillStyle = gradR
     ctx.fillRect(rightClear - feather, 0, feather * 2, height)
-    // clear center fill
     ctx.fillStyle = 'black'
     ctx.fillRect(leftClear + feather, 0, Math.max(0, rightClear - feather - (leftClear + feather)), height)
   } else {
@@ -104,7 +100,20 @@ export function createFocusMaskTexture(
     ctx.fillStyle = 'black'
     ctx.fillRect(0, topClear + feather, width, Math.max(0, bottomClear - feather - (topClear + feather)))
   }
+}
 
+export function createFocusMaskTexture(
+  pattern: FocusBlurPattern,
+  viewSizeRatio: number,
+  cx: number,
+  cy: number,
+  width: number,
+  height: number,
+): PIXI.Texture {
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(width))
+  canvas.height = Math.max(1, Math.round(height))
+  drawFocusMaskToCanvas(canvas, pattern, viewSizeRatio, cx, cy)
   return PIXI.Texture.from(canvas)
 }
 
