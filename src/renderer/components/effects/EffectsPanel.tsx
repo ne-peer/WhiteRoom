@@ -12,6 +12,7 @@ import {
   type DynamicAssetDisplayFileMode,
   type DynamicAssetSutTipMode,
   type FlashDisplayFileMode,
+  type RippleMovePattern,
 } from '../../../shared/types'
 import { formatRasterSourceListingExtensionsForTooltip, isSutFilename } from '../../../shared/rasterSourceExtensions'
 
@@ -234,6 +235,7 @@ const EFFECT_PRESET_1: CellEffects = {
     sutTipMode: 'allTipsRandom',
     peripheralOnlyEnabled: false,
     peripheralOnlyRadius: 0.35,
+    rippleMovePattern: 'easeInSine' as RippleMovePattern,
   },
   textEffect: {
     enabled: false,
@@ -463,6 +465,7 @@ const EFFECT_PRESET_2: CellEffects = {
     sutTipMode: 'allTipsRandom',
     peripheralOnlyEnabled: false,
     peripheralOnlyRadius: 0.35,
+    rippleMovePattern: 'easeInSine' as RippleMovePattern,
   },
   textEffect: {
     enabled: false,
@@ -1942,6 +1945,24 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   step={0.1}
                   unit="x"
                   onChange={v => set('dynamicAsset', { riseSpeedFactor: v })}
+                />
+              </Row>
+            )}
+            {dynamicAssetPattern === 'ripple' && (
+              <Row label={t('rippleMovePattern')}>
+                <Select
+                  value={effects.dynamicAsset.rippleMovePattern ?? 'easeInSine'}
+                  options={[
+                    { value: 'easeInSine',    label: t('rippleEaseInSine') },
+                    { value: 'easeInCubic',   label: t('rippleEaseInCubic') },
+                    { value: 'easeInQuint',   label: t('rippleEaseInQuint') },
+                    { value: 'easeInElastic', label: t('rippleEaseInElastic') },
+                    { value: 'easeOutSine',   label: t('rippleEaseOutSine') },
+                    { value: 'easeOutCubic',  label: t('rippleEaseOutCubic') },
+                    { value: 'easeOutQuint',  label: t('rippleEaseOutQuint') },
+                    { value: 'easeOutElastic',label: t('rippleEaseOutElastic') },
+                  ]}
+                  onChange={v => set('dynamicAsset', { rippleMovePattern: v as RippleMovePattern })}
                 />
               </Row>
             )}

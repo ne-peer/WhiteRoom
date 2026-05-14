@@ -246,6 +246,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     sutTipMode: 'allTipsRandom',
     peripheralOnlyEnabled: false,
     peripheralOnlyRadius: 0.35,
+    rippleMovePattern: 'easeInSine',
   },
   textEffect: {
     enabled: false,

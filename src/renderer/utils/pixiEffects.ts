@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { CellEffects, AssetParticle, DynamicAssetAdditionalEffect, TextEffect } from '../../shared/types'
+import type { CellEffects, AssetParticle, DynamicAssetAdditionalEffect, TextEffect, RippleMovePattern } from '../../shared/types'
 import { createVectorDynamicAssetDisplay } from './vectorStampRegistry'
 
 // ===== ビネットテクスチャ生成 =====
@@ -72,6 +72,28 @@ const EMERGENCE_PHASE2_MS = 1400  // 緩慢拡大＋フェードアウトフェ�
 // rippleパターン定数
 const RIPPLE_BASE_DURATION_MS = 2000  // 1x 速度でのフェードアウト総時間
 const RIPPLE_BASE_SPEED = 2           // px/frame（60fps 基準）の外周方向速度
+// 1x 速度・60fps 想定の最大移動距離: SPEED * DURATION_MS * 60fps / 1000ms
+const RIPPLE_MAX_DIST = RIPPLE_BASE_SPEED * RIPPLE_BASE_DURATION_MS * 60 / 1000  // 240 px
+
+function rippleEase(pattern: RippleMovePattern, t: number): number {
+  switch (pattern) {
+    case 'easeInSine':    return 1 - Math.cos((t * Math.PI) / 2)
+    case 'easeInCubic':   return t * t * t
+    case 'easeInQuint':   return t * t * t * t * t
+    case 'easeInElastic': {
+      if (t === 0) return 0; if (t === 1) return 1
+      return -Math.pow(2, 10 * t - 10) * Math.sin((10 * t - 10.75) * (2 * Math.PI) / 3)
+    }
+    case 'easeOutSine':   return Math.sin((t * Math.PI) / 2)
+    case 'easeOutCubic':  { const u = 1 - t; return 1 - u * u * u }
+    case 'easeOutQuint':  { const u = 1 - t; return 1 - u * u * u * u * u }
+    case 'easeOutElastic': {
+      if (t === 0) return 0; if (t === 1) return 1
+      return Math.pow(2, -10 * t) * Math.sin((10 * t - 0.75) * (2 * Math.PI) / 3) + 1
+    }
+    default: return t
+  }
+}
 
 // ===== パーティクル（動的アセット）管理 =====
 export class ParticleSystem {
@@ -263,6 +285,8 @@ export class ParticleSystem {
           particleTint,
           rotationRad,
           rippleDurationMs: RIPPLE_BASE_DURATION_MS / rippleSpeedFactor,
+          rippleStartX: spawnX,
+          rippleStartY: spawnY,
         }
         this.particles.push(p)
 
@@ -382,9 +406,9 @@ export class ParticleSystem {
         // 波紋パターンの更新
         const elapsed = nowMs - p.startTime
         const t = Math.min(1, elapsed / p.rippleDurationMs)
-        // easeInSine: 1 - cos(t * π/2) → 序盤ゆっくり、終盤急速にフェードアウト
-        const eased = 1 - Math.cos((t * Math.PI) / 2)
-        const currentAlpha = p.alpha * (1 - eased)
+        // フェードアウト: easeInSine（序盤ゆっくり、終盤急速）
+        const fadeEased = 1 - Math.cos((t * Math.PI) / 2)
+        const currentAlpha = p.alpha * (1 - fadeEased)
 
         if (t >= 1) {
           if (visual) {
@@ -396,11 +420,14 @@ export class ParticleSystem {
           return false
         }
 
-        // 位置を外周方向へ移動（easeInSine の微分値でフレームごとの速度をスケール）
-        // easeInSine'(t) = (π/2)·sin(t·π/2) → 序盤は低速、終盤に向かって加速
-        const easeVelocityScale = (Math.PI / 2) * Math.sin(t * Math.PI / 2)
-        p.x += (p.vx ?? 0) * delta * easeVelocityScale
-        p.y += p.vy * delta * easeVelocityScale
+        // 位置を絶対座標で計算（選択イージングを適用した移動パターン）
+        const movePattern = effects.dynamicAsset.rippleMovePattern ?? 'easeInSine'
+        const speed = Math.sqrt((p.vx ?? 0) ** 2 + p.vy ** 2)
+        const unitX = speed > 0 ? (p.vx ?? 0) / speed : 0
+        const unitY = speed > 0 ? p.vy / speed : 0
+        const easedDist = rippleEase(movePattern, t) * RIPPLE_MAX_DIST
+        p.x = (p.rippleStartX ?? 0) + unitX * easedDist
+        p.y = (p.rippleStartY ?? 0) + unitY * easedDist
 
         if (visual) {
           visual.alpha = currentAlpha

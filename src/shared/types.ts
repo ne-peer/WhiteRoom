@@ -330,6 +330,9 @@ export type FogEffect = {
 }
 
 export type AssetDrawPattern = 'rising' | 'emergence' | 'ripple'
+export type RippleMovePattern =
+  | 'easeInSine' | 'easeInCubic' | 'easeInQuint' | 'easeInElastic'
+  | 'easeOutSine' | 'easeOutCubic' | 'easeOutQuint' | 'easeOutElastic'
 export type DynamicAssetAdditionalEffect = 'none' | 'jiggle' | 'bounce' | 'wiggle'
 
 /** `.sut` に複数ティップがあるときのプール化（アセットエフェクトのラスタのみ）。 */
@@ -358,6 +361,8 @@ export type AssetParticle = {
   phase2DurationMs?: number
   // rippleパターン用フィールド
   rippleDurationMs?: number
+  rippleStartX?: number
+  rippleStartY?: number
 }
 
 export type DynamicAssetEffect = {
@@ -406,10 +411,20 @@ export type DynamicAssetEffect = {
   peripheralOnlyEnabled: boolean
   /** 周辺のみモードの除外円半径。0–1（1 = min(w,h)/2 に相当） */
   peripheralOnlyRadius: number
+  /** ripple パターンの移動イージング */
+  rippleMovePattern: RippleMovePattern
 }
 
 export function normalizeDynamicAssetSutTipMode(mode: unknown): DynamicAssetSutTipMode {
   return mode === 'firstTipOnly' ? 'firstTipOnly' : 'allTipsRandom'
+}
+
+const RIPPLE_MOVE_PATTERNS: RippleMovePattern[] = [
+  'easeInSine', 'easeInCubic', 'easeInQuint', 'easeInElastic',
+  'easeOutSine', 'easeOutCubic', 'easeOutQuint', 'easeOutElastic',
+]
+export function normalizeRippleMovePattern(v: unknown): RippleMovePattern {
+  return RIPPLE_MOVE_PATTERNS.includes(v as RippleMovePattern) ? (v as RippleMovePattern) : 'easeInSine'
 }
 
 export function inferDynamicAssetDisplayFileMode(
@@ -455,6 +470,7 @@ export function normalizeDynamicAssetEffect(
     colorOverlayAlphaRandomMin,
     colorOverlayAlphaRandomMax,
     rasterColorInvertEnabled: da.rasterColorInvertEnabled === true,
+    rippleMovePattern: normalizeRippleMovePattern(da.rippleMovePattern),
   }
   if (displayFileMode === 'pickImage') return base
   const folderBase = base.assetFolderPath?.split(/[/\\]/).filter(Boolean).pop() ?? ''
