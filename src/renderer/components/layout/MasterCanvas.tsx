@@ -37,6 +37,14 @@ type FlashRangeDrag = {
   currentX: number
   currentY: number
 }
+type CensorRectDrag = {
+  column: number
+  cellId: string
+  startX: number
+  startY: number
+  currentX: number
+  currentY: number
+}
 
 /** 1 列あたりの幅がこの値以下なら空セルの Tips 文言を出さない */
 const EMPTY_CELL_TIPS_MAX_COLUMN_WIDTH_PX = 300
@@ -65,6 +73,8 @@ export const MasterCanvas: React.FC = () => {
   } | null>(null)
   const flashRangeDragRef = useRef<FlashRangeDrag | null>(null)
   const flashRangeFreezeRef = useRef<HTMLDivElement | null>(null)
+  const censorRectDragRef = useRef<CensorRectDrag | null>(null)
+  const [censorRectDrag, setCensorRectDrag] = useState<CensorRectDrag | null>(null)
   const showControls = useAppStore(s => s.showControls)
   const grid = useAppStore(s => s.grid)
   const cells = useAppStore(s => s.cells)
@@ -73,6 +83,8 @@ export const MasterCanvas: React.FC = () => {
   const spiralRadialPositionPicking = useAppStore(s => s.spiralRadialPositionPicking)
   const squishColorPicking = useAppStore(s => s.squishColorPicking)
   const flashRangePicking = useAppStore(s => s.flashRangePicking)
+  const focusWaypointPicking = useAppStore(s => s.focusWaypointPicking)
+  const censorRectPicking = useAppStore(s => s.censorRectPicking)
   const selectedCellId = useAppStore(s => s.selectedCellId)
   const textReaderVisible = useAppStore(s => s.textReader.visible)
   const textReaderConfig = useAppStore(s => s.textReader.config)
@@ -125,7 +137,7 @@ export const MasterCanvas: React.FC = () => {
   const { setCellImage } = usePixiStage(containerRef)
   const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
   const pickingActive = shakeTrailPositionPicking || spiralRadialPositionPicking
-  const anyPickModeActive = pickingActive || squishColorPicking || flashRangePicking
+  const anyPickModeActive = pickingActive || squishColorPicking || flashRangePicking || focusWaypointPicking || censorRectPicking
   const selectedCell = cells.find(cell => cell.id === selectedCellId) ?? null
   const pickColumn = pickingActive ? lockedPickColumn ?? selectedCell?.col ?? null : null
   const flashRangeColumn = flashRangePicking ? lockedPickColumn ?? selectedCell?.col ?? null : null
@@ -151,6 +163,20 @@ export const MasterCanvas: React.FC = () => {
       height: canvasSize.height,
     }
   }, [canvasSize.height, canvasSize.width, flashRangeColumn, flashRangePicking, grid.cols])
+  const pickModeColumn = (focusWaypointPicking || censorRectPicking) ? lockedPickColumn ?? selectedCell?.col ?? null : null
+  const pickModeColumnBounds = React.useMemo((): React.CSSProperties | null => {
+    if (pickModeColumn === null || grid.cols <= 0) return null
+    const left = Math.round((pickModeColumn * canvasSize.width) / grid.cols)
+    const nextLeft = Math.round(((pickModeColumn + 1) * canvasSize.width) / grid.cols)
+    return {
+      left,
+      top: 0,
+      width: nextLeft - left,
+      height: canvasSize.height,
+    }
+  }, [canvasSize.height, canvasSize.width, grid.cols, pickModeColumn])
+  const censorRectDragColumnBounds = censorRectPicking ? pickModeColumnBounds : null
+  const focusWaypointColumnBounds = focusWaypointPicking ? pickModeColumnBounds : null
   const selectedCellOutlineBounds = React.useMemo((): React.CSSProperties | null => {
     if (anyPickModeActive) return null
     if (!selectedCell || grid.cols <= 0 || grid.rows <= 0) return null
@@ -196,9 +222,13 @@ export const MasterCanvas: React.FC = () => {
     state.setSpiralRadialPositionPicking(false)
     state.setSquishColorPicking(false)
     state.setFlashRangePicking(false)
+    state.setFocusWaypointPicking(false)
+    state.setCensorRectPicking(false)
     centerPickDragRef.current = null
     trailSizeDragRef.current = null
     flashRangeDragRef.current = null
+    censorRectDragRef.current = null
+    setCensorRectDrag(null)
     setLockedPickColumn(null)
     setPickPreviewCenter(null)
     setPickGuide(null)
@@ -213,7 +243,7 @@ export const MasterCanvas: React.FC = () => {
   }, [])
 
   React.useLayoutEffect(() => {
-    if (!pickingActive && !flashRangePicking) {
+    if (!pickingActive && !flashRangePicking && !focusWaypointPicking && !censorRectPicking) {
       setLockedPickColumn(null)
       return
     }
@@ -222,7 +252,7 @@ export const MasterCanvas: React.FC = () => {
       const state = useAppStore.getState()
       return state.cells.find(cell => cell.id === state.selectedCellId)?.col ?? null
     })
-  }, [flashRangePicking, pickingActive, selectedCell?.col])
+  }, [censorRectPicking, flashRangePicking, focusWaypointPicking, pickingActive, selectedCell?.col])
 
   useEffect(() => {
     const onMouseUp = (e: MouseEvent) => {
@@ -307,7 +337,7 @@ export const MasterCanvas: React.FC = () => {
       const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable
       const state = useAppStore.getState()
       const centerPickModeActive = state.shakeTrailPositionPicking || state.spiralRadialPositionPicking
-      if (e.key === 'Escape' && (centerPickModeActive || state.flashRangePicking)) {
+      if (e.key === 'Escape' && (centerPickModeActive || state.flashRangePicking || state.focusWaypointPicking || state.censorRectPicking)) {
         e.preventDefault()
         e.stopPropagation()
         cancelPickMode()
@@ -406,7 +436,7 @@ export const MasterCanvas: React.FC = () => {
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const { grid, cells, selectedCellId, shakeTrailPositionPicking, spiralRadialPositionPicking, squishColorPicking, flashRangePicking } = useAppStore.getState()
+    const { grid, cells, selectedCellId, shakeTrailPositionPicking, spiralRadialPositionPicking, squishColorPicking, flashRangePicking, focusWaypointPicking, censorRectPicking } = useAppStore.getState()
     const activePickColumn = lockedPickColumn ?? cells.find(c => c.id === selectedCellId)?.col ?? null
     const relX = e.clientX - rect.left
     const relY = e.clientY - rect.top
@@ -414,10 +444,28 @@ export const MasterCanvas: React.FC = () => {
     const row = Math.max(0, Math.min(Math.floor(relY / (rect.height / grid.rows)), grid.rows - 1))
     const cell = cells.find(c => c.col === col && c.row === row)
     setHoveredCellId(
-      ((shakeTrailPositionPicking || spiralRadialPositionPicking || flashRangePicking) && cell?.col !== activePickColumn)
+      ((shakeTrailPositionPicking || spiralRadialPositionPicking || flashRangePicking || focusWaypointPicking || censorRectPicking) && cell?.col !== activePickColumn)
         ? null
         : cell?.id ?? null
     )
+
+    const censorDrag = censorRectDragRef.current
+    if (censorDrag && censorRectPicking) {
+      const bounds = getColumnGuideRect(rect, censorDrag.column, grid)
+      const nextDrag = {
+        ...censorDrag,
+        currentX: clamp(e.clientX - rect.left, bounds.left, bounds.left + bounds.width),
+        currentY: clamp(e.clientY - rect.top, bounds.top, bounds.top + bounds.height),
+      }
+      censorRectDragRef.current = nextDrag
+      setCensorRectDrag(nextDrag)
+      return
+    }
+
+    if (censorRectPicking || focusWaypointPicking) {
+      setPickGuide(null)
+      return
+    }
 
     const rangeDrag = flashRangeDragRef.current
     if (rangeDrag && flashRangePicking) {
@@ -506,6 +554,42 @@ export const MasterCanvas: React.FC = () => {
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const state = useAppStore.getState()
+    if (state.focusWaypointPicking) {
+      e.preventDefault()
+      if (e.button !== 0) return
+      const cell = getCellAtClientPoint(e.clientX, e.clientY, rect, state.grid, state.cells)
+      const activePickColumn = lockedPickColumn ?? state.cells.find(c => c.id === state.selectedCellId)?.col ?? null
+      if (!cell || activePickColumn === null || cell.col !== activePickColumn) {
+        cancelPickMode()
+        return
+      }
+      state.selectCell(cell.id)
+      const point = getNormalizedPointInCell(e.clientX, e.clientY, rect, cell.id, state)
+      if (!point) return
+      const current = state.cells.find(c => c.id === cell.id)?.effects.focus.waypoints ?? []
+      const next = [...current, { x: point.x, y: point.y }]
+      state.setCellEffect(cell.id, 'focus', { waypoints: next })
+      if (next.length >= 8) state.setFocusWaypointPicking(false)
+      return
+    }
+    if (state.censorRectPicking) {
+      e.preventDefault()
+      if (e.button !== 0) return
+      const cell = getCellAtClientPoint(e.clientX, e.clientY, rect, state.grid, state.cells)
+      const activePickColumn = lockedPickColumn ?? state.cells.find(c => c.id === state.selectedCellId)?.col ?? null
+      if (!cell || activePickColumn === null || cell.col !== activePickColumn) {
+        cancelPickMode()
+        return
+      }
+      state.selectCell(cell.id)
+      const bounds = getColumnGuideRect(rect, activePickColumn, state.grid)
+      const cx = clamp(e.clientX - rect.left, bounds.left, bounds.left + bounds.width)
+      const cy = clamp(e.clientY - rect.top, bounds.top, bounds.top + bounds.height)
+      const drag: CensorRectDrag = { column: activePickColumn, cellId: cell.id, startX: cx, startY: cy, currentX: cx, currentY: cy }
+      censorRectDragRef.current = drag
+      setCensorRectDrag(drag)
+      return
+    }
     if (state.flashRangePicking) {
       e.preventDefault()
       if (e.button !== 0) return
@@ -618,6 +702,37 @@ export const MasterCanvas: React.FC = () => {
       clearStashRmbLongPressTimer()
     }
     if (e.button !== 0) return
+    const censorDrag = censorRectDragRef.current
+    if (censorDrag) {
+      censorRectDragRef.current = null
+      setCensorRectDrag(null)
+      const rect = e.currentTarget.getBoundingClientRect()
+      const bounds = getColumnGuideRect(rect, censorDrag.column, useAppStore.getState().grid)
+      const finalDrag = {
+        ...censorDrag,
+        currentX: clamp(e.clientX - rect.left, bounds.left, bounds.left + bounds.width),
+        currentY: clamp(e.clientY - rect.top, bounds.top, bounds.top + bounds.height),
+      }
+      const colLeft = bounds.left
+      const colWidth = bounds.width
+      const colTop = bounds.top
+      const colHeight = bounds.height
+      const selLeft = Math.min(finalDrag.startX, finalDrag.currentX)
+      const selTop = Math.min(finalDrag.startY, finalDrag.currentY)
+      const selWidth = Math.abs(finalDrag.currentX - finalDrag.startX)
+      const selHeight = Math.abs(finalDrag.currentY - finalDrag.startY)
+      if (selWidth < 4 || selHeight < 4) return
+      const newRect = {
+        x: (selLeft - colLeft) / colWidth,
+        y: (selTop - colTop) / colHeight,
+        w: selWidth / colWidth,
+        h: selHeight / colHeight,
+      }
+      const state = useAppStore.getState()
+      const current = state.cells.find(c => c.id === censorDrag.cellId)?.effects.censor.rects ?? []
+      state.setCellEffect(censorDrag.cellId, 'censor', { rects: [...current, newRect] })
+      return
+    }
     const rangeDrag = flashRangeDragRef.current
     if (rangeDrag) {
       flashRangeDragRef.current = null
@@ -840,6 +955,38 @@ export const MasterCanvas: React.FC = () => {
           <div className={styles.pickHint}>{t('squishColorPickHint')}</div>
         </div>
       )}
+      {focusWaypointPicking && focusWaypointColumnBounds && (
+        <div className={styles.pickUiLayer} style={focusWaypointColumnBounds}>
+          <div className={styles.pickHint}>
+            <div>{t('focusWaypointPickHint')}</div>
+            <div className={styles.pickHintTip}>{t('focusWaypointPickTip')}</div>
+          </div>
+        </div>
+      )}
+      {focusWaypointPicking && pickModeColumn !== null && (() => {
+        const colCells = cells.filter(c => c.col === pickModeColumn)
+        const cellW = grid.cols > 0 ? canvasSize.width / grid.cols : 0
+        const cellH = grid.rows > 0 ? canvasSize.height / grid.rows : 0
+        const markers: React.ReactNode[] = []
+        for (const cell of colCells) {
+          const waypoints = cell.effects.focus.waypoints
+          if (!waypoints.length) continue
+          const cellLeft = cell.col * cellW
+          const cellTop = cell.row * cellH
+          waypoints.forEach((wp, i) => {
+            markers.push(
+              <div
+                key={`${cell.id}-wp-${i}`}
+                className={styles.focusWaypointMarker}
+                style={{ left: cellLeft + wp.x * cellW, top: cellTop + wp.y * cellH }}
+              >
+                {i + 1}
+              </div>
+            )
+          })
+        }
+        return markers.length > 0 ? <>{markers}</> : null
+      })()}
       {flashRangePicking && flashRangeColumnBounds && (
         <div className={styles.pickUiLayer} style={flashRangeColumnBounds}>
           <div className={styles.pickHint}>
@@ -856,6 +1003,27 @@ export const MasterCanvas: React.FC = () => {
           className={styles.flashRangeSelection}
           style={toFlashRangeSelectionStyle(flashRangeDrag)}
         />
+      )}
+      {censorRectPicking && censorRectDrag && (() => {
+        const censorEffect = useAppStore.getState().cells.find(c => c.id === censorRectDrag.cellId)?.effects.censor
+        const color = censorEffect ? `rgb(${censorEffect.color.r},${censorEffect.color.g},${censorEffect.color.b})` : 'rgb(13,13,13)'
+        return (
+          <div
+            className={styles.censorRectSelection}
+            style={{ ...toCensorRectSelectionStyle(censorRectDrag), background: color, opacity: (censorEffect?.alpha ?? 0.9) * 0.5 }}
+          />
+        )
+      })()}
+      {censorRectPicking && censorRectDragColumnBounds && (
+        <div className={styles.censorRectColumnMask} style={censorRectDragColumnBounds} />
+      )}
+      {censorRectPicking && censorRectDragColumnBounds && (
+        <div className={styles.pickUiLayer} style={censorRectDragColumnBounds}>
+          <div className={styles.pickHint}>
+            <div>{t('censorPickHint')}</div>
+            <div className={styles.pickHintTip}>{t('censorPickTip')}</div>
+          </div>
+        </div>
       )}
       {pickingActive && pickColumnBounds && (
         <div className={styles.pickUiLayer} style={pickColumnBounds}>
@@ -980,6 +1148,15 @@ function toFlashRangeSelectionStyle(drag: FlashRangeDrag): React.CSSProperties {
     top,
     width,
     height,
+  }
+}
+
+function toCensorRectSelectionStyle(drag: CensorRectDrag): React.CSSProperties {
+  return {
+    left: Math.min(drag.startX, drag.currentX),
+    top: Math.min(drag.startY, drag.currentY),
+    width: Math.abs(drag.currentX - drag.startX),
+    height: Math.abs(drag.currentY - drag.startY),
   }
 }
 

@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { CellEffects, AssetParticle, DynamicAssetAdditionalEffect, TextEffect, RippleMovePattern } from '../../shared/types'
+import type { CellEffects, AssetParticle, DynamicAssetAdditionalEffect, TextEffect, RippleMovePattern, FocusBlurPattern } from '../../shared/types'
 import { createVectorDynamicAssetDisplay } from './vectorStampRegistry'
 
 // ===== ビネットテクスチャ生成 =====
@@ -32,6 +32,88 @@ export function createVignetteTexture(
   gradient.addColorStop(1, `rgba(${r},${g},${b},${alphaEdge})`)
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, width, height)
+  return PIXI.Texture.from(canvas)
+}
+
+// ===== フォーカスエフェクト マスクテクスチャ生成 =====
+export function drawFocusMaskToCanvas(
+  canvas: HTMLCanvasElement,
+  pattern: FocusBlurPattern,
+  viewSizeRatio: number,
+  cx: number,
+  cy: number,
+): void {
+  const width = canvas.width
+  const height = canvas.height
+  const ctx = canvas.getContext('2d')!
+  ctx.clearRect(0, 0, width, height)
+
+  if (pattern === 'circular') {
+    const r = viewSizeRatio * Math.min(width, height) / 2
+    const feather = r * 0.4
+    const innerR = Math.max(0, r - feather)
+    const outerR = r + feather
+    const grad = ctx.createRadialGradient(cx * width, cy * height, innerR, cx * width, cy * height, outerR)
+    grad.addColorStop(0, 'rgba(0,0,0,1)')
+    grad.addColorStop(1, 'rgba(255,255,255,1)')
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, width, height)
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, width, height)
+  } else if (pattern === 'horizontal') {
+    const halfClear = viewSizeRatio * width / 2
+    const feather = halfClear * 0.4
+    const leftClear = cx * width - halfClear
+    const rightClear = cx * width + halfClear
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, width, height)
+    const gradL = ctx.createLinearGradient(Math.max(0, leftClear - feather), 0, leftClear + feather, 0)
+    gradL.addColorStop(0, 'rgba(255,255,255,1)')
+    gradL.addColorStop(1, 'rgba(0,0,0,1)')
+    ctx.fillStyle = gradL
+    ctx.fillRect(Math.max(0, leftClear - feather), 0, feather * 2, height)
+    const gradR = ctx.createLinearGradient(rightClear - feather, 0, Math.min(width, rightClear + feather), 0)
+    gradR.addColorStop(0, 'rgba(0,0,0,1)')
+    gradR.addColorStop(1, 'rgba(255,255,255,1)')
+    ctx.fillStyle = gradR
+    ctx.fillRect(rightClear - feather, 0, feather * 2, height)
+    ctx.fillStyle = 'black'
+    ctx.fillRect(leftClear + feather, 0, Math.max(0, rightClear - feather - (leftClear + feather)), height)
+  } else {
+    // vertical
+    const halfClear = viewSizeRatio * height / 2
+    const feather = halfClear * 0.4
+    const topClear = cy * height - halfClear
+    const bottomClear = cy * height + halfClear
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, width, height)
+    const gradT = ctx.createLinearGradient(0, Math.max(0, topClear - feather), 0, topClear + feather)
+    gradT.addColorStop(0, 'rgba(255,255,255,1)')
+    gradT.addColorStop(1, 'rgba(0,0,0,1)')
+    ctx.fillStyle = gradT
+    ctx.fillRect(0, Math.max(0, topClear - feather), width, feather * 2)
+    const gradB = ctx.createLinearGradient(0, bottomClear - feather, 0, Math.min(height, bottomClear + feather))
+    gradB.addColorStop(0, 'rgba(0,0,0,1)')
+    gradB.addColorStop(1, 'rgba(255,255,255,1)')
+    ctx.fillStyle = gradB
+    ctx.fillRect(0, bottomClear - feather, width, feather * 2)
+    ctx.fillStyle = 'black'
+    ctx.fillRect(0, topClear + feather, width, Math.max(0, bottomClear - feather - (topClear + feather)))
+  }
+}
+
+export function createFocusMaskTexture(
+  pattern: FocusBlurPattern,
+  viewSizeRatio: number,
+  cx: number,
+  cy: number,
+  width: number,
+  height: number,
+): PIXI.Texture {
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(width))
+  canvas.height = Math.max(1, Math.round(height))
+  drawFocusMaskToCanvas(canvas, pattern, viewSizeRatio, cx, cy)
   return PIXI.Texture.from(canvas)
 }
 

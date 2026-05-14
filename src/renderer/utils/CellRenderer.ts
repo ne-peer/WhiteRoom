@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, FogEffect, ShakeEffect, SlideShowTransition, SquishEffect, ZoomEffect } from '../../shared/types'
+import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, FogEffect, ShakeEffect, SlideShowTransition, SquishEffect, ZoomEffect, FocusEffect, FocusBlurPattern, CensorEffect } from '../../shared/types'
 import {
   createVignetteTexture,
   updateColorOverlay,
@@ -116,6 +116,28 @@ export class CellRenderer {
     dropletBlurFilter: PIXI.BlurFilter | null
   }> = []
   private fogSpawnAccumulatorSec = 0
+
+  private focusLayer: PIXI.Container
+  private focusBlurContainer: PIXI.Container | null = null
+  private focusBlurClone: PIXI.Sprite | null = null
+  private focusMaskSprite: PIXI.Sprite | null = null
+  private focusMaskCanvas: HTMLCanvasElement | null = null
+  private focusBlurFilter: PIXI.BlurFilter | null = null
+  private focusBlurLayerKey: string | null = null
+  private focusMaskKey: string | null = null
+  private focusCurrentX = 0.5
+  private focusCurrentY = 0.5
+  private focusWaypointIndex = 0
+  private focusWaypointProgress = 0
+
+  private censorLayer: PIXI.Container
+  private censorGraphics: PIXI.Graphics
+  private censorFocusMask: PIXI.Sprite | null = null
+  private censorFocusMaskCanvas: HTMLCanvasElement | null = null
+  private censorBlurFilter: PIXI.BlurFilter | null = null
+  private censorTextSprite: PIXI.Sprite | null = null
+  private censorTextCanvas: HTMLCanvasElement | null = null
+  private censorTextLayerKey: string | null = null
 
   private spiralGraphics: PIXI.Graphics
   private spiralMaskSprite: PIXI.Sprite | null = null
@@ -268,6 +290,8 @@ export class CellRenderer {
     this.spiralLayer = new PIXI.Container()
     this.fogLayer = new PIXI.Container()
     this.fogBlobContainer = new PIXI.Container()
+    this.focusLayer = new PIXI.Container()
+    this.censorLayer = new PIXI.Container()
     this.guideLayer = new PIXI.Container()
     this.dynamicBackgroundMask = new PIXI.Graphics()
     this.imageMask = new PIXI.Graphics()
@@ -289,6 +313,8 @@ export class CellRenderer {
     this.container.addChild(this.vignetteLayer)
     this.container.addChild(this.spiralLayer)
     this.container.addChild(this.fogLayer)
+    this.container.addChild(this.focusLayer)
+    this.container.addChild(this.censorLayer)
     this.container.addChild(this.guideLayer)
 
     this.dynamicBackgroundLayer.addChild(this.dynamicBackgroundMask)
@@ -310,6 +336,9 @@ export class CellRenderer {
     this.spiralLayer.addChild(this.spiralGraphics)
 
     this.fogLayer.addChild(this.fogBlobContainer)
+
+    this.censorGraphics = new PIXI.Graphics()
+    this.censorLayer.addChild(this.censorGraphics)
 
     this.particleSystem = new ParticleSystem(this.particleContainer, this.pixiRenderer)
     this.textSystem = new TextSystem(this.textLayer)
@@ -337,6 +366,11 @@ export class CellRenderer {
     this.textSystem.resizeMask(width, height)
     this.positionFlashOverlaySprite()
     if (this.latestEffects) this.updateSpiral(this.latestEffects)
+    if (this.latestEffects) {
+      this.focusBlurLayerKey = null  // force full layer rebuild on resize
+      this.focusMaskKey = null
+      this.updateFocus(this.latestEffects.focus)
+    }
   }
 
   private updateHitArea() {
@@ -456,6 +490,8 @@ export class CellRenderer {
     this.updateZoom(effects.zoom)
     this.updateSquish(effects.squish)
     this.updateFog(effects.fog)
+    this.updateFocus(effects.focus)
+    this.updateCensor(effects)
     this.updateAsset(effects)
     this.updateText(effects)
     this.updatePeripheralGuideOnChange(effects, showCircleGuides)
@@ -694,6 +730,8 @@ export class CellRenderer {
     this.updateShakeAfterimages(delta)
     this.tickSquish(delta, effects.squish)
     this.tickFog(delta, effects.fog)
+    this.tickFocus(delta, effects.focus)
+    this.tickCensor(effects)
     this.syncRadialBlurClones()
     this.syncEchoToImage()
     this.updateFlashCycle(delta)
@@ -728,6 +766,8 @@ export class CellRenderer {
     this.clearFlashOverlay()
     this.clearSquish()
     this.clearFog()
+    this.clearFocus()
+    this.clearCensor()
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.clearSpiralMask()
@@ -898,6 +938,11 @@ export class CellRenderer {
     if (oldSprite) {
       this.imageLayer.removeChild(oldSprite)
       oldSprite.destroy({ texture: false })
+    }
+
+    // テクスチャ更新をフォーカスブラークローンに反映
+    if (this.focusBlurClone) {
+      this.focusBlurClone.texture = sprite?.texture ?? PIXI.Texture.EMPTY
     }
   }
 
@@ -3784,6 +3829,494 @@ export class CellRenderer {
     this.fogInstances = []
     this.fogSpawnAccumulatorSec = 0
     if (resetKey) this.fogKey = null
+  }
+
+  // ===== フォーカスエフェクト =====
+
+  private updateFocus(focus?: FocusEffect) {
+    if (!focus?.enabled) {
+      this.focusLayer.visible = false
+      return
+    }
+    this.focusLayer.visible = true
+    if (!this.imageSprite) return
+
+    // パターン・サイズが変わったときだけレイヤーを再構築
+    const layerKey = [focus.pattern, focus.viewSizeRatio, Math.round(this.width), Math.round(this.height)].join(',')
+    if (this.focusBlurLayerKey !== layerKey) {
+      this.clearFocusBlurLayers()
+      this.buildFocusBlurLayers(focus)
+      this.focusBlurLayerKey = layerKey
+      this.focusMaskKey = null
+    } else {
+      if (this.focusBlurClone) {
+        this.focusBlurClone.texture = this.imageSprite.texture
+        this.copySpriteTransform(this.imageSprite, this.focusBlurClone)
+      }
+    }
+
+    if (this.focusBlurFilter) {
+      this.focusBlurFilter.strength = focus.blurStrength
+    }
+    this.rebuildFocusMask(focus)
+  }
+
+  // imageRootLayer の buildRadialGradientBlur と同方式:
+  // Container(position 0,0)にクローンを入れ、Container 側に filterArea と filters を設定
+  private buildFocusBlurLayers(focus: FocusEffect) {
+    if (!this.imageSprite) return
+    const maskW = Math.max(1, Math.ceil(this.width / 4))
+    const maskH = Math.max(1, Math.ceil(this.height / 4))
+
+    const clone = new PIXI.Sprite(this.imageSprite.texture)
+    clone.anchor.set(0.5)
+    this.copySpriteTransform(this.imageSprite, clone)
+
+    const container = new PIXI.Container()
+    container.addChild(clone)
+
+    const blurFilter = new PIXI.BlurFilter({ strength: focus.blurStrength, quality: 4 })
+
+    const maskCanvas = document.createElement('canvas')
+    maskCanvas.width = maskW
+    maskCanvas.height = maskH
+    this.drawFocusBandMaskToCanvas(maskCanvas, focus.pattern, focus.viewSizeRatio, this.focusCurrentX, this.focusCurrentY)
+
+    const maskTex = PIXI.Texture.from(maskCanvas)
+    this.pixiRenderer.texture.initSource(maskTex.source)
+
+    const maskSprite = new PIXI.Sprite(maskTex)
+    maskSprite.width = this.width
+    maskSprite.height = this.height
+    maskSprite.alpha = 0  // invisible, only used by MaskFilter
+
+    const maskFilter = new PIXI.MaskFilter({ sprite: maskSprite, channel: 'alpha' })
+    container.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    container.filters = [blurFilter, maskFilter]
+
+    this.focusLayer.addChild(container)
+    this.focusLayer.addChild(maskSprite)
+
+    this.focusBlurContainer = container
+    this.focusBlurClone = clone
+    this.focusMaskSprite = maskSprite
+    this.focusMaskCanvas = maskCanvas
+    this.focusBlurFilter = blurFilter
+  }
+
+  private clearFocusBlurLayers() {
+    if (this.focusBlurContainer) {
+      this.focusLayer.removeChild(this.focusBlurContainer)
+      this.focusBlurContainer.destroy({ children: false })
+      this.focusBlurContainer = null
+    }
+    if (this.focusBlurClone) {
+      this.focusBlurClone.destroy({ texture: false })
+      this.focusBlurClone = null
+    }
+    if (this.focusMaskSprite) {
+      this.focusLayer.removeChild(this.focusMaskSprite)
+      this.focusMaskSprite.texture.destroy(true)
+      this.focusMaskSprite.destroy()
+      this.focusMaskSprite = null
+    }
+    this.focusMaskCanvas = null
+    this.focusBlurFilter = null
+    this.focusBlurLayerKey = null
+  }
+
+  private rebuildFocusMask(focus: FocusEffect) {
+    if (!this.focusMaskCanvas || !this.focusMaskSprite) return
+    const cx = this.focusCurrentX
+    const cy = this.focusCurrentY
+    const key = [focus.pattern, cx.toFixed(3), cy.toFixed(3)].join(',')
+    if (key === this.focusMaskKey) return
+    this.focusMaskKey = key
+
+    this.drawFocusBandMaskToCanvas(this.focusMaskCanvas, focus.pattern, focus.viewSizeRatio, cx, cy)
+    this.focusMaskSprite.texture.source.update()
+  }
+
+  // フォーカスバンドマスク: innerRatio 以内は透明(ぼかしなし)、外側は不透明(ぼかし表示)
+  private drawFocusBandMaskToCanvas(
+    canvas: HTMLCanvasElement,
+    pattern: FocusBlurPattern,
+    innerRatio: number,
+    cx: number,
+    cy: number,
+  ): void {
+    const w = canvas.width
+    const h = canvas.height
+    const ctx = canvas.getContext('2d')!
+    const imageData = ctx.createImageData(w, h)
+    const feather = 0.1
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let dist: number
+        if (pattern === 'circular') {
+          const r = Math.max(1, Math.min(w, h) * innerRatio * 0.5)
+          const dx = (x + 0.5) - cx * w
+          const dy = (y + 0.5) - cy * h
+          dist = Math.sqrt((dx / r) ** 2 + (dy / r) ** 2)
+        } else if (pattern === 'horizontal') {
+          const halfBand = Math.max(1, w * innerRatio * 0.5)
+          dist = Math.abs((x + 0.5) - cx * w) / halfBand
+        } else {
+          const halfBand = Math.max(1, h * innerRatio * 0.5)
+          dist = Math.abs((y + 0.5) - cy * h) / halfBand
+        }
+        const alpha = Math.round(smoothstep(1 - feather, 1 + feather, dist) * 255)
+        const idx = (y * w + x) * 4
+        imageData.data[idx] = 255
+        imageData.data[idx + 1] = 255
+        imageData.data[idx + 2] = 255
+        imageData.data[idx + 3] = alpha
+      }
+    }
+    ctx.putImageData(imageData, 0, 0)
+  }
+
+  private tickFocus(delta: number, focus?: FocusEffect) {
+    if (!focus?.enabled) return
+    const waypoints = focus.waypoints
+    if (waypoints.length < 2) {
+      const cx = waypoints.length === 1 ? waypoints[0].x : (this.latestEffects?.effectCenter.x ?? 0.5)
+      const cy = waypoints.length === 1 ? waypoints[0].y : (this.latestEffects?.effectCenter.y ?? 0.5)
+      if (this.focusCurrentX !== cx || this.focusCurrentY !== cy) {
+        this.focusCurrentX = cx
+        this.focusCurrentY = cy
+        this.focusMaskKey = null
+        this.rebuildFocusMask(focus)
+        if (this.focusBlurClone) this.syncFocusBlurClone()
+      }
+      return
+    }
+
+    const durationMs = focus.movementSpeedSec * 1000
+    const deltaMs = delta * (1000 / 60)
+    this.focusWaypointProgress += deltaMs / durationMs
+    if (this.focusWaypointProgress >= 1) {
+      this.focusWaypointProgress -= 1
+      this.focusWaypointIndex = (this.focusWaypointIndex + 1) % waypoints.length
+    }
+    const t = easeInOutSine(Math.min(1, this.focusWaypointProgress))
+    const from = waypoints[this.focusWaypointIndex]
+    const to = waypoints[(this.focusWaypointIndex + 1) % waypoints.length]
+    this.focusCurrentX = from.x + (to.x - from.x) * t
+    this.focusCurrentY = from.y + (to.y - from.y) * t
+
+    this.focusMaskKey = null
+    this.rebuildFocusMask(focus)
+    this.syncFocusBlurClone()
+  }
+
+  private syncFocusBlurClone() {
+    if (!this.focusBlurClone || !this.imageSprite) return
+    this.copySpriteTransform(this.imageSprite, this.focusBlurClone)
+  }
+
+  private clearFocus() {
+    this.clearFocusBlurLayers()
+    this.focusMaskKey = null
+    this.focusCurrentX = 0.5
+    this.focusCurrentY = 0.5
+    this.focusWaypointIndex = 0
+    this.focusWaypointProgress = 0
+  }
+
+  // ===== 検閲エフェクト =====
+
+  private updateCensor(effects: CellEffects) {
+    const censor = effects.censor
+    if (!censor?.enabled) {
+      this.censorGraphics.clear()
+      this.censorLayer.visible = false
+      return
+    }
+    this.censorLayer.visible = true
+    this.drawCensor(effects)
+  }
+
+  private tickCensor(effects: CellEffects) {
+    const censor = effects.censor
+    if (!censor?.enabled) return
+    this.drawCensor(effects)
+  }
+
+  private drawCensor(effects: CellEffects) {
+    const censor = effects.censor
+    this.censorGraphics.clear()
+    const W = this.width
+    const H = this.height
+    const { r, g, b } = censor.color
+    const color = (r << 16) | (g << 8) | b
+
+    // フォーカスエリア連動マスク（canvas グラデーション Sprite）
+    if (censor.linkToFocus) {
+      this.updateCensorFocusMask(effects.focus, W, H)
+    } else {
+      this.removeCensorFocusMask()
+    }
+
+    // フェザー（ブラーフィルター）
+    const feather = censor.feather ?? 0
+    if (feather > 0) {
+      if (!this.censorBlurFilter) {
+        this.censorBlurFilter = new PIXI.BlurFilter()
+        this.censorLayer.filterArea = new PIXI.Rectangle(0, 0, W, H)
+      }
+      this.censorBlurFilter.strength = feather
+      if (!this.censorLayer.filters?.includes(this.censorBlurFilter)) {
+        this.censorLayer.filters = [this.censorBlurFilter]
+      }
+    } else if (this.censorBlurFilter) {
+      this.censorLayer.filters = []
+      this.censorBlurFilter.destroy()
+      this.censorBlurFilter = null
+    }
+
+    for (const rect of censor.rects) {
+      this.censorGraphics
+        .rect(rect.x * W, rect.y * H, rect.w * W, rect.h * H)
+        .fill({ color, alpha: censor.alpha })
+    }
+
+    if (censor.linkToShake && effects.shake?.enabled) {
+      const shake = effects.shake
+      const cx = (this.latestEffects?.effectCenter.x ?? 0.5) * W
+      const cy = (this.latestEffects?.effectCenter.y ?? 0.5) * H
+      const rx = (shake.trailSize ?? 0.7) * Math.min(W, H) / 2
+      const ry = rx * (shake.trailHeight ?? 1)
+      this.censorGraphics
+        .ellipse(cx, cy, rx, ry)
+        .fill({ color, alpha: censor.alpha })
+
+      if (shake.trailDuplicateCirclesEnabled) {
+        const spacingShift = shake.trailDuplicateSpacingShift ?? 0
+        const vertShift = shake.trailDuplicateVerticalSpacingShift ?? 0
+        const dist = rx * (1 + spacingShift)
+        const vOff = ry * vertShift
+        this.censorGraphics
+          .ellipse(cx - dist, cy - vOff, rx, ry)
+          .fill({ color, alpha: censor.alpha })
+        this.censorGraphics
+          .ellipse(cx + dist, cy + vOff, rx, ry)
+          .fill({ color, alpha: censor.alpha })
+      }
+    }
+
+    // テキスト繰り返し
+    if ((censor.textEnabled ?? false) && censor.text && censor.rects.length > 0) {
+      this.updateCensorText(censor, W, H)
+    } else {
+      this.clearCensorText()
+    }
+  }
+
+  private updateCensorText(
+    censor: import('../../shared/types').CensorEffect,
+    W: number,
+    H: number,
+  ) {
+    const textAlpha = censor.textAlpha ?? 0.5
+    const fontSize = censor.textFontSize ?? 14
+    const fontFamily = censor.textFontFamily ?? 'sans-serif'
+    const col = censor.textColor ?? { r: 200, g: 200, b: 200 }
+    const key = [
+      censor.text,
+      fontSize,
+      fontFamily,
+      censor.textBold ? '1' : '0',
+      censor.textItalic ? '1' : '0',
+      col.r, col.g, col.b,
+      W, H,
+      censor.rects.map(r => `${r.x.toFixed(3)},${r.y.toFixed(3)},${r.w.toFixed(3)},${r.h.toFixed(3)}`).join(';'),
+    ].join('|')
+
+    if (key !== this.censorTextLayerKey) {
+      this.censorTextLayerKey = key
+
+      const needsRebuild = !this.censorTextCanvas ||
+        this.censorTextCanvas.width !== W ||
+        this.censorTextCanvas.height !== H
+
+      if (needsRebuild) {
+        if (this.censorTextSprite) {
+          this.censorLayer.removeChild(this.censorTextSprite)
+          this.censorTextSprite.texture.destroy(true)
+          this.censorTextSprite.destroy()
+          this.censorTextSprite = null
+        }
+        if (!this.censorTextCanvas) this.censorTextCanvas = document.createElement('canvas')
+        this.censorTextCanvas.width = W
+        this.censorTextCanvas.height = H
+      }
+
+      const canvas = this.censorTextCanvas!
+      const ctx = canvas.getContext('2d')!
+      ctx.clearRect(0, 0, W, H)
+
+      const bold = (censor.textBold ?? false) ? 'bold ' : ''
+      const italic = (censor.textItalic ?? false) ? 'italic ' : ''
+      ctx.font = `${italic}${bold}${fontSize}px "${fontFamily}"`
+      ctx.textBaseline = 'top'
+      ctx.fillStyle = `rgb(${col.r},${col.g},${col.b})`
+
+      const textW = ctx.measureText(censor.text).width
+      const hSpacing = fontSize * 0.8
+      const vSpacing = fontSize * 0.4
+      const unitW = Math.max(1, textW + hSpacing)
+      const lineH = Math.max(1, fontSize + vSpacing)
+
+      for (const rect of censor.rects) {
+        const rx = Math.round(rect.x * W)
+        const ry = Math.round(rect.y * H)
+        const rw = Math.round(rect.w * W)
+        const rh = Math.round(rect.h * H)
+        if (rw <= 0 || rh <= 0) continue
+
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(rx, ry, rw, rh)
+        ctx.clip()
+
+        const rowStart = Math.floor(ry / lineH) - 1
+        const rowEnd = Math.ceil((ry + rh) / lineH) + 1
+
+        for (let row = rowStart; row <= rowEnd; row++) {
+          const y = row * lineH
+          // 奇数行を半ユニット分ずらしてレンガ状に配置
+          const xOffset = ((row % 2 + 2) % 2) * (unitW / 2)
+          const colStart = Math.floor((rx - xOffset) / unitW) - 1
+          const colEnd = Math.ceil((rx + rw - xOffset) / unitW) + 1
+          for (let col = colStart; col <= colEnd; col++) {
+            ctx.fillText(censor.text, col * unitW + xOffset, y)
+          }
+        }
+
+        ctx.restore()
+      }
+
+      if (!this.censorTextSprite) {
+        const tex = PIXI.Texture.from(canvas)
+        this.pixiRenderer.texture.initSource(tex.source)
+        const sprite = new PIXI.Sprite(tex)
+        sprite.width = W
+        sprite.height = H
+        this.censorLayer.addChild(sprite)
+        this.censorTextSprite = sprite
+      } else {
+        this.censorTextSprite.texture.source.update()
+        this.censorTextSprite.width = W
+        this.censorTextSprite.height = H
+      }
+    }
+
+    if (this.censorTextSprite) {
+      this.censorTextSprite.alpha = textAlpha
+    }
+  }
+
+  private clearCensorText() {
+    if (this.censorTextSprite) {
+      this.censorLayer.removeChild(this.censorTextSprite)
+      this.censorTextSprite.texture.destroy(true)
+      this.censorTextSprite.destroy()
+      this.censorTextSprite = null
+    }
+    this.censorTextCanvas = null
+    this.censorTextLayerKey = null
+  }
+
+  private updateCensorFocusMask(
+    focus: import('../../shared/types').FocusEffect | undefined,
+    W: number,
+    H: number,
+  ) {
+    const maskW = Math.max(1, Math.ceil(W / 4))
+    const maskH = Math.max(1, Math.ceil(H / 4))
+
+    if (!this.censorFocusMaskCanvas) {
+      this.censorFocusMaskCanvas = document.createElement('canvas')
+      this.censorFocusMaskCanvas.width = maskW
+      this.censorFocusMaskCanvas.height = maskH
+    } else if (this.censorFocusMaskCanvas.width !== maskW || this.censorFocusMaskCanvas.height !== maskH) {
+      this.censorFocusMaskCanvas.width = maskW
+      this.censorFocusMaskCanvas.height = maskH
+      // サイズ変更時はスプライトを再作成
+      this.removeCensorFocusMask()
+    }
+
+    const canvas = this.censorFocusMaskCanvas
+    const ctx = canvas.getContext('2d')!
+    ctx.clearRect(0, 0, maskW, maskH)
+
+    if (focus?.enabled && focus.waypoints.length > 0) {
+      const cx = this.focusCurrentX * maskW
+      const cy = this.focusCurrentY * maskH
+
+      if (focus.pattern === 'circular') {
+        const cr = focus.viewSizeRatio * Math.min(maskW, maskH) / 2
+        const featherW = cr * 0.2
+        const innerR = cr          // 円の縁まで完全不透明、外側にのみフェザーをかける
+        const outerR = cr + featherW
+        const grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR)
+        grad.addColorStop(0, 'rgba(255,255,255,1)')
+        grad.addColorStop(1, 'rgba(255,255,255,0)')
+        ctx.fillStyle = grad
+        ctx.fillRect(0, 0, maskW, maskH)
+      } else if (focus.pattern === 'horizontal') {
+        // 'horizontal' パターン = 垂直帯（cx を中心とした列）
+        const halfBand = focus.viewSizeRatio * maskW / 2
+        ctx.fillStyle = 'rgba(255,255,255,1)'
+        ctx.fillRect(Math.max(0, cx - halfBand), 0, Math.min(maskW, halfBand * 2), maskH)
+      } else {
+        // 'vertical' パターン = 水平帯（cy を中心とした行）
+        const halfBand = focus.viewSizeRatio * maskH / 2
+        ctx.fillStyle = 'rgba(255,255,255,1)'
+        ctx.fillRect(0, Math.max(0, cy - halfBand), maskW, Math.min(maskH, halfBand * 2))
+      }
+    }
+    // focus が未設定・無効の場合は canvas が透明のまま → マスクで全て隠れる
+
+    if (!this.censorFocusMask) {
+      const tex = PIXI.Texture.from(canvas)
+      this.pixiRenderer.texture.initSource(tex.source)
+      const sprite = new PIXI.Sprite(tex)
+      sprite.width = W
+      sprite.height = H
+      this.censorLayer.addChild(sprite)
+      this.censorFocusMask = sprite
+      this.censorLayer.mask = sprite
+    } else {
+      this.censorFocusMask.texture.source.update()
+      this.censorFocusMask.width = W
+      this.censorFocusMask.height = H
+    }
+  }
+
+  private removeCensorFocusMask() {
+    if (this.censorFocusMask) {
+      this.censorLayer.mask = null
+      this.censorLayer.removeChild(this.censorFocusMask)
+      this.censorFocusMask.texture.destroy(true)
+      this.censorFocusMask.destroy()
+      this.censorFocusMask = null
+    }
+    this.censorFocusMaskCanvas = null
+  }
+
+  private clearCensor() {
+    this.censorGraphics.clear()
+    this.removeCensorFocusMask()
+    this.clearCensorText()
+    if (this.censorBlurFilter) {
+      this.censorLayer.filters = []
+      this.censorBlurFilter.destroy()
+      this.censorBlurFilter = null
+    }
+    this.censorLayer.visible = false
   }
 
   private getFogCycleDurationMs(fog?: FogEffect) {
