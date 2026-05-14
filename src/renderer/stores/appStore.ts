@@ -5,7 +5,7 @@ import type {
   AppProfile, Cell, CellBaseline, CellEffects, CellFolder, GridLayout,
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
   ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig, ReadingConfigPayload,
-  StashItem, IpcApi,
+  StashItem, IpcApi, FocusEffect, CensorEffect,
 } from '../../shared/types'
 import {
   DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
@@ -260,6 +260,23 @@ export const DEFAULT_EFFECTS: CellEffects = {
     intervalMs: 600,
     direction: 'vertical',
   } satisfies TextEffect,
+  focus: {
+    enabled: false,
+    pattern: 'circular' as const,
+    viewSizeRatio: 0.4,
+    blurStrength: 20,
+    waypoints: [],
+    movementSpeedSec: 3,
+  } satisfies FocusEffect,
+  censor: {
+    enabled: false,
+    rects: [],
+    color: { r: 13, g: 13, b: 13 },
+    alpha: 0.9,
+    linkToFocus: false,
+    linkToFocusRadius: 0.3,
+    linkToShake: false,
+  } satisfies CensorEffect,
 }
 
 export const DEFAULT_TIMER_PRE_OVERLAY: TimerConfig['preOverlay'] = {
@@ -459,6 +476,8 @@ function mergeEffectsWithDefaults(effects: Partial<CellEffects> | undefined): Ce
       getAssetEffectPresetFolderNames(),
     ),
     textEffect: { ...DEFAULT_EFFECTS.textEffect, ...effects?.textEffect },
+    focus: { ...DEFAULT_EFFECTS.focus, ...effects?.focus },
+    censor: { ...DEFAULT_EFFECTS.censor, ...effects?.censor },
   }
 }
 
@@ -547,6 +566,8 @@ export type AppState = {
   spiralRadialPositionPicking: boolean
   squishColorPicking: boolean
   flashRangePicking: boolean
+  focusWaypointPicking: boolean
+  censorRectPicking: boolean
   appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error' } | null
   imageEffectProfiles: Record<string, ImageEffectProfileDocument | null>
   imageEffectProfileAutoApplySuspended: boolean
@@ -624,6 +645,8 @@ export type AppActions = {
   setSpiralRadialPositionPicking: (flag: boolean) => void
   setSquishColorPicking: (flag: boolean) => void
   setFlashRangePicking: (flag: boolean) => void
+  setFocusWaypointPicking: (flag: boolean) => void
+  setCensorRectPicking: (flag: boolean) => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -769,6 +792,8 @@ export const useAppStore = create<AppStore>()(
     spiralRadialPositionPicking: false,
     squishColorPicking: false,
     flashRangePicking: false,
+    focusWaypointPicking: false,
+    censorRectPicking: false,
     appNotification: null,
     imageEffectProfiles: {},
     imageEffectProfileAutoApplySuspended: false,
@@ -1139,6 +1164,8 @@ export const useAppStore = create<AppStore>()(
       if (flag) {
         s.squishColorPicking = false
         s.flashRangePicking = false
+        s.focusWaypointPicking = false
+        s.censorRectPicking = false
       }
     }),
 
@@ -1147,6 +1174,8 @@ export const useAppStore = create<AppStore>()(
       if (flag) {
         s.squishColorPicking = false
         s.flashRangePicking = false
+        s.focusWaypointPicking = false
+        s.censorRectPicking = false
       }
     }),
 
@@ -1156,6 +1185,8 @@ export const useAppStore = create<AppStore>()(
         s.shakeTrailPositionPicking = false
         s.spiralRadialPositionPicking = false
         s.flashRangePicking = false
+        s.focusWaypointPicking = false
+        s.censorRectPicking = false
       }
     }),
 
@@ -1165,6 +1196,30 @@ export const useAppStore = create<AppStore>()(
         s.shakeTrailPositionPicking = false
         s.spiralRadialPositionPicking = false
         s.squishColorPicking = false
+        s.focusWaypointPicking = false
+        s.censorRectPicking = false
+      }
+    }),
+
+    setFocusWaypointPicking: (flag) => set(s => {
+      s.focusWaypointPicking = flag
+      if (flag) {
+        s.shakeTrailPositionPicking = false
+        s.spiralRadialPositionPicking = false
+        s.squishColorPicking = false
+        s.flashRangePicking = false
+        s.censorRectPicking = false
+      }
+    }),
+
+    setCensorRectPicking: (flag) => set(s => {
+      s.censorRectPicking = flag
+      if (flag) {
+        s.shakeTrailPositionPicking = false
+        s.spiralRadialPositionPicking = false
+        s.squishColorPicking = false
+        s.flashRangePicking = false
+        s.focusWaypointPicking = false
       }
     }),
 
@@ -1325,6 +1380,8 @@ export const useAppStore = create<AppStore>()(
               getAssetEffectPresetFolderNames(),
             ),
             textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
+            focus: { ...DEFAULT_EFFECTS.focus, ...cell.effects?.focus },
+            censor: { ...DEFAULT_EFFECTS.censor, ...cell.effects?.censor },
           },
         }))
         s.timer = {
@@ -1426,6 +1483,8 @@ export const useAppStore = create<AppStore>()(
               getAssetEffectPresetFolderNames(),
             ),
             textEffect: { ...DEFAULT_EFFECTS.textEffect, ...cell.effects?.textEffect },
+            focus: { ...DEFAULT_EFFECTS.focus, ...cell.effects?.focus },
+            censor: { ...DEFAULT_EFFECTS.censor, ...cell.effects?.censor },
           },
         }))
         s.timer = {

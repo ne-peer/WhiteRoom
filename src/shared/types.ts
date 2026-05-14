@@ -489,6 +489,39 @@ export function normalizeDynamicAssetEffect(
   }
 }
 
+export type FocusBlurPattern = 'circular' | 'horizontal' | 'vertical'
+
+export type FocusWaypoint = {
+  x: number
+  y: number
+}
+
+export type FocusEffect = {
+  enabled: boolean
+  pattern: FocusBlurPattern
+  viewSizeRatio: number      // clear-center radius; 0.1–1.0
+  blurStrength: number       // BlurFilter strength; 0–100
+  waypoints: FocusWaypoint[] // up to 8; empty = static at effectCenter
+  movementSpeedSec: number   // seconds per waypoint segment
+}
+
+export type CensorRect = {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export type CensorEffect = {
+  enabled: boolean
+  rects: CensorRect[]
+  color: { r: number; g: number; b: number }
+  alpha: number
+  linkToFocus: boolean
+  linkToFocusRadius: number
+  linkToShake: boolean
+}
+
 export type TextEffect = {
   enabled: boolean
   texts: string[]                           // 最大5件
@@ -541,6 +574,8 @@ export type CellEffects = {
   fog: FogEffect
   dynamicAsset: DynamicAssetEffect
   textEffect: TextEffect
+  focus: FocusEffect
+  censor: CensorEffect
 }
 
 // ===== タイマー =====

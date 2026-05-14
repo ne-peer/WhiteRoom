@@ -1,8 +1,9 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, FogEffect, ShakeEffect, SlideShowTransition, SquishEffect, ZoomEffect } from '../../shared/types'
+import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, FogEffect, ShakeEffect, SlideShowTransition, SquishEffect, ZoomEffect, FocusEffect, CensorEffect } from '../../shared/types'
 import {
   createVignetteTexture,
+  createFocusMaskTexture,
   updateColorOverlay,
   ParticleSystem,
   TextSystem,
@@ -116,6 +117,19 @@ export class CellRenderer {
     dropletBlurFilter: PIXI.BlurFilter | null
   }> = []
   private fogSpawnAccumulatorSec = 0
+
+  private focusLayer: PIXI.Container
+  private focusBlurSprite: PIXI.Sprite | null = null
+  private focusMaskSprite: PIXI.Sprite | null = null
+  private focusBlurFilter: PIXI.BlurFilter | null = null
+  private focusMaskKey: string | null = null
+  private focusCurrentX = 0.5
+  private focusCurrentY = 0.5
+  private focusWaypointIndex = 0
+  private focusWaypointProgress = 0
+
+  private censorLayer: PIXI.Container
+  private censorGraphics: PIXI.Graphics
 
   private spiralGraphics: PIXI.Graphics
   private spiralMaskSprite: PIXI.Sprite | null = null
@@ -268,6 +282,8 @@ export class CellRenderer {
     this.spiralLayer = new PIXI.Container()
     this.fogLayer = new PIXI.Container()
     this.fogBlobContainer = new PIXI.Container()
+    this.focusLayer = new PIXI.Container()
+    this.censorLayer = new PIXI.Container()
     this.guideLayer = new PIXI.Container()
     this.dynamicBackgroundMask = new PIXI.Graphics()
     this.imageMask = new PIXI.Graphics()
@@ -289,6 +305,8 @@ export class CellRenderer {
     this.container.addChild(this.vignetteLayer)
     this.container.addChild(this.spiralLayer)
     this.container.addChild(this.fogLayer)
+    this.container.addChild(this.focusLayer)
+    this.container.addChild(this.censorLayer)
     this.container.addChild(this.guideLayer)
 
     this.dynamicBackgroundLayer.addChild(this.dynamicBackgroundMask)
@@ -310,6 +328,9 @@ export class CellRenderer {
     this.spiralLayer.addChild(this.spiralGraphics)
 
     this.fogLayer.addChild(this.fogBlobContainer)
+
+    this.censorGraphics = new PIXI.Graphics()
+    this.censorLayer.addChild(this.censorGraphics)
 
     this.particleSystem = new ParticleSystem(this.particleContainer, this.pixiRenderer)
     this.textSystem = new TextSystem(this.textLayer)
@@ -337,6 +358,10 @@ export class CellRenderer {
     this.textSystem.resizeMask(width, height)
     this.positionFlashOverlaySprite()
     if (this.latestEffects) this.updateSpiral(this.latestEffects)
+    if (this.latestEffects) {
+      this.focusMaskKey = null  // force mask rebuild on resize
+      this.updateFocus(this.latestEffects.focus)
+    }
   }
 
   private updateHitArea() {
@@ -456,6 +481,8 @@ export class CellRenderer {
     this.updateZoom(effects.zoom)
     this.updateSquish(effects.squish)
     this.updateFog(effects.fog)
+    this.updateFocus(effects.focus)
+    this.updateCensor(effects)
     this.updateAsset(effects)
     this.updateText(effects)
     this.updatePeripheralGuideOnChange(effects, showCircleGuides)
@@ -694,6 +721,8 @@ export class CellRenderer {
     this.updateShakeAfterimages(delta)
     this.tickSquish(delta, effects.squish)
     this.tickFog(delta, effects.fog)
+    this.tickFocus(delta, effects.focus)
+    this.tickCensor(effects)
     this.syncRadialBlurClones()
     this.syncEchoToImage()
     this.updateFlashCycle(delta)
@@ -728,6 +757,8 @@ export class CellRenderer {
     this.clearFlashOverlay()
     this.clearSquish()
     this.clearFog()
+    this.clearFocus()
+    this.clearCensor()
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.clearSpiralMask()
@@ -898,6 +929,11 @@ export class CellRenderer {
     if (oldSprite) {
       this.imageLayer.removeChild(oldSprite)
       oldSprite.destroy({ texture: false })
+    }
+
+    // テクスチャ更新をフォーカスブラースプライトに反映
+    if (this.focusBlurSprite) {
+      this.focusBlurSprite.texture = sprite?.texture ?? PIXI.Texture.EMPTY
     }
   }
 
@@ -3784,6 +3820,202 @@ export class CellRenderer {
     this.fogInstances = []
     this.fogSpawnAccumulatorSec = 0
     if (resetKey) this.fogKey = null
+  }
+
+  // ===== フォーカスエフェクト =====
+
+  private updateFocus(focus?: FocusEffect) {
+    if (!focus?.enabled) {
+      this.focusLayer.visible = false
+      return
+    }
+    this.focusLayer.visible = true
+
+    if (!this.imageSprite) return
+
+    // ぼかしスプライトがなければ作成
+    if (!this.focusBlurSprite) {
+      this.focusBlurSprite = new PIXI.Sprite(this.imageSprite.texture)
+      this.focusBlurSprite.anchor.set(0.5)
+      this.focusBlurFilter = new PIXI.BlurFilter()
+      this.focusBlurSprite.filters = [this.focusBlurFilter]
+      this.focusLayer.addChild(this.focusBlurSprite)
+    } else {
+      this.focusBlurSprite.texture = this.imageSprite.texture
+    }
+
+    // スプライト位置・サイズを imageLayer に合わせる
+    this.focusBlurSprite.x = this.imageSprite.x
+    this.focusBlurSprite.y = this.imageSprite.y
+    this.focusBlurSprite.width = this.imageSprite.width
+    this.focusBlurSprite.height = this.imageSprite.height
+    this.focusBlurSprite.scale.copyFrom(this.imageSprite.scale)
+
+    // ブラー強度更新
+    if (this.focusBlurFilter) {
+      this.focusBlurFilter.strength = focus.blurStrength
+    }
+
+    this.rebuildFocusMask(focus)
+  }
+
+  private rebuildFocusMask(focus: FocusEffect) {
+    const cx = this.focusCurrentX
+    const cy = this.focusCurrentY
+    const key = [focus.pattern, focus.viewSizeRatio, cx.toFixed(3), cy.toFixed(3), this.width, this.height].join(',')
+    if (key === this.focusMaskKey) return
+    this.focusMaskKey = key
+
+    const tex = createFocusMaskTexture(focus.pattern, focus.viewSizeRatio, cx, cy, this.width, this.height)
+
+    if (this.focusMaskSprite) {
+      this.focusMaskSprite.texture.destroy(true)
+      this.focusMaskSprite.texture = tex
+    } else {
+      this.focusMaskSprite = new PIXI.Sprite(tex)
+      this.focusMaskSprite.x = 0
+      this.focusMaskSprite.y = 0
+      this.focusLayer.addChild(this.focusMaskSprite)
+      if (this.focusBlurSprite) this.focusBlurSprite.mask = this.focusMaskSprite
+    }
+    this.focusMaskSprite.width = this.width
+    this.focusMaskSprite.height = this.height
+  }
+
+  private tickFocus(delta: number, focus?: FocusEffect) {
+    if (!focus?.enabled) return
+    const waypoints = focus.waypoints
+    if (waypoints.length < 2) {
+      const cx = waypoints.length === 1 ? waypoints[0].x : (this.latestEffects?.effectCenter.x ?? 0.5)
+      const cy = waypoints.length === 1 ? waypoints[0].y : (this.latestEffects?.effectCenter.y ?? 0.5)
+      if (this.focusCurrentX !== cx || this.focusCurrentY !== cy) {
+        this.focusCurrentX = cx
+        this.focusCurrentY = cy
+        this.focusMaskKey = null
+        this.rebuildFocusMask(focus)
+        if (this.focusBlurSprite) this.syncFocusBlurSpriteToImage()
+      }
+      return
+    }
+
+    const durationMs = focus.movementSpeedSec * 1000
+    const deltaMs = delta * (1000 / 60)
+    this.focusWaypointProgress += deltaMs / durationMs
+    if (this.focusWaypointProgress >= 1) {
+      this.focusWaypointProgress -= 1
+      this.focusWaypointIndex = (this.focusWaypointIndex + 1) % waypoints.length
+    }
+    const t = easeInOutSine(Math.min(1, this.focusWaypointProgress))
+    const from = waypoints[this.focusWaypointIndex]
+    const to = waypoints[(this.focusWaypointIndex + 1) % waypoints.length]
+    this.focusCurrentX = from.x + (to.x - from.x) * t
+    this.focusCurrentY = from.y + (to.y - from.y) * t
+
+    this.focusMaskKey = null
+    this.rebuildFocusMask(focus)
+    this.syncFocusBlurSpriteToImage()
+  }
+
+  private syncFocusBlurSpriteToImage() {
+    if (!this.focusBlurSprite || !this.imageSprite) return
+    this.focusBlurSprite.x = this.imageSprite.x
+    this.focusBlurSprite.y = this.imageSprite.y
+    this.focusBlurSprite.width = this.imageSprite.width
+    this.focusBlurSprite.height = this.imageSprite.height
+    this.focusBlurSprite.scale.copyFrom(this.imageSprite.scale)
+  }
+
+  private clearFocus() {
+    if (this.focusBlurSprite) {
+      if (this.focusMaskSprite) {
+        this.focusBlurSprite.mask = null
+      }
+      this.focusLayer.removeChild(this.focusBlurSprite)
+      this.focusBlurSprite.destroy()
+      this.focusBlurSprite = null
+    }
+    if (this.focusMaskSprite) {
+      this.focusLayer.removeChild(this.focusMaskSprite)
+      this.focusMaskSprite.texture.destroy(true)
+      this.focusMaskSprite.destroy()
+      this.focusMaskSprite = null
+    }
+    this.focusBlurFilter = null
+    this.focusMaskKey = null
+    this.focusCurrentX = 0.5
+    this.focusCurrentY = 0.5
+    this.focusWaypointIndex = 0
+    this.focusWaypointProgress = 0
+  }
+
+  // ===== 検閲エフェクト =====
+
+  private updateCensor(effects: CellEffects) {
+    const censor = effects.censor
+    if (!censor?.enabled) {
+      this.censorGraphics.clear()
+      this.censorLayer.visible = false
+      return
+    }
+    this.censorLayer.visible = true
+    this.drawCensor(effects)
+  }
+
+  private tickCensor(effects: CellEffects) {
+    const censor = effects.censor
+    if (!censor?.enabled) return
+    this.drawCensor(effects)
+  }
+
+  private drawCensor(effects: CellEffects) {
+    const censor = effects.censor
+    this.censorGraphics.clear()
+    const W = this.width
+    const H = this.height
+    const { r, g, b } = censor.color
+    const color = (r << 16) | (g << 8) | b
+    const focusCX = this.focusCurrentX
+    const focusCY = this.focusCurrentY
+
+    for (const rect of censor.rects) {
+      if (censor.linkToFocus) {
+        const dx = (rect.x + rect.w / 2) - focusCX
+        const dy = (rect.y + rect.h / 2) - focusCY
+        if (Math.sqrt(dx * dx + dy * dy) > censor.linkToFocusRadius) continue
+      }
+      this.censorGraphics
+        .rect(rect.x * W, rect.y * H, rect.w * W, rect.h * H)
+        .fill({ color, alpha: censor.alpha })
+    }
+
+    if (censor.linkToShake && effects.shake?.enabled) {
+      const shake = effects.shake
+      const cx = (this.latestEffects?.effectCenter.x ?? 0.5) * W
+      const cy = (this.latestEffects?.effectCenter.y ?? 0.5) * H
+      const rx = (shake.trailSize ?? 0.7) * Math.min(W, H) / 2
+      const ry = rx * (shake.trailHeight ?? 1)
+      this.censorGraphics
+        .ellipse(cx, cy, rx, ry)
+        .fill({ color, alpha: censor.alpha })
+
+      if (shake.trailDuplicateCirclesEnabled) {
+        const spacingShift = shake.trailDuplicateSpacingShift ?? 0
+        const vertShift = shake.trailDuplicateVerticalSpacingShift ?? 0
+        const dist = rx * (1 + spacingShift)
+        const vOff = ry * vertShift
+        this.censorGraphics
+          .ellipse(cx - dist, cy - vOff, rx, ry)
+          .fill({ color, alpha: censor.alpha })
+        this.censorGraphics
+          .ellipse(cx + dist, cy + vOff, rx, ry)
+          .fill({ color, alpha: censor.alpha })
+      }
+    }
+  }
+
+  private clearCensor() {
+    this.censorGraphics.clear()
+    this.censorLayer.visible = false
   }
 
   private getFogCycleDurationMs(fog?: FogEffect) {

@@ -13,6 +13,7 @@ import {
   type DynamicAssetSutTipMode,
   type FlashDisplayFileMode,
   type RippleMovePattern,
+  type FocusBlurPattern,
 } from '../../../shared/types'
 import { formatRasterSourceListingExtensionsForTooltip, isSutFilename } from '../../../shared/rasterSourceExtensions'
 
@@ -269,6 +270,23 @@ const EFFECT_PRESET_1: CellEffects = {
     repeatIntervalSec: 1.5,
     randomPositionEnabled: false,
   },
+  focus: {
+    enabled: false,
+    pattern: 'circular' as const,
+    viewSizeRatio: 0.4,
+    blurStrength: 20,
+    waypoints: [],
+    movementSpeedSec: 3,
+  },
+  censor: {
+    enabled: false,
+    rects: [],
+    color: { r: 13, g: 13, b: 13 },
+    alpha: 0.9,
+    linkToFocus: false,
+    linkToFocusRadius: 0.3,
+    linkToShake: false,
+  },
 }
 
 const EFFECT_PRESET_2: CellEffects = {
@@ -498,6 +516,23 @@ const EFFECT_PRESET_2: CellEffects = {
     repeatIntervalSec: 1.5,
     randomPositionEnabled: false,
   },
+  focus: {
+    enabled: false,
+    pattern: 'circular' as const,
+    viewSizeRatio: 0.4,
+    blurStrength: 20,
+    waypoints: [],
+    movementSpeedSec: 3,
+  },
+  censor: {
+    enabled: false,
+    rects: [],
+    color: { r: 13, g: 13, b: 13 },
+    alpha: 0.9,
+    linkToFocus: false,
+    linkToFocusRadius: 0.3,
+    linkToShake: false,
+  },
 }
 
 export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
@@ -522,6 +557,10 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setSquishColorPicking,
     flashRangePicking,
     setFlashRangePicking,
+    focusWaypointPicking,
+    setFocusWaypointPicking,
+    censorRectPicking,
+    setCensorRectPicking,
     syncZoomSquish,
   } = useAppStore()
   const { language, t } = useTranslation()
@@ -1242,6 +1281,87 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   />
                 </Row>
               </>
+            )}
+          </>
+        )}
+      </Section>
+
+      <Section title={t('focusEffect')} titleColor="#82b0ff">
+        <Row label={t('enabled')}>
+          <Toggle value={effects.focus.enabled} onChange={v => set('focus', { enabled: v })} />
+        </Row>
+        {effects.focus.enabled && (
+          <>
+            <Row label={t('focusBlurPattern')}>
+              <Select
+                value={effects.focus.pattern}
+                options={[
+                  { value: 'circular', label: t('focusBlurPatternCircular') },
+                  { value: 'horizontal', label: t('focusBlurPatternHorizontal') },
+                  { value: 'vertical', label: t('focusBlurPatternVertical') },
+                ]}
+                onChange={v => set('focus', { pattern: v as FocusBlurPattern })}
+              />
+            </Row>
+            <Row label={t('focusViewSize')}>
+              <Slider
+                value={Math.round(effects.focus.viewSizeRatio * 100)}
+                min={10}
+                max={100}
+                onChange={v => set('focus', { viewSizeRatio: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label={t('focusBlurStrength')}>
+              <Slider
+                value={effects.focus.blurStrength}
+                min={0}
+                max={100}
+                onChange={v => set('focus', { blurStrength: v })}
+              />
+            </Row>
+            <Row label={t('focusWaypoints')}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                {effects.focus.waypoints.length} {t('focusWaypointCount')}
+              </span>
+            </Row>
+            {effects.focus.waypoints.length > 0 && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
+                {effects.focus.waypoints.map((wp, i) => (
+                  <div key={i}>{'①②③④⑤⑥⑦⑧'[i]} {wp.x.toFixed(2)}, {wp.y.toFixed(2)}</div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <Button
+                variant="secondary"
+                onClick={() => setFocusWaypointPicking(true)}
+                disabled={focusWaypointPicking || effects.focus.waypoints.length >= 8}
+              >
+                {focusWaypointPicking ? t('focusWaypointPickActive') : t('focusWaypointAddButton')}
+              </Button>
+              {effects.focus.waypoints.length > 0 && (
+                <Button variant="secondary" onClick={() => set('focus', { waypoints: [] })}>
+                  {t('focusWaypointClear')}
+                </Button>
+              )}
+            </div>
+            {focusWaypointPicking && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,180,0.7)', marginBottom: 6 }}>
+                {t('focusWaypointPickHint')} / {t('focusWaypointPickTip')}
+              </div>
+            )}
+            {effects.focus.waypoints.length >= 2 && (
+              <Row label={t('focusMoveSpeed')}>
+                <Slider
+                  value={effects.focus.movementSpeedSec}
+                  min={0.5}
+                  max={30}
+                  step={0.5}
+                  onChange={v => set('focus', { movementSpeedSec: v })}
+                  unit={t('focusMoveSpeedUnit')}
+                />
+              </Row>
             )}
           </>
         )}
@@ -3006,6 +3126,88 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 />
               </Row>
             </div>
+          </>
+        )}
+      </Section>
+
+      <Section title={t('censorEffect')} titleColor="#b070f8">
+        <Row label={t('enabled')}>
+          <Toggle value={effects.censor.enabled} onChange={v => set('censor', { enabled: v })} />
+        </Row>
+        {effects.censor.enabled && (
+          <>
+            <Row label={t('censorFilterType')}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{t('censorFilterTypeColor')}</span>
+            </Row>
+            <ColorPicker
+              r={effects.censor.color.r}
+              g={effects.censor.color.g}
+              b={effects.censor.color.b}
+              onChange={(r, g, b) => set('censor', { color: { r, g, b } })}
+            />
+            <Row label={t('censorAlpha')}>
+              <Slider
+                value={Math.round(effects.censor.alpha * 100)}
+                min={0}
+                max={100}
+                onChange={v => set('censor', { alpha: v / 100 })}
+                unit="%"
+              />
+            </Row>
+            <Row label={t('censorAreas')}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                {effects.censor.rects.length}
+              </span>
+            </Row>
+            {effects.censor.rects.length > 0 && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
+                {effects.censor.rects.map((r, i) => (
+                  <div key={i}>{'①②③④⑤⑥⑦⑧⑨⑩'[i] ?? `${i+1}`} x:{r.x.toFixed(2)} y:{r.y.toFixed(2)} w:{r.w.toFixed(2)} h:{r.h.toFixed(2)}</div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <Button
+                variant="secondary"
+                onClick={() => setCensorRectPicking(true)}
+                disabled={censorRectPicking}
+              >
+                {censorRectPicking ? t('censorPickActive') : t('censorAddArea')}
+              </Button>
+              {effects.censor.rects.length > 0 && (
+                <Button variant="secondary" onClick={() => set('censor', { rects: [] })}>
+                  {t('censorClear')}
+                </Button>
+              )}
+            </div>
+            {censorRectPicking && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,180,0.7)', marginBottom: 6 }}>
+                {t('censorPickHint')} / {t('censorPickTip')}
+              </div>
+            )}
+            <Row label={t('censorLinkToFocus')}>
+              <Toggle
+                value={effects.censor.linkToFocus}
+                onChange={v => set('censor', { linkToFocus: v })}
+              />
+            </Row>
+            {effects.censor.linkToFocus && (
+              <Row label={t('censorLinkToFocusRadius')}>
+                <Slider
+                  value={Math.round(effects.censor.linkToFocusRadius * 100)}
+                  min={10}
+                  max={100}
+                  onChange={v => set('censor', { linkToFocusRadius: v / 100 })}
+                  unit="%"
+                />
+              </Row>
+            )}
+            <Row label={t('censorLinkToShake')}>
+              <Toggle
+                value={effects.censor.linkToShake}
+                onChange={v => set('censor', { linkToShake: v })}
+              />
+            </Row>
           </>
         )}
       </Section>
