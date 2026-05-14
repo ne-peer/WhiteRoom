@@ -174,8 +174,8 @@ export class ParticleSystem {
     const isEmergence = (pattern ?? 'rising') === 'emergence'
     const isRipple = (pattern ?? 'rising') === 'ripple'
 
-    // 周辺のみモード: 除外円の半径を事前計算（無効時は 0 / ripple は中心spawn なので常に 0）
-    const peripheralExcludeRadius = (!isRipple && effects.dynamicAsset.peripheralOnlyEnabled)
+    // 非表示エリア: 除外円の半径を事前計算（0 のとき全域有効 / ripple は spawn 側で処理）
+    const peripheralExcludeRadius = !isRipple
       ? clamp(effects.dynamicAsset.peripheralOnlyRadius, 0, 1) * Math.min(canvasWidth, canvasHeight) / 2
       : 0
 
@@ -263,13 +263,9 @@ export class ParticleSystem {
         const angle = Math.random() * Math.PI * 2
         const cx = canvasWidth / 2
         const cy = canvasHeight / 2
-        let spawnX = cx
-        let spawnY = cy
-        if (effects.dynamicAsset.peripheralOnlyEnabled) {
-          const r = clamp(effects.dynamicAsset.peripheralOnlyRadius, 0, 1) * Math.min(canvasWidth, canvasHeight) / 2
-          spawnX = cx + Math.cos(angle) * r
-          spawnY = cy + Math.sin(angle) * r
-        }
+        const rippleR = clamp(effects.dynamicAsset.peripheralOnlyRadius, 0, 1) * Math.min(canvasWidth, canvasHeight) / 2
+        const spawnX = cx + Math.cos(angle) * rippleR
+        const spawnY = cy + Math.sin(angle) * rippleR
         const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
         const scale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
         const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)

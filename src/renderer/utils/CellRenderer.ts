@@ -2169,7 +2169,6 @@ export class CellRenderer {
   // ===== 周辺のみ ビジュアライザ =====
 
   private updatePeripheralGuideOnChange(effects: CellEffects, showCircleGuides: boolean) {
-    if (!effects.dynamicAsset.peripheralOnlyEnabled) return
     const r = effects.dynamicAsset.peripheralOnlyRadius
     const key = `${this.width}_${this.height}_${r}`
     if (showCircleGuides && this.peripheralGuideKey !== null && this.peripheralGuideKey !== key) {

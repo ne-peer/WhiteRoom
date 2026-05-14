@@ -407,9 +407,7 @@ export type DynamicAssetEffect = {
   rasterColorInvertEnabled: boolean
   /** `sourceKind === 'raster'` かつ `.sut` を含むとき、複数ティップをどうテクスチャプールに載せるか */
   sutTipMode: DynamicAssetSutTipMode
-  /** true のとき、中心円の外側にのみエフェクトを描画する */
-  peripheralOnlyEnabled: boolean
-  /** 周辺のみモードの除外円半径。0–1（1 = min(w,h)/2 に相当） */
+  /** 非表示エリアの半径。0 で無効（全域描画）、0–1（1 = min(w,h)/2 に相当） */
   peripheralOnlyRadius: number
   /** ripple パターンの移動イージング */
   rippleMovePattern: RippleMovePattern
