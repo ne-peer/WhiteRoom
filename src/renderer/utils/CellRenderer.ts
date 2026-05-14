@@ -132,6 +132,7 @@ export class CellRenderer {
 
   private censorLayer: PIXI.Container
   private censorGraphics: PIXI.Graphics
+  private censorFocusMask: PIXI.Graphics | null = null
 
   private spiralGraphics: PIXI.Graphics
   private spiralMaskSprite: PIXI.Sprite | null = null
@@ -4045,15 +4046,34 @@ export class CellRenderer {
     const H = this.height
     const { r, g, b } = censor.color
     const color = (r << 16) | (g << 8) | b
-    const focusCX = this.focusCurrentX
-    const focusCY = this.focusCurrentY
+
+    if (censor.linkToFocus) {
+      if (!this.censorFocusMask) {
+        this.censorFocusMask = new PIXI.Graphics()
+        this.censorLayer.addChild(this.censorFocusMask)
+      }
+      this.censorFocusMask.clear()
+      const focus = effects.focus
+      if (focus?.enabled && focus.waypoints.length > 0) {
+        const cx = this.focusCurrentX * W
+        const cy = this.focusCurrentY * H
+        if (focus.pattern === 'circular') {
+          const cr = focus.viewSizeRatio * Math.min(W, H) / 2
+          this.censorFocusMask.circle(cx, cy, cr).fill(0xffffff)
+        } else if (focus.pattern === 'horizontal') {
+          const halfBand = focus.viewSizeRatio * W / 2
+          this.censorFocusMask.rect(cx - halfBand, 0, halfBand * 2, H).fill(0xffffff)
+        } else {
+          const halfBand = focus.viewSizeRatio * H / 2
+          this.censorFocusMask.rect(0, cy - halfBand, W, halfBand * 2).fill(0xffffff)
+        }
+      }
+      this.censorLayer.mask = this.censorFocusMask
+    } else {
+      this.removeCensorFocusMask()
+    }
 
     for (const rect of censor.rects) {
-      if (censor.linkToFocus) {
-        const dx = (rect.x + rect.w / 2) - focusCX
-        const dy = (rect.y + rect.h / 2) - focusCY
-        if (Math.sqrt(dx * dx + dy * dy) > censor.linkToFocusRadius) continue
-      }
       this.censorGraphics
         .rect(rect.x * W, rect.y * H, rect.w * W, rect.h * H)
         .fill({ color, alpha: censor.alpha })
@@ -4084,8 +4104,18 @@ export class CellRenderer {
     }
   }
 
+  private removeCensorFocusMask() {
+    if (this.censorFocusMask) {
+      this.censorLayer.mask = null
+      this.censorLayer.removeChild(this.censorFocusMask)
+      this.censorFocusMask.destroy()
+      this.censorFocusMask = null
+    }
+  }
+
   private clearCensor() {
     this.censorGraphics.clear()
+    this.removeCensorFocusMask()
     this.censorLayer.visible = false
   }
 

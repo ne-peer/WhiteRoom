@@ -963,6 +963,30 @@ export const MasterCanvas: React.FC = () => {
           </div>
         </div>
       )}
+      {focusWaypointPicking && pickModeColumn !== null && (() => {
+        const colCells = cells.filter(c => c.col === pickModeColumn)
+        const cellW = grid.cols > 0 ? canvasSize.width / grid.cols : 0
+        const cellH = grid.rows > 0 ? canvasSize.height / grid.rows : 0
+        const markers: React.ReactNode[] = []
+        for (const cell of colCells) {
+          const waypoints = cell.effects.focus.waypoints
+          if (!waypoints.length) continue
+          const cellLeft = cell.col * cellW
+          const cellTop = cell.row * cellH
+          waypoints.forEach((wp, i) => {
+            markers.push(
+              <div
+                key={`${cell.id}-wp-${i}`}
+                className={styles.focusWaypointMarker}
+                style={{ left: cellLeft + wp.x * cellW, top: cellTop + wp.y * cellH }}
+              >
+                {i + 1}
+              </div>
+            )
+          })
+        }
+        return markers.length > 0 ? <>{markers}</> : null
+      })()}
       {flashRangePicking && flashRangeColumnBounds && (
         <div className={styles.pickUiLayer} style={flashRangeColumnBounds}>
           <div className={styles.pickHint}>
