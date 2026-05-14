@@ -170,11 +170,21 @@ For the stash feature, read `docs/WR-Stash.md` before implementation.
 - Maximum 15 stash slots; minimum 3 rows displayed.
 - Stash window is opened with the `[s]` shortcut (panel top-left at last mouse position, clamped to viewport), by **right-button long press (400 ms)** on the image grid (anchor = press-down position; disabled during `[p]` center pick mode and squish color picking), or by hovering the collapsed stash icon in the top-left corner.
 
+## Effect Specs
+
+Individual effect specifications live under `docs/effects/`. Read the relevant file before implementing or modifying an effect.
+
+| File | Effect |
+|---|---|
+| [`docs/effects/WR-FocusEffect.md`](docs/effects/WR-FocusEffect.md) | Focus Effect (peripheral blur + waypoint animation) |
+| [`docs/effects/WR-CensorEffect.md`](docs/effects/WR-CensorEffect.md) | Censor Effect (rectangular color bars, focus/shake link) |
+
 ## Documentation Workflow
 
 When a new feature is added to this work instruction file, ask whether a feature specification should also be created under `docs/`.
 
-- Use the filename pattern `docs/WR-{FeatureName}.md`.
+- Use the filename pattern `docs/WR-{FeatureName}.md` for general features.
+- Use `docs/effects/WR-{EffectName}.md` for effect specifications.
 - If the feature details are already complete in this file, migrating them directly into the docs file is acceptable.
 - Keep this file as the quick reference and the docs file as the canonical feature specification.
 
