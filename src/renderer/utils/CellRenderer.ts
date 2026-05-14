@@ -4134,7 +4134,7 @@ export class CellRenderer {
       if (focus.pattern === 'circular') {
         const cr = focus.viewSizeRatio * Math.min(maskW, maskH) / 2
         const featherW = cr * 0.2
-        const innerR = Math.max(0, cr - featherW)
+        const innerR = cr          // 円の縁まで完全不透明、外側にのみフェザーをかける
         const outerR = cr + featherW
         const grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR)
         grad.addColorStop(0, 'rgba(255,255,255,1)')
