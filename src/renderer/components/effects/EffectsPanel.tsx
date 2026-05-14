@@ -1920,6 +1920,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 options={[
                   { value: 'rising', label: t('assetPatternRising') },
                   { value: 'emergence', label: t('assetPatternEmergence') },
+                  { value: 'ripple', label: t('assetPatternRipple') },
                 ]}
                 onChange={v =>
                   set('dynamicAsset', {
@@ -1932,7 +1933,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   })}
               />
             </Row>
-            {dynamicAssetPattern === 'rising' && (
+            {(dynamicAssetPattern === 'rising' || dynamicAssetPattern === 'ripple') && (
               <Row label={t('riseSpeedFactor')}>
                 <Slider
                   value={effects.dynamicAsset.riseSpeedFactor ?? 1}

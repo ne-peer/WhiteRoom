@@ -69,6 +69,10 @@ export function applyBlurFilter(
 const EMERGENCE_PHASE1_MS = 600   // 高速拡大フェーズ
 const EMERGENCE_PHASE2_MS = 1400  // 緩慢拡大＋フェードアウトフェーズ
 
+// rippleパターン定数
+const RIPPLE_BASE_DURATION_MS = 2000  // 1x 速度でのフェードアウト総時間
+const RIPPLE_BASE_SPEED = 2           // px/frame（60fps 基準）の外周方向速度
+
 // ===== パーティクル（動的アセット）管理 =====
 export class ParticleSystem {
   private particles: AssetParticle[] = []
@@ -146,9 +150,10 @@ export class ParticleSystem {
     const rawBaseAlpha = clamp(baseAlpha, 0, 1)
     const assetBaseAlpha = (effects.dynamicAsset.alphaTimerSync) ? rawBaseAlpha * this.timerProgress : rawBaseAlpha
     const isEmergence = (pattern ?? 'rising') === 'emergence'
+    const isRipple = (pattern ?? 'rising') === 'ripple'
 
-    // 周辺のみモード: 除外円の半径を事前計算（無効時は 0）
-    const peripheralExcludeRadius = effects.dynamicAsset.peripheralOnlyEnabled
+    // 周辺のみモード: 除外円の半径を事前計算（無効時は 0 / ripple は中心spawn なので常に 0）
+    const peripheralExcludeRadius = (!isRipple && effects.dynamicAsset.peripheralOnlyEnabled)
       ? clamp(effects.dynamicAsset.peripheralOnlyRadius, 0, 1) * Math.min(canvasWidth, canvasHeight) / 2
       : 0
 
@@ -227,6 +232,68 @@ export class ParticleSystem {
             this.sprites.set(p.id, sprite)
           }
         }
+      } else if (isRipple) {
+        // 波紋パターン: 中心から外周方向にランダム角度で移動、easeInSine でフェードアウト
+        const rippleSpeedFactor = clamp(effects.dynamicAsset.riseSpeedFactor ?? 1, 0.1, 5)
+        const speed = RIPPLE_BASE_SPEED * rippleSpeedFactor
+        const angle = Math.random() * Math.PI * 2
+        const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
+        const scale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
+        const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
+        const p: AssetParticle = {
+          id: `p-${nowMs}-${Math.random()}`,
+          assetPath: effects.dynamicAsset.assetPath ?? '',
+          x: canvasWidth / 2,
+          y: canvasHeight / 2,
+          alpha: assetBaseAlpha,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          startTime: nowMs,
+          particleTint,
+          rotationRad,
+          rippleDurationMs: RIPPLE_BASE_DURATION_MS / rippleSpeedFactor,
+        }
+        this.particles.push(p)
+
+        if (useVector) {
+          const visual = this.createVectorParticleDisplay(
+            effects.dynamicAsset.vectorPresetId!,
+            particleTint,
+            effects.dynamicAsset.featherStrength ?? 0
+          )
+          if (visual) {
+            visual.x = p.x
+            visual.y = p.y
+            visual.alpha = p.alpha
+            visual.rotation = p.rotationRad
+            visual.scale.set(scale)
+            this.container.addChild(visual)
+            if (visual instanceof PIXI.Sprite) {
+              this.sprites.set(p.id, visual)
+            } else {
+              this.vectorHolders.set(p.id, visual)
+            }
+          } else {
+            this.particles.pop()
+          }
+        } else {
+          const sprite = new PIXI.Sprite(
+            this.resolveRasterTexture(
+              randomTexture(this.textures),
+              effects.dynamicAsset.featherStrength ?? 0,
+              rasterInvert,
+            ),
+          )
+          sprite.anchor.set(0.5)
+          sprite.x = p.x
+          sprite.y = p.y
+          sprite.alpha = p.alpha
+          sprite.rotation = p.rotationRad
+          sprite.scale.set(scale)
+          sprite.tint = particleTint
+          this.container.addChild(sprite)
+          this.sprites.set(p.id, sprite)
+        }
       } else {
         // 上昇パターン: 表示サイズ × 設定された ±% 範囲
         const spawnPos = sampleSpawnPosition(
@@ -300,7 +367,41 @@ export class ParticleSystem {
       const holder = this.vectorHolders.get(p.id)
       const visual = sprite ?? holder
 
-      if (p.baseScale !== undefined) {
+      if (p.rippleDurationMs !== undefined) {
+        // 波紋パターンの更新
+        const elapsed = nowMs - p.startTime
+        const t = Math.min(1, elapsed / p.rippleDurationMs)
+        // easeInSine: 1 - cos(t * π/2) → 序盤ゆっくり、終盤急速にフェードアウト
+        const eased = 1 - Math.cos((t * Math.PI) / 2)
+        const currentAlpha = p.alpha * (1 - eased)
+
+        if (t >= 1) {
+          if (visual) {
+            this.container.removeChild(visual)
+            visual.destroy({ children: true })
+          }
+          this.sprites.delete(p.id)
+          this.vectorHolders.delete(p.id)
+          return false
+        }
+
+        // 位置を外周方向へ移動
+        p.x += (p.vx ?? 0) * delta
+        p.y += p.vy * delta
+
+        if (visual) {
+          visual.alpha = currentAlpha
+          applyAssetAdditionalEffect(
+            visual,
+            p,
+            effects.dynamicAsset.additionalEffect ?? 'none',
+            effects.dynamicAsset.additionalEffectSpeedFactor ?? 1,
+            elapsed
+          )
+          if (sprite) sprite.tint = p.particleTint
+          else if (holder) holder.tint = p.particleTint
+        }
+      } else if (p.baseScale !== undefined) {
         // 発生パターンの更新
         const elapsed = nowMs - p.startTime
         const totalDuration = (p.phase1DurationMs ?? EMERGENCE_PHASE1_MS) + (p.phase2DurationMs ?? EMERGENCE_PHASE2_MS)

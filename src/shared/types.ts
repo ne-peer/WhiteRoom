@@ -329,7 +329,7 @@ export type FogEffect = {
   randomPositionEnabled: boolean
 }
 
-export type AssetDrawPattern = 'rising' | 'emergence'
+export type AssetDrawPattern = 'rising' | 'emergence' | 'ripple'
 export type DynamicAssetAdditionalEffect = 'none' | 'jiggle' | 'bounce' | 'wiggle'
 
 /** `.sut` に複数ティップがあるときのプール化（アセットエフェクトのラスタのみ）。 */
@@ -346,7 +346,8 @@ export type AssetParticle = {
   x: number
   y: number
   alpha: number
-  vy: number  // 上昇速度（risingパターン用）
+  vy: number  // 上昇速度（rising）/ y 方向速度（ripple）
+  vx?: number // x 方向速度（rippleパターン用）
   startTime: number
   /** スポーン時に固定（アセット色・ランダム適用度をパーティクル存続中も一定に保つ） */
   particleTint: number
@@ -355,6 +356,8 @@ export type AssetParticle = {
   baseScale?: number
   phase1DurationMs?: number
   phase2DurationMs?: number
+  // rippleパターン用フィールド
+  rippleDurationMs?: number
 }
 
 export type DynamicAssetEffect = {
