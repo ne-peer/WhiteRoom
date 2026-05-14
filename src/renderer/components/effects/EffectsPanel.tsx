@@ -284,6 +284,14 @@ const EFFECT_PRESET_1: CellEffects = {
     color: { r: 13, g: 13, b: 13 },
     alpha: 0.9,
     feather: 0,
+    textEnabled: false,
+    text: '',
+    textFontFamily: 'sans-serif',
+    textFontSize: 14,
+    textBold: false,
+    textItalic: false,
+    textColor: { r: 200, g: 200, b: 200 },
+    textAlpha: 0.5,
     linkToFocus: false,
     linkToFocusRadius: 0.3,
     linkToShake: false,
@@ -531,6 +539,14 @@ const EFFECT_PRESET_2: CellEffects = {
     color: { r: 13, g: 13, b: 13 },
     alpha: 0.9,
     feather: 0,
+    textEnabled: false,
+    text: '',
+    textFontFamily: 'sans-serif',
+    textFontSize: 14,
+    textBold: false,
+    textItalic: false,
+    textColor: { r: 200, g: 200, b: 200 },
+    textAlpha: 0.5,
     linkToFocus: false,
     linkToFocusRadius: 0.3,
     linkToShake: false,
@@ -3164,6 +3180,81 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('censor', { feather: v })}
               />
             </Row>
+            <Row label={t('censorTextEnabled')}>
+              <Toggle
+                value={effects.censor.textEnabled ?? false}
+                onChange={v => set('censor', { textEnabled: v })}
+              />
+            </Row>
+            {(effects.censor.textEnabled ?? false) && (
+              <>
+                <div style={{ marginBottom: 4 }}>
+                  <textarea
+                    value={effects.censor.text ?? ''}
+                    placeholder={t('censorText')}
+                    rows={2}
+                    onChange={e => set('censor', { text: e.target.value })}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      background: 'rgba(255,255,255,0.07)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: 4,
+                      color: '#fff',
+                      fontSize: 12,
+                      padding: '4px 6px',
+                      outline: 'none',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
+                <Row label={t('censorTextFont')}>
+                  <Select
+                    value={effects.censor.textFontFamily ?? 'sans-serif'}
+                    options={fontOptions}
+                    onChange={v => set('censor', { textFontFamily: v })}
+                  />
+                </Row>
+                <Row label={t('censorTextSize')}>
+                  <Slider
+                    value={effects.censor.textFontSize ?? 14}
+                    min={8}
+                    max={72}
+                    onChange={v => set('censor', { textFontSize: v })}
+                    unit="px"
+                  />
+                </Row>
+                <Row label={t('censorTextBold')}>
+                  <Toggle
+                    value={effects.censor.textBold ?? false}
+                    onChange={v => set('censor', { textBold: v })}
+                  />
+                </Row>
+                <Row label={t('censorTextItalic')}>
+                  <Toggle
+                    value={effects.censor.textItalic ?? false}
+                    onChange={v => set('censor', { textItalic: v })}
+                  />
+                </Row>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 4, marginTop: 4 }}>{t('censorTextColor')}</div>
+                <ColorPicker
+                  r={effects.censor.textColor?.r ?? 200}
+                  g={effects.censor.textColor?.g ?? 200}
+                  b={effects.censor.textColor?.b ?? 200}
+                  onChange={(r, g, b) => set('censor', { textColor: { r, g, b } })}
+                />
+                <Row label={t('censorTextAlpha')}>
+                  <Slider
+                    value={Math.round((effects.censor.textAlpha ?? 0.5) * 100)}
+                    min={0}
+                    max={100}
+                    onChange={v => set('censor', { textAlpha: v / 100 })}
+                    unit="%"
+                  />
+                </Row>
+              </>
+            )}
             <Row label={t('censorAreas')}>
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
                 {effects.censor.rects.length}

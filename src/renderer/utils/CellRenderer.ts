@@ -135,6 +135,9 @@ export class CellRenderer {
   private censorFocusMask: PIXI.Sprite | null = null
   private censorFocusMaskCanvas: HTMLCanvasElement | null = null
   private censorBlurFilter: PIXI.BlurFilter | null = null
+  private censorTextSprite: PIXI.Sprite | null = null
+  private censorTextCanvas: HTMLCanvasElement | null = null
+  private censorTextLayerKey: string | null = null
 
   private spiralGraphics: PIXI.Graphics
   private spiralMaskSprite: PIXI.Sprite | null = null
@@ -4102,6 +4105,128 @@ export class CellRenderer {
           .fill({ color, alpha: censor.alpha })
       }
     }
+
+    // テキスト繰り返し
+    if ((censor.textEnabled ?? false) && censor.text && censor.rects.length > 0) {
+      this.updateCensorText(censor, W, H)
+    } else {
+      this.clearCensorText()
+    }
+  }
+
+  private updateCensorText(
+    censor: import('../../shared/types').CensorEffect,
+    W: number,
+    H: number,
+  ) {
+    const textAlpha = censor.textAlpha ?? 0.5
+    const fontSize = censor.textFontSize ?? 14
+    const fontFamily = censor.textFontFamily ?? 'sans-serif'
+    const col = censor.textColor ?? { r: 200, g: 200, b: 200 }
+    const key = [
+      censor.text,
+      fontSize,
+      fontFamily,
+      censor.textBold ? '1' : '0',
+      censor.textItalic ? '1' : '0',
+      col.r, col.g, col.b,
+      W, H,
+      censor.rects.map(r => `${r.x.toFixed(3)},${r.y.toFixed(3)},${r.w.toFixed(3)},${r.h.toFixed(3)}`).join(';'),
+    ].join('|')
+
+    if (key !== this.censorTextLayerKey) {
+      this.censorTextLayerKey = key
+
+      const needsRebuild = !this.censorTextCanvas ||
+        this.censorTextCanvas.width !== W ||
+        this.censorTextCanvas.height !== H
+
+      if (needsRebuild) {
+        if (this.censorTextSprite) {
+          this.censorLayer.removeChild(this.censorTextSprite)
+          this.censorTextSprite.texture.destroy(true)
+          this.censorTextSprite.destroy()
+          this.censorTextSprite = null
+        }
+        if (!this.censorTextCanvas) this.censorTextCanvas = document.createElement('canvas')
+        this.censorTextCanvas.width = W
+        this.censorTextCanvas.height = H
+      }
+
+      const canvas = this.censorTextCanvas!
+      const ctx = canvas.getContext('2d')!
+      ctx.clearRect(0, 0, W, H)
+
+      const bold = (censor.textBold ?? false) ? 'bold ' : ''
+      const italic = (censor.textItalic ?? false) ? 'italic ' : ''
+      ctx.font = `${italic}${bold}${fontSize}px "${fontFamily}"`
+      ctx.textBaseline = 'top'
+      ctx.fillStyle = `rgb(${col.r},${col.g},${col.b})`
+
+      const textW = ctx.measureText(censor.text).width
+      const hSpacing = fontSize * 0.8
+      const vSpacing = fontSize * 0.4
+      const unitW = Math.max(1, textW + hSpacing)
+      const lineH = Math.max(1, fontSize + vSpacing)
+
+      for (const rect of censor.rects) {
+        const rx = Math.round(rect.x * W)
+        const ry = Math.round(rect.y * H)
+        const rw = Math.round(rect.w * W)
+        const rh = Math.round(rect.h * H)
+        if (rw <= 0 || rh <= 0) continue
+
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(rx, ry, rw, rh)
+        ctx.clip()
+
+        const rowStart = Math.floor(ry / lineH) - 1
+        const rowEnd = Math.ceil((ry + rh) / lineH) + 1
+
+        for (let row = rowStart; row <= rowEnd; row++) {
+          const y = row * lineH
+          // 奇数行を半ユニット分ずらしてレンガ状に配置
+          const xOffset = ((row % 2 + 2) % 2) * (unitW / 2)
+          const colStart = Math.floor((rx - xOffset) / unitW) - 1
+          const colEnd = Math.ceil((rx + rw - xOffset) / unitW) + 1
+          for (let col = colStart; col <= colEnd; col++) {
+            ctx.fillText(censor.text, col * unitW + xOffset, y)
+          }
+        }
+
+        ctx.restore()
+      }
+
+      if (!this.censorTextSprite) {
+        const tex = PIXI.Texture.from(canvas)
+        this.pixiRenderer.texture.initSource(tex.source)
+        const sprite = new PIXI.Sprite(tex)
+        sprite.width = W
+        sprite.height = H
+        this.censorLayer.addChild(sprite)
+        this.censorTextSprite = sprite
+      } else {
+        this.censorTextSprite.texture.source.update()
+        this.censorTextSprite.width = W
+        this.censorTextSprite.height = H
+      }
+    }
+
+    if (this.censorTextSprite) {
+      this.censorTextSprite.alpha = textAlpha
+    }
+  }
+
+  private clearCensorText() {
+    if (this.censorTextSprite) {
+      this.censorLayer.removeChild(this.censorTextSprite)
+      this.censorTextSprite.texture.destroy(true)
+      this.censorTextSprite.destroy()
+      this.censorTextSprite = null
+    }
+    this.censorTextCanvas = null
+    this.censorTextLayerKey = null
   }
 
   private updateCensorFocusMask(
@@ -4185,6 +4310,7 @@ export class CellRenderer {
   private clearCensor() {
     this.censorGraphics.clear()
     this.removeCensorFocusMask()
+    this.clearCensorText()
     if (this.censorBlurFilter) {
       this.censorLayer.filters = []
       this.censorBlurFilter.destroy()
