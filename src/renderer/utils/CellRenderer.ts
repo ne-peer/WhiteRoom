@@ -118,11 +118,11 @@ export class CellRenderer {
   private fogSpawnAccumulatorSec = 0
 
   private focusLayer: PIXI.Container
-  private focusBlurClones: PIXI.Sprite[] = []
-  private focusMaskSprites: PIXI.Sprite[] = []
-  private focusMaskCanvases: HTMLCanvasElement[] = []
-  private focusBlurFilters: PIXI.BlurFilter[] = []
-  private focusMaskFilters: PIXI.MaskFilter[] = []
+  private focusBlurContainer: PIXI.Container | null = null
+  private focusBlurClone: PIXI.Sprite | null = null
+  private focusMaskSprite: PIXI.Sprite | null = null
+  private focusMaskCanvas: HTMLCanvasElement | null = null
+  private focusBlurFilter: PIXI.BlurFilter | null = null
   private focusBlurLayerKey: string | null = null
   private focusMaskKey: string | null = null
   private focusCurrentX = 0.5
@@ -935,9 +935,9 @@ export class CellRenderer {
     }
 
     // テクスチャ更新をフォーカスブラークローンに反映
-    this.focusBlurClones.forEach(clone => {
-      clone.texture = sprite?.texture ?? PIXI.Texture.EMPTY
-    })
+    if (this.focusBlurClone) {
+      this.focusBlurClone.texture = sprite?.texture ?? PIXI.Texture.EMPTY
+    }
   }
 
   private clearTransitionSprite() {
@@ -3843,88 +3843,95 @@ export class CellRenderer {
       this.focusBlurLayerKey = layerKey
       this.focusMaskKey = null
     } else {
-      this.focusBlurClones.forEach(clone => {
-        clone.texture = this.imageSprite!.texture
-        this.copySpriteTransform(this.imageSprite!, clone)
-      })
+      if (this.focusBlurClone) {
+        this.focusBlurClone.texture = this.imageSprite.texture
+        this.copySpriteTransform(this.imageSprite, this.focusBlurClone)
+      }
     }
 
-    this.focusBlurFilters.forEach((f, i) => {
-      f.strength = focus.blurStrength * (i === 0 ? 1 : 2)
-    })
+    if (this.focusBlurFilter) {
+      this.focusBlurFilter.strength = focus.blurStrength
+    }
     this.rebuildFocusMask(focus)
   }
 
-  // パターンBと同方式: 2枚のイメージクローン×(BlurFilter+MaskFilter)
+  // imageRootLayer の buildRadialGradientBlur と同方式:
+  // Container(position 0,0)にクローンを入れ、Container 側に filterArea と filters を設定
   private buildFocusBlurLayers(focus: FocusEffect) {
     if (!this.imageSprite) return
-    const innerRatios = [focus.viewSizeRatio, focus.viewSizeRatio * 1.2]
-    const multipliers = [1, 2]
     const maskW = Math.max(1, Math.ceil(this.width / 4))
     const maskH = Math.max(1, Math.ceil(this.height / 4))
 
-    for (let i = 0; i < 2; i++) {
-      const clone = new PIXI.Sprite(this.imageSprite.texture)
-      clone.anchor.set(0.5)
-      this.copySpriteTransform(this.imageSprite, clone)
+    const clone = new PIXI.Sprite(this.imageSprite.texture)
+    clone.anchor.set(0.5)
+    this.copySpriteTransform(this.imageSprite, clone)
 
-      const blurFilter = new PIXI.BlurFilter({ strength: focus.blurStrength * multipliers[i], quality: 4 })
+    const container = new PIXI.Container()
+    container.addChild(clone)
 
-      const maskCanvas = document.createElement('canvas')
-      maskCanvas.width = maskW
-      maskCanvas.height = maskH
-      this.drawFocusBandMaskToCanvas(maskCanvas, focus.pattern, innerRatios[i], this.focusCurrentX, this.focusCurrentY)
+    const blurFilter = new PIXI.BlurFilter({ strength: focus.blurStrength, quality: 4 })
 
-      const maskTex = PIXI.Texture.from(maskCanvas)
-      this.pixiRenderer.texture.initSource(maskTex.source)
+    const maskCanvas = document.createElement('canvas')
+    maskCanvas.width = maskW
+    maskCanvas.height = maskH
+    this.drawFocusBandMaskToCanvas(maskCanvas, focus.pattern, focus.viewSizeRatio, this.focusCurrentX, this.focusCurrentY)
 
-      const maskSprite = new PIXI.Sprite(maskTex)
-      maskSprite.width = this.width
-      maskSprite.height = this.height
-      maskSprite.alpha = 0  // invisible, only used by MaskFilter
+    const maskTex = PIXI.Texture.from(maskCanvas)
+    this.pixiRenderer.texture.initSource(maskTex.source)
 
-      const maskFilter = new PIXI.MaskFilter({ sprite: maskSprite, channel: 'alpha' })
-      clone.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
-      clone.filters = [blurFilter, maskFilter]
+    const maskSprite = new PIXI.Sprite(maskTex)
+    maskSprite.width = this.width
+    maskSprite.height = this.height
+    maskSprite.alpha = 0  // invisible, only used by MaskFilter
 
-      this.focusLayer.addChild(clone)
-      this.focusLayer.addChild(maskSprite)
+    const maskFilter = new PIXI.MaskFilter({ sprite: maskSprite, channel: 'alpha' })
+    container.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    container.filters = [blurFilter, maskFilter]
 
-      this.focusBlurClones.push(clone)
-      this.focusMaskSprites.push(maskSprite)
-      this.focusMaskCanvases.push(maskCanvas)
-      this.focusBlurFilters.push(blurFilter)
-      this.focusMaskFilters.push(maskFilter)
-    }
+    this.focusLayer.addChild(container)
+    this.focusLayer.addChild(maskSprite)
+
+    this.focusBlurContainer = container
+    this.focusBlurClone = clone
+    this.focusMaskSprite = maskSprite
+    this.focusMaskCanvas = maskCanvas
+    this.focusBlurFilter = blurFilter
   }
 
   private clearFocusBlurLayers() {
-    this.focusBlurClones.forEach(c => { this.focusLayer.removeChild(c); c.destroy() })
-    this.focusMaskSprites.forEach(s => { this.focusLayer.removeChild(s); s.texture.destroy(true); s.destroy() })
-    this.focusBlurClones = []
-    this.focusMaskSprites = []
-    this.focusMaskCanvases = []
-    this.focusBlurFilters = []
-    this.focusMaskFilters = []
+    if (this.focusBlurContainer) {
+      this.focusLayer.removeChild(this.focusBlurContainer)
+      this.focusBlurContainer.destroy({ children: false })
+      this.focusBlurContainer = null
+    }
+    if (this.focusBlurClone) {
+      this.focusBlurClone.destroy({ texture: false })
+      this.focusBlurClone = null
+    }
+    if (this.focusMaskSprite) {
+      this.focusLayer.removeChild(this.focusMaskSprite)
+      this.focusMaskSprite.texture.destroy(true)
+      this.focusMaskSprite.destroy()
+      this.focusMaskSprite = null
+    }
+    this.focusMaskCanvas = null
+    this.focusBlurFilter = null
     this.focusBlurLayerKey = null
   }
 
   private rebuildFocusMask(focus: FocusEffect) {
-    if (this.focusMaskCanvases.length === 0) return
+    if (!this.focusMaskCanvas || !this.focusMaskSprite) return
     const cx = this.focusCurrentX
     const cy = this.focusCurrentY
     const key = [focus.pattern, cx.toFixed(3), cy.toFixed(3)].join(',')
     if (key === this.focusMaskKey) return
     this.focusMaskKey = key
 
-    const innerRatios = [focus.viewSizeRatio, focus.viewSizeRatio * 1.2]
-    this.focusMaskCanvases.forEach((canvas, i) => {
-      this.drawFocusBandMaskToCanvas(canvas, focus.pattern, innerRatios[i], cx, cy)
-      this.focusMaskSprites[i].texture.source.update()
-    })
+    this.drawFocusBandMaskToCanvas(this.focusMaskCanvas, focus.pattern, focus.viewSizeRatio, cx, cy)
+    this.focusMaskSprite.texture.source.update()
   }
 
-  // パターンBのバンドマスク: innerRatio 以内は透明、それ以外は不透明
+  // フォーカスバンドマスク: innerRatio 以内は透明(ぼかしなし)、外側は不透明(ぼかし表示)
   private drawFocusBandMaskToCanvas(
     canvas: HTMLCanvasElement,
     pattern: FocusBlurPattern,
@@ -3942,8 +3949,7 @@ export class CellRenderer {
       for (let x = 0; x < w; x++) {
         let dist: number
         if (pattern === 'circular') {
-          const baseSize = Math.min(w, h)
-          const r = Math.max(1, baseSize * innerRatio * 0.5)
+          const r = Math.max(1, Math.min(w, h) * innerRatio * 0.5)
           const dx = (x + 0.5) - cx * w
           const dy = (y + 0.5) - cy * h
           dist = Math.sqrt((dx / r) ** 2 + (dy / r) ** 2)
@@ -3976,7 +3982,7 @@ export class CellRenderer {
         this.focusCurrentY = cy
         this.focusMaskKey = null
         this.rebuildFocusMask(focus)
-        if (this.focusBlurClones.length > 0) this.syncFocusBlurClones()
+        if (this.focusBlurClone) this.syncFocusBlurClone()
       }
       return
     }
@@ -3996,14 +4002,12 @@ export class CellRenderer {
 
     this.focusMaskKey = null
     this.rebuildFocusMask(focus)
-    this.syncFocusBlurClones()
+    this.syncFocusBlurClone()
   }
 
-  private syncFocusBlurClones() {
-    if (!this.imageSprite) return
-    this.focusBlurClones.forEach(clone => {
-      this.copySpriteTransform(this.imageSprite!, clone)
-    })
+  private syncFocusBlurClone() {
+    if (!this.focusBlurClone || !this.imageSprite) return
+    this.copySpriteTransform(this.imageSprite, this.focusBlurClone)
   }
 
   private clearFocus() {
