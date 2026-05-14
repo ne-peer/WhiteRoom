@@ -233,18 +233,29 @@ export class ParticleSystem {
           }
         }
       } else if (isRipple) {
-        // 波紋パターン: 中心から外周方向にランダム角度で移動、easeInSine でフェードアウト
+        // 波紋パターン: 外周方向にランダム角度で移動、easeInSine でフェードアウト
+        // 周辺のみ ON: 除外円の円周上から spawn して外側へ散る
+        // 周辺のみ OFF: 中心から spawn
         const rippleSpeedFactor = clamp(effects.dynamicAsset.riseSpeedFactor ?? 1, 0.1, 5)
         const speed = RIPPLE_BASE_SPEED * rippleSpeedFactor
         const angle = Math.random() * Math.PI * 2
+        const cx = canvasWidth / 2
+        const cy = canvasHeight / 2
+        let spawnX = cx
+        let spawnY = cy
+        if (effects.dynamicAsset.peripheralOnlyEnabled) {
+          const r = clamp(effects.dynamicAsset.peripheralOnlyRadius, 0, 1) * Math.min(canvasWidth, canvasHeight) / 2
+          spawnX = cx + Math.cos(angle) * r
+          spawnY = cy + Math.sin(angle) * r
+        }
         const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
         const scale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
         const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
         const p: AssetParticle = {
           id: `p-${nowMs}-${Math.random()}`,
           assetPath: effects.dynamicAsset.assetPath ?? '',
-          x: canvasWidth / 2,
-          y: canvasHeight / 2,
+          x: spawnX,
+          y: spawnY,
           alpha: assetBaseAlpha,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
