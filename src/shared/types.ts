@@ -517,6 +517,7 @@ export type CensorEffect = {
   rects: CensorRect[]
   color: { r: number; g: number; b: number }
   alpha: number
+  feather: number        // 0-50 blur radius for edge feathering
   linkToFocus: boolean
   linkToFocusRadius: number
   linkToShake: boolean

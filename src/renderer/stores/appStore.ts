@@ -273,6 +273,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     rects: [],
     color: { r: 13, g: 13, b: 13 },
     alpha: 0.9,
+    feather: 0,
     linkToFocus: false,
     linkToFocusRadius: 0.3,
     linkToShake: false,

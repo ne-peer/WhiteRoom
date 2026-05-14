@@ -132,7 +132,9 @@ export class CellRenderer {
 
   private censorLayer: PIXI.Container
   private censorGraphics: PIXI.Graphics
-  private censorFocusMask: PIXI.Graphics | null = null
+  private censorFocusMask: PIXI.Sprite | null = null
+  private censorFocusMaskCanvas: HTMLCanvasElement | null = null
+  private censorBlurFilter: PIXI.BlurFilter | null = null
 
   private spiralGraphics: PIXI.Graphics
   private spiralMaskSprite: PIXI.Sprite | null = null
@@ -4047,30 +4049,28 @@ export class CellRenderer {
     const { r, g, b } = censor.color
     const color = (r << 16) | (g << 8) | b
 
+    // フォーカスエリア連動マスク（canvas グラデーション Sprite）
     if (censor.linkToFocus) {
-      if (!this.censorFocusMask) {
-        this.censorFocusMask = new PIXI.Graphics()
-        this.censorLayer.addChild(this.censorFocusMask)
-      }
-      this.censorFocusMask.clear()
-      const focus = effects.focus
-      if (focus?.enabled && focus.waypoints.length > 0) {
-        const cx = this.focusCurrentX * W
-        const cy = this.focusCurrentY * H
-        if (focus.pattern === 'circular') {
-          const cr = focus.viewSizeRatio * Math.min(W, H) / 2
-          this.censorFocusMask.circle(cx, cy, cr).fill(0xffffff)
-        } else if (focus.pattern === 'horizontal') {
-          const halfBand = focus.viewSizeRatio * W / 2
-          this.censorFocusMask.rect(cx - halfBand, 0, halfBand * 2, H).fill(0xffffff)
-        } else {
-          const halfBand = focus.viewSizeRatio * H / 2
-          this.censorFocusMask.rect(0, cy - halfBand, W, halfBand * 2).fill(0xffffff)
-        }
-      }
-      this.censorLayer.mask = this.censorFocusMask
+      this.updateCensorFocusMask(effects.focus, W, H)
     } else {
       this.removeCensorFocusMask()
+    }
+
+    // フェザー（ブラーフィルター）
+    const feather = censor.feather ?? 0
+    if (feather > 0) {
+      if (!this.censorBlurFilter) {
+        this.censorBlurFilter = new PIXI.BlurFilter()
+        this.censorLayer.filterArea = new PIXI.Rectangle(0, 0, W, H)
+      }
+      this.censorBlurFilter.strength = feather
+      if (!this.censorLayer.filters?.includes(this.censorBlurFilter)) {
+        this.censorLayer.filters = [this.censorBlurFilter]
+      }
+    } else if (this.censorBlurFilter) {
+      this.censorLayer.filters = []
+      this.censorBlurFilter.destroy()
+      this.censorBlurFilter = null
     }
 
     for (const rect of censor.rects) {
@@ -4104,18 +4104,92 @@ export class CellRenderer {
     }
   }
 
+  private updateCensorFocusMask(
+    focus: import('../../shared/types').FocusEffect | undefined,
+    W: number,
+    H: number,
+  ) {
+    const maskW = Math.max(1, Math.ceil(W / 4))
+    const maskH = Math.max(1, Math.ceil(H / 4))
+
+    if (!this.censorFocusMaskCanvas) {
+      this.censorFocusMaskCanvas = document.createElement('canvas')
+      this.censorFocusMaskCanvas.width = maskW
+      this.censorFocusMaskCanvas.height = maskH
+    } else if (this.censorFocusMaskCanvas.width !== maskW || this.censorFocusMaskCanvas.height !== maskH) {
+      this.censorFocusMaskCanvas.width = maskW
+      this.censorFocusMaskCanvas.height = maskH
+      // サイズ変更時はスプライトを再作成
+      this.removeCensorFocusMask()
+    }
+
+    const canvas = this.censorFocusMaskCanvas
+    const ctx = canvas.getContext('2d')!
+    ctx.clearRect(0, 0, maskW, maskH)
+
+    if (focus?.enabled && focus.waypoints.length > 0) {
+      const cx = this.focusCurrentX * maskW
+      const cy = this.focusCurrentY * maskH
+
+      if (focus.pattern === 'circular') {
+        const cr = focus.viewSizeRatio * Math.min(maskW, maskH) / 2
+        const featherW = cr * 0.2
+        const innerR = Math.max(0, cr - featherW)
+        const outerR = cr + featherW
+        const grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR)
+        grad.addColorStop(0, 'rgba(255,255,255,1)')
+        grad.addColorStop(1, 'rgba(255,255,255,0)')
+        ctx.fillStyle = grad
+        ctx.fillRect(0, 0, maskW, maskH)
+      } else if (focus.pattern === 'horizontal') {
+        // 'horizontal' パターン = 垂直帯（cx を中心とした列）
+        const halfBand = focus.viewSizeRatio * maskW / 2
+        ctx.fillStyle = 'rgba(255,255,255,1)'
+        ctx.fillRect(Math.max(0, cx - halfBand), 0, Math.min(maskW, halfBand * 2), maskH)
+      } else {
+        // 'vertical' パターン = 水平帯（cy を中心とした行）
+        const halfBand = focus.viewSizeRatio * maskH / 2
+        ctx.fillStyle = 'rgba(255,255,255,1)'
+        ctx.fillRect(0, Math.max(0, cy - halfBand), maskW, Math.min(maskH, halfBand * 2))
+      }
+    }
+    // focus が未設定・無効の場合は canvas が透明のまま → マスクで全て隠れる
+
+    if (!this.censorFocusMask) {
+      const tex = PIXI.Texture.from(canvas)
+      this.pixiRenderer.texture.initSource(tex.source)
+      const sprite = new PIXI.Sprite(tex)
+      sprite.width = W
+      sprite.height = H
+      this.censorLayer.addChild(sprite)
+      this.censorFocusMask = sprite
+      this.censorLayer.mask = sprite
+    } else {
+      this.censorFocusMask.texture.source.update()
+      this.censorFocusMask.width = W
+      this.censorFocusMask.height = H
+    }
+  }
+
   private removeCensorFocusMask() {
     if (this.censorFocusMask) {
       this.censorLayer.mask = null
       this.censorLayer.removeChild(this.censorFocusMask)
+      this.censorFocusMask.texture.destroy(true)
       this.censorFocusMask.destroy()
       this.censorFocusMask = null
     }
+    this.censorFocusMaskCanvas = null
   }
 
   private clearCensor() {
     this.censorGraphics.clear()
     this.removeCensorFocusMask()
+    if (this.censorBlurFilter) {
+      this.censorLayer.filters = []
+      this.censorBlurFilter.destroy()
+      this.censorBlurFilter = null
+    }
     this.censorLayer.visible = false
   }
 

@@ -283,6 +283,7 @@ const EFFECT_PRESET_1: CellEffects = {
     rects: [],
     color: { r: 13, g: 13, b: 13 },
     alpha: 0.9,
+    feather: 0,
     linkToFocus: false,
     linkToFocusRadius: 0.3,
     linkToShake: false,
@@ -529,6 +530,7 @@ const EFFECT_PRESET_2: CellEffects = {
     rects: [],
     color: { r: 13, g: 13, b: 13 },
     alpha: 0.9,
+    feather: 0,
     linkToFocus: false,
     linkToFocusRadius: 0.3,
     linkToShake: false,
@@ -3152,6 +3154,14 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 max={100}
                 onChange={v => set('censor', { alpha: v / 100 })}
                 unit="%"
+              />
+            </Row>
+            <Row label={t('censorFeather')}>
+              <Slider
+                value={effects.censor.feather ?? 0}
+                min={0}
+                max={50}
+                onChange={v => set('censor', { feather: v })}
               />
             </Row>
             <Row label={t('censorAreas')}>
