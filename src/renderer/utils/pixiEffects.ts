@@ -259,13 +259,14 @@ export class ParticleSystem {
         // 周辺のみ ON: 除外円の円周上から spawn して外側へ散る
         // 周辺のみ OFF: 中心から spawn
         const rippleSpeedFactor = clamp(effects.dynamicAsset.riseSpeedFactor ?? 1, 0.1, 5)
-        const speed = RIPPLE_BASE_SPEED * rippleSpeedFactor
         const angle = Math.random() * Math.PI * 2
+        const cosA = Math.cos(angle)
+        const sinA = Math.sin(angle)
         const cx = canvasWidth / 2
         const cy = canvasHeight / 2
         const rippleR = clamp(effects.dynamicAsset.peripheralOnlyRadius, 0, 1) * Math.min(canvasWidth, canvasHeight) / 2
-        const spawnX = cx + Math.cos(angle) * rippleR
-        const spawnY = cy + Math.sin(angle) * rippleR
+        const spawnX = cx + cosA * rippleR
+        const spawnY = cy + sinA * rippleR
         const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
         const scale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
         const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
@@ -275,8 +276,8 @@ export class ParticleSystem {
           x: spawnX,
           y: spawnY,
           alpha: assetBaseAlpha,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
+          vx: cosA,  // 単位ベクトル（方向のみ、大きさは RIPPLE_MAX_DIST で吸収）
+          vy: sinA,
           startTime: nowMs,
           particleTint,
           rotationRad,
@@ -416,14 +417,11 @@ export class ParticleSystem {
           return false
         }
 
-        // 位置を絶対座標で計算（選択イージングを適用した移動パターン）
+        // 位置を絶対座標で計算（vx/vy は spawn 時の単位ベクトル）
         const movePattern = effects.dynamicAsset.rippleMovePattern ?? 'easeInSine'
-        const speed = Math.sqrt((p.vx ?? 0) ** 2 + p.vy ** 2)
-        const unitX = speed > 0 ? (p.vx ?? 0) / speed : 0
-        const unitY = speed > 0 ? p.vy / speed : 0
         const easedDist = rippleEase(movePattern, t) * RIPPLE_MAX_DIST
-        p.x = (p.rippleStartX ?? 0) + unitX * easedDist
-        p.y = (p.rippleStartY ?? 0) + unitY * easedDist
+        p.x = (p.rippleStartX ?? 0) + (p.vx ?? 0) * easedDist
+        p.y = (p.rippleStartY ?? 0) + p.vy * easedDist
 
         if (visual) {
           visual.alpha = currentAlpha
