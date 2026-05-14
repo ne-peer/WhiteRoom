@@ -3867,10 +3867,13 @@ export class CellRenderer {
     this.focusMaskKey = key
 
     const tex = createFocusMaskTexture(focus.pattern, focus.viewSizeRatio, cx, cy, this.width, this.height)
+    // Force GPU upload before using as alpha mask — lazy upload causes BindGroup.getResource null error
+    this.pixiRenderer.texture.initSource(tex.source)
 
     if (this.focusMaskSprite) {
-      this.focusMaskSprite.texture.destroy(true)
+      const old = this.focusMaskSprite.texture
       this.focusMaskSprite.texture = tex
+      old.destroy(true)
     } else {
       this.focusMaskSprite = new PIXI.Sprite(tex)
       this.focusMaskSprite.x = 0
