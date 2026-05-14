@@ -121,9 +121,6 @@ export class CellRenderer {
   private spiralMaskSprite: PIXI.Sprite | null = null
   private spiralMaskKey: string | null = null
   private spiralMaskFilter: PIXI.MaskFilter | null = null
-  private peripheralMaskSprite: PIXI.Sprite | null = null
-  private peripheralMaskFilter: PIXI.MaskFilter | null = null
-  private peripheralMaskKey: string | null = null
   private spiralDrawKey: string | null = null
   private spiralRotationRad = 0
   private spiralAlphaDynamicProgress = 0
@@ -329,7 +326,6 @@ export class CellRenderer {
     this.refreshShakeTrailRegion()
     this.rebuildVignette()
     this.clearSpiralMask()
-    this.clearPeripheralMask()
     this.refreshBlurRegion()
     this.setImageLayerFilters()
     // カラーフィルタ（オーバーレイ）のサイズはセルサイズに依存するため再描画する。
@@ -458,7 +454,6 @@ export class CellRenderer {
     this.updateSquish(effects.squish)
     this.updateFog(effects.fog)
     this.updateAsset(effects)
-    this.updateParticlePeripheralMask(effects)
     this.updateText(effects)
   }
 
@@ -730,7 +725,6 @@ export class CellRenderer {
     this.clearDynamicBackground()
     this.clearRadialBlurContents()
     this.clearSpiralMask()
-    this.clearPeripheralMask()
     this.container.destroy({ children: true })
   }
 
@@ -4081,69 +4075,6 @@ export class CellRenderer {
     }
     this.spiralMaskKey = null
     this.spiralLayer.visible = true
-  }
-
-  private updateParticlePeripheralMask(effects: CellEffects) {
-    const da = effects.dynamicAsset
-    if (!da.enabled || !da.peripheralOnlyEnabled) {
-      this.clearPeripheralMask()
-      return
-    }
-    const radius = clamp(da.peripheralOnlyRadius, 0, 1)
-    const key = `${this.width}:${this.height}:${radius}`
-    if (key === this.peripheralMaskKey) return
-    this.clearPeripheralMask()
-    this.peripheralMaskKey = key
-    const sprite = this.createPeripheralExclusionMaskSprite(radius)
-    sprite.alpha = 0
-    this.particleContainer.addChild(sprite)
-    const filter = new PIXI.MaskFilter({ sprite, channel: 'alpha' })
-    this.particleContainer.filters = [filter]
-    this.particleContainer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
-    this.peripheralMaskSprite = sprite
-    this.peripheralMaskFilter = filter
-  }
-
-  private clearPeripheralMask() {
-    this.particleContainer.filters = []
-    this.particleContainer.filterArea = undefined
-    this.peripheralMaskFilter = null
-    if (this.peripheralMaskSprite) {
-      this.particleContainer.removeChild(this.peripheralMaskSprite)
-      this.peripheralMaskSprite.texture.destroy(true)
-      this.peripheralMaskSprite.destroy()
-      this.peripheralMaskSprite = null
-    }
-    this.peripheralMaskKey = null
-  }
-
-  private createPeripheralExclusionMaskSprite(radiusRatio: number): PIXI.Sprite {
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.ceil(this.width)
-    canvas.height = Math.ceil(this.height)
-    const ctx = canvas.getContext('2d')!
-    const image = ctx.createImageData(canvas.width, canvas.height)
-    const cx = this.width / 2
-    const cy = this.height / 2
-    const radius = clamp(radiusRatio, 0, 1) * Math.min(this.width, this.height) / 2
-    const feather = Math.max(2, radius * 0.05)
-
-    for (let y = 0; y < canvas.height; y++) {
-      for (let x = 0; x < canvas.width; x++) {
-        const dx = x + 0.5 - cx
-        const dy = y + 0.5 - cy
-        const d = Math.sqrt(dx * dx + dy * dy)
-        // 円の外側ほど alpha 大（表示）、内側は alpha 0（マスクアウト）
-        const alpha01 = clamp(smoothstep(radius - feather, radius + feather, d), 0, 1)
-        const idx = (y * canvas.width + x) * 4
-        image.data[idx] = 255
-        image.data[idx + 1] = 255
-        image.data[idx + 2] = 255
-        image.data[idx + 3] = Math.round(alpha01 * 255)
-      }
-    }
-    ctx.putImageData(image, 0, 0)
-    return new PIXI.Sprite(PIXI.Texture.from(canvas))
   }
 
   private createCenterPeripheryMaskSprite(

@@ -147,6 +147,11 @@ export class ParticleSystem {
     const assetBaseAlpha = (effects.dynamicAsset.alphaTimerSync) ? rawBaseAlpha * this.timerProgress : rawBaseAlpha
     const isEmergence = (pattern ?? 'rising') === 'emergence'
 
+    // 周辺のみモード: 除外円の半径を事前計算（無効時は 0）
+    const peripheralExcludeRadius = effects.dynamicAsset.peripheralOnlyEnabled
+      ? clamp(effects.dynamicAsset.peripheralOnlyRadius, 0, 1) * Math.min(canvasWidth, canvasHeight) / 2
+      : 0
+
     // スポーン
     if (
       nowMs - this.lastSpawn > spawnIntervalMs &&
@@ -157,122 +162,134 @@ export class ParticleSystem {
 
       if (isEmergence) {
         // 発生パターン: ランダム位置、サイズは表示サイズ × 設定された ±% 範囲
-        const speedFactor = clamp(effects.dynamicAsset.emergenceSpeedFactor ?? 1.0, 0.1, 5.0)
-        const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
-        const baseScale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
-        const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
-        const p: AssetParticle = {
-          id: `p-${nowMs}-${Math.random()}`,
-          assetPath: effects.dynamicAsset.assetPath ?? '',
-          x: Math.random() * canvasWidth,
-          y: Math.random() * canvasHeight,
-          alpha: assetBaseAlpha,
-          vy: 0,
-          startTime: nowMs,
-          particleTint,
-          rotationRad,
-          baseScale,
-          phase1DurationMs: EMERGENCE_PHASE1_MS / speedFactor,
-          phase2DurationMs: EMERGENCE_PHASE2_MS / speedFactor,
-        }
-        this.particles.push(p)
-
-        if (useVector) {
-          const visual = this.createVectorParticleDisplay(
-            effects.dynamicAsset.vectorPresetId!,
+        const spawnPos = sampleSpawnPosition(
+          () => [Math.random() * canvasWidth, Math.random() * canvasHeight],
+          canvasWidth / 2, canvasHeight / 2, peripheralExcludeRadius
+        )
+        if (spawnPos) {
+          const speedFactor = clamp(effects.dynamicAsset.emergenceSpeedFactor ?? 1.0, 0.1, 5.0)
+          const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
+          const baseScale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
+          const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
+          const p: AssetParticle = {
+            id: `p-${nowMs}-${Math.random()}`,
+            assetPath: effects.dynamicAsset.assetPath ?? '',
+            x: spawnPos[0],
+            y: spawnPos[1],
+            alpha: assetBaseAlpha,
+            vy: 0,
+            startTime: nowMs,
             particleTint,
-            effects.dynamicAsset.featherStrength ?? 0
-          )
-          if (visual) {
-            visual.x = p.x
-            visual.y = p.y
-            visual.alpha = 0
-            visual.rotation = p.rotationRad
-            visual.scale.set(0)
-            this.container.addChild(visual)
-            if (visual instanceof PIXI.Sprite) {
-              this.sprites.set(p.id, visual)
+            rotationRad,
+            baseScale,
+            phase1DurationMs: EMERGENCE_PHASE1_MS / speedFactor,
+            phase2DurationMs: EMERGENCE_PHASE2_MS / speedFactor,
+          }
+          this.particles.push(p)
+
+          if (useVector) {
+            const visual = this.createVectorParticleDisplay(
+              effects.dynamicAsset.vectorPresetId!,
+              particleTint,
+              effects.dynamicAsset.featherStrength ?? 0
+            )
+            if (visual) {
+              visual.x = p.x
+              visual.y = p.y
+              visual.alpha = 0
+              visual.rotation = p.rotationRad
+              visual.scale.set(0)
+              this.container.addChild(visual)
+              if (visual instanceof PIXI.Sprite) {
+                this.sprites.set(p.id, visual)
+              } else {
+                this.vectorHolders.set(p.id, visual)
+              }
             } else {
-              this.vectorHolders.set(p.id, visual)
+              this.particles.pop()
             }
           } else {
-            this.particles.pop()
+            const sprite = new PIXI.Sprite(
+              this.resolveRasterTexture(
+                randomTexture(this.textures),
+                effects.dynamicAsset.featherStrength ?? 0,
+                rasterInvert,
+              ),
+            )
+            sprite.anchor.set(0.5)
+            sprite.x = p.x
+            sprite.y = p.y
+            sprite.alpha = 0
+            sprite.rotation = p.rotationRad
+            sprite.scale.set(0)
+            sprite.tint = particleTint
+            this.container.addChild(sprite)
+            this.sprites.set(p.id, sprite)
           }
-        } else {
-          const sprite = new PIXI.Sprite(
-            this.resolveRasterTexture(
-              randomTexture(this.textures),
-              effects.dynamicAsset.featherStrength ?? 0,
-              rasterInvert,
-            ),
-          )
-          sprite.anchor.set(0.5)
-          sprite.x = p.x
-          sprite.y = p.y
-          sprite.alpha = 0
-          sprite.rotation = p.rotationRad
-          sprite.scale.set(0)
-          sprite.tint = particleTint
-          this.container.addChild(sprite)
-          this.sprites.set(p.id, sprite)
         }
       } else {
         // 上昇パターン: 表示サイズ × 設定された ±% 範囲
-        const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
-        const scale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
-        const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
-        const riseSpeedFactor = clamp(effects.dynamicAsset.riseSpeedFactor ?? 1, 0.1, 5)
-        const p: AssetParticle = {
-          id: `p-${nowMs}-${Math.random()}`,
-          assetPath: effects.dynamicAsset.assetPath ?? '',
-          x: Math.random() * canvasWidth,
-          y: canvasHeight - Math.random() * canvasHeight * 0.7,
-          alpha: assetBaseAlpha,
-          vy: randomRiseSpeed() * riseSpeedFactor,
-          startTime: nowMs,
-          particleTint,
-          rotationRad,
-        }
-        this.particles.push(p)
-
-        if (useVector) {
-          const visual = this.createVectorParticleDisplay(
-            effects.dynamicAsset.vectorPresetId!,
+        const spawnPos = sampleSpawnPosition(
+          () => [Math.random() * canvasWidth, canvasHeight - Math.random() * canvasHeight * 0.7],
+          canvasWidth / 2, canvasHeight / 2, peripheralExcludeRadius
+        )
+        if (spawnPos) {
+          const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
+          const scale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
+          const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
+          const riseSpeedFactor = clamp(effects.dynamicAsset.riseSpeedFactor ?? 1, 0.1, 5)
+          const p: AssetParticle = {
+            id: `p-${nowMs}-${Math.random()}`,
+            assetPath: effects.dynamicAsset.assetPath ?? '',
+            x: spawnPos[0],
+            y: spawnPos[1],
+            alpha: assetBaseAlpha,
+            vy: randomRiseSpeed() * riseSpeedFactor,
+            startTime: nowMs,
             particleTint,
-            effects.dynamicAsset.featherStrength ?? 0
-          )
-          if (visual) {
-            visual.x = p.x
-            visual.y = p.y
-            visual.alpha = p.alpha
-            visual.rotation = p.rotationRad
-            visual.scale.set(scale)
-            this.container.addChild(visual)
-            if (visual instanceof PIXI.Sprite) {
-              this.sprites.set(p.id, visual)
+            rotationRad,
+          }
+          this.particles.push(p)
+
+          if (useVector) {
+            const visual = this.createVectorParticleDisplay(
+              effects.dynamicAsset.vectorPresetId!,
+              particleTint,
+              effects.dynamicAsset.featherStrength ?? 0
+            )
+            if (visual) {
+              visual.x = p.x
+              visual.y = p.y
+              visual.alpha = p.alpha
+              visual.rotation = p.rotationRad
+              visual.scale.set(scale)
+              this.container.addChild(visual)
+              if (visual instanceof PIXI.Sprite) {
+                this.sprites.set(p.id, visual)
+              } else {
+                this.vectorHolders.set(p.id, visual)
+              }
             } else {
-              this.vectorHolders.set(p.id, visual)
+              this.particles.pop()
             }
           } else {
-            this.particles.pop()
+            const sprite = new PIXI.Sprite(
+              this.resolveRasterTexture(
+                randomTexture(this.textures),
+                effects.dynamicAsset.featherStrength ?? 0,
+                rasterInvert,
+              ),
+            )
+            sprite.anchor.set(0.5)
+            sprite.x = p.x
+            sprite.y = p.y
+            sprite.alpha = p.alpha
+            sprite.rotation = p.rotationRad
+            sprite.scale.set(scale)
+            sprite.tint = particleTint
+            this.container.addChild(sprite)
+            this.sprites.set(p.id, sprite)
           }
-        } else {
-          const sprite = new PIXI.Sprite(
-            this.resolveRasterTexture(
-              randomTexture(this.textures),
-              effects.dynamicAsset.featherStrength ?? 0,
-              rasterInvert,
-            ),
-          )
-          sprite.anchor.set(0.5)
-          sprite.x = p.x
-          sprite.y = p.y
-          sprite.alpha = p.alpha
-          sprite.rotation = p.rotationRad
-          sprite.scale.set(scale)
-          sprite.tint = particleTint
-          this.container.addChild(sprite)
-          this.sprites.set(p.id, sprite)
         }
       }
     }
@@ -773,4 +790,26 @@ function randomTexture(textures: PIXI.Texture[]): PIXI.Texture {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
+}
+
+/**
+ * 周辺のみモード用: 除外円の外側に収まる spawn 座標をサンプリングする。
+ * excludeRadius === 0 のときは無条件で genFn の結果を返す。
+ * 最大 10 回試行して見つからなければ null（そのインターバルはスキップ）。
+ */
+function sampleSpawnPosition(
+  genFn: () => [number, number],
+  cx: number,
+  cy: number,
+  excludeRadius: number
+): [number, number] | null {
+  if (excludeRadius <= 0) return genFn()
+  const r2 = excludeRadius * excludeRadius
+  for (let i = 0; i < 10; i++) {
+    const pos = genFn()
+    const dx = pos[0] - cx
+    const dy = pos[1] - cy
+    if (dx * dx + dy * dy >= r2) return pos
+  }
+  return null
 }
