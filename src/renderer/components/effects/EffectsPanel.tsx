@@ -789,14 +789,15 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   }
   const assetEffectFolderLabel = language === 'ja' ? 'プリセットアセット' : 'Preset asset'
   const dynamicAssetPattern = effects.dynamicAsset.pattern ?? 'rising'
+  const bounceAllowed = dynamicAssetPattern === 'emergence' || dynamicAssetPattern === 'ripple'
   const visibleDynamicAssetAdditionalEffect =
-    dynamicAssetPattern !== 'emergence' && effects.dynamicAsset.additionalEffect === 'bounce'
+    !bounceAllowed && effects.dynamicAsset.additionalEffect === 'bounce'
       ? 'none'
       : effects.dynamicAsset.additionalEffect ?? 'none'
   const dynamicAssetAdditionalEffectOptions = [
     { value: 'none', label: t('assetAdditionalEffectNone') },
     { value: 'jiggle', label: t('assetAdditionalEffectJiggle') },
-    ...(dynamicAssetPattern === 'emergence'
+    ...(bounceAllowed
       ? [{ value: 'bounce', label: t('assetAdditionalEffectBounce') }]
       : []),
     { value: 'wiggle', label: t('assetAdditionalEffectWiggle') },
