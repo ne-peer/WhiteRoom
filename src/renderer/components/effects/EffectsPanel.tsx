@@ -232,6 +232,8 @@ const EFFECT_PRESET_1: CellEffects = {
     colorOverlayAlphaRandomMax: 1,
     rasterColorInvertEnabled: false,
     sutTipMode: 'allTipsRandom',
+    peripheralOnlyEnabled: false,
+    peripheralOnlyRadius: 0.35,
   },
   textEffect: {
     enabled: false,
@@ -459,6 +461,8 @@ const EFFECT_PRESET_2: CellEffects = {
     colorOverlayAlphaRandomMax: 1,
     rasterColorInvertEnabled: false,
     sutTipMode: 'allTipsRandom',
+    peripheralOnlyEnabled: false,
+    peripheralOnlyRadius: 0.35,
   },
   textEffect: {
     enabled: false,
@@ -1723,6 +1727,23 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         </Row>
         {effects.dynamicAsset.enabled && (
           <>
+            <Row label={t('assetPeripheralOnly')}>
+              <Toggle
+                value={effects.dynamicAsset.peripheralOnlyEnabled ?? false}
+                onChange={v => set('dynamicAsset', { peripheralOnlyEnabled: v })}
+              />
+            </Row>
+            {effects.dynamicAsset.peripheralOnlyEnabled && (
+              <Row label={t('assetPeripheralOnlyRadius')}>
+                <Slider
+                  value={Math.round((effects.dynamicAsset.peripheralOnlyRadius ?? 0.35) * 100)}
+                  min={5}
+                  max={95}
+                  onChange={v => set('dynamicAsset', { peripheralOnlyRadius: v / 100 })}
+                  unit="%"
+                />
+              </Row>
+            )}
             <Row label={t('flashDisplayFile')}>
               <Select
                 value={effects.dynamicAsset.displayFileMode}
