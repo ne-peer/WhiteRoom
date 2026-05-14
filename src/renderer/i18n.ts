@@ -249,7 +249,7 @@ export const translations = {
     shakeTrailHelp: '指定した円形エリアだけが少し遅れてシェイクに追従します。',
     shakeTrailDuplicateCircles: '円のエリアを複製',
     shakeTrailDuplicateGap: '円の間隔',
-    shakeTrailDuplicateVerticalGap: '縦の間隔（上下交互）',
+    shakeTrailDuplicateVerticalGap: '上下の間隔',
     shakeTrailCirclePositionAdjust: '円の位置の調整',
     shakeTrailLockBase: 'ベース画像を固定',
     shakeManualTrigger: '動作確認',
