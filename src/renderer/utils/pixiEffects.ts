@@ -396,9 +396,11 @@ export class ParticleSystem {
           return false
         }
 
-        // 位置を外周方向へ移動
-        p.x += (p.vx ?? 0) * delta
-        p.y += p.vy * delta
+        // 位置を外周方向へ移動（easeInSine の微分値でフレームごとの速度をスケール）
+        // easeInSine'(t) = (π/2)·sin(t·π/2) → 序盤は低速、終盤に向かって加速
+        const easeVelocityScale = (Math.PI / 2) * Math.sin(t * Math.PI / 2)
+        p.x += (p.vx ?? 0) * delta * easeVelocityScale
+        p.y += p.vy * delta * easeVelocityScale
 
         if (visual) {
           visual.alpha = currentAlpha
