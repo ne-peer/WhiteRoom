@@ -293,7 +293,16 @@ export const MasterCanvas: React.FC = () => {
       const point = getNormalizedPointInCell(e.clientX, e.clientY, rect, drag.cellId, useAppStore.getState())
         ?? { cellId: drag.cellId, x: drag.x, y: drag.y }
       const state = useAppStore.getState()
-      state.setCellEffect(point.cellId, 'effectCenter', { x: point.x, y: point.y })
+      const areaIndex = state.shakeTrailPositionPicking
+      if (areaIndex !== null) {
+        const currentAreas = state.cells.find(c => c.id === point.cellId)?.effects.shake.trailAreas ?? []
+        const newAreas = currentAreas.map((a, i) =>
+          i === areaIndex ? { ...a, centerX: point.x, centerY: point.y } : a,
+        )
+        state.setCellEffect(point.cellId, 'shake', { trailAreas: newAreas })
+      } else {
+        state.setCellEffect(point.cellId, 'effectCenter', { x: point.x, y: point.y })
+      }
       state.setShakeTrailPositionPicking(null)
       state.setSpiralRadialPositionPicking(false)
       centerPickDragRef.current = null
@@ -972,6 +981,7 @@ export const MasterCanvas: React.FC = () => {
                   cell.effects,
                   guideCellSize,
                   pickPreviewCenter?.cellId === cell.id ? pickPreviewCenter : null,
+                  pickPreviewCenter?.cellId === cell.id ? (shakeTrailPositionPicking ?? null) : null,
                 ),
               ).map(group =>
                 group.length === 1 ? (
@@ -1476,6 +1486,7 @@ function toCircleGuides(
   effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects'],
   cellSize: { width: number; height: number },
   previewCenter: PickCenterPoint | null = null,
+  previewAreaIndex: number | null = null,
 ): CircleGuideItem[] {
   const guides: CircleGuideItem[] = []
 
@@ -1492,8 +1503,9 @@ function toCircleGuides(
     const secondStageSizeRatio = clamp(effects.shake.trailSecondStageSize ?? 0.62, 0.1, 1)
     areas.forEach((area, areaIdx) => {
       const shakeSize = clamp(area.size, 0.05, 3)
-      const baseX = area.centerX
-      const baseY = area.centerY
+      const isPreviewArea = previewAreaIndex === areaIdx && previewCenter !== null
+      const baseX = isPreviewArea ? previewCenter.x : area.centerX
+      const baseY = isPreviewArea ? previewCenter.y : area.centerY
       if (area.duplicateEnabled) {
         const halfNorm = trailDuplicateHalfSeparationNormX(
           cellSize.width, cellSize.height, shakeSize, area.duplicateSpacingShift,
