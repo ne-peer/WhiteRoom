@@ -52,6 +52,7 @@ export class CellRenderer {
   private textLayer: PIXI.Container
   private vignetteLayer: PIXI.Container
   private spiralLayer: PIXI.Container
+  private focusLayer: PIXI.Container
   private guideLayer: PIXI.Container
 
   private imageSprite: PIXI.Sprite | null = null
@@ -121,7 +122,6 @@ export class CellRenderer {
   }> = []
   private fogSpawnAccumulatorSec = 0
 
-  private focusLayer: PIXI.Container
   private focusBlurContainer: PIXI.Container | null = null
   private focusBlurClone: PIXI.Sprite | null = null
   private focusMaskSprite: PIXI.Sprite | null = null
@@ -310,6 +310,7 @@ export class CellRenderer {
     // シェイク追従や放射状ブラーなどの動的レイヤーも imageRootLayer に挿入する。
     this.imageRootLayer.addChild(this.dynamicBackgroundLayer)
     this.imageRootLayer.addChild(this.imageLayer)
+    this.imageRootLayer.addChild(this.focusLayer)
     this.imageRootLayer.addChild(this.shakeTrailLayer)
     this.imageRootLayer.addChild(this.echoLayer)
     this.imageRootLayer.addChild(this.effectsLayer)
@@ -322,7 +323,6 @@ export class CellRenderer {
     this.container.addChild(this.vignetteLayer)
     this.container.addChild(this.spiralLayer)
     this.container.addChild(this.fogLayer)
-    this.container.addChild(this.focusLayer)
     this.container.addChild(this.censorLayer)
     this.container.addChild(this.guideLayer)
 
