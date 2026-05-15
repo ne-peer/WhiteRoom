@@ -125,7 +125,7 @@ cx = effectCenter.x * W
 cy = effectCenter.y * H
 rx = shake.trailSize * min(W,H) / 2
 ry = rx * (shake.trailHeight ?? 1)
-draw filled ellipse at (cx, cy) with radii (rx, ry) * 1.15, fill color(r,g,b) alpha
+draw filled ellipse at (cx, cy) with radii (rx, ry) * 1.2, fill color(r,g,b) alpha
 
 if shake.trailDuplicateCirclesEnabled:
   compute the two actual left/right circle centers using trailDuplicateSpacingShift and
@@ -134,7 +134,7 @@ if shake.trailDuplicateCirclesEnabled:
   The renderer should use a precomposited mask/sprite for the Shake censor area rather than stacking semi-transparent vector draws.
 ```
 
-The 1.15 scale applies only to the censor Shake area and must not affect the Shake Effect's own trail mask or guide geometry.
+The 1.2 scale applies only to the censor Shake area and must not affect the Shake Effect's own trail mask or guide geometry.
 
 `focusCurrentX/Y` is read from `CellRenderer`'s internal focus state. Falls back to `effectCenter.x/y` when Focus Effect is disabled or has 0 waypoints.
 

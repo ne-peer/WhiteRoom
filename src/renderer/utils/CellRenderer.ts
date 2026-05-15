@@ -18,6 +18,8 @@ import { isSutFilename } from '../../shared/rasterSourceExtensions'
 
 /** ズームイン／アウトで新規レイヤーを完全透明から表示へ切り替える時間（秒） */
 const ZOOM_TRANSITION_ALPHA_IN_SEC = 0.5
+const CENSOR_SHAKE_AREA_SCALE = 1.2
+const FOCUS_SHAKE_TRAIL_MASK_EDGE_FEATHER = 0.06
 
 /** 維持時間が 0 のときの表示フェーズ下限（秒）。状態遷移用の極小値（開始トランジション長とは独立） */
 const FLASH_DISPLAY_PHASE_MIN_SEC = 0.0001
@@ -45,6 +47,7 @@ export class CellRenderer {
   private dynamicBackgroundLayer: PIXI.Container
   private imageLayer: PIXI.Container
   private shakeTrailLayer: PIXI.Container
+  private focusShakeTrailLayer: PIXI.Container
   private echoLayer: PIXI.Container
   private effectsLayer: PIXI.Container
   private overlayLayer: PIXI.Container
@@ -129,6 +132,16 @@ export class CellRenderer {
   private focusBlurFilter: PIXI.BlurFilter | null = null
   private focusBlurLayerKey: string | null = null
   private focusMaskKey: string | null = null
+  private focusShakeTrailFirstLayer: PIXI.Container | null = null
+  private focusShakeTrailFirstClone: PIXI.Sprite | null = null
+  private focusShakeTrailFirstMaskSprite: PIXI.Sprite | null = null
+  private focusShakeTrailFirstMaskKey: string | null = null
+  private focusShakeTrailFirstBlurFilter: PIXI.BlurFilter | null = null
+  private focusShakeTrailSecondLayer: PIXI.Container | null = null
+  private focusShakeTrailSecondClone: PIXI.Sprite | null = null
+  private focusShakeTrailSecondMaskSprite: PIXI.Sprite | null = null
+  private focusShakeTrailSecondMaskKey: string | null = null
+  private focusShakeTrailSecondBlurFilter: PIXI.BlurFilter | null = null
   private focusCurrentX = 0.5
   private focusCurrentY = 0.5
   private focusWaypointIndex = 0
@@ -289,6 +302,7 @@ export class CellRenderer {
     this.dynamicBackgroundLayer = new PIXI.Container()
     this.imageLayer = new PIXI.Container()
     this.shakeTrailLayer = new PIXI.Container()
+    this.focusShakeTrailLayer = new PIXI.Container()
     this.echoLayer = new PIXI.Container()
     this.effectsLayer = new PIXI.Container()
     this.overlayLayer = new PIXI.Container()
@@ -312,6 +326,7 @@ export class CellRenderer {
     this.imageRootLayer.addChild(this.imageLayer)
     this.imageRootLayer.addChild(this.focusLayer)
     this.imageRootLayer.addChild(this.shakeTrailLayer)
+    this.imageRootLayer.addChild(this.focusShakeTrailLayer)
     this.imageRootLayer.addChild(this.echoLayer)
     this.imageRootLayer.addChild(this.effectsLayer)
     this.imageRootLayer.addChild(this.echoMask)
@@ -1902,6 +1917,7 @@ export class CellRenderer {
   private syncShakeTrail(delta: number, shake?: ShakeEffect) {
     if (!shake?.enabled || !shake.trailEnabled) {
       this.clearShakeTrail()
+      this.clearFocusShakeTrailBlur()
       return
     }
     this.updateShakeTrail(shake)
@@ -1946,6 +1962,8 @@ export class CellRenderer {
       )
       this.shakeTrailSecondSprite.alpha = clamp((shake.trailAlpha ?? 0.8) + 0.12, 0, 1)
     }
+
+    this.syncFocusShakeTrailBlur(shake)
 
     if (delta === 0 && this.shakeTrailSamples.length === 0) {
       this.shakeTrailSamples.push({ timeSec: this.shakeTrailElapsedSec, offsetY: this.shakeOffsetY })
@@ -2003,6 +2021,7 @@ export class CellRenderer {
   private clearShakeTrail() {
     this.shakeTrailLayer.filters = []
     this.shakeTrailLayer.filterArea = undefined
+    this.clearFocusShakeTrailBlur()
     this.shakeTrailBlurFilter = null
     this.shakeTrailSecondBlurFilter = null
     if (this.shakeTrailFirstLayer) {
@@ -3846,6 +3865,7 @@ export class CellRenderer {
   private updateFocus(focus?: FocusEffect) {
     if (!focus?.enabled) {
       this.focusLayer.visible = false
+      this.clearFocusShakeTrailBlur()
       return
     }
     this.focusLayer.visible = true
@@ -3868,7 +3888,14 @@ export class CellRenderer {
     if (this.focusBlurFilter) {
       this.focusBlurFilter.strength = focus.blurStrength
     }
+    if (this.focusShakeTrailFirstBlurFilter) {
+      this.focusShakeTrailFirstBlurFilter.strength = focus.blurStrength
+    }
+    if (this.focusShakeTrailSecondBlurFilter) {
+      this.focusShakeTrailSecondBlurFilter.strength = focus.blurStrength
+    }
     this.rebuildFocusMask(focus)
+    this.syncFocusShakeTrailBlur(this.latestEffects?.shake)
   }
 
   // imageRootLayer の buildRadialGradientBlur と同方式:
@@ -3915,6 +3942,7 @@ export class CellRenderer {
   }
 
   private clearFocusBlurLayers() {
+    this.clearFocusShakeTrailBlur()
     if (this.focusBlurContainer) {
       this.focusLayer.removeChild(this.focusBlurContainer)
       this.focusBlurContainer.destroy({ children: false })
@@ -4032,8 +4060,192 @@ export class CellRenderer {
     this.copySpriteTransform(this.imageSprite, this.focusBlurClone)
   }
 
+  private syncFocusShakeTrailBlur(shake?: ShakeEffect) {
+    const focus = this.latestEffects?.focus
+    if (
+      !focus?.enabled ||
+      !shake?.enabled ||
+      !shake.trailEnabled ||
+      !this.imageSprite ||
+      !this.focusMaskSprite ||
+      !this.shakeTrailSprite ||
+      !this.shakeTrailMaskSprite
+    ) {
+      this.clearFocusShakeTrailBlur()
+      return
+    }
+
+    const firstMaskKey = this.getFocusShakeTrailMaskKey(shake, 'first')
+    if (this.focusShakeTrailFirstMaskKey !== null && this.focusShakeTrailFirstMaskKey !== firstMaskKey) {
+      this.clearFocusShakeTrailBlur()
+    }
+    if (!this.focusShakeTrailFirstLayer || !this.focusShakeTrailFirstClone) {
+      const maskSprite = this.createFocusShakeTrailMaskSprite(shake, 'first')
+      maskSprite.alpha = 0
+      const { layer, clone, blurFilter } = this.createFocusShakeTrailBlurLayer(
+        maskSprite,
+        focus.blurStrength
+      )
+      this.focusShakeTrailLayer.addChild(layer)
+      this.focusShakeTrailLayer.addChild(maskSprite)
+      this.focusShakeTrailFirstLayer = layer
+      this.focusShakeTrailFirstClone = clone
+      this.focusShakeTrailFirstMaskSprite = maskSprite
+      this.focusShakeTrailFirstMaskKey = firstMaskKey
+      this.focusShakeTrailFirstBlurFilter = blurFilter
+    }
+
+    this.focusShakeTrailFirstClone.texture = this.imageSprite.texture
+    this.focusShakeTrailFirstClone.x = this.shakeTrailSprite.x
+    this.focusShakeTrailFirstClone.y = this.shakeTrailSprite.y
+    this.focusShakeTrailFirstClone.scale.copyFrom(this.shakeTrailSprite.scale)
+    this.focusShakeTrailFirstClone.rotation = this.shakeTrailSprite.rotation
+    this.focusShakeTrailFirstClone.alpha = 1
+
+    if (shake.trailSecondStageEnabled && this.shakeTrailSecondSprite && this.shakeTrailSecondMaskSprite) {
+      const secondMaskKey = this.getFocusShakeTrailMaskKey(shake, 'second')
+      if (this.focusShakeTrailSecondMaskKey !== null && this.focusShakeTrailSecondMaskKey !== secondMaskKey) {
+        this.clearFocusShakeTrailSecondBlur()
+      }
+      if (!this.focusShakeTrailSecondLayer || !this.focusShakeTrailSecondClone) {
+        const maskSprite = this.createFocusShakeTrailMaskSprite(shake, 'second')
+        maskSprite.alpha = 0
+        const { layer, clone, blurFilter } = this.createFocusShakeTrailBlurLayer(
+          maskSprite,
+          focus.blurStrength
+        )
+        this.focusShakeTrailLayer.addChild(layer)
+        this.focusShakeTrailLayer.addChild(maskSprite)
+        this.focusShakeTrailSecondLayer = layer
+        this.focusShakeTrailSecondClone = clone
+        this.focusShakeTrailSecondMaskSprite = maskSprite
+        this.focusShakeTrailSecondMaskKey = secondMaskKey
+        this.focusShakeTrailSecondBlurFilter = blurFilter
+      }
+      this.focusShakeTrailSecondClone.texture = this.imageSprite.texture
+      this.focusShakeTrailSecondClone.x = this.shakeTrailSecondSprite.x
+      this.focusShakeTrailSecondClone.y = this.shakeTrailSecondSprite.y
+      this.focusShakeTrailSecondClone.scale.copyFrom(this.shakeTrailSecondSprite.scale)
+      this.focusShakeTrailSecondClone.rotation = this.shakeTrailSecondSprite.rotation
+      this.focusShakeTrailSecondClone.alpha = 1
+    } else {
+      this.clearFocusShakeTrailSecondBlur()
+    }
+  }
+
+  private createFocusShakeTrailBlurLayer(maskSprite: PIXI.Sprite, blurStrength: number) {
+    const clone = new PIXI.Sprite(this.imageSprite!.texture)
+    clone.anchor.set(0.5)
+
+    const layer = new PIXI.Container()
+    layer.addChild(clone)
+    layer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+
+    const blurFilter = new PIXI.BlurFilter({ strength: blurStrength, quality: 4 })
+    const shakeMaskFilter = new PIXI.MaskFilter({ sprite: maskSprite, channel: 'alpha' })
+    const focusMaskFilter = new PIXI.MaskFilter({ sprite: this.focusMaskSprite!, channel: 'alpha' })
+    layer.filters = [blurFilter, shakeMaskFilter, focusMaskFilter]
+
+    return { layer, clone, blurFilter }
+  }
+
+  private getFocusShakeTrailMaskScale(mode: 'first' | 'second'): number {
+    const trailFeatherScale = 1 + (mode === 'second' ? 0.16 : 0.18)
+    return Math.max(
+      trailFeatherScale,
+      this.latestEffects?.censor.linkToShake ? CENSOR_SHAKE_AREA_SCALE : 1
+    )
+  }
+
+  private getFocusShakeTrailMaskKey(shake: ShakeEffect, mode: 'first' | 'second'): string {
+    const scale = this.getFocusShakeTrailMaskScale(mode)
+    return [
+      mode,
+      scale,
+      this.width,
+      this.height,
+      this.latestEffects?.effectCenter?.x ?? 0.5,
+      this.latestEffects?.effectCenter?.y ?? 0.5,
+      shake.trailSize ?? 0.7,
+      shake.trailHeight ?? 1,
+      shake.trailSecondStageSize ?? 0.62,
+      shake.trailDuplicateCirclesEnabled ?? false,
+      shake.trailDuplicateSpacingShift ?? 0,
+      shake.trailDuplicateVerticalSpacingShift ?? 0,
+    ].join(':')
+  }
+
+  private createFocusShakeTrailMaskSprite(shake: ShakeEffect, mode: 'first' | 'second'): PIXI.Sprite {
+    const scale = this.getFocusShakeTrailMaskScale(mode)
+    if (shake.trailDuplicateCirclesEnabled) {
+      const p = this.getShakeTrailDupGuideEllipseLayout(shake, mode)
+      return this.createDualEllipseMaskFromCenters(
+        p.cx1,
+        p.cy1,
+        p.cx2,
+        p.cy2,
+        p.rx * scale,
+        p.ry * scale,
+        FOCUS_SHAKE_TRAIL_MASK_EDGE_FEATHER
+      )
+    }
+
+    const size = mode === 'second'
+      ? (shake.trailSize ?? 0.7) * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+      : (shake.trailSize ?? 0.7)
+    return this.createEllipseMaskSprite(
+      this.latestEffects?.effectCenter?.x ?? 0.5,
+      this.latestEffects?.effectCenter?.y ?? 0.5,
+      size * scale,
+      shake.trailHeight ?? 1,
+      FOCUS_SHAKE_TRAIL_MASK_EDGE_FEATHER,
+    )
+  }
+
+  private clearFocusShakeTrailBlur() {
+    if (this.focusShakeTrailFirstLayer) {
+      this.focusShakeTrailLayer.removeChild(this.focusShakeTrailFirstLayer)
+      if (this.focusShakeTrailFirstClone) {
+        this.focusShakeTrailFirstClone.destroy({ texture: false })
+      }
+      this.focusShakeTrailFirstLayer.destroy({ children: false })
+      this.focusShakeTrailFirstLayer = null
+      this.focusShakeTrailFirstClone = null
+      this.focusShakeTrailFirstBlurFilter = null
+    }
+    if (this.focusShakeTrailFirstMaskSprite) {
+      this.focusShakeTrailLayer.removeChild(this.focusShakeTrailFirstMaskSprite)
+      this.focusShakeTrailFirstMaskSprite.texture.destroy(true)
+      this.focusShakeTrailFirstMaskSprite.destroy()
+      this.focusShakeTrailFirstMaskSprite = null
+    }
+    this.focusShakeTrailFirstMaskKey = null
+    this.clearFocusShakeTrailSecondBlur()
+  }
+
+  private clearFocusShakeTrailSecondBlur() {
+    if (this.focusShakeTrailSecondLayer) {
+      this.focusShakeTrailLayer.removeChild(this.focusShakeTrailSecondLayer)
+      if (this.focusShakeTrailSecondClone) {
+        this.focusShakeTrailSecondClone.destroy({ texture: false })
+      }
+      this.focusShakeTrailSecondLayer.destroy({ children: false })
+      this.focusShakeTrailSecondLayer = null
+      this.focusShakeTrailSecondClone = null
+      this.focusShakeTrailSecondBlurFilter = null
+    }
+    if (this.focusShakeTrailSecondMaskSprite) {
+      this.focusShakeTrailLayer.removeChild(this.focusShakeTrailSecondMaskSprite)
+      this.focusShakeTrailSecondMaskSprite.texture.destroy(true)
+      this.focusShakeTrailSecondMaskSprite.destroy()
+      this.focusShakeTrailSecondMaskSprite = null
+    }
+    this.focusShakeTrailSecondMaskKey = null
+  }
+
   private clearFocus() {
     this.clearFocusBlurLayers()
+    this.clearFocusShakeTrailBlur()
     this.focusMaskKey = null
     this.focusCurrentX = 0.5
     this.focusCurrentY = 0.5
@@ -4123,7 +4335,7 @@ export class CellRenderer {
     const censor = effects.censor
     const shake = effects.shake
     if (!censor.linkToShake) return []
-    const censorScale = 1.15
+    const censorScale = CENSOR_SHAKE_AREA_SCALE
 
     if (shake.trailDuplicateCirclesEnabled) {
       const p = this.getShakeTrailDupGuideEllipseLayout(shake, 'first')
