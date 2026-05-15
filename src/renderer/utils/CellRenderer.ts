@@ -4302,6 +4302,8 @@ export class CellRenderer {
     if (!censor?.enabled) {
       this.censorGraphics.clear()
       this.clearCensorShakeSprite()
+      this.removeCensorFocusMask()
+      this.clearCensorText()
       this.censorLayer.visible = false
       return
     }
@@ -4646,8 +4648,6 @@ export class CellRenderer {
     } else if (this.censorFocusMaskCanvas.width !== maskW || this.censorFocusMaskCanvas.height !== maskH) {
       this.censorFocusMaskCanvas.width = maskW
       this.censorFocusMaskCanvas.height = maskH
-      // サイズ変更時はスプライトを再作成
-      this.removeCensorFocusMask()
     }
 
     const canvas = this.censorFocusMaskCanvas
@@ -4696,12 +4696,24 @@ export class CellRenderer {
       this.censorFocusMask.width = W
       this.censorFocusMask.height = H
     }
+    if (this.censorFocusMask.parent !== this.censorLayer) {
+      this.censorLayer.addChild(this.censorFocusMask)
+    }
+    this.censorLayer.mask = this.censorFocusMask
   }
 
   private removeCensorFocusMask() {
     if (this.censorFocusMask) {
       this.censorLayer.mask = null
-      this.censorLayer.removeChild(this.censorFocusMask)
+      if (this.censorFocusMask.parent === this.censorLayer) {
+        this.censorLayer.removeChild(this.censorFocusMask)
+      }
+    }
+  }
+
+  private disposeCensorFocusMask() {
+    this.removeCensorFocusMask()
+    if (this.censorFocusMask) {
       this.censorFocusMask.texture.destroy(true)
       this.censorFocusMask.destroy()
       this.censorFocusMask = null
@@ -4712,7 +4724,7 @@ export class CellRenderer {
   private clearCensor() {
     this.censorGraphics.clear()
     this.clearCensorShakeSprite()
-    this.removeCensorFocusMask()
+    this.disposeCensorFocusMask()
     this.clearCensorText()
     if (this.censorBlurFilter) {
       this.censorBarLayer.filters = []
