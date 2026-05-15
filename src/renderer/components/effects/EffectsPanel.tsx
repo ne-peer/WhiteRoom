@@ -1636,6 +1636,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     </span>
                   )}
                 </div>
+                <div style={{ marginBottom: 8 }} />
                 <Row label={t('shakeTrailSecondStage')}>
                   <Toggle
                     value={effects.shake.trailSecondStageEnabled ?? DEFAULT_EFFECTS.shake.trailSecondStageEnabled}
