@@ -1623,8 +1623,9 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                       variant="secondary"
                       onClick={() => {
                         const areas = effects.shake.trailAreas ?? []
+                        const sourceArea = areas[0] ?? DEFAULT_EFFECTS.shake.trailAreas[0]
                         set('shake', {
-                          trailAreas: [...areas, { centerX: 0.5, centerY: 0.5, size: 0.7, height: 1, duplicateEnabled: false, duplicateSpacingShift: 0, duplicateVerticalSpacingShift: 0 }],
+                          trailAreas: [...areas, { ...sourceArea }],
                         })
                       }}
                     >
