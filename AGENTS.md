@@ -176,6 +176,7 @@ Individual effect specifications live under `docs/effects/`. Read the relevant f
 
 | File | Effect |
 |---|---|
+| [`docs/effects/WR-ShakeEffect.md`](docs/effects/WR-ShakeEffect.md) | Shake Effect (vertical oscillation + multi-area trail delay) |
 | [`docs/effects/WR-FocusEffect.md`](docs/effects/WR-FocusEffect.md) | Focus Effect (peripheral blur + waypoint animation) |
 | [`docs/effects/WR-CensorEffect.md`](docs/effects/WR-CensorEffect.md) | Censor Effect (rectangular color bars, focus/shake link) |
 
