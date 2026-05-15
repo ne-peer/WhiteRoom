@@ -67,6 +67,7 @@ export const MasterCanvas: React.FC = () => {
     cellId: string
     startX: number
     startY: number
+    areaIndex: number
     startSize: number
     startTrailHeight: number
     startRadialHeight: number
@@ -136,7 +137,7 @@ export const MasterCanvas: React.FC = () => {
 
   const { setCellImage } = usePixiStage(containerRef)
   const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
-  const pickingActive = shakeTrailPositionPicking || spiralRadialPositionPicking
+  const pickingActive = shakeTrailPositionPicking !== null || spiralRadialPositionPicking
   const anyPickModeActive = pickingActive || squishColorPicking || flashRangePicking || focusWaypointPicking || censorRectPicking
   const selectedCell = cells.find(cell => cell.id === selectedCellId) ?? null
   const pickColumn = pickingActive ? lockedPickColumn ?? selectedCell?.col ?? null : null
@@ -224,7 +225,7 @@ export const MasterCanvas: React.FC = () => {
       : []
   const cancelPickMode = useCallback(() => {
     const state = useAppStore.getState()
-    state.setShakeTrailPositionPicking(false)
+    state.setShakeTrailPositionPicking(null)
     state.setSpiralRadialPositionPicking(false)
     state.setSquishColorPicking(false)
     state.setFlashRangePicking(false)
@@ -293,7 +294,7 @@ export const MasterCanvas: React.FC = () => {
         ?? { cellId: drag.cellId, x: drag.x, y: drag.y }
       const state = useAppStore.getState()
       state.setCellEffect(point.cellId, 'effectCenter', { x: point.x, y: point.y })
-      state.setShakeTrailPositionPicking(false)
+      state.setShakeTrailPositionPicking(null)
       state.setSpiralRadialPositionPicking(false)
       centerPickDragRef.current = null
       setPickPreviewCenter(null)
@@ -342,7 +343,7 @@ export const MasterCanvas: React.FC = () => {
       const tag = target?.tagName
       const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable
       const state = useAppStore.getState()
-      const centerPickModeActive = state.shakeTrailPositionPicking || state.spiralRadialPositionPicking
+      const centerPickModeActive = state.shakeTrailPositionPicking !== null || state.spiralRadialPositionPicking
       if (e.key === 'Escape' && (centerPickModeActive || state.flashRangePicking || state.focusWaypointPicking || state.censorRectPicking)) {
         e.preventDefault()
         e.stopPropagation()
@@ -368,8 +369,8 @@ export const MasterCanvas: React.FC = () => {
       if (e.key.toLowerCase() === 'p' && !e.repeat && !isEditable) {
         e.preventDefault()
         const state = useAppStore.getState()
-        const next = !(state.shakeTrailPositionPicking || state.spiralRadialPositionPicking)
-        state.setShakeTrailPositionPicking(next)
+        const next = state.shakeTrailPositionPicking === null && !state.spiralRadialPositionPicking
+        state.setShakeTrailPositionPicking(next ? 0 : null)
         state.setSpiralRadialPositionPicking(next)
         centerPickDragRef.current = null
         trailSizeDragRef.current = null
@@ -450,7 +451,7 @@ export const MasterCanvas: React.FC = () => {
     const row = Math.max(0, Math.min(Math.floor(relY / (rect.height / grid.rows)), grid.rows - 1))
     const cell = cells.find(c => c.col === col && c.row === row)
     setHoveredCellId(
-      ((shakeTrailPositionPicking || spiralRadialPositionPicking || flashRangePicking || focusWaypointPicking || censorRectPicking) && cell?.col !== activePickColumn)
+      ((shakeTrailPositionPicking !== null || spiralRadialPositionPicking || flashRangePicking || focusWaypointPicking || censorRectPicking) && cell?.col !== activePickColumn)
         ? null
         : cell?.id ?? null
     )
@@ -498,18 +499,23 @@ export const MasterCanvas: React.FC = () => {
     }
 
     const trailSizeDrag = trailSizeDragRef.current
-    if (trailSizeDrag && (shakeTrailPositionPicking || spiralRadialPositionPicking)) {
+    if (trailSizeDrag && (shakeTrailPositionPicking !== null || spiralRadialPositionPicking)) {
       e.preventDefault()
       const nextSize = clamp(trailSizeDrag.startSize + (e.clientX - trailSizeDrag.startX) * 0.003, 0.05, 1.5)
       const nextTrailHeight = clamp(trailSizeDrag.startTrailHeight + (e.clientY - trailSizeDrag.startY) * 0.003, 0.25, 2)
       const nextRadialHeight = clamp(trailSizeDrag.startRadialHeight + (e.clientY - trailSizeDrag.startY) * 0.003, 0.25, 2)
       const state = useAppStore.getState()
-      state.setCellEffect(trailSizeDrag.cellId, 'shake', { trailSize: nextSize, trailHeight: nextTrailHeight })
+      const currentAreas = state.cells.find(c => c.id === trailSizeDrag.cellId)?.effects.shake.trailAreas ?? []
+      const areaIdx = trailSizeDrag.areaIndex
+      const newAreas = currentAreas.map((a, i) =>
+        i === areaIdx ? { ...a, size: nextSize, height: nextTrailHeight } : a,
+      )
+      state.setCellEffect(trailSizeDrag.cellId, 'shake', { trailAreas: newAreas })
       state.setCellEffect(trailSizeDrag.cellId, 'blur', { radialHeight: nextRadialHeight })
     }
 
     const centerPickDrag = centerPickDragRef.current
-    if (centerPickDrag && (shakeTrailPositionPicking || spiralRadialPositionPicking)) {
+    if (centerPickDrag && (shakeTrailPositionPicking !== null || spiralRadialPositionPicking)) {
       const point = getNormalizedPointInCell(e.clientX, e.clientY, rect, centerPickDrag.cellId, useAppStore.getState())
       if (point) {
         centerPickDragRef.current = point
@@ -527,7 +533,7 @@ export const MasterCanvas: React.FC = () => {
     }
 
     if (
-      (!shakeTrailPositionPicking && !spiralRadialPositionPicking) ||
+      (shakeTrailPositionPicking === null && !spiralRadialPositionPicking) ||
       !cell ||
       activePickColumn === null ||
       cell.col !== activePickColumn
@@ -651,7 +657,7 @@ export const MasterCanvas: React.FC = () => {
     // [P] 中心位置指定モード中は無効（右ドラッグが円サイズ変更のため）
     if (
       e.button === 2 &&
-      !state.shakeTrailPositionPicking &&
+      state.shakeTrailPositionPicking === null &&
       !state.spiralRadialPositionPicking
     ) {
       stashRmbSuppressNextContextMenuRef.current = false
@@ -666,7 +672,7 @@ export const MasterCanvas: React.FC = () => {
       }, STASH_RMB_LONG_PRESS_MS)
       return
     }
-    if (!state.shakeTrailPositionPicking && !state.spiralRadialPositionPicking) return
+    if (state.shakeTrailPositionPicking === null && !state.spiralRadialPositionPicking) return
     const cell = getCellAtClientPoint(e.clientX, e.clientY, rect, state.grid, state.cells)
     const activePickColumn = lockedPickColumn
     if (!cell || activePickColumn === null || cell.col !== activePickColumn) {
@@ -692,12 +698,15 @@ export const MasterCanvas: React.FC = () => {
       return
     }
     if (e.button !== 2) return
+    const areaIndex = state.shakeTrailPositionPicking ?? 0
+    const area = cell.effects.shake.trailAreas?.[areaIndex]
     trailSizeDragRef.current = {
       cellId: cell.id,
       startX: e.clientX,
       startY: e.clientY,
-      startSize: cell.effects.shake.trailSize ?? 0.7,
-      startTrailHeight: cell.effects.shake.trailHeight ?? 1,
+      areaIndex,
+      startSize: area?.size ?? 0.7,
+      startTrailHeight: area?.height ?? 1,
       startRadialHeight: cell.effects.blur.radialHeight ?? 1,
     }
   }, [cancelPickMode, clearStashRmbLongPressTimer, lockedPickColumn, t])
@@ -759,9 +768,19 @@ export const MasterCanvas: React.FC = () => {
     const point = getNormalizedPointInCell(e.clientX, e.clientY, rect, drag.cellId, useAppStore.getState())
       ?? { cellId: drag.cellId, x: drag.x, y: drag.y }
     const state = useAppStore.getState()
-    state.setCellEffect(point.cellId, 'effectCenter', { x: point.x, y: point.y })
-    state.setShakeTrailPositionPicking(false)
+    const areaIndex = state.shakeTrailPositionPicking
+    if (areaIndex !== null) {
+      // エリアごとの中心位置を更新
+      const currentAreas = state.cells.find(c => c.id === point.cellId)?.effects.shake.trailAreas ?? []
+      const newAreas = currentAreas.map((a, i) =>
+        i === areaIndex ? { ...a, centerX: point.x, centerY: point.y } : a,
+      )
+      state.setCellEffect(point.cellId, 'shake', { trailAreas: newAreas })
+    } else {
+      state.setCellEffect(point.cellId, 'effectCenter', { x: point.x, y: point.y })
+    }
     state.setSpiralRadialPositionPicking(false)
+    state.setShakeTrailPositionPicking(null)
     centerPickDragRef.current = null
     setPickPreviewCenter(null)
     setPickGuide(null)
@@ -774,7 +793,7 @@ export const MasterCanvas: React.FC = () => {
       return
     }
     const state = useAppStore.getState()
-    if (state.shakeTrailPositionPicking || state.spiralRadialPositionPicking || state.squishColorPicking || state.flashRangePicking) {
+    if (state.shakeTrailPositionPicking !== null || state.spiralRadialPositionPicking || state.squishColorPicking || state.flashRangePicking) {
       e.preventDefault()
     }
   }, [])
@@ -1469,92 +1488,67 @@ function toCircleGuides(
   }
 
   if (effects.shake?.trailEnabled) {
-    const baseX = previewCenter?.x ?? effects.effectCenter?.x ?? 0.5
-    const baseY = previewCenter?.y ?? effects.effectCenter?.y ?? 0.5
-    const shakeSize = clamp(effects.shake?.trailSize ?? 0.7, 0.05, 3)
-    const dupEnabled = effects.shake.trailDuplicateCirclesEnabled ?? false
-
-    if (dupEnabled) {
-      const halfNorm = trailDuplicateHalfSeparationNormX(
-        cellSize.width,
-        cellSize.height,
-        shakeSize,
-        effects.shake.trailDuplicateSpacingShift ?? 0,
-      )
-      const staggerY = trailDuplicateVerticalStaggerOffsetsNormY(
-        cellSize.width,
-        cellSize.height,
-        shakeSize,
-        effects.shake?.trailHeight ?? 1,
-        effects.shake.trailDuplicateVerticalSpacingShift ?? 0,
-      )
-      guides.push({
-        key: 'shakeTrailDupL',
-        kind: 'shakeTrail',
-        dupGroupId: 'shakeTrail',
-        style: toCircleGuideStyle(effects, 'shakeTrail', cellSize, previewCenter, {
-          x: baseX - halfNorm,
-          y: baseY + staggerY.left,
-        }),
-      })
-      guides.push({
-        key: 'shakeTrailDupR',
-        kind: 'shakeTrail',
-        dupGroupId: 'shakeTrail',
-        style: toCircleGuideStyle(effects, 'shakeTrail', cellSize, previewCenter, {
-          x: baseX + halfNorm,
-          y: baseY + staggerY.right,
-        }),
-      })
-    } else {
-      guides.push({
-        key: 'shakeTrail',
-        kind: 'shakeTrail',
-        style: toCircleGuideStyle(effects, 'shakeTrail', cellSize, previewCenter),
-      })
-    }
-
-    if (effects.shake.trailSecondStageEnabled) {
-      if (dupEnabled) {
-        const halfNormSec = trailDuplicateHalfSeparationNormX(
-          cellSize.width,
-          cellSize.height,
-          shakeSize,
-          effects.shake.trailDuplicateSpacingShift ?? 0,
+    const areas = effects.shake.trailAreas ?? []
+    const secondStageSizeRatio = clamp(effects.shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+    areas.forEach((area, areaIdx) => {
+      const shakeSize = clamp(area.size, 0.05, 3)
+      const baseX = area.centerX
+      const baseY = area.centerY
+      if (area.duplicateEnabled) {
+        const halfNorm = trailDuplicateHalfSeparationNormX(
+          cellSize.width, cellSize.height, shakeSize, area.duplicateSpacingShift,
         )
-        const staggerYSec = trailDuplicateVerticalStaggerOffsetsNormY(
-          cellSize.width,
-          cellSize.height,
-          shakeSize,
-          effects.shake?.trailHeight ?? 1,
-          effects.shake.trailDuplicateVerticalSpacingShift ?? 0,
+        const staggerY = trailDuplicateVerticalStaggerOffsetsNormY(
+          cellSize.width, cellSize.height, shakeSize, area.height, area.duplicateVerticalSpacingShift,
         )
         guides.push({
-          key: 'shakeTrailSecDupL',
-          kind: 'shakeTrailSecondStage',
-          dupGroupId: 'shakeTrailSecond',
-          style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize, previewCenter, {
-            x: baseX - halfNormSec,
-            y: baseY + staggerYSec.left,
-          }),
+          key: `shakeTrailDupL_${areaIdx}`,
+          kind: 'shakeTrail',
+          dupGroupId: `shakeTrail_${areaIdx}`,
+          style: toShakeAreaCircleStyle(area, 'first', cellSize, { x: baseX - halfNorm, y: baseY + staggerY.left }),
         })
         guides.push({
-          key: 'shakeTrailSecDupR',
-          kind: 'shakeTrailSecondStage',
-          dupGroupId: 'shakeTrailSecond',
-          style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize, previewCenter, {
-            x: baseX + halfNormSec,
-            y: baseY + staggerYSec.right,
-          }),
+          key: `shakeTrailDupR_${areaIdx}`,
+          kind: 'shakeTrail',
+          dupGroupId: `shakeTrail_${areaIdx}`,
+          style: toShakeAreaCircleStyle(area, 'first', cellSize, { x: baseX + halfNorm, y: baseY + staggerY.right }),
         })
       } else {
         guides.push({
-          key: 'shakeTrailSecond',
-          kind: 'shakeTrailSecondStage',
-          style: toCircleGuideStyle(effects, 'shakeTrailSecondStage', cellSize, previewCenter),
+          key: `shakeTrail_${areaIdx}`,
+          kind: 'shakeTrail',
+          style: toShakeAreaCircleStyle(area, 'first', cellSize, { x: baseX, y: baseY }),
         })
       }
-    }
+      if (effects.shake.trailSecondStageEnabled) {
+        if (area.duplicateEnabled) {
+          const halfNormSec = trailDuplicateHalfSeparationNormX(
+            cellSize.width, cellSize.height, shakeSize, area.duplicateSpacingShift,
+          )
+          const staggerYSec = trailDuplicateVerticalStaggerOffsetsNormY(
+            cellSize.width, cellSize.height, shakeSize, area.height, area.duplicateVerticalSpacingShift,
+          )
+          guides.push({
+            key: `shakeTrailSecDupL_${areaIdx}`,
+            kind: 'shakeTrailSecondStage',
+            dupGroupId: `shakeTrailSecond_${areaIdx}`,
+            style: toShakeAreaCircleStyle(area, 'second', cellSize, { x: baseX - halfNormSec, y: baseY + staggerYSec.left }, secondStageSizeRatio),
+          })
+          guides.push({
+            key: `shakeTrailSecDupR_${areaIdx}`,
+            kind: 'shakeTrailSecondStage',
+            dupGroupId: `shakeTrailSecond_${areaIdx}`,
+            style: toShakeAreaCircleStyle(area, 'second', cellSize, { x: baseX + halfNormSec, y: baseY + staggerYSec.right }, secondStageSizeRatio),
+          })
+        } else {
+          guides.push({
+            key: `shakeTrailSecond_${areaIdx}`,
+            kind: 'shakeTrailSecondStage',
+            style: toShakeAreaCircleStyle(area, 'second', cellSize, { x: baseX, y: baseY }, secondStageSizeRatio),
+          })
+        }
+      }
+    })
   }
 
   return guides
@@ -1562,7 +1556,7 @@ function toCircleGuides(
 
 function toCircleGuideStyle(
   effects: ReturnType<typeof useAppStore.getState>['cells'][number]['effects'],
-  kind: CircleGuideKind,
+  kind: 'radialBlur',
   cellSize: { width: number; height: number },
   previewCenter: PickCenterPoint | null,
   centerNormOverride?: { x: number; y: number },
@@ -1573,21 +1567,36 @@ function toCircleGuideStyle(
   const centerY = centerNormOverride
     ? centerNormOverride.y
     : clamp(previewCenter?.y ?? effects.effectCenter?.y ?? 0.5, 0, 1)
-  const shakeSize = clamp(effects.shake?.trailSize ?? 0.7, 0.05, 3)
-  const size = kind === 'radialBlur'
-    ? clamp(effects.blur?.radialSize ?? 1, 0.05, 3)
-    : kind === 'shakeTrailSecondStage'
-      ? shakeSize * clamp(effects.shake?.trailSecondStageSize ?? 0.62, 0.1, 1)
-      : shakeSize
-  const height = kind === 'radialBlur'
-    ? clamp(effects.blur?.radialHeight ?? 1, 0.05, 3)
-    : clamp(effects.shake?.trailHeight ?? 1, 0.05, 3)
+  const size = clamp(effects.blur?.radialSize ?? 1, 0.05, 3)
+  const height = clamp(effects.blur?.radialHeight ?? 1, 0.05, 3)
   const basePercent = cellSize.width > 0
     ? (Math.min(cellSize.width, cellSize.height) / cellSize.width) * 100
     : 100
   return {
     left: `${centerX * 100}%`,
     top: `${centerY * 100}%`,
+    width: `${size * basePercent}%`,
+    aspectRatio: `${1} / ${height}`,
+  }
+}
+
+function toShakeAreaCircleStyle(
+  area: import('../../../shared/types').ShakeTrailArea,
+  stage: 'first' | 'second',
+  cellSize: { width: number; height: number },
+  center: { x: number; y: number },
+  secondStageSizeRatio = 0.62,
+): React.CSSProperties {
+  const size = stage === 'second'
+    ? clamp(area.size, 0.05, 3) * clamp(secondStageSizeRatio, 0.1, 1)
+    : clamp(area.size, 0.05, 3)
+  const height = clamp(area.height, 0.05, 3)
+  const basePercent = cellSize.width > 0
+    ? (Math.min(cellSize.width, cellSize.height) / cellSize.width) * 100
+    : 100
+  return {
+    left: `${clamp(center.x, 0, 1) * 100}%`,
+    top: `${clamp(center.y, 0, 1) * 100}%`,
     width: `${size * basePercent}%`,
     aspectRatio: `${1} / ${height}`,
   }

@@ -4,6 +4,7 @@ import { CategorySection, Section, Row, Toggle, Slider, ColorPicker, NumberInput
 import { formatCount, useTranslation } from '../../i18n'
 import {
   DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
+  SHAKE_TRAIL_AREA_MAX_COUNT,
   normalizeDynamicAssetEffect,
   type AssetEffectFolder,
   type Cell,
@@ -14,6 +15,7 @@ import {
   type FlashDisplayFileMode,
   type RippleMovePattern,
   type FocusBlurPattern,
+  type ShakeTrailArea,
 } from '../../../shared/types'
 import { formatRasterSourceListingExtensionsForTooltip, isSutFilename } from '../../../shared/rasterSourceExtensions'
 
@@ -165,13 +167,7 @@ const EFFECT_PRESET_1: CellEffects = {
     trailDelaySec: 0.12,
     trailAlpha: 0.55,
     trailBlurStrength: 2,
-    trailCenterX: 0.5,
-    trailCenterY: 0.5,
-    trailSize: 0.7,
-    trailHeight: 1,
-    trailDuplicateCirclesEnabled: false,
-    trailDuplicateSpacingShift: 0,
-    trailDuplicateVerticalSpacingShift: 0,
+    trailAreas: [{ centerX: 0.5, centerY: 0.5, size: 0.7, height: 1, duplicateEnabled: false, duplicateSpacingShift: 0, duplicateVerticalSpacingShift: 0 }],
   },
   zoom: {
     enabled: false,
@@ -420,13 +416,7 @@ const EFFECT_PRESET_2: CellEffects = {
     trailDelaySec: 0.03,
     trailAlpha: 1,
     trailBlurStrength: 0,
-    trailCenterX: 0.5,
-    trailCenterY: 0.5,
-    trailSize: 0.59,
-    trailHeight: 0.92,
-    trailDuplicateCirclesEnabled: false,
-    trailDuplicateSpacingShift: 0,
-    trailDuplicateVerticalSpacingShift: 0,
+    trailAreas: [{ centerX: 0.5, centerY: 0.5, size: 0.59, height: 0.92, duplicateEnabled: false, duplicateSpacingShift: 0, duplicateVerticalSpacingShift: 0 }],
   },
   zoom: {
     enabled: false,
@@ -899,14 +889,14 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
             <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <Button
                 small
-                variant={(shakeTrailPositionPicking || spiralRadialPositionPicking) ? 'primary' : 'secondary'}
+                variant={spiralRadialPositionPicking ? 'primary' : 'secondary'}
                 onClick={() => {
-                  const next = !(shakeTrailPositionPicking || spiralRadialPositionPicking)
-                  setShakeTrailPositionPicking(next)
+                  const next = !spiralRadialPositionPicking
                   setSpiralRadialPositionPicking(next)
+                  if (next) setShakeTrailPositionPicking(null)
                 }}
               >
-                {(shakeTrailPositionPicking || spiralRadialPositionPicking) ? t('shakeTrailPickActive') : t('shakeTrailPickButton')}
+                {spiralRadialPositionPicking ? t('shakeTrailPickActive') : t('shakeTrailPickButton')}
               </Button>
               <Button
                 small
@@ -1500,24 +1490,6 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginBottom: 8 }}>
                   {t('shakeTrailHelp')}
                 </div>
-                <div style={{ marginTop: -2, marginBottom: 8, display: 'flex', justifyContent: 'flex-end' }}>
-                  <button
-                    type="button"
-                    onClick={scrollToEffectCenterSetting}
-                    style={{
-                      fontSize: 11,
-                      lineHeight: 1.2,
-                      color: 'rgba(255,255,255,0.72)',
-                      background: 'transparent',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: 999,
-                      padding: '2px 8px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {t('shakeTrailCirclePositionAdjust')}
-                  </button>
-                </div>
                 <Row label={t('shakeTrailDelay')}>
                   <Slider
                     value={effects.shake.trailDelaySec}
@@ -1546,52 +1518,124 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                     onChange={v => set('shake', { trailBlurStrength: v })}
                   />
                 </Row>
-                <Row label={t('radialBlurSize')}>
-                  <Slider
-                    value={Math.round((effects.shake.trailSize ?? DEFAULT_EFFECTS.shake.trailSize) * 100)}
-                    min={5}
-                    max={150}
-                    onChange={v => set('shake', { trailSize: v / 100 })}
-                    unit="%"
-                  />
-                </Row>
-                <Row label={t('radialBlurHeight')}>
-                  <Slider
-                    value={Math.round((effects.shake.trailHeight ?? DEFAULT_EFFECTS.shake.trailHeight) * 100)}
-                    min={25}
-                    max={200}
-                    onChange={v => set('shake', { trailHeight: v / 100 })}
-                    unit="%"
-                  />
-                </Row>
-                <Row label={t('shakeTrailDuplicateCircles')}>
-                  <Toggle
-                    value={effects.shake.trailDuplicateCirclesEnabled ?? DEFAULT_EFFECTS.shake.trailDuplicateCirclesEnabled}
-                    onChange={v => set('shake', { trailDuplicateCirclesEnabled: v })}
-                  />
-                </Row>
-                {(effects.shake.trailDuplicateCirclesEnabled ?? DEFAULT_EFFECTS.shake.trailDuplicateCirclesEnabled) && (
-                  <>
-                    <Row label={t('shakeTrailDuplicateGap')}>
-                      <Slider
-                        value={Math.round((effects.shake.trailDuplicateSpacingShift ?? 0) * 100)}
-                        min={-50}
-                        max={50}
-                        onChange={v => set('shake', { trailDuplicateSpacingShift: v / 100 })}
-                        unit="%"
-                      />
-                    </Row>
-                    <Row label={t('shakeTrailDuplicateVerticalGap')}>
-                      <Slider
-                        value={Math.round((effects.shake.trailDuplicateVerticalSpacingShift ?? 0) * 100)}
-                        min={-50}
-                        max={50}
-                        onChange={v => set('shake', { trailDuplicateVerticalSpacingShift: v / 100 })}
-                        unit="%"
-                      />
-                    </Row>
-                  </>
-                )}
+                {/* ── トレイルエリアリスト ── */}
+                {(effects.shake.trailAreas ?? []).map((area, areaIdx) => {
+                  const setArea = (patch: Partial<ShakeTrailArea>) => {
+                    const areas = effects.shake.trailAreas ?? []
+                    set('shake', {
+                      trailAreas: areas.map((a, i) => i === areaIdx ? { ...a, ...patch } : a),
+                    })
+                  }
+                  const isPicking = shakeTrailPositionPicking === areaIdx
+                  return (
+                    <div
+                      key={areaIdx}
+                      style={{
+                        borderTop: areaIdx > 0 ? '1px solid rgba(255,255,255,0.1)' : undefined,
+                        paddingTop: areaIdx > 0 ? 8 : 0,
+                        marginTop: areaIdx > 0 ? 8 : 0,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
+                          {t('shakeTrailAreaLabel').replace('{n}', String(areaIdx + 1))}
+                        </span>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <Button
+                            small
+                            variant={isPicking ? 'primary' : 'secondary'}
+                            onClick={() => {
+                              setShakeTrailPositionPicking(isPicking ? null : areaIdx)
+                              if (!isPicking) setSpiralRadialPositionPicking(false)
+                            }}
+                          >
+                            {isPicking ? t('shakeTrailPickActive') : t('shakeTrailAreaPickButton')}
+                          </Button>
+                          {(effects.shake.trailAreas?.length ?? 1) > 1 && (
+                            <Button
+                              small
+                              variant="secondary"
+                              onClick={() => {
+                                const areas = effects.shake.trailAreas ?? []
+                                set('shake', { trailAreas: areas.filter((_, i) => i !== areaIdx) })
+                                if (shakeTrailPositionPicking === areaIdx) setShakeTrailPositionPicking(null)
+                              }}
+                            >
+                              ✕
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <Row label={t('shakeTrailAreaSize')}>
+                        <Slider
+                          value={Math.round(area.size * 100)}
+                          min={5}
+                          max={150}
+                          onChange={v => setArea({ size: v / 100 })}
+                          unit="%"
+                        />
+                      </Row>
+                      <Row label={t('shakeTrailAreaHeight')}>
+                        <Slider
+                          value={Math.round(area.height * 100)}
+                          min={25}
+                          max={200}
+                          onChange={v => setArea({ height: v / 100 })}
+                          unit="%"
+                        />
+                      </Row>
+                      <Row label={t('shakeTrailAreaDuplicate')}>
+                        <Toggle
+                          value={area.duplicateEnabled}
+                          onChange={v => setArea({ duplicateEnabled: v })}
+                        />
+                      </Row>
+                      {area.duplicateEnabled && (
+                        <>
+                          <Row label={t('shakeTrailAreaDuplicateGap')}>
+                            <Slider
+                              value={Math.round(area.duplicateSpacingShift * 100)}
+                              min={-50}
+                              max={50}
+                              onChange={v => setArea({ duplicateSpacingShift: v / 100 })}
+                              unit="%"
+                            />
+                          </Row>
+                          <Row label={t('shakeTrailAreaDuplicateVerticalGap')}>
+                            <Slider
+                              value={Math.round(area.duplicateVerticalSpacingShift * 100)}
+                              min={-50}
+                              max={50}
+                              onChange={v => setArea({ duplicateVerticalSpacingShift: v / 100 })}
+                              unit="%"
+                            />
+                          </Row>
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
+                {/* エリア追加ボタン */}
+                <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+                  {(effects.shake.trailAreas?.length ?? 0) < SHAKE_TRAIL_AREA_MAX_COUNT ? (
+                    <Button
+                      small
+                      variant="secondary"
+                      onClick={() => {
+                        const areas = effects.shake.trailAreas ?? []
+                        set('shake', {
+                          trailAreas: [...areas, { centerX: 0.5, centerY: 0.5, size: 0.7, height: 1, duplicateEnabled: false, duplicateSpacingShift: 0, duplicateVerticalSpacingShift: 0 }],
+                        })
+                      }}
+                    >
+                      + {t('shakeTrailAreaAdd')}
+                    </Button>
+                  ) : (
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)' }}>
+                      {t('shakeTrailAreaMaxReached').replace('{max}', String(SHAKE_TRAIL_AREA_MAX_COUNT))}
+                    </span>
+                  )}
+                </div>
                 <Row label={t('shakeTrailSecondStage')}>
                   <Toggle
                     value={effects.shake.trailSecondStageEnabled ?? DEFAULT_EFFECTS.shake.trailSecondStageEnabled}

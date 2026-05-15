@@ -1,3 +1,8 @@
+// ===== 定数 =====
+
+/** シェイクエフェクト：トレイルエリアの最大数 */
+export const SHAKE_TRAIL_AREA_MAX_COUNT = 5
+
 // ===== 基本型 =====
 
 export type GridPosition = {
@@ -230,6 +235,26 @@ export type BreathingEffect = {
   scaleDurationSec: number
 }
 
+/** シェイクトレイルの1エリア設定 */
+export type ShakeTrailArea = {
+  centerX: number   // 0–1 正規化 (0 = 左端)
+  centerY: number   // 0–1 正規化 (0 = 上端)
+  size: number      // 楕円の横半径比率 0–1
+  height: number    // 高さ/幅 比率 0–1
+  /** 左右2円として複製する */
+  duplicateEnabled: boolean
+  /**
+   * 左右の円中心までの距離の微調整。基準は外接配置（中心から各円中心までの距離 = 横半径 rx）とし、
+   * その距離に対して -50%〜+50%（-0.5〜+0.5）を加味する（実距離 = rx × (1 + 値)）。
+   */
+  duplicateSpacingShift: number
+  /**
+   * 複製した左右の円を上下交互にずらす量の調整。縦半径 ry を基準に -50%〜+50%（-0.5〜+0.5）。
+   * 左円中心の Y オフセット = -ry×値、右円中心 = +ry×値（ピクセル）。
+   */
+  duplicateVerticalSpacingShift: number
+}
+
 export type ShakeEffect = {
   enabled: boolean
   mode: 'once' | 'loop'
@@ -250,22 +275,8 @@ export type ShakeEffect = {
   trailDelaySec: number
   trailAlpha: number
   trailBlurStrength: number
-  trailCenterX: number
-  trailCenterY: number
-  trailSize: number
-  trailHeight: number
-  /** 追従遅延の円エリアを、共通中心の左右に同サイズの2円として扱う */
-  trailDuplicateCirclesEnabled: boolean
-  /**
-   * 左右の円中心までの距離の微調整。基準は外接配置（中心から各円中心までの距離 = 横半径 rx）とし、
-   * その距離に対して -50%〜+50%（-0.5〜+0.5）を加味する（実距離 = rx × (1 + 値)）。
-   */
-  trailDuplicateSpacingShift: number
-  /**
-   * 複製した左右の円を上下交互にずらす量の調整。縦半径 ry を基準に -50%〜+50%（-0.5〜+0.5）。
-   * 左円中心の Y オフセット = -ry×値、右円中心 = +ry×値（ピクセル）。
-   */
-  trailDuplicateVerticalSpacingShift: number
+  /** トレイルエリアのリスト（1〜SHAKE_TRAIL_AREA_MAX_COUNT） */
+  trailAreas: ShakeTrailArea[]
   lockBaseImage?: boolean
 }
 

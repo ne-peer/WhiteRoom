@@ -5,7 +5,7 @@ import type {
   AppProfile, Cell, CellBaseline, CellEffects, CellFolder, GridLayout,
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
   ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig, ReadingConfigPayload,
-  StashItem, IpcApi, FocusEffect, CensorEffect,
+  StashItem, IpcApi, FocusEffect, CensorEffect, ShakeTrailArea,
 } from '../../shared/types'
 import {
   DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
@@ -152,14 +152,16 @@ export const DEFAULT_EFFECTS: CellEffects = {
     trailDelaySec: 0.01,
     trailAlpha: 0.8,
     trailBlurStrength: 0,
-    trailCenterX: 0.5,
-    trailCenterY: 0.5,
-    trailSize: 0.7,
-    trailHeight: 1,
-    trailDuplicateCirclesEnabled: false,
-    trailDuplicateSpacingShift: 0,
-    trailDuplicateVerticalSpacingShift: 0,
     lockBaseImage: false,
+    trailAreas: [{
+      centerX: 0.5,
+      centerY: 0.5,
+      size: 0.7,
+      height: 1,
+      duplicateEnabled: false,
+      duplicateSpacingShift: 0,
+      duplicateVerticalSpacingShift: 0,
+    }],
   },
   zoom: {
     enabled: false,
@@ -395,30 +397,27 @@ function getInitialLanguage(): UiLanguage {
   return stored === 'en' || stored === 'ja' ? stored : DEFAULT_LANGUAGE
 }
 
+function clampNum(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v))
+}
+
+function normalizeShakeTrailArea(area: ShakeTrailArea): ShakeTrailArea {
+  return {
+    ...area,
+    duplicateSpacingShift: clampNum(area.duplicateSpacingShift, -0.5, 0.5),
+    duplicateVerticalSpacingShift: clampNum(area.duplicateVerticalSpacingShift, -0.5, 0.5),
+  }
+}
+
 function normalizeShakePatch(
   value: Partial<CellEffects['shake']>
 ): Partial<CellEffects['shake']> {
   const patch = structuredClone(value)
   if (patch.trailSecondStageSize !== undefined) {
-    if (patch.trailSecondStageSize > 1) {
-      patch.trailSecondStageSize = 1
-    } else if (patch.trailSecondStageSize < 0.1) {
-      patch.trailSecondStageSize = 0.1
-    }
+    patch.trailSecondStageSize = clampNum(patch.trailSecondStageSize, 0.1, 1)
   }
-  if (patch.trailDuplicateSpacingShift !== undefined) {
-    if (patch.trailDuplicateSpacingShift < -0.5) {
-      patch.trailDuplicateSpacingShift = -0.5
-    } else if (patch.trailDuplicateSpacingShift > 0.5) {
-      patch.trailDuplicateSpacingShift = 0.5
-    }
-  }
-  if (patch.trailDuplicateVerticalSpacingShift !== undefined) {
-    if (patch.trailDuplicateVerticalSpacingShift < -0.5) {
-      patch.trailDuplicateVerticalSpacingShift = -0.5
-    } else if (patch.trailDuplicateVerticalSpacingShift > 0.5) {
-      patch.trailDuplicateVerticalSpacingShift = 0.5
-    }
+  if (patch.trailAreas !== undefined) {
+    patch.trailAreas = patch.trailAreas.map(normalizeShakeTrailArea)
   }
   return patch
 }
@@ -474,7 +473,28 @@ function mergeEffectsWithDefaults(effects: Partial<CellEffects> | undefined): Ce
     echo: { ...DEFAULT_EFFECTS.echo, ...effects?.echo },
     flash: normalizeFlashEffectTransitionFields({ ...DEFAULT_EFFECTS.flash, ...effects?.flash }),
     breathing: { ...DEFAULT_EFFECTS.breathing, ...effects?.breathing },
-    shake: { ...DEFAULT_EFFECTS.shake, ...effects?.shake },
+    shake: (() => {
+      const raw = effects?.shake as Record<string, unknown> | undefined
+      const typed = effects?.shake as Partial<CellEffects['shake']> | undefined
+      let trailAreas = typed?.trailAreas
+      if (!trailAreas && raw) {
+        // 旧フラットフィールドから trailAreas へのマイグレーション
+        trailAreas = [{
+          centerX: (raw['trailCenterX'] as number) ?? 0.5,
+          centerY: (raw['trailCenterY'] as number) ?? 0.5,
+          size: (raw['trailSize'] as number) ?? 0.7,
+          height: (raw['trailHeight'] as number) ?? 1.0,
+          duplicateEnabled: (raw['trailDuplicateCirclesEnabled'] as boolean) ?? false,
+          duplicateSpacingShift: (raw['trailDuplicateSpacingShift'] as number) ?? 0,
+          duplicateVerticalSpacingShift: (raw['trailDuplicateVerticalSpacingShift'] as number) ?? 0,
+        }]
+      }
+      return {
+        ...DEFAULT_EFFECTS.shake,
+        ...typed,
+        trailAreas: trailAreas ?? DEFAULT_EFFECTS.shake.trailAreas,
+      }
+    })(),
     zoom: { ...DEFAULT_EFFECTS.zoom, ...effects?.zoom },
     squish: { ...DEFAULT_EFFECTS.squish, ...effects?.squish },
     fog: { ...DEFAULT_EFFECTS.fog, ...effects?.fog },
@@ -569,7 +589,7 @@ export type AppState = {
   effectColumnSyncNonce: number
   effectColumnSyncCol: number | null
   applyEffectChangesToAllColumns: boolean
-  shakeTrailPositionPicking: boolean
+  shakeTrailPositionPicking: number | null
   spiralRadialPositionPicking: boolean
   squishColorPicking: boolean
   flashRangePicking: boolean
@@ -648,7 +668,7 @@ export type AppActions = {
   enableAllTimerSyncForSelectedCell: () => void
   disableAllTimerSyncForSelectedCell: () => void
   setApplyEffectChangesToAllColumns: (flag: boolean) => void
-  setShakeTrailPositionPicking: (flag: boolean) => void
+  setShakeTrailPositionPicking: (areaIndex: number | null) => void
   setSpiralRadialPositionPicking: (flag: boolean) => void
   setSquishColorPicking: (flag: boolean) => void
   setFlashRangePicking: (flag: boolean) => void
@@ -795,7 +815,7 @@ export const useAppStore = create<AppStore>()(
     effectColumnSyncNonce: 0,
     effectColumnSyncCol: null,
     applyEffectChangesToAllColumns: true,
-    shakeTrailPositionPicking: false,
+    shakeTrailPositionPicking: null,
     spiralRadialPositionPicking: false,
     squishColorPicking: false,
     flashRangePicking: false,
@@ -1166,9 +1186,9 @@ export const useAppStore = create<AppStore>()(
       s.applyEffectChangesToAllColumns = flag
     }),
 
-    setShakeTrailPositionPicking: (flag) => set(s => {
-      s.shakeTrailPositionPicking = flag
-      if (flag) {
+    setShakeTrailPositionPicking: (areaIndex) => set(s => {
+      s.shakeTrailPositionPicking = areaIndex
+      if (areaIndex !== null) {
         s.squishColorPicking = false
         s.flashRangePicking = false
         s.focusWaypointPicking = false
@@ -1189,7 +1209,7 @@ export const useAppStore = create<AppStore>()(
     setSquishColorPicking: (flag) => set(s => {
       s.squishColorPicking = flag
       if (flag) {
-        s.shakeTrailPositionPicking = false
+        s.shakeTrailPositionPicking = null
         s.spiralRadialPositionPicking = false
         s.flashRangePicking = false
         s.focusWaypointPicking = false
@@ -1200,7 +1220,7 @@ export const useAppStore = create<AppStore>()(
     setFlashRangePicking: (flag) => set(s => {
       s.flashRangePicking = flag
       if (flag) {
-        s.shakeTrailPositionPicking = false
+        s.shakeTrailPositionPicking = null
         s.spiralRadialPositionPicking = false
         s.squishColorPicking = false
         s.focusWaypointPicking = false
@@ -1211,7 +1231,7 @@ export const useAppStore = create<AppStore>()(
     setFocusWaypointPicking: (flag) => set(s => {
       s.focusWaypointPicking = flag
       if (flag) {
-        s.shakeTrailPositionPicking = false
+        s.shakeTrailPositionPicking = null
         s.spiralRadialPositionPicking = false
         s.squishColorPicking = false
         s.flashRangePicking = false
@@ -1222,7 +1242,7 @@ export const useAppStore = create<AppStore>()(
     setCensorRectPicking: (flag) => set(s => {
       s.censorRectPicking = flag
       if (flag) {
-        s.shakeTrailPositionPicking = false
+        s.shakeTrailPositionPicking = null
         s.spiralRadialPositionPicking = false
         s.squishColorPicking = false
         s.flashRangePicking = false

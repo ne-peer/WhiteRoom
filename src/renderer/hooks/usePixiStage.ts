@@ -379,7 +379,7 @@ function layoutCells(
 
       cr.container.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
         const state = useAppStore.getState()
-        if (state.shakeTrailPositionPicking || state.spiralRadialPositionPicking) {
+        if (state.shakeTrailPositionPicking !== null || state.spiralRadialPositionPicking) {
           return
         }
         state.selectCell(cell.id)

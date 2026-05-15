@@ -170,20 +170,25 @@ export class CellRenderer {
   private radialBlurLayers: PIXI.Container[] = []
   private radialBlurMaskSprites: PIXI.Sprite[] = []
   private radialBlurImageClones: PIXI.Sprite[] = []
-  private shakeTrailSprite: PIXI.Sprite | null = null
-  private shakeTrailMaskSprite: PIXI.Sprite | null = null
-  private shakeTrailBlurFilter: PIXI.BlurFilter | null = null
-  private shakeTrailFirstLayer: PIXI.Container | null = null
-  private shakeTrailSecondLayer: PIXI.Container | null = null
-  private shakeTrailSecondSprite: PIXI.Sprite | null = null
-  private shakeTrailSecondMaskSprite: PIXI.Sprite | null = null
-  private shakeTrailSecondBlurFilter: PIXI.BlurFilter | null = null
+  /** 各トレイルエリアのレイヤー群（エリア数分の配列） */
+  private shakeTrailAreaLayers: Array<{
+    firstLayer: PIXI.Container
+    firstSprite: PIXI.Sprite
+    firstMaskSprite: PIXI.Sprite
+    firstBlurFilter: PIXI.BlurFilter
+    secondLayer: PIXI.Container | null
+    secondSprite: PIXI.Sprite | null
+    secondMaskSprite: PIXI.Sprite | null
+    secondBlurFilter: PIXI.BlurFilter | null
+  }> = []
+  /** @deprecated use shakeTrailAreaLayers[0] */
+  private get shakeTrailSprite(): PIXI.Sprite | null { return this.shakeTrailAreaLayers[0]?.firstSprite ?? null }
   private shakeTrailKey: string | null = null
   private radialBlurGuideKey: string | null = null
   private shakeTrailFirstGuideKey: string | null = null
   private shakeTrailSecondGuideKey: string | null = null
   /** 円の間隔／縦の間隔スライダー用に直前の値を保持（両ガイド表示の変化検出） */
-  private shakeTrailDupSpacingSliderRef: { h: number; v: number } | null = null
+  private shakeTrailDupSpacingSliderRef: { h: number; v: number; areaKeys: Map<number, string> } | null = null
   private shakeTrailGuideGraphics: PIXI.Graphics | null = null
   private shakeTrailGuideRemainingSec = 0
   private shakeTrailGuideMode: 'radial' | 'first' | 'second' = 'first'
@@ -1753,38 +1758,33 @@ export class CellRenderer {
       return
     }
 
-    const dupHoriz = shake.trailDuplicateSpacingShift ?? 0
-    const dupVert = shake.trailDuplicateVerticalSpacingShift ?? 0
-    const prevDupSpacing = this.shakeTrailDupSpacingSliderRef
-    const dupSpacingSlidersChanged =
-      showCircleGuides
-      && (shake.trailDuplicateCirclesEnabled ?? false)
-      && (shake.trailSecondStageEnabled ?? false)
-      && prevDupSpacing !== null
-      && (prevDupSpacing.h !== dupHoriz || prevDupSpacing.v !== dupVert)
+    const areas = shake.trailAreas ?? []
 
+    // ガイド表示（エリア設定変化時）
     const firstGuideKey = [
       this.width,
       this.height,
-      this.latestEffects?.effectCenter?.x ?? 0.5,
-      this.latestEffects?.effectCenter?.y ?? 0.5,
-      shake.trailSize ?? 0.7,
-      shake.trailHeight ?? 1,
-      shake.trailDuplicateCirclesEnabled ?? false,
-      shake.trailDuplicateSpacingShift ?? 0,
-      shake.trailDuplicateVerticalSpacingShift ?? 0,
+      areas.map(a => `${a.centerX},${a.centerY},${a.size},${a.height},${a.duplicateEnabled},${a.duplicateSpacingShift},${a.duplicateVerticalSpacingShift}`).join('|'),
     ].join(':')
     const secondGuideKey = [
       this.width,
       this.height,
-      this.latestEffects?.effectCenter?.x ?? 0.5,
-      this.latestEffects?.effectCenter?.y ?? 0.5,
       shake.trailSecondStageEnabled ?? false,
       shake.trailSecondStageSize ?? 0.62,
-      shake.trailDuplicateCirclesEnabled ?? false,
-      shake.trailDuplicateSpacingShift ?? 0,
-      shake.trailDuplicateVerticalSpacingShift ?? 0,
+      areas.map(a => `${a.centerX},${a.centerY},${a.duplicateEnabled},${a.duplicateSpacingShift},${a.duplicateVerticalSpacingShift}`).join('|'),
     ].join(':')
+
+    // spacing スライダー変化（複製ON + 2段階ON の全エリアを対象）
+    const dupAreas = areas.filter(a => a.duplicateEnabled)
+    const prevDupSpacing = this.shakeTrailDupSpacingSliderRef
+    const dupSpacingSlidersChanged = showCircleGuides
+      && dupAreas.length > 0
+      && shake.trailSecondStageEnabled
+      && prevDupSpacing !== null
+      && dupAreas.some(a =>
+        prevDupSpacing.areaKeys.get(areas.indexOf(a)) !== `${a.duplicateSpacingShift},${a.duplicateVerticalSpacingShift}`,
+      )
+
     const shouldShowFirstGuide = showCircleGuides && this.shakeTrailFirstGuideKey !== null && this.shakeTrailFirstGuideKey !== firstGuideKey
     const shouldShowSecondGuide = showCircleGuides
       && Boolean(shake.trailSecondStageEnabled)
@@ -1792,6 +1792,7 @@ export class CellRenderer {
       && this.shakeTrailSecondGuideKey !== secondGuideKey
     this.shakeTrailFirstGuideKey = firstGuideKey
     this.shakeTrailSecondGuideKey = secondGuideKey
+
     if (dupSpacingSlidersChanged) {
       this.showShakeTrailDupSpacingBothGuides(shake)
     } else if (shouldShowSecondGuide) {
@@ -1800,8 +1801,13 @@ export class CellRenderer {
       this.showShakeTrailGuide(shake, 'first')
     }
 
-    if (shake.trailDuplicateCirclesEnabled && shake.trailSecondStageEnabled) {
-      this.shakeTrailDupSpacingSliderRef = { h: dupHoriz, v: dupVert }
+    // spacing スライダー参照を更新
+    if (dupAreas.length > 0 && shake.trailSecondStageEnabled) {
+      const areaKeys = new Map<number, string>()
+      dupAreas.forEach(a => {
+        areaKeys.set(areas.indexOf(a), `${a.duplicateSpacingShift},${a.duplicateVerticalSpacingShift}`)
+      })
+      this.shakeTrailDupSpacingSliderRef = { h: 0, v: 0, areaKeys }
     } else {
       this.shakeTrailDupSpacingSliderRef = null
     }
@@ -1810,88 +1816,86 @@ export class CellRenderer {
       this.width,
       this.height,
       shake.trailBlurStrength ?? 0,
-      this.latestEffects?.effectCenter?.x ?? 0.5,
-      this.latestEffects?.effectCenter?.y ?? 0.5,
-      shake.trailSize ?? 0.7,
-      shake.trailHeight ?? 1,
       shake.trailSecondStageEnabled ?? false,
       shake.trailSecondStageSize ?? 0.62,
       shake.trailSecondStageDelayFactor ?? 0.25,
-      shake.trailDuplicateCirclesEnabled ?? false,
-      shake.trailDuplicateSpacingShift ?? 0,
-      shake.trailDuplicateVerticalSpacingShift ?? 0,
+      areas.map(a => `${a.centerX},${a.centerY},${a.size},${a.height},${a.duplicateEnabled},${a.duplicateSpacingShift},${a.duplicateVerticalSpacingShift}`).join('|'),
     ].join(':')
-    if (this.shakeTrailKey === key && this.shakeTrailSprite) return
+    if (this.shakeTrailKey === key && this.shakeTrailAreaLayers.length > 0) return
 
     this.clearShakeTrail()
-    const sprite = new PIXI.Sprite(this.imageSprite.texture)
-    sprite.anchor.set(0.5)
-    const maskSprite = shake.trailDuplicateCirclesEnabled
-      ? (() => {
-        const p = this.getShakeTrailDupGuideEllipseLayout(shake, 'first')
-        return this.createDualEllipseMaskFromCenters(p.cx1, p.cy1, p.cx2, p.cy2, p.rx, p.ry, 0.18)
-      })()
-      : this.createEllipseMaskSprite(
-        this.latestEffects?.effectCenter?.x ?? 0.5,
-        this.latestEffects?.effectCenter?.y ?? 0.5,
-        shake.trailSize ?? 0.7,
-        shake.trailHeight ?? 1,
-        0.18,
-      )
-    const maskFilter = new PIXI.MaskFilter({ sprite: maskSprite, channel: 'alpha' })
-    const blurFilter = new PIXI.BlurFilter({
-      strength: clamp(shake.trailBlurStrength ?? 0, 0, 12),
-      quality: 3,
-    })
 
-    const firstLayer = new PIXI.Container()
-    firstLayer.addChild(sprite)
-    firstLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
-    firstLayer.filters = [blurFilter, maskFilter]
-    this.imageRootLayer.addChildAt(firstLayer, this.imageRootLayer.getChildIndex(this.shakeTrailLayer) + 1)
-    this.imageRootLayer.addChildAt(maskSprite, this.imageRootLayer.getChildIndex(firstLayer) + 1)
-    maskSprite.alpha = 0
-
-    this.shakeTrailFirstLayer = firstLayer
-    this.shakeTrailSprite = sprite
-    this.shakeTrailMaskSprite = maskSprite
-    this.shakeTrailBlurFilter = blurFilter
-
-    if (shake.trailSecondStageEnabled) {
-      const secondLayer = new PIXI.Container()
-      const secondSprite = new PIXI.Sprite(this.imageSprite.texture)
-      secondSprite.anchor.set(0.5)
-      const secondSize = (shake.trailSize ?? 0.7) * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
-      const secondMaskSprite = shake.trailDuplicateCirclesEnabled
+    for (const area of areas) {
+      const firstMaskSprite = area.duplicateEnabled
         ? (() => {
-          const p = this.getShakeTrailDupGuideEllipseLayout(shake, 'second')
-          return this.createDualEllipseMaskFromCenters(p.cx1, p.cy1, p.cx2, p.cy2, p.rx, p.ry, 0.16)
+          const p = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, 'first')
+          return this.createDualEllipseMaskFromCenters(p.cx1, p.cy1, p.cx2, p.cy2, p.rx, p.ry, 0.18)
         })()
-        : this.createEllipseMaskSprite(
-          this.latestEffects?.effectCenter?.x ?? 0.5,
-          this.latestEffects?.effectCenter?.y ?? 0.5,
-          secondSize,
-          shake.trailHeight ?? 1,
-          0.16,
-        )
-      const secondMaskFilter = new PIXI.MaskFilter({ sprite: secondMaskSprite, channel: 'alpha' })
-      const secondBlurFilter = new PIXI.BlurFilter({
-        strength: clamp((shake.trailBlurStrength ?? 0) * 0.6, 0, 12),
+        : this.createEllipseMaskSprite(area.centerX, area.centerY, area.size, area.height, 0.18)
+
+      const firstSprite = new PIXI.Sprite(this.imageSprite.texture)
+      firstSprite.anchor.set(0.5)
+      const firstMaskFilter = new PIXI.MaskFilter({ sprite: firstMaskSprite, channel: 'alpha' })
+      const firstBlurFilter = new PIXI.BlurFilter({
+        strength: clamp(shake.trailBlurStrength ?? 0, 0, 12),
         quality: 3,
       })
+      const firstLayer = new PIXI.Container()
+      firstLayer.addChild(firstSprite)
+      firstLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      firstLayer.filters = [firstBlurFilter, firstMaskFilter]
 
-      secondLayer.addChild(secondSprite)
-      secondLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
-      secondLayer.filters = [secondBlurFilter, secondMaskFilter]
-      secondMaskSprite.alpha = 0
-      // Keep the second trail stage above the first stage for every shake-trail setting.
-      this.imageRootLayer.addChildAt(secondLayer, this.imageRootLayer.getChildIndex(maskSprite) + 1)
-      this.imageRootLayer.addChildAt(secondMaskSprite, this.imageRootLayer.getChildIndex(secondLayer) + 1)
+      // 既存の最後のレイヤーの後に追加
+      const insertAfter = this.shakeTrailAreaLayers.length > 0
+        ? this.imageRootLayer.getChildIndex(
+          this.shakeTrailAreaLayers[this.shakeTrailAreaLayers.length - 1].firstMaskSprite,
+        )
+        : this.imageRootLayer.getChildIndex(this.shakeTrailLayer)
+      this.imageRootLayer.addChildAt(firstLayer, insertAfter + 1)
+      this.imageRootLayer.addChildAt(firstMaskSprite, this.imageRootLayer.getChildIndex(firstLayer) + 1)
+      firstMaskSprite.alpha = 0
 
-      this.shakeTrailSecondLayer = secondLayer
-      this.shakeTrailSecondSprite = secondSprite
-      this.shakeTrailSecondMaskSprite = secondMaskSprite
-      this.shakeTrailSecondBlurFilter = secondBlurFilter
+      let secondLayer: PIXI.Container | null = null
+      let secondSprite: PIXI.Sprite | null = null
+      let secondMaskSprite: PIXI.Sprite | null = null
+      let secondBlurFilter: PIXI.BlurFilter | null = null
+
+      if (shake.trailSecondStageEnabled) {
+        const secondSize = area.size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+        secondMaskSprite = area.duplicateEnabled
+          ? (() => {
+            const p = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, 'second')
+            return this.createDualEllipseMaskFromCenters(p.cx1, p.cy1, p.cx2, p.cy2, p.rx, p.ry, 0.16)
+          })()
+          : this.createEllipseMaskSprite(area.centerX, area.centerY, secondSize, area.height, 0.16)
+
+        secondSprite = new PIXI.Sprite(this.imageSprite.texture)
+        secondSprite.anchor.set(0.5)
+        const secondMaskFilter = new PIXI.MaskFilter({ sprite: secondMaskSprite, channel: 'alpha' })
+        secondBlurFilter = new PIXI.BlurFilter({
+          strength: clamp((shake.trailBlurStrength ?? 0) * 0.6, 0, 12),
+          quality: 3,
+        })
+        secondLayer = new PIXI.Container()
+        secondLayer.addChild(secondSprite)
+        secondLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+        secondLayer.filters = [secondBlurFilter, secondMaskFilter]
+        secondMaskSprite.alpha = 0
+        // 第2段は第1段マスクの直後
+        this.imageRootLayer.addChildAt(secondLayer, this.imageRootLayer.getChildIndex(firstMaskSprite) + 1)
+        this.imageRootLayer.addChildAt(secondMaskSprite, this.imageRootLayer.getChildIndex(secondLayer) + 1)
+      }
+
+      this.shakeTrailAreaLayers.push({
+        firstLayer,
+        firstSprite,
+        firstMaskSprite,
+        firstBlurFilter,
+        secondLayer,
+        secondSprite,
+        secondMaskSprite,
+        secondBlurFilter,
+      })
     }
 
     this.shakeTrailKey = key
@@ -1921,7 +1925,7 @@ export class CellRenderer {
       return
     }
     this.updateShakeTrail(shake)
-    if (!this.shakeTrailSprite || !this.imageSprite) return
+    if (this.shakeTrailAreaLayers.length === 0 || !this.imageSprite) return
 
     const delaySec = clamp(shake.trailDelaySec ?? 0.01, 0.01, 0.5)
     const targetTimeSec = this.shakeTrailElapsedSec - delaySec
@@ -1935,32 +1939,44 @@ export class CellRenderer {
       timeSec: this.shakeTrailElapsedSec,
       offsetY: this.shakeTrailSmoothedOffsetY,
     })
-    this.shakeTrailSprite.texture = this.imageSprite.texture
     const firstStageTransform = this.getShakeTrailMotionTransform(this.shakeTrailSmoothedOffsetY)
-    this.positionSprite(
-      this.shakeTrailSprite,
-      firstStageTransform.offsetX,
-      firstStageTransform.offsetY,
-      firstStageTransform.scaleMultiplier
-    )
-    this.shakeTrailSprite.alpha = clamp(shake.trailAlpha ?? 0.8, 0, 1)
 
-    if (shake.trailSecondStageEnabled && this.shakeTrailSecondSprite) {
+    let secondSmoothedOffsetY = this.shakeTrailSecondSmoothedOffsetY
+    let secondStageTransform: { offsetX: number; offsetY: number; scaleMultiplier: number } | null = null
+    if (shake.trailSecondStageEnabled) {
       const secondDelaySec = delaySec * clamp(shake.trailSecondStageDelayFactor ?? 0.25, 0.25, 3)
       const secondTargetTimeSec = this.shakeTrailElapsedSec - secondDelaySec
       const secondDelayedOffsetY = this.getDelayedShakeTrailFirstStageOffset(secondTargetTimeSec)
-      this.shakeTrailSecondSmoothedOffsetY = this.shakeTrailSecondSmoothedOffsetY === null
+      secondSmoothedOffsetY = secondSmoothedOffsetY === null
         ? secondDelayedOffsetY
-        : lerp(this.shakeTrailSecondSmoothedOffsetY, secondDelayedOffsetY, smoothFactor)
-      this.shakeTrailSecondSprite.texture = this.imageSprite.texture
-      const secondStageTransform = this.getShakeTrailMotionTransform(this.shakeTrailSecondSmoothedOffsetY)
+        : lerp(secondSmoothedOffsetY, secondDelayedOffsetY, smoothFactor)
+      this.shakeTrailSecondSmoothedOffsetY = secondSmoothedOffsetY
+      secondStageTransform = this.getShakeTrailMotionTransform(secondSmoothedOffsetY)
+    }
+
+    const firstAlpha = clamp(shake.trailAlpha ?? 0.8, 0, 1)
+    const secondAlpha = clamp((shake.trailAlpha ?? 0.8) + 0.12, 0, 1)
+
+    for (const areaLayer of this.shakeTrailAreaLayers) {
+      areaLayer.firstSprite.texture = this.imageSprite.texture
       this.positionSprite(
-        this.shakeTrailSecondSprite,
-        secondStageTransform.offsetX,
-        secondStageTransform.offsetY,
-        secondStageTransform.scaleMultiplier
+        areaLayer.firstSprite,
+        firstStageTransform.offsetX,
+        firstStageTransform.offsetY,
+        firstStageTransform.scaleMultiplier,
       )
-      this.shakeTrailSecondSprite.alpha = clamp((shake.trailAlpha ?? 0.8) + 0.12, 0, 1)
+      areaLayer.firstSprite.alpha = firstAlpha
+
+      if (secondStageTransform && areaLayer.secondSprite) {
+        areaLayer.secondSprite.texture = this.imageSprite.texture
+        this.positionSprite(
+          areaLayer.secondSprite,
+          secondStageTransform.offsetX,
+          secondStageTransform.offsetY,
+          secondStageTransform.scaleMultiplier,
+        )
+        areaLayer.secondSprite.alpha = secondAlpha
+      }
     }
 
     this.syncFocusShakeTrailBlur(shake)
@@ -2006,11 +2022,7 @@ export class CellRenderer {
 
   private refreshShakeTrailRegion() {
     if (!this.latestEffects) return
-    if (this.shakeTrailSprite && this.imageSprite) {
-      this.shakeTrailSprite.texture = this.imageSprite.texture
-      if (this.shakeTrailSecondSprite) {
-        this.shakeTrailSecondSprite.texture = this.imageSprite.texture
-      }
+    if (this.shakeTrailAreaLayers.length > 0 && this.imageSprite) {
       this.syncShakeTrail(0, this.latestEffects.shake)
       return
     }
@@ -2022,37 +2034,27 @@ export class CellRenderer {
     this.shakeTrailLayer.filters = []
     this.shakeTrailLayer.filterArea = undefined
     this.clearFocusShakeTrailBlur()
-    this.shakeTrailBlurFilter = null
-    this.shakeTrailSecondBlurFilter = null
-    if (this.shakeTrailFirstLayer) {
-      this.imageRootLayer.removeChild(this.shakeTrailFirstLayer)
-      this.shakeTrailFirstLayer.destroy({ children: true })
-      this.shakeTrailFirstLayer = null
-      this.shakeTrailSprite = null
+    for (const areaLayer of this.shakeTrailAreaLayers) {
+      this.imageRootLayer.removeChild(areaLayer.firstLayer)
+      areaLayer.firstLayer.destroy({ children: true })
+      if (areaLayer.firstMaskSprite.parent) {
+        this.imageRootLayer.removeChild(areaLayer.firstMaskSprite)
+      }
+      areaLayer.firstMaskSprite.texture.destroy(true)
+      areaLayer.firstMaskSprite.destroy()
+      if (areaLayer.secondLayer) {
+        this.imageRootLayer.removeChild(areaLayer.secondLayer)
+        areaLayer.secondLayer.destroy({ children: true })
+      }
+      if (areaLayer.secondMaskSprite) {
+        if (areaLayer.secondMaskSprite.parent) {
+          this.imageRootLayer.removeChild(areaLayer.secondMaskSprite)
+        }
+        areaLayer.secondMaskSprite.texture.destroy(true)
+        areaLayer.secondMaskSprite.destroy()
+      }
     }
-    if (this.shakeTrailSprite) {
-      this.shakeTrailLayer.removeChild(this.shakeTrailSprite)
-      this.shakeTrailSprite.destroy({ texture: false })
-      this.shakeTrailSprite = null
-    }
-    if (this.shakeTrailMaskSprite) {
-      this.imageRootLayer.removeChild(this.shakeTrailMaskSprite)
-      this.shakeTrailMaskSprite.texture.destroy(true)
-      this.shakeTrailMaskSprite.destroy()
-      this.shakeTrailMaskSprite = null
-    }
-    if (this.shakeTrailSecondLayer) {
-      this.imageRootLayer.removeChild(this.shakeTrailSecondLayer)
-      this.shakeTrailSecondLayer.destroy({ children: true })
-      this.shakeTrailSecondLayer = null
-      this.shakeTrailSecondSprite = null
-    }
-    if (this.shakeTrailSecondMaskSprite) {
-      this.imageRootLayer.removeChild(this.shakeTrailSecondMaskSprite)
-      this.shakeTrailSecondMaskSprite.texture.destroy(true)
-      this.shakeTrailSecondMaskSprite.destroy()
-      this.shakeTrailSecondMaskSprite = null
-    }
+    this.shakeTrailAreaLayers = []
     this.shakeTrailKey = null
     this.shakeTrailSmoothedOffsetY = null
     this.shakeTrailSecondSmoothedOffsetY = null
@@ -2102,43 +2104,42 @@ export class CellRenderer {
     this.shakeTrailGuideRemainingSec = 1
   }
 
-  /** 複製ON時のガイド／マスク用楕円。左右中心は常に第1段（青）と同一、rx/ry のみ mode で第1／第2段 */
-  private getShakeTrailDupGuideEllipseLayout(shake: ShakeEffect, mode: 'first' | 'second') {
-    const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
-    const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
-    const cx0 = this.width * clamp(this.latestEffects?.effectCenter?.x ?? 0.5, 0, 1)
-    const cy0 = this.height * clamp(this.latestEffects?.effectCenter?.y ?? 0.5, 0, 1)
+  /** エリアごとの複製楕円レイアウトを計算（マスク生成・ガイド描画で共用） */
+  private getShakeTrailAreaDupLayout(
+    area: import('../../shared/types').ShakeTrailArea,
+    secondStageSize: number,
+    mode: 'first' | 'second',
+  ) {
+    const size = clamp(area.size, 0.05, 3)
+    const heightRatio = clamp(area.height, 0.05, 3)
+    const cx0 = this.width * clamp(area.centerX, 0, 1)
+    const cy0 = this.height * clamp(area.centerY, 0, 1)
     const baseSize = Math.min(this.width, this.height)
     const rx1 = Math.max(1, baseSize * size * 0.5)
     const ry1 = Math.max(1, baseSize * size * heightRatio * 0.5)
-    const shift = clamp(shake.trailDuplicateSpacingShift ?? 0, -0.5, 0.5)
+    const shift = clamp(area.duplicateSpacingShift, -0.5, 0.5)
     const halfSep = rx1 * (1 + shift)
-    const vShift = clamp(shake.trailDuplicateVerticalSpacingShift ?? 0, -0.5, 0.5)
+    const vShift = clamp(area.duplicateVerticalSpacingShift, -0.5, 0.5)
     const stagger = ry1 * vShift
     const cx1 = cx0 - halfSep
     const cy1 = cy0 - stagger
     const cx2 = cx0 + halfSep
     const cy2 = cy0 + stagger
-
-    const guideSize2 = mode === 'second'
-      ? size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
-      : size
+    const guideSize2 = mode === 'second' ? size * clamp(secondStageSize, 0.1, 1) : size
     const rx = Math.max(1, baseSize * guideSize2 * 0.5)
     const ry = Math.max(1, baseSize * guideSize2 * heightRatio * 0.5)
-    return {
-      cx1,
-      cy1,
-      cx2,
-      cy2,
-      rx,
-      ry,
-    }
+    return { cx1, cy1, cx2, cy2, rx, ry }
   }
 
-  /** 「円の間隔」「縦の間隔」変更時に第1段（青）と第2段（黄）を同時表示 */
+  /** @deprecated 旧API互換（エリア0を使用）。新規コードは getShakeTrailAreaDupLayout を使うこと */
+  private getShakeTrailDupGuideEllipseLayout(shake: ShakeEffect, mode: 'first' | 'second') {
+    const area = shake.trailAreas?.[0]
+    if (!area) return { cx1: 0, cy1: 0, cx2: 0, cy2: 0, rx: 1, ry: 1 }
+    return this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, mode)
+  }
+
+  /** 「円の間隔」「縦の間隔」変更時に全エリアの第1段（青）と第2段（黄）を同時表示 */
   private showShakeTrailDupSpacingBothGuides(shake: ShakeEffect) {
-    const p1 = this.getShakeTrailDupGuideEllipseLayout(shake, 'first')
-    const p2 = this.getShakeTrailDupGuideEllipseLayout(shake, 'second')
     if (!this.shakeTrailGuideGraphics) {
       this.shakeTrailGuideGraphics = new PIXI.Graphics()
       this.guideLayer.addChild(this.shakeTrailGuideGraphics)
@@ -2146,20 +2147,25 @@ export class CellRenderer {
     this.shakeTrailGuideMode = 'first'
     const g = this.shakeTrailGuideGraphics
     g.clear()
-    g.ellipse(p1.cx1, p1.cy1, p1.rx, p1.ry)
-    g.ellipse(p1.cx2, p1.cy2, p1.rx, p1.ry)
-    g.fill({ color: 0x66ccff, alpha: 0.14 })
-    g.ellipse(p1.cx1, p1.cy1, p1.rx, p1.ry)
-    g.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
-    g.ellipse(p1.cx2, p1.cy2, p1.rx, p1.ry)
-    g.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
-    g.ellipse(p2.cx1, p2.cy1, p2.rx, p2.ry)
-    g.ellipse(p2.cx2, p2.cy2, p2.rx, p2.ry)
-    g.fill({ color: 0xffe266, alpha: 0.22 })
-    g.ellipse(p2.cx1, p2.cy1, p2.rx, p2.ry)
-    g.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
-    g.ellipse(p2.cx2, p2.cy2, p2.rx, p2.ry)
-    g.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
+    for (const area of shake.trailAreas ?? []) {
+      if (!area.duplicateEnabled) continue
+      const p1 = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, 'first')
+      const p2 = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, 'second')
+      g.ellipse(p1.cx1, p1.cy1, p1.rx, p1.ry)
+      g.ellipse(p1.cx2, p1.cy2, p1.rx, p1.ry)
+      g.fill({ color: 0x66ccff, alpha: 0.14 })
+      g.ellipse(p1.cx1, p1.cy1, p1.rx, p1.ry)
+      g.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
+      g.ellipse(p1.cx2, p1.cy2, p1.rx, p1.ry)
+      g.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
+      g.ellipse(p2.cx1, p2.cy1, p2.rx, p2.ry)
+      g.ellipse(p2.cx2, p2.cy2, p2.rx, p2.ry)
+      g.fill({ color: 0xffe266, alpha: 0.22 })
+      g.ellipse(p2.cx1, p2.cy1, p2.rx, p2.ry)
+      g.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
+      g.ellipse(p2.cx2, p2.cy2, p2.rx, p2.ry)
+      g.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
+    }
     g.alpha = 1
     this.shakeTrailGuideRemainingSec = 1
   }
@@ -2201,23 +2207,58 @@ export class CellRenderer {
   }
 
   private showShakeTrailGuide(shake: ShakeEffect, mode: 'first' | 'second' = 'first') {
-    const size = clamp(shake.trailSize ?? 0.7, 0.05, 3)
-    const guideSize = mode === 'second'
-      ? size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
-      : size
-    const heightRatio = clamp(shake.trailHeight ?? 1, 0.05, 3)
-    if (shake.trailDuplicateCirclesEnabled) {
-      const p = this.getShakeTrailDupGuideEllipseLayout(shake, mode)
-      this.showCircleGuideDuplicate(mode, p.cx1, p.cy1, p.cx2, p.cy2, p.rx, p.ry)
-      return
+    if (!this.shakeTrailGuideGraphics) {
+      this.shakeTrailGuideGraphics = new PIXI.Graphics()
+      this.guideLayer.addChild(this.shakeTrailGuideGraphics)
     }
-    this.showCircleGuide(
-      mode,
-      this.latestEffects?.effectCenter?.x ?? 0.5,
-      this.latestEffects?.effectCenter?.y ?? 0.5,
-      guideSize,
-      shake.trailHeight ?? 1
-    )
+    this.shakeTrailGuideMode = mode
+    const g = this.shakeTrailGuideGraphics
+    g.clear()
+    const secondStageSizeRatio = clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+    for (const area of shake.trailAreas ?? []) {
+      const size = clamp(area.size, 0.05, 3)
+      const guideSize = mode === 'second' ? size * secondStageSizeRatio : size
+      const heightRatio = clamp(area.height, 0.05, 3)
+      const baseSize = Math.min(this.width, this.height)
+      if (area.duplicateEnabled) {
+        const p = this.getShakeTrailAreaDupLayout(area, secondStageSizeRatio, mode)
+        if (mode === 'first') {
+          g.ellipse(p.cx1, p.cy1, p.rx, p.ry)
+          g.ellipse(p.cx2, p.cy2, p.rx, p.ry)
+          g.fill({ color: 0x66ccff, alpha: 0.14 })
+          g.ellipse(p.cx1, p.cy1, p.rx, p.ry)
+          g.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
+          g.ellipse(p.cx2, p.cy2, p.rx, p.ry)
+          g.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
+        } else {
+          g.ellipse(p.cx1, p.cy1, p.rx, p.ry)
+          g.ellipse(p.cx2, p.cy2, p.rx, p.ry)
+          g.fill({ color: 0xffe266, alpha: 0.22 })
+          g.ellipse(p.cx1, p.cy1, p.rx, p.ry)
+          g.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
+          g.ellipse(p.cx2, p.cy2, p.rx, p.ry)
+          g.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
+        }
+      } else {
+        const cx = this.width * clamp(area.centerX, 0, 1)
+        const cy = this.height * clamp(area.centerY, 0, 1)
+        const rx = Math.max(1, baseSize * guideSize * 0.5)
+        const ry = Math.max(1, baseSize * guideSize * heightRatio * 0.5)
+        if (mode === 'first') {
+          g.ellipse(cx, cy, rx, ry)
+          g.fill({ color: 0x66ccff, alpha: 0.14 })
+          g.ellipse(cx, cy, rx, ry)
+          g.stroke({ color: 0xb2e8ff, alpha: 0.96, width: 3 })
+        } else {
+          g.ellipse(cx, cy, rx, ry)
+          g.fill({ color: 0xffe266, alpha: 0.22 })
+          g.ellipse(cx, cy, rx, ry)
+          g.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
+        }
+      }
+    }
+    g.alpha = 1
+    this.shakeTrailGuideRemainingSec = 1
   }
 
   private updateShakeTrailGuide(delta: number) {
@@ -4062,14 +4103,16 @@ export class CellRenderer {
 
   private syncFocusShakeTrailBlur(shake?: ShakeEffect) {
     const focus = this.latestEffects?.focus
+    // フォーカスシェイクトレイルブラーはエリア0を代表として使用
+    const area0 = this.shakeTrailAreaLayers[0]
     if (
       !focus?.enabled ||
       !shake?.enabled ||
       !shake.trailEnabled ||
       !this.imageSprite ||
       !this.focusMaskSprite ||
-      !this.shakeTrailSprite ||
-      !this.shakeTrailMaskSprite
+      !area0?.firstSprite ||
+      !area0?.firstMaskSprite
     ) {
       this.clearFocusShakeTrailBlur()
       return
@@ -4096,13 +4139,13 @@ export class CellRenderer {
     }
 
     this.focusShakeTrailFirstClone.texture = this.imageSprite.texture
-    this.focusShakeTrailFirstClone.x = this.shakeTrailSprite.x
-    this.focusShakeTrailFirstClone.y = this.shakeTrailSprite.y
-    this.focusShakeTrailFirstClone.scale.copyFrom(this.shakeTrailSprite.scale)
-    this.focusShakeTrailFirstClone.rotation = this.shakeTrailSprite.rotation
+    this.focusShakeTrailFirstClone.x = area0.firstSprite.x
+    this.focusShakeTrailFirstClone.y = area0.firstSprite.y
+    this.focusShakeTrailFirstClone.scale.copyFrom(area0.firstSprite.scale)
+    this.focusShakeTrailFirstClone.rotation = area0.firstSprite.rotation
     this.focusShakeTrailFirstClone.alpha = 1
 
-    if (shake.trailSecondStageEnabled && this.shakeTrailSecondSprite && this.shakeTrailSecondMaskSprite) {
+    if (shake.trailSecondStageEnabled && area0.secondSprite && area0.secondMaskSprite) {
       const secondMaskKey = this.getFocusShakeTrailMaskKey(shake, 'second')
       if (this.focusShakeTrailSecondMaskKey !== null && this.focusShakeTrailSecondMaskKey !== secondMaskKey) {
         this.clearFocusShakeTrailSecondBlur()
@@ -4123,10 +4166,10 @@ export class CellRenderer {
         this.focusShakeTrailSecondBlurFilter = blurFilter
       }
       this.focusShakeTrailSecondClone.texture = this.imageSprite.texture
-      this.focusShakeTrailSecondClone.x = this.shakeTrailSecondSprite.x
-      this.focusShakeTrailSecondClone.y = this.shakeTrailSecondSprite.y
-      this.focusShakeTrailSecondClone.scale.copyFrom(this.shakeTrailSecondSprite.scale)
-      this.focusShakeTrailSecondClone.rotation = this.shakeTrailSecondSprite.rotation
+      this.focusShakeTrailSecondClone.x = area0.secondSprite.x
+      this.focusShakeTrailSecondClone.y = area0.secondSprite.y
+      this.focusShakeTrailSecondClone.scale.copyFrom(area0.secondSprite.scale)
+      this.focusShakeTrailSecondClone.rotation = area0.secondSprite.rotation
       this.focusShakeTrailSecondClone.alpha = 1
     } else {
       this.clearFocusShakeTrailSecondBlur()
@@ -4159,45 +4202,44 @@ export class CellRenderer {
 
   private getFocusShakeTrailMaskKey(shake: ShakeEffect, mode: 'first' | 'second'): string {
     const scale = this.getFocusShakeTrailMaskScale(mode)
+    // エリア0を代表として使用
+    const area = shake.trailAreas?.[0]
     return [
       mode,
       scale,
       this.width,
       this.height,
-      this.latestEffects?.effectCenter?.x ?? 0.5,
-      this.latestEffects?.effectCenter?.y ?? 0.5,
-      shake.trailSize ?? 0.7,
-      shake.trailHeight ?? 1,
+      area?.centerX ?? 0.5,
+      area?.centerY ?? 0.5,
+      area?.size ?? 0.7,
+      area?.height ?? 1,
       shake.trailSecondStageSize ?? 0.62,
-      shake.trailDuplicateCirclesEnabled ?? false,
-      shake.trailDuplicateSpacingShift ?? 0,
-      shake.trailDuplicateVerticalSpacingShift ?? 0,
+      area?.duplicateEnabled ?? false,
+      area?.duplicateSpacingShift ?? 0,
+      area?.duplicateVerticalSpacingShift ?? 0,
     ].join(':')
   }
 
   private createFocusShakeTrailMaskSprite(shake: ShakeEffect, mode: 'first' | 'second'): PIXI.Sprite {
     const scale = this.getFocusShakeTrailMaskScale(mode)
-    if (shake.trailDuplicateCirclesEnabled) {
-      const p = this.getShakeTrailDupGuideEllipseLayout(shake, mode)
+    // エリア0を代表として使用
+    const area = shake.trailAreas?.[0]
+    if (area?.duplicateEnabled) {
+      const p = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, mode)
       return this.createDualEllipseMaskFromCenters(
-        p.cx1,
-        p.cy1,
-        p.cx2,
-        p.cy2,
-        p.rx * scale,
-        p.ry * scale,
-        FOCUS_SHAKE_TRAIL_MASK_EDGE_FEATHER
+        p.cx1, p.cy1, p.cx2, p.cy2,
+        p.rx * scale, p.ry * scale,
+        FOCUS_SHAKE_TRAIL_MASK_EDGE_FEATHER,
       )
     }
-
     const size = mode === 'second'
-      ? (shake.trailSize ?? 0.7) * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
-      : (shake.trailSize ?? 0.7)
+      ? (area?.size ?? 0.7) * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+      : (area?.size ?? 0.7)
     return this.createEllipseMaskSprite(
-      this.latestEffects?.effectCenter?.x ?? 0.5,
-      this.latestEffects?.effectCenter?.y ?? 0.5,
+      area?.centerX ?? 0.5,
+      area?.centerY ?? 0.5,
       size * scale,
-      shake.trailHeight ?? 1,
+      area?.height ?? 1,
       FOCUS_SHAKE_TRAIL_MASK_EDGE_FEATHER,
     )
   }
@@ -4336,23 +4378,27 @@ export class CellRenderer {
     const shake = effects.shake
     if (!censor.linkToShake) return []
     const censorScale = CENSOR_SHAKE_AREA_SCALE
-
-    if (shake.trailDuplicateCirclesEnabled) {
-      const p = this.getShakeTrailDupGuideEllipseLayout(shake, 'first')
-      return [{
-        type: 'ellipses',
-        ellipses: [
-          { cx: p.cx1, cy: p.cy1, rx: p.rx * censorScale, ry: p.ry * censorScale },
-          { cx: p.cx2, cy: p.cy2, rx: p.rx * censorScale, ry: p.ry * censorScale },
-        ],
-      }]
+    const areas = shake.trailAreas ?? []
+    const regions: Extract<CensorDrawRegion, { type: 'ellipses' }>[] = []
+    for (const area of areas) {
+      if (area.duplicateEnabled) {
+        const p = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, 'first')
+        regions.push({
+          type: 'ellipses',
+          ellipses: [
+            { cx: p.cx1, cy: p.cy1, rx: p.rx * censorScale, ry: p.ry * censorScale },
+            { cx: p.cx2, cy: p.cy2, rx: p.rx * censorScale, ry: p.ry * censorScale },
+          ],
+        })
+      } else {
+        const cx = clamp(area.centerX, 0, 1) * W
+        const cy = clamp(area.centerY, 0, 1) * H
+        const rx = Math.max(1, clamp(area.size, 0.05, 3) * Math.min(W, H) * censorScale / 2)
+        const ry = Math.max(1, rx * clamp(area.height, 0.05, 3))
+        regions.push({ type: 'ellipses', ellipses: [{ cx, cy, rx, ry }] })
+      }
     }
-
-    const cx = (this.latestEffects?.effectCenter.x ?? 0.5) * W
-    const cy = (this.latestEffects?.effectCenter.y ?? 0.5) * H
-    const rx = Math.max(1, clamp(shake.trailSize ?? 0.7, 0.05, 3) * Math.min(W, H) * censorScale / 2)
-    const ry = Math.max(1, rx * clamp(shake.trailHeight ?? 1, 0.05, 3))
-    return [{ type: 'ellipses', ellipses: [{ cx, cy, rx, ry }] }]
+    return regions
   }
 
   private updateCensorShakeSprite(
