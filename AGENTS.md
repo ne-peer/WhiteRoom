@@ -261,3 +261,4 @@ When instructed with `bump to v{x.x.x}` (for example, `bump to v1.5.1`), perform
 | v1.5.5 | Fog and zoom effects, squish/zoom mutual sync, broader timer-sync coverage, effect-category UI refresh, rendering and interaction fixes |
 | v1.5.6 | Stash feature and UI, grid long-press to open stash, tone/color filter and vignette controls, vector heart builtin asset, hamburger hover UX, echo blend fix, effect profile cache reload after stash POP |
 | v1.5.7 | Startup splash; flash radial fade, blur, range assets, vector tint; asset wiggle, edge blur, rise speed, random size/color; shake-trail circle grid; selected-cell frame; timer UI and partial sync fixes; README stash/effects; stash exit dialog; packaged splash fade |
+| v1.5.8 | SUT brush raster import and tip mode; asset ripple pattern, movement patterns, Bounce, raster invert, hidden area controls; focus and censor effects with linked masks/text; multi-area shake trail; path, mask, layer, and picker fixes |
