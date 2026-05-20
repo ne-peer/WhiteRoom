@@ -2282,21 +2282,20 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               />
             </Row>
             {effects.flash.displayFileMode === 'pickFile' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-                <Button variant="secondary" onClick={handleOpenFlashImage}>
-                  {t('selectImage')}
-                </Button>
-                {effects.flash.imagePath &&
-                  !effects.flash.imagePath.startsWith('data:') &&
-                  !effects.flash.vectorPresetId && (
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all', textAlign: 'right' }}>
-                    {effects.flash.imagePath.split(/[\\/]/).pop()}
-                  </div>
-                )}
-                <Button variant="secondary" onClick={handleOpenFlashFolder}>
-                  {t('flashFolderRandomDraw')}
-                </Button>
-              </div>
+              <Row label={t('flashImage')}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+                  <Button variant="secondary" onClick={handleOpenFlashImage}>
+                    {t('selectImage')}
+                  </Button>
+                  {effects.flash.imagePath &&
+                    !effects.flash.imagePath.startsWith('data:') &&
+                    !effects.flash.vectorPresetId && (
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
+                      {effects.flash.imagePath.split(/[\\/]/).pop()}
+                    </div>
+                  )}
+                </div>
+              </Row>
             )}
             {effects.flash.displayFileMode === 'pickFolder' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
