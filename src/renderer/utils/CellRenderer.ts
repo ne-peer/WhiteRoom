@@ -2764,12 +2764,16 @@ export class CellRenderer {
       if (isPickFolder && this.flashFolderImages.length > 0) {
         this.flashFolderPickedPath = this.flashFolderImages[Math.floor(Math.random() * this.flashFolderImages.length)]
         this.flashTextureKey = null
+        this.hideFlashOverlayForTextureSwap()
         void this.updateFlash(flash)
       }
-      this.startFlashShow(this.flashCurrentShowNonce)
     }
     const displayPhaseSec = this.flashResolvedDisplayPhaseSec(flash)
     const shouldBeVisible = this.flashElapsedSec < displayPhaseSec
+    if (shouldBeVisible && !this.isFlashTextureReadyForDisplay(flash)) {
+      if (this.flashOverlayVisible) this.hideFlashOverlayForTextureSwap()
+      return
+    }
     if (shouldBeVisible !== this.flashOverlayVisible) {
       if (shouldBeVisible) {
         this.flashCurrentShowNonce += 1
@@ -2780,6 +2784,26 @@ export class CellRenderer {
       }
     }
     if (this.flashOverlayVisible) this.syncFlashOverlayToImage()
+  }
+
+  private isFlashTextureReadyForDisplay(flash: CellEffects['flash']): boolean {
+    if (!this.flashOverlaySprite) return false
+    if (flash.displayFileMode !== 'pickFolder') return true
+    if (!this.flashFolderPickedPath) return false
+    return this.flashTextureKey === toFileUrl(this.flashFolderPickedPath)
+  }
+
+  private hideFlashOverlayForTextureSwap() {
+    this.flashStartTween?.kill()
+    this.flashEndTween?.kill()
+    this.flashStartTween = null
+    this.flashEndTween = null
+    this.flashStartProxy = null
+    this.flashEndProxy = null
+    this.flashOverlayVisible = false
+    if (!this.flashOverlaySprite) return
+    this.flashOverlaySprite.visible = false
+    this.flashOverlaySprite.alpha = 0
   }
 
   private startFlashShow(nonce: number) {
