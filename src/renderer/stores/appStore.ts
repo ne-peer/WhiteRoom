@@ -108,6 +108,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     enabled: false,
     displayFileMode: 'pickFile',
     imagePath: null,
+    folderPath: null,
     vectorPresetId: null,
     scaleRatio: 1,
     colorOverlayColor: { r: 255, g: 15, b: 91 },

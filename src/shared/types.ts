@@ -137,7 +137,7 @@ export function normalizeDeprecatedFlashTransition(trans: SlideShowTransition): 
 }
 
 /** フラッシュの表示テクスチャの取得元（EffectsPanel の「表示ファイル」） */
-export type FlashDisplayFileMode = 'pickFile' | 'displayCrop' | 'asset'
+export type FlashDisplayFileMode = 'pickFile' | 'pickFolder' | 'displayCrop' | 'asset'
 
 export function inferFlashDisplayFileMode(
   imagePath: string | null,
@@ -156,6 +156,8 @@ export type FlashEffect = {
   /** UI: 表示ファイル。旧プロファイルは読み込み時に推定される */
   displayFileMode: FlashDisplayFileMode
   imagePath: string | null
+  /** pickFolder モード時のフォルダパス。フラッシュ毎にフォルダ内の画像からランダム選択する */
+  folderPath: string | null
   /** 非 null かつ対応プリセットのときは imagePath よりベクターアセットをフラッシュ表示に使用 */
   vectorPresetId: string | null
   /** 表示テクスチャの基準サイズに対する倍率（0.1–3.0） */
@@ -184,6 +186,7 @@ export function normalizeFlashEffectTransitionFields(flash: FlashEffect): FlashE
 
   const displayFileMode: FlashDisplayFileMode =
     base.displayFileMode === 'pickFile' ||
+    base.displayFileMode === 'pickFolder' ||
     base.displayFileMode === 'displayCrop' ||
     base.displayFileMode === 'asset'
       ? base.displayFileMode
@@ -215,6 +218,7 @@ export function sanitizeFlashEffectInPlace(flash: FlashEffect): void {
   sanitizeFlashEffectTransitionsInPlace(flash)
   if (
     flash.displayFileMode !== 'pickFile' &&
+    flash.displayFileMode !== 'pickFolder' &&
     flash.displayFileMode !== 'displayCrop' &&
     flash.displayFileMode !== 'asset'
   ) {

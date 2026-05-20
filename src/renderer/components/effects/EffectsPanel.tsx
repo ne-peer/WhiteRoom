@@ -123,6 +123,7 @@ const EFFECT_PRESET_1: CellEffects = {
     enabled: false,
     displayFileMode: 'pickFile',
     imagePath: null,
+    folderPath: null,
     vectorPresetId: null,
     scaleRatio: 1,
     colorOverlayColor: { r: 255, g: 15, b: 91 },
@@ -372,6 +373,7 @@ const EFFECT_PRESET_2: CellEffects = {
     enabled: false,
     displayFileMode: 'pickFile',
     imagePath: null,
+    folderPath: null,
     vectorPresetId: null,
     scaleRatio: 1,
     colorOverlayColor: { r: 255, g: 15, b: 91 },
@@ -753,6 +755,13 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     }
   }
 
+  const handleOpenFlashFolder = async () => {
+    const result = await window.api.openFolder(language)
+    if (!result.canceled && result.folderPath) {
+      set('flash', { folderPath: result.folderPath, imagePath: null, vectorPresetId: null, displayFileMode: 'pickFolder' })
+    }
+  }
+
   const handleFlashDisplayFileModeChange = (mode: FlashDisplayFileMode) => {
     const f = effects.flash
     if (mode === f.displayFileMode) return
@@ -762,6 +771,14 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         displayFileMode: 'pickFile',
         vectorPresetId: null,
         ...(f.imagePath?.startsWith('data:') ? { imagePath: null } : {}),
+      })
+      return
+    }
+    if (mode === 'pickFolder') {
+      set('flash', {
+        displayFileMode: 'pickFolder',
+        imagePath: null,
+        vectorPresetId: null,
       })
       return
     }
@@ -2257,6 +2274,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 value={effects.flash.displayFileMode}
                 options={[
                   { value: 'pickFile', label: t('flashDisplayFilePickFile') },
+                  { value: 'pickFolder', label: t('flashDisplayFilePickFolder') },
                   { value: 'displayCrop', label: t('flashDisplayFileDisplayCrop') },
                   { value: 'asset', label: t('flashDisplayFileAsset') },
                 ]}
@@ -2264,20 +2282,33 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
               />
             </Row>
             {effects.flash.displayFileMode === 'pickFile' && (
-              <Row label={t('flashImage')}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-                  <Button variant="secondary" onClick={handleOpenFlashImage}>
-                    {t('selectImage')}
-                  </Button>
-                  {effects.flash.imagePath &&
-                    !effects.flash.imagePath.startsWith('data:') &&
-                    !effects.flash.vectorPresetId && (
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all' }}>
-                      {effects.flash.imagePath.split(/[\\/]/).pop()}
-                    </div>
-                  )}
-                </div>
-              </Row>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                <Button variant="secondary" onClick={handleOpenFlashImage}>
+                  {t('selectImage')}
+                </Button>
+                {effects.flash.imagePath &&
+                  !effects.flash.imagePath.startsWith('data:') &&
+                  !effects.flash.vectorPresetId && (
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all', textAlign: 'right' }}>
+                    {effects.flash.imagePath.split(/[\\/]/).pop()}
+                  </div>
+                )}
+                <Button variant="secondary" onClick={handleOpenFlashFolder}>
+                  {t('flashFolderRandomDraw')}
+                </Button>
+              </div>
+            )}
+            {effects.flash.displayFileMode === 'pickFolder' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                <Button variant="secondary" onClick={handleOpenFlashFolder}>
+                  {t('flashPickFolder')}
+                </Button>
+                {effects.flash.folderPath && (
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', wordBreak: 'break-all', textAlign: 'right' }}>
+                    {effects.flash.folderPath.split(/[\\/]/).pop()}
+                  </div>
+                )}
+              </div>
             )}
             {effects.flash.displayFileMode === 'displayCrop' && (
               <Row label={t('flashImage')}>

@@ -103,6 +103,9 @@ export class CellRenderer {
   private flashBaseOpacity = 1
   private flashRadialFadeFilter: PIXI.Filter | null = null
   private flashBlurFilter: PIXI.BlurFilter | null = null
+  private flashFolderPath: string | null = null
+  private flashFolderImages: string[] = []
+  private flashFolderPickedPath: string | null = null
   private vignetteSprite: PIXI.Sprite | null = null
   private vignetteTextureKey: string | null = null
   private fogLayer: PIXI.Container
@@ -503,7 +506,7 @@ export class CellRenderer {
     this.updateVignette(effects)
     this.updateSpiral(effects)
     this.updateEcho(effects)
-    this.updateFlash(effects)
+    this.updateFlash(effects.flash)
     this.updateZoom(effects.zoom)
     this.updateSquish(effects.squish)
     this.updateFog(effects.fog)
@@ -628,7 +631,7 @@ export class CellRenderer {
     this.updateBlur(effects)
     this.updateColorAdjustment(effects.colorOverlay)
     this.updateEcho(effects)
-    this.updateFlash(effects)
+    this.updateFlash(effects.flash)
   }
 
   applyTimerProgress(effects: CellEffects, enabled: boolean, running: boolean, progress: number) {
@@ -2506,8 +2509,7 @@ export class CellRenderer {
     }
   }
 
-  private async updateFlash(effects: CellEffects) {
-    const flash = effects.flash
+  private async updateFlash(flash: import('../../shared/types').FlashEffect) {
     this.flashOverlayEffect = flash
     this.flashBaseOpacity = clamp(flash.opacity ?? 1, 0, 1)
     this.flashCycleDurationSec = Math.max(
@@ -2521,9 +2523,63 @@ export class CellRenderer {
       flash.vectorPresetId && isBuiltinVectorDynamicAssetPreset(flash.vectorPresetId)
         ? flash.vectorPresetId
         : null
-    const hasRaster = Boolean(flash.imagePath)
-    if (!flash.enabled || (!vectorId && !hasRaster)) {
+    const isPickFolder = flash.displayFileMode === 'pickFolder'
+    const hasRaster = isPickFolder ? Boolean(this.flashFolderPickedPath) : Boolean(flash.imagePath)
+    if (!flash.enabled || (!vectorId && !hasRaster && !isPickFolder)) {
       this.clearFlashOverlay()
+      return
+    }
+
+    if (isPickFolder) {
+      const folderPath = flash.folderPath
+      if (!folderPath) {
+        this.clearFlashOverlay()
+        return
+      }
+      if (this.flashFolderPath !== folderPath) {
+        this.flashFolderPath = folderPath
+        this.flashFolderImages = []
+        this.flashFolderPickedPath = null
+        this.flashTextureKey = null
+        try {
+          const result = await window.api.readFolderPath(folderPath)
+          this.flashFolderImages = result.images ?? []
+        } catch {
+          this.flashFolderImages = []
+        }
+      }
+      if (this.flashFolderImages.length === 0) {
+        this.clearFlashOverlay()
+        return
+      }
+      if (!this.flashFolderPickedPath) {
+        this.flashFolderPickedPath = this.flashFolderImages[Math.floor(Math.random() * this.flashFolderImages.length)]
+      }
+      const pickedPath = this.flashFolderPickedPath
+      const textureKey = toFileUrl(pickedPath)
+      if (this.flashTextureKey !== textureKey || !this.flashOverlaySprite) {
+        const nonce = ++this.flashTextureRequestNonce
+        this.flashTextureLoadingKey = textureKey
+        try {
+          if (this.flashOwnedTexture) {
+            this.flashOwnedTexture.destroy(true)
+            this.flashOwnedTexture = null
+          }
+          const loadableUrl = await toLoadableImageUrl(toFileUrl(pickedPath))
+          if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) return
+          const texture = await PIXI.Assets.load(loadableUrl)
+          if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) return
+          this.ensureFlashOverlaySprite(texture)
+          this.flashTextureKey = textureKey
+          this.flashElapsedSec = 0
+        } catch {
+          // ignore
+        }
+        return
+      }
+      this.applyFlashOverlayFilters()
+      this.positionFlashOverlaySprite()
+      this.syncFlashVectorTint(false)
       return
     }
 
@@ -2696,7 +2752,8 @@ export class CellRenderer {
       flash.vectorPresetId && isBuiltinVectorDynamicAssetPreset(flash.vectorPresetId)
         ? flash.vectorPresetId
         : null
-    const hasRaster = Boolean(flash.imagePath)
+    const isPickFolder = flash.displayFileMode === 'pickFolder'
+    const hasRaster = isPickFolder ? Boolean(this.flashFolderPickedPath) : Boolean(flash.imagePath)
     if (!flash?.enabled || (!vectorId && !hasRaster) || !this.flashOverlaySprite) return
     const dtSec = Math.max(0, delta) / 60
     this.flashElapsedSec += dtSec
@@ -2704,6 +2761,11 @@ export class CellRenderer {
       this.flashElapsedSec -= this.flashCycleDurationSec
       this.flashCurrentShowNonce += 1
       this.flashCurrentHideNonce += 1
+      if (isPickFolder && this.flashFolderImages.length > 0) {
+        this.flashFolderPickedPath = this.flashFolderImages[Math.floor(Math.random() * this.flashFolderImages.length)]
+        this.flashTextureKey = null
+        void this.updateFlash(flash)
+      }
       this.startFlashShow(this.flashCurrentShowNonce)
     }
     const displayPhaseSec = this.flashResolvedDisplayPhaseSec(flash)
