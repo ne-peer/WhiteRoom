@@ -58,6 +58,7 @@ export type ShakeEffect = {
   // ── Core shake ────────────────────────────────────────────────────────
   enabled: boolean
   mode: 'once' | 'loop'
+  directionDeg: number            // animation direction in degrees; 0=right, 90=vertical; default 90
   repeatEnabled: boolean          // 'once' mode only
   repeatIntervalSec: number       // seconds between repeats; default 3
   amplitudeFactor: number         // vertical amplitude scale (once); default 0.5
@@ -105,6 +106,7 @@ const DEFAULT_SHAKE_TRAIL_AREA: ShakeTrailArea = {
 const DEFAULT_SHAKE: ShakeEffect = {
   enabled: false,
   mode: 'once',
+  directionDeg: 90,
   repeatEnabled: false,
   repeatIntervalSec: 3,
   amplitudeFactor: 0.5,
@@ -132,6 +134,8 @@ const DEFAULT_SHAKE: ShakeEffect = {
 ## UI Layout
 
 ### Core Shake
+
+Direction option is shown directly under Mode. It uses `directionDeg` with a 0-350 degree range in 10-degree steps; default `90` preserves the original vertical shake.
 
 | Label (JA) | Label (EN) | Control | Range / Notes |
 |---|---|---|---|
@@ -232,6 +236,7 @@ Apply `PIXI.BlurFilter` (strength = `trailBlurStrength`) per area group.
 ### Trail synchronization
 
 `syncShakeTrail` positions every trail sprite according to the time-delayed sample from `shakeTrailSamples`, applying each area's own `centerX/Y`, `size`, `height`, and duplicate geometry.
+The sampled one-dimensional shake offset is projected by `directionDeg`, so the base shake and all delayed trail stages share the same animation direction.
 
 ---
 

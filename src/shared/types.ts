@@ -262,6 +262,7 @@ export type ShakeTrailArea = {
 export type ShakeEffect = {
   enabled: boolean
   mode: 'once' | 'loop'
+  directionDeg: number
   repeatEnabled: boolean
   repeatIntervalSec: number
   amplitudeFactor: number

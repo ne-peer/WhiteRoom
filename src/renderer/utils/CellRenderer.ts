@@ -1373,25 +1373,38 @@ export class CellRenderer {
     const breathingEnabled = breathing?.enabled ?? false
 
     const shakeContributes = shake?.enabled && !(shake.lockBaseImage && shake.trailEnabled)
+    const shakeOffset = shakeContributes ? this.getShakeMotionOffset(this.shakeOffsetY, shake) : { x: 0, y: 0 }
     return {
-      offsetX: (breathingEnabled ? this.breathingOffsetX : 0) + this.zoomCenterOffsetX,
-      offsetY: (breathingEnabled ? this.breathingOffsetY : 0) + (shakeContributes ? this.shakeOffsetY : 0) + this.zoomCenterOffsetY,
+      offsetX: (breathingEnabled ? this.breathingOffsetX : 0) + shakeOffset.x + this.zoomCenterOffsetX,
+      offsetY: (breathingEnabled ? this.breathingOffsetY : 0) + shakeOffset.y + this.zoomCenterOffsetY,
       scaleMultiplier: (breathingEnabled && breathing?.scaleEnabled ? this.getBreathingScaleMultiplier() : 1) * this.zoomScaleMultiplier,
     }
   }
 
   private getShakeTrailMotionTransform(trailOffsetY: number) {
     const breathing = this.latestEffects?.breathing
+    const shake = this.latestEffects?.shake
     const breathingEnabled = breathing?.enabled ?? false
     const baseOffsetX = breathingEnabled ? this.breathingOffsetX : 0
     const baseOffsetY = breathingEnabled ? this.breathingOffsetY : 0
+    const shakeOffset = this.getShakeMotionOffset(trailOffsetY, shake)
     const breathingScaleMultiplier = breathingEnabled && breathing?.scaleEnabled
       ? this.getBreathingScaleMultiplier()
       : 1
     return {
-      offsetX: baseOffsetX + this.zoomCenterOffsetX,
-      offsetY: baseOffsetY + trailOffsetY + this.zoomCenterOffsetY,
+      offsetX: baseOffsetX + shakeOffset.x + this.zoomCenterOffsetX,
+      offsetY: baseOffsetY + shakeOffset.y + this.zoomCenterOffsetY,
       scaleMultiplier: breathingScaleMultiplier * this.zoomScaleMultiplier,
+    }
+  }
+
+  private getShakeMotionOffset(offset: number, shake?: ShakeEffect) {
+    const rad = ((shake?.directionDeg ?? 90) * Math.PI) / 180
+    const x = offset * Math.cos(rad)
+    const y = offset * Math.sin(rad)
+    return {
+      x: Math.abs(x) < 0.0001 ? 0 : x,
+      y: Math.abs(y) < 0.0001 ? 0 : y,
     }
   }
 
@@ -1400,6 +1413,7 @@ export class CellRenderer {
       ? [
           shake.enabled,
           shake.mode,
+          shake.directionDeg ?? 90,
           shake.repeatEnabled,
           shake.repeatIntervalSec,
           shake.amplitudeFactor,

@@ -136,6 +136,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
   shake: {
     enabled: false,
     mode: 'once',
+    directionDeg: 90,
     repeatEnabled: false,
     repeatIntervalSec: 1.3,
     amplitudeFactor: 0.5,
@@ -416,6 +417,9 @@ function normalizeShakePatch(
   const patch = structuredClone(value)
   if (patch.trailSecondStageSize !== undefined) {
     patch.trailSecondStageSize = clampNum(patch.trailSecondStageSize, 0.1, 1)
+  }
+  if (patch.directionDeg !== undefined) {
+    patch.directionDeg = Math.round(clampNum(patch.directionDeg, 0, 350) / 10) * 10
   }
   if (patch.trailAreas !== undefined) {
     patch.trailAreas = patch.trailAreas.map(normalizeShakeTrailArea)

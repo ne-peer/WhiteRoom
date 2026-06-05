@@ -151,6 +151,7 @@ const EFFECT_PRESET_1: CellEffects = {
   shake: {
     enabled: false,
     mode: 'once',
+    directionDeg: 90,
     repeatEnabled: false,
     repeatIntervalSec: 3,
     amplitudeFactor: 1,
@@ -401,6 +402,7 @@ const EFFECT_PRESET_2: CellEffects = {
   shake: {
     enabled: true,
     mode: 'loop',
+    directionDeg: 90,
     repeatEnabled: false,
     repeatIntervalSec: 3,
     amplitudeFactor: 1,
@@ -1411,6 +1413,16 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                   { value: 'loop', label: t('shakeModeLoop') },
                 ]}
                 onChange={v => set('shake', { mode: v === 'loop' ? 'loop' : 'once' })}
+              />
+            </Row>
+            <Row label={t('shakeDirection')}>
+              <Slider
+                value={effects.shake.directionDeg}
+                min={0}
+                max={350}
+                step={10}
+                unit="°"
+                onChange={v => set('shake', { directionDeg: v })}
               />
             </Row>
             {effects.shake.mode === 'once' ? (
