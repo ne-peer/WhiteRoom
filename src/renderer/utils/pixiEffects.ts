@@ -1,6 +1,9 @@
 import * as PIXI from 'pixi.js'
 import { gsap } from 'gsap'
-import type { CellEffects, AssetParticle, DynamicAssetAdditionalEffect, TextEffect, RippleMovePattern, FocusBlurPattern } from '../../shared/types'
+import type {
+  CellEffects, AssetParticle, DynamicAssetAdditionalEffect, TextEffect, RippleMovePattern,
+  FocusBlurPattern, CensorRect,
+} from '../../shared/types'
 import { createVectorDynamicAssetDisplay } from './vectorStampRegistry'
 
 // ===== ビネットテクスチャ生成 =====
@@ -177,6 +180,46 @@ function rippleEase(pattern: RippleMovePattern, t: number): number {
   }
 }
 
+function drawDisplayAreaMask(
+  graphics: PIXI.Graphics,
+  width: number,
+  height: number,
+  rects: CensorRect[],
+) {
+  graphics.clear()
+  if (rects.length === 0) {
+    graphics.rect(0, 0, width, height).fill(0xffffff)
+    return
+  }
+  for (const rect of rects) {
+    graphics
+      .rect(rect.x * width, rect.y * height, rect.w * width, rect.h * height)
+      .fill(0xffffff)
+  }
+}
+
+function samplePointInDisplayRects(
+  rects: CensorRect[],
+  width: number,
+  height: number,
+  marginX: number,
+  marginY: number,
+): { x: number; y: number } {
+  if (rects.length === 0) {
+    return {
+      x: Math.max(0, Math.random() * Math.max(0, width - marginX)),
+      y: Math.max(0, Math.random() * Math.max(0, height - marginY)),
+    }
+  }
+  const rect = rects[Math.floor(Math.random() * rects.length)]
+  const rectW = rect.w * width
+  const rectH = rect.h * height
+  return {
+    x: rect.x * width + Math.random() * Math.max(0, rectW - marginX),
+    y: rect.y * height + Math.random() * Math.max(0, rectH - marginY),
+  }
+}
+
 // ===== パーティクル（動的アセット）管理 =====
 export class ParticleSystem {
   private particles: AssetParticle[] = []
@@ -243,6 +286,7 @@ export class ParticleSystem {
     }
 
     const { spawnIntervalMs, maxParticles, sizeRatio, baseAlpha, pattern } = effects.dynamicAsset
+    const displayRects = effects.dynamicAsset.displayRects ?? []
     const featherRadius = featherStrengthToRadius(effects.dynamicAsset.featherStrength ?? 0)
     const rasterInvert =
       effects.dynamicAsset.sourceKind === 'raster' && effects.dynamicAsset.rasterColorInvertEnabled
@@ -272,7 +316,10 @@ export class ParticleSystem {
       if (isEmergence) {
         // 発生パターン: ランダム位置、サイズは表示サイズ × 設定された ±% 範囲
         const spawnPos = sampleSpawnPosition(
-          () => [Math.random() * canvasWidth, Math.random() * canvasHeight],
+          () => {
+            const p = samplePointInDisplayRects(displayRects, canvasWidth, canvasHeight, 0, 0)
+            return [p.x, p.y]
+          },
           canvasWidth / 2, canvasHeight / 2, peripheralExcludeRadius
         )
         if (spawnPos) {
@@ -344,11 +391,19 @@ export class ParticleSystem {
         const angle = Math.random() * Math.PI * 2
         const cosA = Math.cos(angle)
         const sinA = Math.sin(angle)
-        const cx = canvasWidth / 2
-        const cy = canvasHeight / 2
-        const rippleR = clamp(effects.dynamicAsset.peripheralOnlyRadius, 0, 1) * Math.min(canvasWidth, canvasHeight) / 2
-        const spawnX = cx + cosA * rippleR
-        const spawnY = cy + sinA * rippleR
+        let spawnX: number
+        let spawnY: number
+        if (displayRects.length > 0) {
+          const spawn = samplePointInDisplayRects(displayRects, canvasWidth, canvasHeight, 0, 0)
+          spawnX = spawn.x
+          spawnY = spawn.y
+        } else {
+          const cx = canvasWidth / 2
+          const cy = canvasHeight / 2
+          const rippleR = clamp(effects.dynamicAsset.peripheralOnlyRadius, 0, 1) * Math.min(canvasWidth, canvasHeight) / 2
+          spawnX = cx + cosA * rippleR
+          spawnY = cy + sinA * rippleR
+        }
         const sizeMul = sampleAssetSizeRandomMultiplier(effects.dynamicAsset.sizeRandomPercent ?? 10)
         const scale = clamp(sizeRatio, 0.1, 3.0) * sizeMul
         const rotationRad = sampleAssetRotationRad(effects.dynamicAsset.randomRotationEnabled ?? false)
@@ -411,7 +466,13 @@ export class ParticleSystem {
       } else {
         // 上昇パターン: 表示サイズ × 設定された ±% 範囲
         const spawnPos = sampleSpawnPosition(
-          () => [Math.random() * canvasWidth, canvasHeight - Math.random() * canvasHeight * 0.7],
+          () => {
+            if (displayRects.length > 0) {
+              const p = samplePointInDisplayRects(displayRects, canvasWidth, canvasHeight, 0, 0)
+              return [p.x, p.y]
+            }
+            return [Math.random() * canvasWidth, canvasHeight - Math.random() * canvasHeight * 0.7]
+          },
           canvasWidth / 2, canvasHeight / 2, peripheralExcludeRadius
         )
         if (spawnPos) {
@@ -718,17 +779,16 @@ export class TextSystem {
     this.timerProgress = progress
   }
 
-  resizeMask(width: number, height: number) {
+  resizeMask(width: number, height: number, rects: CensorRect[] = []) {
     this.cellWidth = width
     this.cellHeight = height
-    this.mask.clear()
-    this.mask.rect(0, 0, width, height)
-    this.mask.fill(0xffffff)
+    drawDisplayAreaMask(this.mask, width, height, rects)
   }
 
   update(effects: TextEffect, width: number, height: number) {
     this.cellWidth = width
     this.cellHeight = height
+    drawDisplayAreaMask(this.mask, width, height, effects.displayRects ?? [])
 
     const validTexts = effects.texts.filter(t => t.trim().length > 0)
     if (!effects.enabled || validTexts.length === 0) {
@@ -745,6 +805,7 @@ export class TextSystem {
       effects.displayDurationMs,
       effects.intervalMs,
       effects.direction,
+      (effects.displayRects ?? []).map(r => `${r.x},${r.y},${r.w},${r.h}`).join(';'),
       validTexts.join('|'),
     ].join(':')
 
@@ -785,8 +846,21 @@ export class TextSystem {
     const chars = Array.from(text)
     const charObjects: PIXI.Text[] = []
 
-    const safeX = Math.max(0, Math.random() * (this.cellWidth - fontSize))
-    const safeY = Math.max(0, Math.random() * (this.cellHeight - fontSize))
+    const textWidth = direction === 'horizontal'
+      ? Math.max(fontSize, chars.length * fontSize * 0.85)
+      : fontSize
+    const textHeight = direction === 'vertical'
+      ? Math.max(fontSize, chars.length * fontSize * 1.1)
+      : fontSize
+    const origin = samplePointInDisplayRects(
+      effects.displayRects ?? [],
+      this.cellWidth,
+      this.cellHeight,
+      textWidth,
+      textHeight,
+    )
+    const safeX = origin.x
+    const safeY = origin.y
 
     chars.forEach((ch, i) => {
       const charText = new PIXI.Text({ text: ch, style })

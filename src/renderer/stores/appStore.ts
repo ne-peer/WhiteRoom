@@ -5,7 +5,7 @@ import type {
   AppProfile, Cell, CellBaseline, CellEffects, CellFolder, GridLayout,
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
   ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig, ReadingConfigPayload,
-  StashItem, IpcApi, FocusEffect, CensorEffect, ShakeTrailArea,
+  StashItem, IpcApi, FocusEffect, CensorEffect, ShakeTrailArea, EffectDisplayAreaPickTarget,
 } from '../../shared/types'
 import {
   DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
@@ -250,6 +250,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     sutTipMode: 'allTipsRandom',
     peripheralOnlyRadius: 0,
     rippleMovePattern: 'easeInSine',
+    displayRects: [],
   },
   textEffect: {
     enabled: false,
@@ -263,6 +264,7 @@ export const DEFAULT_EFFECTS: CellEffects = {
     displayDurationMs: 1000,
     intervalMs: 600,
     direction: 'vertical',
+    displayRects: [],
   } satisfies TextEffect,
   focus: {
     enabled: false,
@@ -507,7 +509,11 @@ function mergeEffectsWithDefaults(effects: Partial<CellEffects> | undefined): Ce
       { ...DEFAULT_EFFECTS.dynamicAsset, ...effects?.dynamicAsset },
       getAssetEffectPresetFolderNames(),
     ),
-    textEffect: { ...DEFAULT_EFFECTS.textEffect, ...effects?.textEffect },
+    textEffect: {
+      ...DEFAULT_EFFECTS.textEffect,
+      ...effects?.textEffect,
+      displayRects: effects?.textEffect?.displayRects ?? DEFAULT_EFFECTS.textEffect.displayRects,
+    },
     focus: { ...DEFAULT_EFFECTS.focus, ...effects?.focus },
     censor: { ...DEFAULT_EFFECTS.censor, ...effects?.censor },
   }
@@ -600,6 +606,7 @@ export type AppState = {
   flashRangePicking: boolean
   focusWaypointPicking: boolean
   censorRectPicking: boolean
+  effectDisplayAreaPicking: EffectDisplayAreaPickTarget | null
   appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error' } | null
   imageEffectProfiles: Record<string, ImageEffectProfileDocument | null>
   imageEffectProfileAutoApplySuspended: boolean
@@ -679,6 +686,7 @@ export type AppActions = {
   setFlashRangePicking: (flag: boolean) => void
   setFocusWaypointPicking: (flag: boolean) => void
   setCensorRectPicking: (flag: boolean) => void
+  setEffectDisplayAreaPicking: (target: EffectDisplayAreaPickTarget | null) => void
 
   // エフェクト操作
   setCellEffect: <K extends keyof CellEffects>(
@@ -826,6 +834,7 @@ export const useAppStore = create<AppStore>()(
     flashRangePicking: false,
     focusWaypointPicking: false,
     censorRectPicking: false,
+    effectDisplayAreaPicking: null,
     appNotification: null,
     imageEffectProfiles: {},
     imageEffectProfileAutoApplySuspended: false,
@@ -1198,6 +1207,7 @@ export const useAppStore = create<AppStore>()(
         s.flashRangePicking = false
         s.focusWaypointPicking = false
         s.censorRectPicking = false
+        s.effectDisplayAreaPicking = null
       }
     }),
 
@@ -1208,6 +1218,7 @@ export const useAppStore = create<AppStore>()(
         s.flashRangePicking = false
         s.focusWaypointPicking = false
         s.censorRectPicking = false
+        s.effectDisplayAreaPicking = null
       }
     }),
 
@@ -1219,6 +1230,7 @@ export const useAppStore = create<AppStore>()(
         s.flashRangePicking = false
         s.focusWaypointPicking = false
         s.censorRectPicking = false
+        s.effectDisplayAreaPicking = null
       }
     }),
 
@@ -1230,6 +1242,7 @@ export const useAppStore = create<AppStore>()(
         s.squishColorPicking = false
         s.focusWaypointPicking = false
         s.censorRectPicking = false
+        s.effectDisplayAreaPicking = null
       }
     }),
 
@@ -1241,6 +1254,7 @@ export const useAppStore = create<AppStore>()(
         s.squishColorPicking = false
         s.flashRangePicking = false
         s.censorRectPicking = false
+        s.effectDisplayAreaPicking = null
       }
     }),
 
@@ -1252,6 +1266,19 @@ export const useAppStore = create<AppStore>()(
         s.squishColorPicking = false
         s.flashRangePicking = false
         s.focusWaypointPicking = false
+        s.effectDisplayAreaPicking = null
+      }
+    }),
+
+    setEffectDisplayAreaPicking: (target) => set(s => {
+      s.effectDisplayAreaPicking = target
+      if (target !== null) {
+        s.shakeTrailPositionPicking = null
+        s.spiralRadialPositionPicking = false
+        s.squishColorPicking = false
+        s.flashRangePicking = false
+        s.focusWaypointPicking = false
+        s.censorRectPicking = false
       }
     }),
 

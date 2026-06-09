@@ -427,6 +427,8 @@ export type DynamicAssetEffect = {
   peripheralOnlyRadius: number
   /** ripple パターンの移動イージング */
   rippleMovePattern: RippleMovePattern
+  /** 表示エリア（列正規化矩形）。空のときはセル全域 */
+  displayRects: CensorRect[]
 }
 
 export function normalizeDynamicAssetSutTipMode(mode: unknown): DynamicAssetSutTipMode {
@@ -485,6 +487,7 @@ export function normalizeDynamicAssetEffect(
     colorOverlayAlphaRandomMax,
     rasterColorInvertEnabled: da.rasterColorInvertEnabled === true,
     rippleMovePattern: normalizeRippleMovePattern(da.rippleMovePattern),
+    displayRects: Array.isArray(da.displayRects) ? da.displayRects : [],
   }
   if (displayFileMode === 'pickImage') return base
   const folderBase = base.assetFolderPath?.split(/[/\\]/).filter(Boolean).pop() ?? ''
@@ -557,7 +560,11 @@ export type TextEffect = {
   displayDurationMs: number                 // 表示時間: 全文字表示後にフェードアウトするまでの時間 ms
   intervalMs: number                        // 表示間隔: 次のテキスト表示までの時間 ms
   direction: 'horizontal' | 'vertical'
+  /** 表示エリア（列正規化矩形）。空のときはセル全域 */
+  displayRects: CensorRect[]
 }
+
+export type EffectDisplayAreaPickTarget = 'dynamicAsset' | 'textEffect'
 
 export type CellEffects = {
   effectCenter: {

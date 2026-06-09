@@ -86,6 +86,8 @@ export const MasterCanvas: React.FC = () => {
   const flashRangePicking = useAppStore(s => s.flashRangePicking)
   const focusWaypointPicking = useAppStore(s => s.focusWaypointPicking)
   const censorRectPicking = useAppStore(s => s.censorRectPicking)
+  const effectDisplayAreaPicking = useAppStore(s => s.effectDisplayAreaPicking)
+  const rectAreaPicking = censorRectPicking || effectDisplayAreaPicking !== null
   const selectedCellId = useAppStore(s => s.selectedCellId)
   const textReaderVisible = useAppStore(s => s.textReader.visible)
   const textReaderConfig = useAppStore(s => s.textReader.config)
@@ -138,7 +140,7 @@ export const MasterCanvas: React.FC = () => {
   const { setCellImage } = usePixiStage(containerRef)
   const { handleDrop, handleDragOver } = useDropHandler(setCellImage)
   const pickingActive = shakeTrailPositionPicking !== null || spiralRadialPositionPicking
-  const anyPickModeActive = pickingActive || squishColorPicking || flashRangePicking || focusWaypointPicking || censorRectPicking
+  const anyPickModeActive = pickingActive || squishColorPicking || flashRangePicking || focusWaypointPicking || rectAreaPicking
   const selectedCell = cells.find(cell => cell.id === selectedCellId) ?? null
   const pickColumn = pickingActive ? lockedPickColumn ?? selectedCell?.col ?? null : null
   const flashRangeColumn = flashRangePicking ? lockedPickColumn ?? selectedCell?.col ?? null : null
@@ -164,7 +166,7 @@ export const MasterCanvas: React.FC = () => {
       height: canvasSize.height,
     }
   }, [canvasSize.height, canvasSize.width, flashRangeColumn, flashRangePicking, grid.cols])
-  const pickModeColumn = (focusWaypointPicking || censorRectPicking) ? lockedPickColumn ?? selectedCell?.col ?? null : null
+  const pickModeColumn = (focusWaypointPicking || rectAreaPicking) ? lockedPickColumn ?? selectedCell?.col ?? null : null
   const pickModeColumnBounds = React.useMemo((): React.CSSProperties | null => {
     if (pickModeColumn === null || grid.cols <= 0) return null
     const left = Math.round((pickModeColumn * canvasSize.width) / grid.cols)
@@ -176,7 +178,7 @@ export const MasterCanvas: React.FC = () => {
       height: canvasSize.height,
     }
   }, [canvasSize.height, canvasSize.width, grid.cols, pickModeColumn])
-  const censorRectDragColumnBounds = censorRectPicking ? pickModeColumnBounds : null
+  const censorRectDragColumnBounds = rectAreaPicking ? pickModeColumnBounds : null
   const focusWaypointColumnBounds = focusWaypointPicking ? pickModeColumnBounds : null
   const selectedCellOutlineBounds = React.useMemo((): React.CSSProperties | null => {
     if (anyPickModeActive) return null
@@ -208,7 +210,7 @@ export const MasterCanvas: React.FC = () => {
       imageSrc: cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null,
     }))
     : []
-  const pickModeColumnOverlays = (focusWaypointPicking || censorRectPicking) && pickModeColumn !== null
+  const pickModeColumnOverlays = (focusWaypointPicking || rectAreaPicking) && pickModeColumn !== null
     ? cells.filter(cell => cell.col === pickModeColumn).map(cell => ({
       cell,
       imageSrc: cellTagOverrides[cell.id] ?? cell.folder?.images[cell.currentImageIndex] ?? null,
@@ -231,6 +233,7 @@ export const MasterCanvas: React.FC = () => {
     state.setFlashRangePicking(false)
     state.setFocusWaypointPicking(false)
     state.setCensorRectPicking(false)
+    state.setEffectDisplayAreaPicking(null)
     centerPickDragRef.current = null
     trailSizeDragRef.current = null
     flashRangeDragRef.current = null
@@ -250,7 +253,7 @@ export const MasterCanvas: React.FC = () => {
   }, [])
 
   React.useLayoutEffect(() => {
-    if (!pickingActive && !flashRangePicking && !focusWaypointPicking && !censorRectPicking) {
+    if (!pickingActive && !flashRangePicking && !focusWaypointPicking && !rectAreaPicking) {
       setLockedPickColumn(null)
       return
     }
@@ -259,7 +262,7 @@ export const MasterCanvas: React.FC = () => {
       const state = useAppStore.getState()
       return state.cells.find(cell => cell.id === state.selectedCellId)?.col ?? null
     })
-  }, [censorRectPicking, flashRangePicking, focusWaypointPicking, pickingActive, selectedCell?.col])
+  }, [rectAreaPicking, flashRangePicking, focusWaypointPicking, pickingActive, selectedCell?.col])
 
   useEffect(() => {
     const onMouseUp = (e: MouseEvent) => {
@@ -353,7 +356,7 @@ export const MasterCanvas: React.FC = () => {
       const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable
       const state = useAppStore.getState()
       const centerPickModeActive = state.shakeTrailPositionPicking !== null || state.spiralRadialPositionPicking
-      if (e.key === 'Escape' && (centerPickModeActive || state.flashRangePicking || state.focusWaypointPicking || state.censorRectPicking)) {
+      if (e.key === 'Escape' && (centerPickModeActive || state.flashRangePicking || state.focusWaypointPicking || state.censorRectPicking || state.effectDisplayAreaPicking !== null)) {
         e.preventDefault()
         e.stopPropagation()
         cancelPickMode()
@@ -452,7 +455,8 @@ export const MasterCanvas: React.FC = () => {
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const { grid, cells, selectedCellId, shakeTrailPositionPicking, spiralRadialPositionPicking, squishColorPicking, flashRangePicking, focusWaypointPicking, censorRectPicking } = useAppStore.getState()
+    const { grid, cells, selectedCellId, shakeTrailPositionPicking, spiralRadialPositionPicking, squishColorPicking, flashRangePicking, focusWaypointPicking, censorRectPicking, effectDisplayAreaPicking } = useAppStore.getState()
+    const rectAreaPickingActive = censorRectPicking || effectDisplayAreaPicking !== null
     const activePickColumn = lockedPickColumn ?? cells.find(c => c.id === selectedCellId)?.col ?? null
     const relX = e.clientX - rect.left
     const relY = e.clientY - rect.top
@@ -460,13 +464,13 @@ export const MasterCanvas: React.FC = () => {
     const row = Math.max(0, Math.min(Math.floor(relY / (rect.height / grid.rows)), grid.rows - 1))
     const cell = cells.find(c => c.col === col && c.row === row)
     setHoveredCellId(
-      ((shakeTrailPositionPicking !== null || spiralRadialPositionPicking || flashRangePicking || focusWaypointPicking || censorRectPicking) && cell?.col !== activePickColumn)
+      ((shakeTrailPositionPicking !== null || spiralRadialPositionPicking || flashRangePicking || focusWaypointPicking || rectAreaPickingActive) && cell?.col !== activePickColumn)
         ? null
         : cell?.id ?? null
     )
 
     const censorDrag = censorRectDragRef.current
-    if (censorDrag && censorRectPicking) {
+    if (censorDrag && rectAreaPickingActive) {
       const bounds = getColumnGuideRect(rect, censorDrag.column, grid)
       const nextDrag = {
         ...censorDrag,
@@ -478,7 +482,7 @@ export const MasterCanvas: React.FC = () => {
       return
     }
 
-    if (censorRectPicking || focusWaypointPicking) {
+    if (rectAreaPickingActive || focusWaypointPicking) {
       setPickGuide(null)
       return
     }
@@ -593,7 +597,7 @@ export const MasterCanvas: React.FC = () => {
       if (next.length >= 8) state.setFocusWaypointPicking(false)
       return
     }
-    if (state.censorRectPicking) {
+    if (state.censorRectPicking || state.effectDisplayAreaPicking !== null) {
       e.preventDefault()
       if (e.button !== 0) return
       const cell = getCellAtClientPoint(e.clientX, e.clientY, rect, state.grid, state.cells)
@@ -753,8 +757,16 @@ export const MasterCanvas: React.FC = () => {
         h: selHeight / colHeight,
       }
       const state = useAppStore.getState()
-      const current = state.cells.find(c => c.id === censorDrag.cellId)?.effects.censor.rects ?? []
-      state.setCellEffect(censorDrag.cellId, 'censor', { rects: [...current, newRect] })
+      if (state.censorRectPicking) {
+        const current = state.cells.find(c => c.id === censorDrag.cellId)?.effects.censor.rects ?? []
+        state.setCellEffect(censorDrag.cellId, 'censor', { rects: [...current, newRect] })
+      } else if (state.effectDisplayAreaPicking === 'dynamicAsset') {
+        const current = state.cells.find(c => c.id === censorDrag.cellId)?.effects.dynamicAsset.displayRects ?? []
+        state.setCellEffect(censorDrag.cellId, 'dynamicAsset', { displayRects: [...current, newRect] })
+      } else if (state.effectDisplayAreaPicking === 'textEffect') {
+        const current = state.cells.find(c => c.id === censorDrag.cellId)?.effects.textEffect.displayRects ?? []
+        state.setCellEffect(censorDrag.cellId, 'textEffect', { displayRects: [...current, newRect] })
+      }
       return
     }
     const rangeDrag = flashRangeDragRef.current
@@ -931,7 +943,7 @@ export const MasterCanvas: React.FC = () => {
           ))}
         </div>
       )}
-      {(focusWaypointPicking || censorRectPicking) && pickModeColumnBounds && (
+      {(focusWaypointPicking || rectAreaPicking) && pickModeColumnBounds && (
         <div
           className={styles.pickFreezeLayer}
           style={{
@@ -1068,23 +1080,28 @@ export const MasterCanvas: React.FC = () => {
           style={toFlashRangeSelectionStyle(flashRangeDrag)}
         />
       )}
-      {censorRectPicking && censorRectDrag && (() => {
-        const censorEffect = useAppStore.getState().cells.find(c => c.id === censorRectDrag.cellId)?.effects.censor
-        const color = censorEffect ? `rgb(${censorEffect.color.r},${censorEffect.color.g},${censorEffect.color.b})` : 'rgb(13,13,13)'
+      {rectAreaPicking && censorRectDrag && (() => {
+        const pickState = useAppStore.getState()
+        const isCensor = pickState.censorRectPicking
+        const censorEffect = pickState.cells.find(c => c.id === censorRectDrag.cellId)?.effects.censor
+        const color = isCensor && censorEffect
+          ? `rgb(${censorEffect.color.r},${censorEffect.color.g},${censorEffect.color.b})`
+          : 'rgb(176,112,248)'
+        const opacity = isCensor ? (censorEffect?.alpha ?? 0.9) * 0.5 : 0.35
         return (
           <div
             className={styles.censorRectSelection}
-            style={{ ...toCensorRectSelectionStyle(censorRectDrag), background: color, opacity: (censorEffect?.alpha ?? 0.9) * 0.5 }}
+            style={{ ...toCensorRectSelectionStyle(censorRectDrag), background: color, opacity }}
           />
         )
       })()}
-      {censorRectPicking && censorRectDragColumnBounds && (
+      {rectAreaPicking && censorRectDragColumnBounds && (
         <div className={styles.censorRectColumnMask} style={censorRectDragColumnBounds} />
       )}
-      {censorRectPicking && censorRectDragColumnBounds && (
+      {rectAreaPicking && censorRectDragColumnBounds && (
         <div className={styles.pickUiLayer} style={censorRectDragColumnBounds}>
           <div className={styles.pickHint}>
-            <div>{t('censorPickHint')}</div>
+            <div>{censorRectPicking ? t('censorPickHint') : t('effectDisplayPickHint')}</div>
             <div className={styles.pickHintTip}>{t('censorPickTip')}</div>
           </div>
         </div>

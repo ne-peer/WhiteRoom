@@ -234,6 +234,7 @@ const EFFECT_PRESET_1: CellEffects = {
     sutTipMode: 'allTipsRandom',
     peripheralOnlyRadius: 0,
     rippleMovePattern: 'easeInSine' as RippleMovePattern,
+    displayRects: [],
   },
   textEffect: {
     enabled: false,
@@ -247,6 +248,7 @@ const EFFECT_PRESET_1: CellEffects = {
     displayDurationMs: 1000,
     intervalMs: 600,
     direction: 'vertical',
+    displayRects: [],
   },
   fog: {
     enabled: false,
@@ -483,6 +485,7 @@ const EFFECT_PRESET_2: CellEffects = {
     sutTipMode: 'allTipsRandom',
     peripheralOnlyRadius: 0,
     rippleMovePattern: 'easeInSine' as RippleMovePattern,
+    displayRects: [],
   },
   textEffect: {
     enabled: false,
@@ -496,6 +499,7 @@ const EFFECT_PRESET_2: CellEffects = {
     displayDurationMs: 1000,
     intervalMs: 600,
     direction: 'vertical',
+    displayRects: [],
   },
   fog: {
     enabled: false,
@@ -569,6 +573,8 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     setFocusWaypointPicking,
     censorRectPicking,
     setCensorRectPicking,
+    effectDisplayAreaPicking,
+    setEffectDisplayAreaPicking,
     syncZoomSquish,
   } = useAppStore()
   const { language, t } = useTranslation()
@@ -2251,6 +2257,37 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 unit="%"
               />
             </Row>
+            <Row label={t('effectDisplayAreas')}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                {(effects.dynamicAsset.displayRects ?? []).length}
+              </span>
+            </Row>
+            {(effects.dynamicAsset.displayRects ?? []).length > 0 && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
+                {(effects.dynamicAsset.displayRects ?? []).map((r, i) => (
+                  <div key={i}>{'①②③④⑤⑥⑦⑧⑨⑩'[i] ?? `${i + 1}`} x:{r.x.toFixed(2)} y:{r.y.toFixed(2)} w:{r.w.toFixed(2)} h:{r.h.toFixed(2)}</div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <Button
+                variant="secondary"
+                onClick={() => setEffectDisplayAreaPicking('dynamicAsset')}
+                disabled={effectDisplayAreaPicking === 'dynamicAsset'}
+              >
+                {effectDisplayAreaPicking === 'dynamicAsset' ? t('censorPickActive') : t('censorAddArea')}
+              </Button>
+              {(effects.dynamicAsset.displayRects ?? []).length > 0 && (
+                <Button variant="secondary" onClick={() => set('dynamicAsset', { displayRects: [] })}>
+                  {t('censorClear')}
+                </Button>
+              )}
+            </div>
+            {effectDisplayAreaPicking === 'dynamicAsset' && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,180,0.7)', marginBottom: 6 }}>
+                {t('effectDisplayPickHint')} / {t('censorPickTip')}
+              </div>
+            )}
             {dynamicAssetPattern === 'emergence' && (
               <Row label={t('emergenceSpeedFactor')}>
                 <Slider
@@ -3219,6 +3256,37 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                 onChange={v => set('textEffect', { intervalMs: v })}
               />
             </Row>
+            <Row label={t('effectDisplayAreas')}>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                {(effects.textEffect.displayRects ?? []).length}
+              </span>
+            </Row>
+            {(effects.textEffect.displayRects ?? []).length > 0 && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
+                {(effects.textEffect.displayRects ?? []).map((r, i) => (
+                  <div key={i}>{'①②③④⑤⑥⑦⑧⑨⑩'[i] ?? `${i + 1}`} x:{r.x.toFixed(2)} y:{r.y.toFixed(2)} w:{r.w.toFixed(2)} h:{r.h.toFixed(2)}</div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <Button
+                variant="secondary"
+                onClick={() => setEffectDisplayAreaPicking('textEffect')}
+                disabled={effectDisplayAreaPicking === 'textEffect'}
+              >
+                {effectDisplayAreaPicking === 'textEffect' ? t('censorPickActive') : t('censorAddArea')}
+              </Button>
+              {(effects.textEffect.displayRects ?? []).length > 0 && (
+                <Button variant="secondary" onClick={() => set('textEffect', { displayRects: [] })}>
+                  {t('censorClear')}
+                </Button>
+              )}
+            </div>
+            {effectDisplayAreaPicking === 'textEffect' && (
+              <div style={{ fontSize: 10, color: 'rgba(255,255,180,0.7)', marginBottom: 6 }}>
+                {t('effectDisplayPickHint')} / {t('censorPickTip')}
+              </div>
+            )}
             <div style={{ marginTop: 8 }}>
               <Row label={t('timerSync')}>
                 <Toggle
