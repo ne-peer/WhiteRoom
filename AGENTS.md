@@ -214,6 +214,8 @@ Classify commits and append them to `RELEASE_NOTES.md` using these sections:
 - **Adjustments**: commits with `update:` / `docs:` and UI / label changes
 - **Bug Fixes**: commits with `fix:`
 
+Omit any category that has no matching changes. Do not write `なし` or leave an empty section; include only the headings that have at least one bullet.
+
 Release note template:
 
 ```md
@@ -224,10 +226,9 @@ Release note template:
 
 ## 調整
 - xxx
-
-## バグフィックス
-- xxx
 ```
+
+(Add `## バグフィックス` only when there are bug-fix commits. Other categories follow the same rule.)
 
 ## Version Bump Workflow
 
