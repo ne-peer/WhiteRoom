@@ -756,14 +756,19 @@ export class ParticleSystem {
 
 // ===== テキストエフェクト管理 =====
 
+type TextAnimationInstance = {
+  chars: PIXI.Text[]
+  timeline: gsap.core.Timeline
+}
+
 export class TextSystem {
   private container: PIXI.Container
   private mask: PIXI.Graphics
-  private activeChars: PIXI.Text[] = []
-  private activeTimeline: gsap.core.Timeline | null = null
-  private nextTimeout: ReturnType<typeof setTimeout> | null = null
+  private activeInstances: TextAnimationInstance[] = []
+  private spawnInterval: ReturnType<typeof setInterval> | null = null
   private running = false
   private currentKey: string | null = null
+  private currentEffects: TextEffect | null = null
   private cellWidth = 0
   private cellHeight = 0
   private timerProgress = 1
@@ -813,15 +818,13 @@ export class TextSystem {
 
     this.stop()
     this.currentKey = key
+    this.currentEffects = effects
     this.running = true
-    this.scheduleNext(0, effects)
-  }
-
-  private scheduleNext(delayMs: number, effects: TextEffect) {
-    if (this.nextTimeout) clearTimeout(this.nextTimeout)
-    this.nextTimeout = setTimeout(() => {
-      if (this.running) this.playAnimation(effects)
-    }, delayMs)
+    this.playAnimation(effects)
+    const intervalMs = Math.max(0, effects.intervalMs)
+    this.spawnInterval = setInterval(() => {
+      if (this.running && this.currentEffects) this.playAnimation(this.currentEffects)
+    }, intervalMs)
   }
 
   private playAnimation(effects: TextEffect) {
@@ -831,7 +834,7 @@ export class TextSystem {
     if (validTexts.length === 0) return
 
     const text = validTexts[Math.floor(Math.random() * validTexts.length)]
-    const { font, fontSize, color, charIntervalMs, displayDurationMs, intervalMs, direction } = effects
+    const { font, fontSize, color, charIntervalMs, displayDurationMs, direction } = effects
     const rawAlpha = clamp(effects.alpha ?? 1, 0, 1)
     const alpha = effects.alphaTimerSync ? rawAlpha * this.timerProgress : rawAlpha
     const hexColor = (color.r << 16) | (color.g << 8) | color.b
@@ -877,19 +880,14 @@ export class TextSystem {
       charObjects.push(charText)
     })
 
-    this.activeChars = charObjects
-
-    const tl = gsap.timeline({
-      onComplete: () => {
-        charObjects.forEach(c => {
-          if (c.parent) c.parent.removeChild(c)
-          c.destroy()
-        })
-        this.activeChars = []
-        this.activeTimeline = null
-        if (this.running) this.scheduleNext(intervalMs, effects)
-      },
-    })
+    const instance: TextAnimationInstance = {
+      chars: charObjects,
+      timeline: gsap.timeline({
+        onComplete: () => this.cleanupInstance(instance),
+      }),
+    }
+    this.activeInstances.push(instance)
+    const tl = instance.timeline
 
     // 1文字ずつフェードイン
     const charIntervalSec = charIntervalMs / 1000
@@ -905,24 +903,30 @@ export class TextSystem {
       duration: Math.max(0.1, displayDurationMs / 1000),
       ease: 'sine.in',
     }, allCharsTime)
+  }
 
-    this.activeTimeline = tl
+  private cleanupInstance(instance: TextAnimationInstance) {
+    instance.timeline.kill()
+    instance.chars.forEach(c => {
+      if (c.parent) c.parent.removeChild(c)
+      c.destroy()
+    })
+    const index = this.activeInstances.indexOf(instance)
+    if (index >= 0) this.activeInstances.splice(index, 1)
   }
 
   stop() {
     this.running = false
     this.currentKey = null
-    if (this.nextTimeout) {
-      clearTimeout(this.nextTimeout)
-      this.nextTimeout = null
+    this.currentEffects = null
+    if (this.spawnInterval) {
+      clearInterval(this.spawnInterval)
+      this.spawnInterval = null
     }
-    this.activeTimeline?.kill()
-    this.activeTimeline = null
-    this.activeChars.forEach(c => {
-      if (c.parent) c.parent.removeChild(c)
-      c.destroy()
-    })
-    this.activeChars = []
+    for (const instance of [...this.activeInstances]) {
+      this.cleanupInstance(instance)
+    }
+    this.activeInstances = []
   }
 
   destroy() {

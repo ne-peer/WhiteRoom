@@ -522,10 +522,11 @@ export class CellRenderer {
     const maxTextChars = effects.textEffect.enabled
       ? Math.max(0, ...effects.textEffect.texts.map(text => Array.from(text.trim()).length))
       : 0
+    const singleTextMs = maxTextChars > 0
+      ? maxTextChars * effects.textEffect.charIntervalMs + effects.textEffect.displayDurationMs
+      : 0
     const textDurationMs = maxTextChars > 0
-      ? maxTextChars * effects.textEffect.charIntervalMs +
-        effects.textEffect.displayDurationMs +
-        effects.textEffect.intervalMs
+      ? Math.max(singleTextMs, effects.textEffect.intervalMs)
       : 0
     const durationMs = Math.max(
       effects.vignette.dynamicDurationMs,
