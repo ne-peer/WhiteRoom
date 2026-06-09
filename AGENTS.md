@@ -264,3 +264,4 @@ When instructed with `bump to v{x.x.x}` (for example, `bump to v1.5.1`), perform
 | v1.5.8 | SUT brush raster import and tip mode; asset ripple pattern, movement patterns, Bounce, raster invert, hidden area controls; focus and censor effects with linked masks/text; multi-area shake trail; path, mask, layer, and picker fixes |
 | v1.5.9 | Flash effect folder-random display mode, duplicate UI cleanup, and previous-image flash prevention |
 | v1.5.10 | Shake effect direction option with 10-degree animation control for base and delayed trail motion |
+| v1.5.11 | Asset and text effect display area selection; text effect concurrent interval display; two-stage shake-trail area offset and horizontal mirror |
