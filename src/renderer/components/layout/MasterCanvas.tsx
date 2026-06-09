@@ -14,6 +14,7 @@ import { getTimerCompletionElapsed } from '../../utils/timerProgress'
 import {
   trailDuplicateHalfSeparationNormX,
   trailDuplicateVerticalStaggerOffsetsNormY,
+  trailSecondStageCenterOffsetNorm,
 } from '../../utils/shakeTrailDuplicateGeometry'
 import styles from './MasterCanvas.module.css'
 
@@ -1550,6 +1551,9 @@ function toCircleGuides(
         })
       }
       if (effects.shake.trailSecondStageEnabled) {
+        const offsetX = effects.shake.trailSecondStageOffsetX ?? 0
+        const offsetY = effects.shake.trailSecondStageOffsetY ?? 0
+        const horizontalMirror = effects.shake.trailSecondStageHorizontalMirror ?? false
         if (area.duplicateEnabled) {
           const halfNormSec = trailDuplicateHalfSeparationNormX(
             cellSize.width, cellSize.height, shakeSize, area.duplicateSpacingShift,
@@ -1557,23 +1561,44 @@ function toCircleGuides(
           const staggerYSec = trailDuplicateVerticalStaggerOffsetsNormY(
             cellSize.width, cellSize.height, shakeSize, area.height, area.duplicateVerticalSpacingShift,
           )
+          const leftOff = trailSecondStageCenterOffsetNorm(
+            cellSize.width, cellSize.height, area, secondStageSizeRatio,
+            offsetX, offsetY, horizontalMirror, 'left',
+          )
+          const rightOff = trailSecondStageCenterOffsetNorm(
+            cellSize.width, cellSize.height, area, secondStageSizeRatio,
+            offsetX, offsetY, horizontalMirror, 'right',
+          )
           guides.push({
             key: `shakeTrailSecDupL_${areaIdx}`,
             kind: 'shakeTrailSecondStage',
             dupGroupId: `shakeTrailSecond_${areaIdx}`,
-            style: toShakeAreaCircleStyle(area, 'second', cellSize, { x: baseX - halfNormSec, y: baseY + staggerYSec.left }, secondStageSizeRatio),
+            style: toShakeAreaCircleStyle(area, 'second', cellSize, {
+              x: baseX - halfNormSec + leftOff.x,
+              y: baseY + staggerYSec.left + leftOff.y,
+            }, secondStageSizeRatio),
           })
           guides.push({
             key: `shakeTrailSecDupR_${areaIdx}`,
             kind: 'shakeTrailSecondStage',
             dupGroupId: `shakeTrailSecond_${areaIdx}`,
-            style: toShakeAreaCircleStyle(area, 'second', cellSize, { x: baseX + halfNormSec, y: baseY + staggerYSec.right }, secondStageSizeRatio),
+            style: toShakeAreaCircleStyle(area, 'second', cellSize, {
+              x: baseX + halfNormSec + rightOff.x,
+              y: baseY + staggerYSec.right + rightOff.y,
+            }, secondStageSizeRatio),
           })
         } else {
+          const off = trailSecondStageCenterOffsetNorm(
+            cellSize.width, cellSize.height, area, secondStageSizeRatio,
+            offsetX, offsetY, horizontalMirror, 'single',
+          )
           guides.push({
             key: `shakeTrailSecond_${areaIdx}`,
             kind: 'shakeTrailSecondStage',
-            style: toShakeAreaCircleStyle(area, 'second', cellSize, { x: baseX, y: baseY }, secondStageSizeRatio),
+            style: toShakeAreaCircleStyle(area, 'second', cellSize, {
+              x: baseX + off.x,
+              y: baseY + off.y,
+            }, secondStageSizeRatio),
           })
         }
       }

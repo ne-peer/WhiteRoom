@@ -166,6 +166,9 @@ const EFFECT_PRESET_1: CellEffects = {
     trailSecondStageEnabled: false,
     trailSecondStageSize: 0.62,
     trailSecondStageDelayFactor: 1,
+    trailSecondStageOffsetX: 0,
+    trailSecondStageOffsetY: 0,
+    trailSecondStageHorizontalMirror: false,
     trailDelaySec: 0.12,
     trailAlpha: 0.55,
     trailBlurStrength: 2,
@@ -419,6 +422,9 @@ const EFFECT_PRESET_2: CellEffects = {
     trailSecondStageEnabled: true,
     trailSecondStageSize: 0.89,
     trailSecondStageDelayFactor: 0.55,
+    trailSecondStageOffsetX: 0,
+    trailSecondStageOffsetY: 0,
+    trailSecondStageHorizontalMirror: false,
     trailDelaySec: 0.03,
     trailAlpha: 1,
     trailBlurStrength: 0,
@@ -1698,6 +1704,30 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
                         step={5}
                         onChange={v => set('shake', { trailSecondStageDelayFactor: v / 100 })}
                         unit="%"
+                      />
+                    </Row>
+                    <Row label={t('shakeTrailCenterY')}>
+                      <Slider
+                        value={Math.round((effects.shake.trailSecondStageOffsetY ?? DEFAULT_EFFECTS.shake.trailSecondStageOffsetY) * 100)}
+                        min={-50}
+                        max={50}
+                        onChange={v => set('shake', { trailSecondStageOffsetY: v / 100 })}
+                        unit="%"
+                      />
+                    </Row>
+                    <Row label={t('shakeTrailCenterX')}>
+                      <Slider
+                        value={Math.round((effects.shake.trailSecondStageOffsetX ?? DEFAULT_EFFECTS.shake.trailSecondStageOffsetX) * 100)}
+                        min={-50}
+                        max={50}
+                        onChange={v => set('shake', { trailSecondStageOffsetX: v / 100 })}
+                        unit="%"
+                      />
+                    </Row>
+                    <Row label={t('shakeTrailSecondStageHorizontalMirror')}>
+                      <Toggle
+                        value={effects.shake.trailSecondStageHorizontalMirror ?? DEFAULT_EFFECTS.shake.trailSecondStageHorizontalMirror}
+                        onChange={v => set('shake', { trailSecondStageHorizontalMirror: v })}
                       />
                     </Row>
                   </>

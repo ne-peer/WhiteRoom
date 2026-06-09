@@ -151,6 +151,9 @@ export const DEFAULT_EFFECTS: CellEffects = {
     trailSecondStageEnabled: false,
     trailSecondStageSize: 0.62,
     trailSecondStageDelayFactor: 0.25,
+    trailSecondStageOffsetX: 0,
+    trailSecondStageOffsetY: 0,
+    trailSecondStageHorizontalMirror: false,
     trailDelaySec: 0.01,
     trailAlpha: 0.8,
     trailBlurStrength: 0,
@@ -419,6 +422,12 @@ function normalizeShakePatch(
   const patch = structuredClone(value)
   if (patch.trailSecondStageSize !== undefined) {
     patch.trailSecondStageSize = clampNum(patch.trailSecondStageSize, 0.1, 1)
+  }
+  if (patch.trailSecondStageOffsetX !== undefined) {
+    patch.trailSecondStageOffsetX = clampNum(patch.trailSecondStageOffsetX, -0.5, 0.5)
+  }
+  if (patch.trailSecondStageOffsetY !== undefined) {
+    patch.trailSecondStageOffsetY = clampNum(patch.trailSecondStageOffsetY, -0.5, 0.5)
   }
   if (patch.directionDeg !== undefined) {
     patch.directionDeg = Math.round(clampNum(patch.directionDeg, 0, 350) / 10) * 10

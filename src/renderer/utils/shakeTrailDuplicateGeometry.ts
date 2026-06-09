@@ -1,9 +1,67 @@
+import type { ShakeTrailArea } from '../../shared/types'
+
 function clampTrailEllipseSize(s: number): number {
   return s < 0.05 ? 0.05 : s > 3 ? 3 : s
 }
 
 function clampTrailEllipseHeight(h: number): number {
   return h < 0.05 ? 0.05 : h > 3 ? 3 : h
+}
+
+function clampSecondStageOffset(v: number): number {
+  return v < -0.5 ? -0.5 : v > 0.5 ? 0.5 : v
+}
+
+function clampSecondStageSizeRatio(r: number): number {
+  return r < 0.1 ? 0.1 : r > 1 ? 1 : r
+}
+
+/**
+ * 2段階追従円が親（1段目）楕円内に収まるときの、正規化座標での最大移動量。
+ */
+export function trailSecondStageMaxOffsetNorm(
+  cellWidth: number,
+  cellHeight: number,
+  area: ShakeTrailArea,
+  secondStageSizeRatio: number,
+): { x: number; y: number } {
+  if (cellWidth <= 0 || cellHeight <= 0) return { x: 0, y: 0 }
+  const baseSize = Math.min(cellWidth, cellHeight)
+  const size1 = clampTrailEllipseSize(area.size)
+  const size2 = size1 * clampSecondStageSizeRatio(secondStageSizeRatio)
+  const h = clampTrailEllipseHeight(area.height)
+  const rx1 = baseSize * size1 * 0.5
+  const ry1 = baseSize * size1 * h * 0.5
+  const rx2 = baseSize * size2 * 0.5
+  const ry2 = baseSize * size2 * h * 0.5
+  return {
+    x: Math.max(0, rx1 - rx2) / cellWidth,
+    y: Math.max(0, ry1 - ry2) / cellHeight,
+  }
+}
+
+/**
+ * 2段階追従の位置調整オフセット（正規化座標、セル幅/高さに対する比）。
+ */
+export function trailSecondStageCenterOffsetNorm(
+  cellWidth: number,
+  cellHeight: number,
+  area: ShakeTrailArea,
+  secondStageSizeRatio: number,
+  offsetX: number,
+  offsetY: number,
+  horizontalMirror: boolean,
+  side: 'single' | 'left' | 'right',
+): { x: number; y: number } {
+  const max = trailSecondStageMaxOffsetNorm(cellWidth, cellHeight, area, secondStageSizeRatio)
+  const ox = clampSecondStageOffset(offsetX)
+  const oy = clampSecondStageOffset(offsetY)
+  const shiftX = ox * 2 * max.x
+  const shiftY = oy * 2 * max.y
+  if (side === 'right' && horizontalMirror) {
+    return { x: -shiftX, y: shiftY }
+  }
+  return { x: shiftX, y: shiftY }
 }
 
 /**

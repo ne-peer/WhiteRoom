@@ -15,6 +15,7 @@ import {
 } from './vectorStampRegistry'
 import { createFlashRadialFadeFilter, setFlashRadialFadeUniforms } from './flashRadialFadeFilter'
 import { isSutFilename } from '../../shared/rasterSourceExtensions'
+import { trailSecondStageCenterOffsetNorm } from './shakeTrailDuplicateGeometry'
 
 /** ズームイン／アウトで新規レイヤーを完全透明から表示へ切り替える時間（秒） */
 const ZOOM_TRANSITION_ALPHA_IN_SEC = 0.5
@@ -1774,6 +1775,9 @@ export class CellRenderer {
       this.height,
       shake.trailSecondStageEnabled ?? false,
       shake.trailSecondStageSize ?? 0.62,
+      shake.trailSecondStageOffsetX ?? 0,
+      shake.trailSecondStageOffsetY ?? 0,
+      shake.trailSecondStageHorizontalMirror ?? false,
       areas.map(a => `${a.centerX},${a.centerY},${a.duplicateEnabled},${a.duplicateSpacingShift},${a.duplicateVerticalSpacingShift}`).join('|'),
     ].join(':')
 
@@ -1822,6 +1826,9 @@ export class CellRenderer {
       shake.trailSecondStageEnabled ?? false,
       shake.trailSecondStageSize ?? 0.62,
       shake.trailSecondStageDelayFactor ?? 0.25,
+      shake.trailSecondStageOffsetX ?? 0,
+      shake.trailSecondStageOffsetY ?? 0,
+      shake.trailSecondStageHorizontalMirror ?? false,
       areas.map(a => `${a.centerX},${a.centerY},${a.size},${a.height},${a.duplicateEnabled},${a.duplicateSpacingShift},${a.duplicateVerticalSpacingShift}`).join('|'),
     ].join(':')
     if (this.shakeTrailKey === key && this.shakeTrailAreaLayers.length > 0) return
@@ -1865,12 +1872,31 @@ export class CellRenderer {
 
       if (shake.trailSecondStageEnabled) {
         const secondSize = area.size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+        const secondStagePosition = this.getShakeTrailSecondStagePosition(shake)
         secondMaskSprite = area.duplicateEnabled
           ? (() => {
-            const p = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, 'second')
+            const p = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, 'second', secondStagePosition)
             return this.createDualEllipseMaskFromCenters(p.cx1, p.cy1, p.cx2, p.cy2, p.rx, p.ry, 0.16)
           })()
-          : this.createEllipseMaskSprite(area.centerX, area.centerY, secondSize, area.height, 0.16)
+          : (() => {
+            const off = trailSecondStageCenterOffsetNorm(
+              this.width,
+              this.height,
+              area,
+              shake.trailSecondStageSize ?? 0.62,
+              secondStagePosition.offsetX,
+              secondStagePosition.offsetY,
+              secondStagePosition.horizontalMirror,
+              'single',
+            )
+            return this.createEllipseMaskSprite(
+              area.centerX + off.x,
+              area.centerY + off.y,
+              secondSize,
+              area.height,
+              0.16,
+            )
+          })()
 
         secondSprite = new PIXI.Sprite(this.imageSprite.texture)
         secondSprite.anchor.set(0.5)
@@ -2103,11 +2129,24 @@ export class CellRenderer {
     this.shakeTrailGuideRemainingSec = 1
   }
 
+  private getShakeTrailSecondStagePosition(shake: ShakeEffect) {
+    return {
+      offsetX: shake.trailSecondStageOffsetX ?? 0,
+      offsetY: shake.trailSecondStageOffsetY ?? 0,
+      horizontalMirror: shake.trailSecondStageHorizontalMirror ?? false,
+    }
+  }
+
   /** エリアごとの複製楕円レイアウトを計算（マスク生成・ガイド描画で共用） */
   private getShakeTrailAreaDupLayout(
     area: import('../../shared/types').ShakeTrailArea,
     secondStageSize: number,
     mode: 'first' | 'second',
+    secondStagePosition?: {
+      offsetX: number
+      offsetY: number
+      horizontalMirror: boolean
+    },
   ) {
     const size = clamp(area.size, 0.05, 3)
     const heightRatio = clamp(area.height, 0.05, 3)
@@ -2120,13 +2159,39 @@ export class CellRenderer {
     const halfSep = rx1 * (1 + shift)
     const vShift = clamp(area.duplicateVerticalSpacingShift, -0.5, 0.5)
     const stagger = ry1 * vShift
-    const cx1 = cx0 - halfSep
-    const cy1 = cy0 - stagger
-    const cx2 = cx0 + halfSep
-    const cy2 = cy0 + stagger
+    let cx1 = cx0 - halfSep
+    let cy1 = cy0 - stagger
+    let cx2 = cx0 + halfSep
+    let cy2 = cy0 + stagger
     const guideSize2 = mode === 'second' ? size * clamp(secondStageSize, 0.1, 1) : size
     const rx = Math.max(1, baseSize * guideSize2 * 0.5)
     const ry = Math.max(1, baseSize * guideSize2 * heightRatio * 0.5)
+    if (mode === 'second' && secondStagePosition) {
+      const leftOff = trailSecondStageCenterOffsetNorm(
+        this.width,
+        this.height,
+        area,
+        secondStageSize,
+        secondStagePosition.offsetX,
+        secondStagePosition.offsetY,
+        secondStagePosition.horizontalMirror,
+        'left',
+      )
+      const rightOff = trailSecondStageCenterOffsetNorm(
+        this.width,
+        this.height,
+        area,
+        secondStageSize,
+        secondStagePosition.offsetX,
+        secondStagePosition.offsetY,
+        secondStagePosition.horizontalMirror,
+        'right',
+      )
+      cx1 += leftOff.x * this.width
+      cy1 += leftOff.y * this.height
+      cx2 += rightOff.x * this.width
+      cy2 += rightOff.y * this.height
+    }
     return { cx1, cy1, cx2, cy2, rx, ry }
   }
 
@@ -2134,7 +2199,8 @@ export class CellRenderer {
   private getShakeTrailDupGuideEllipseLayout(shake: ShakeEffect, mode: 'first' | 'second') {
     const area = shake.trailAreas?.[0]
     if (!area) return { cx1: 0, cy1: 0, cx2: 0, cy2: 0, rx: 1, ry: 1 }
-    return this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, mode)
+    const secondStagePosition = mode === 'second' ? this.getShakeTrailSecondStagePosition(shake) : undefined
+    return this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, mode, secondStagePosition)
   }
 
   /** 「円の間隔」「縦の間隔」変更時に全エリアの第1段（青）と第2段（黄）を同時表示 */
@@ -2146,10 +2212,11 @@ export class CellRenderer {
     this.shakeTrailGuideMode = 'first'
     const g = this.shakeTrailGuideGraphics
     g.clear()
+    const secondStagePosition = this.getShakeTrailSecondStagePosition(shake)
     for (const area of shake.trailAreas ?? []) {
       if (!area.duplicateEnabled) continue
       const p1 = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, 'first')
-      const p2 = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, 'second')
+      const p2 = this.getShakeTrailAreaDupLayout(area, shake.trailSecondStageSize ?? 0.62, 'second', secondStagePosition)
       g.ellipse(p1.cx1, p1.cy1, p1.rx, p1.ry)
       g.ellipse(p1.cx2, p1.cy2, p1.rx, p1.ry)
       g.fill({ color: 0x66ccff, alpha: 0.14 })
@@ -2214,13 +2281,14 @@ export class CellRenderer {
     const g = this.shakeTrailGuideGraphics
     g.clear()
     const secondStageSizeRatio = clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
+    const secondStagePosition = mode === 'second' ? this.getShakeTrailSecondStagePosition(shake) : undefined
     for (const area of shake.trailAreas ?? []) {
       const size = clamp(area.size, 0.05, 3)
       const guideSize = mode === 'second' ? size * secondStageSizeRatio : size
       const heightRatio = clamp(area.height, 0.05, 3)
       const baseSize = Math.min(this.width, this.height)
       if (area.duplicateEnabled) {
-        const p = this.getShakeTrailAreaDupLayout(area, secondStageSizeRatio, mode)
+        const p = this.getShakeTrailAreaDupLayout(area, secondStageSizeRatio, mode, secondStagePosition)
         if (mode === 'first') {
           g.ellipse(p.cx1, p.cy1, p.rx, p.ry)
           g.ellipse(p.cx2, p.cy2, p.rx, p.ry)
@@ -2239,8 +2307,22 @@ export class CellRenderer {
           g.stroke({ color: 0xfff49a, alpha: 0.96, width: 3 })
         }
       } else {
-        const cx = this.width * clamp(area.centerX, 0, 1)
-        const cy = this.height * clamp(area.centerY, 0, 1)
+        let cx = this.width * clamp(area.centerX, 0, 1)
+        let cy = this.height * clamp(area.centerY, 0, 1)
+        if (mode === 'second' && secondStagePosition) {
+          const off = trailSecondStageCenterOffsetNorm(
+            this.width,
+            this.height,
+            area,
+            secondStageSizeRatio,
+            secondStagePosition.offsetX,
+            secondStagePosition.offsetY,
+            secondStagePosition.horizontalMirror,
+            'single',
+          )
+          cx += off.x * this.width
+          cy += off.y * this.height
+        }
         const rx = Math.max(1, baseSize * guideSize * 0.5)
         const ry = Math.max(1, baseSize * guideSize * heightRatio * 0.5)
         if (mode === 'first') {

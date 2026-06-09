@@ -277,6 +277,18 @@ export type ShakeEffect = {
   trailSecondStageEnabled: boolean
   trailSecondStageSize: number
   trailSecondStageDelayFactor: number
+  /**
+   * 2段階追従エリアの親（1段目）内での左右オフセット。-0.5〜+0.5（最大移動量の ±100%）。
+   */
+  trailSecondStageOffsetX: number
+  /**
+   * 2段階追従エリアの親（1段目）内での上下オフセット。-0.5〜+0.5（最大移動量の ±100%）。
+   */
+  trailSecondStageOffsetY: number
+  /**
+   * 複製ON時に左右オフセットを左右の円で逆方向に適用する（近づく/離れる挙動）。
+   */
+  trailSecondStageHorizontalMirror: boolean
   trailDelaySec: number
   trailAlpha: number
   trailBlurStrength: number
