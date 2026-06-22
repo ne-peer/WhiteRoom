@@ -6,6 +6,7 @@ import { StoryboardPanel } from './components/reader/StoryboardPanel'
 import { StashWindow } from './components/stash/StashWindow'
 import { useAppStore } from './stores/appStore'
 import { fadeOutAndRemoveWhiteroomSplash } from './utils/splashDismiss'
+import type { IpcApi } from '../shared/types'
 import './global.css'
 
 const CONTROL_PANEL_WIDTH = 300
@@ -17,10 +18,24 @@ const App: React.FC = () => {
   const storyboardOpen = useAppStore(s => s.textReader.storyboardOpen)
   const appNotification = useAppStore(s => s.appNotification)
   const clearAppNotification = useAppStore(s => s.clearAppNotification)
+  const importProfile = useAppStore(s => s.importProfile)
   const [showFloatingControls, setShowFloatingControls] = useState(false)
 
   useEffect(() => {
     fadeOutAndRemoveWhiteroomSplash()
+  }, [])
+
+  useEffect(() => {
+    const api = (window as unknown as { api: IpcApi }).api
+    api.loadDefaultProfile().then(result => {
+      if (result.success && result.profile) {
+        importProfile(result.profile)
+        if (result.profile.windowSize) {
+          void api.setWindowSize(result.profile.windowSize.width, result.profile.windowSize.height)
+        }
+      }
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

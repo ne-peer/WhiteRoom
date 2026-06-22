@@ -31,6 +31,9 @@ const api: IpcApi = {
   loadRemoteImageAsDataUrl: (url) => ipcRenderer.invoke('load-remote-image-data-url', url),
   getRemoteImageStats: () => ipcRenderer.invoke('get-remote-image-stats'),
   checkHasStash: () => ipcRenderer.invoke('check-has-stash'),
+  getDefaultProfilePath: () => ipcRenderer.invoke('get-default-profile-path'),
+  loadDefaultProfile: () => ipcRenderer.invoke('load-default-profile'),
+  saveDefaultProfile: (profile) => ipcRenderer.invoke('save-default-profile', profile),
   onFullscreenChange: (cb) => {
     const handler = (_: Electron.IpcRendererEvent, isFullscreen: boolean) => cb(isFullscreen)
     ipcRenderer.on('fullscreen-change', handler)

@@ -912,5 +912,8 @@ export type IpcApi = {
   loadRemoteImageAsDataUrl: (url: string) => Promise<RemoteImageResult>
   getRemoteImageStats: () => Promise<RemoteImageStatsResult>
   checkHasStash: () => Promise<boolean>
+  getDefaultProfilePath: () => Promise<string>
+  loadDefaultProfile: () => Promise<LoadProfileResult>
+  saveDefaultProfile: (profile: AppProfile) => Promise<SaveProfileResult>
   onFullscreenChange: (cb: (isFullscreen: boolean) => void) => () => void
 }

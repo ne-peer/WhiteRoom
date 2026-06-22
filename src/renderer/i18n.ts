@@ -515,6 +515,10 @@ export const translations = {
     resetConfirm: '現在の設定をすべてリセットしますか？',
     resetDone: '✓ リセット完了',
     currentProfileInfo: '現在のプロファイル情報',
+    startupDefaults: 'スタートアップ設定',
+    saveAsDefault: '現在の設定をデフォルトとして保存',
+    saveDefaultDone: '✓ デフォルト設定を保存しました',
+    saveDefaultFailed: '✗ デフォルト保存失敗',
     grid: 'グリッド',
     activeCells: 'アクティブセル',
 
@@ -1044,6 +1048,10 @@ export const translations = {
     resetConfirm: 'Reset all current settings?',
     resetDone: '✓ Reset complete',
     currentProfileInfo: 'Current Profile Info',
+    startupDefaults: 'Startup Defaults',
+    saveAsDefault: 'Save current settings as default',
+    saveDefaultDone: '✓ Default settings saved',
+    saveDefaultFailed: '✗ Failed to save default',
     grid: 'Grid',
     activeCells: 'Active cells',
 

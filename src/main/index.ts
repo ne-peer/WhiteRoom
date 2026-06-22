@@ -30,6 +30,7 @@ import { readSutMaterialRows } from './sut/readSutMaterialFile'
 import { extractPngFromMaterialFileData } from '../shared/sut/extractPngFromMaterialBlob'
 
 const IMAGE_EFFECT_PROFILE_FILE = 'whiteroom_effects.json'
+const DEFAULTS_PROFILE_FILE = 'whiteroom-defaults.json'
 const PORTABLE_ASSET_EFFECT_PREFIX = 'whiteroom://asset-effect/'
 const MAX_REMOTE_IMAGE_BYTES = 25 * 1024 * 1024
 const MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP = 10
@@ -1233,6 +1234,35 @@ ipcMain.handle('get-remote-image-stats', async (): Promise<RemoteImageStatsResul
   return {
     pixivUniqueImageCount: countedPixivImageUrls.size,
     pixivUniqueImageLimit: MAX_PIXIV_UNIQUE_IMAGE_URLS_PER_APP,
+  }
+})
+
+// スタートアップデフォルトプロファイルのパス取得
+ipcMain.handle('get-default-profile-path', (): string => {
+  return join(app.getPath('userData'), DEFAULTS_PROFILE_FILE)
+})
+
+// スタートアップデフォルトプロファイル読み込み
+ipcMain.handle('load-default-profile', async (): Promise<LoadProfileResult> => {
+  const filePath = join(app.getPath('userData'), DEFAULTS_PROFILE_FILE)
+  if (!existsSync(filePath)) return { success: true }
+  try {
+    const raw = readFileSync(filePath, 'utf-8')
+    const profile = resolveAppProfile(JSON.parse(raw) as AppProfile)
+    return { success: true, profile, filePath }
+  } catch (e: unknown) {
+    return { success: false, error: String(e) }
+  }
+})
+
+// スタートアップデフォルトプロファイル保存
+ipcMain.handle('save-default-profile', async (_event, profile: AppProfile): Promise<SaveProfileResult> => {
+  const filePath = join(app.getPath('userData'), DEFAULTS_PROFILE_FILE)
+  try {
+    writeFileSync(filePath, JSON.stringify(serializeAppProfile(profile), null, 2), 'utf-8')
+    return { success: true, filePath }
+  } catch (e: unknown) {
+    return { success: false, error: String(e) }
   }
 })
 

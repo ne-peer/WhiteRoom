@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { Section, Button } from '../controls/UIKit'
 import { formatCount, useTranslation } from '../../i18n'
@@ -12,8 +12,14 @@ export const ProfileControls: React.FC = () => {
   const [profileName, setProfileName] = useState('MyProfile')
   const [importedFileName, setImportedFileName] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const [defaultProfilePath, setDefaultProfilePath] = useState<string | null>(null)
 
   const api = (window as unknown as { api: IpcApi }).api
+
+  useEffect(() => {
+    api.getDefaultProfilePath().then(setDefaultProfilePath)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const showMsg = (type: 'ok' | 'err', text: string) => {
     setMessage({ type, text })
@@ -27,6 +33,21 @@ export const ProfileControls: React.FC = () => {
     const result = await api.saveProfile(fullProfile, language)
     if (result.success) showMsg('ok', t('saveDone'))
     else showMsg('err', `${t('saveFailed')}: ${result.error ?? ''}`)
+  }
+
+  const handleSaveAsDefault = async () => {
+    const windowSize = await api.getWindowSize()
+    const profile = exportProfile(profileName)
+    const defaultProfile: typeof profile = {
+      ...profile,
+      windowSize,
+      showControls,
+      fullscreen: false,
+      stashes: undefined,
+    }
+    const result = await api.saveDefaultProfile(defaultProfile)
+    if (result.success) showMsg('ok', t('saveDefaultDone'))
+    else showMsg('err', `${t('saveDefaultFailed')}: ${result.error ?? ''}`)
   }
 
   const handleLoad = async () => {
@@ -86,6 +107,23 @@ export const ProfileControls: React.FC = () => {
             />
           </Section>
         )}
+
+        <Section title={t('startupDefaults')}>
+          <Button variant="secondary" onClick={handleSaveAsDefault}>
+            {t('saveAsDefault')}
+          </Button>
+          {defaultProfilePath && (
+            <div style={{
+              marginTop: 6,
+              fontSize: 10,
+              color: 'rgba(255,255,255,0.28)',
+              lineHeight: 1.5,
+              wordBreak: 'break-all',
+            }}>
+              {defaultProfilePath}
+            </div>
+          )}
+        </Section>
 
         <Section title={t('exportImport')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
