@@ -31,7 +31,7 @@ export const emptyCellShortcutTipSections: Record<
     },
     {
       title: 'UI操作',
-      lines: ['[ u ] 表示・非表示', '[ Esc ] フルスクリーン終了', '[ s ] スタッシュ（またはグリッド上で右長押し）', '[ 右ドラッグ上 ] フルスクリーン', '[ 右ドラッグ下 ] ウィンドウ表示'],
+      lines: ['[ u ] 表示・非表示', '[ Esc ] フルスクリーン終了', '[ s ] スタッシュ（またはグリッド上で右長押し）', '[ 右ドラッグ上 ] フルスクリーン', '[ 右ドラッグ下 ] ウィンドウ表示', '[ 右ドラッグ右 ] UI非表示', '[ 右ドラッグ左 ] UI再表示'],
     },
     {
       title: 'タイマー操作',
@@ -58,7 +58,7 @@ export const emptyCellShortcutTipSections: Record<
     },
     {
       title: 'UI controls',
-      lines: ['[ u ] show/hide', '[ Esc ] exit fullscreen', '[ s ] stash (or right-click hold on grid)', '[ right-drag up ] fullscreen', '[ right-drag down ] windowed'],
+      lines: ['[ u ] show/hide', '[ Esc ] exit fullscreen', '[ s ] stash (or right-click hold on grid)', '[ right-drag up ] fullscreen', '[ right-drag down ] windowed', '[ right-drag right ] hide UI', '[ right-drag left ] show UI'],
     },
     {
       title: 'Timer controls',

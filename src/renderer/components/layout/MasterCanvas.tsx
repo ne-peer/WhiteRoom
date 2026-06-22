@@ -476,22 +476,29 @@ export const MasterCanvas: React.FC = () => {
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    // RMB 上ドラッグ→フルスクリーン、下ドラッグ→ウィンドウ表示
+    // RMB ドラッグ: 横→UI非表示、縦上→フルスクリーン、縦下→ウィンドウ表示
     if ((e.buttons & 2) !== 0 && fsRmbDragStartRef.current && !fsRmbDragFiredRef.current) {
+      const deltaX = e.clientX - fsRmbDragStartRef.current.x
       const deltaY = e.clientY - fsRmbDragStartRef.current.y
-      if (Math.abs(deltaY) >= FS_RMB_DRAG_THRESHOLD_PX) {
+      const absX = Math.abs(deltaX)
+      const absY = Math.abs(deltaY)
+      if (absX >= FS_RMB_DRAG_THRESHOLD_PX || absY >= FS_RMB_DRAG_THRESHOLD_PX) {
         fsRmbDragFiredRef.current = true
         fsRmbDragStartRef.current = null
         clearStashRmbLongPressTimer()
         stashRmbSuppressNextContextMenuRef.current = true
-        const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
-        const store = useAppStore.getState()
-        if (deltaY < 0) {
-          store.setFullscreen(true)
-          api?.setFullscreen(true)
+        if (absX >= absY) {
+          useAppStore.getState().setControlsVisible(deltaX > 0 ? false : true)
         } else {
-          store.setFullscreen(false)
-          api?.setFullscreen(false)
+          const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
+          const store = useAppStore.getState()
+          if (deltaY < 0) {
+            store.setFullscreen(true)
+            api?.setFullscreen(true)
+          } else {
+            store.setFullscreen(false)
+            api?.setFullscreen(false)
+          }
         }
         return
       }
