@@ -1,5 +1,13 @@
 ﻿# Release Notes
 
+## v1.5.13
+
+### 調整
+
+- 起動速度を最適化：PixiJS named import によるツリーシェイク有効化、EffectsPanel / StashWindow / StoryboardPanel の遅延ロード（起動時パース JS 約 169 KB 削減）
+- Splash フェードアウトを PixiJS 初期化完了後に移動し、WebGL キャンバスが準備できてから画面を表示
+- BrowserWindow に `show: false` + `ready-to-show` を追加し、HTML ロード前の白フラッシュを防止
+
 ## v1.5.12
 
 ### 機能追加
