@@ -130,7 +130,7 @@ The panel is draggable. When the pointer moves far from it, it collapses to a sm
 
 ### Slot actions
 
-- You can keep up to **15** stash entries.
+- You can keep up to **30** stash entries.
 - An **empty** row shows **Empty stash**; on hover the action reads **Stash here**. **Click** saves the current state into that row, then **immediately resets** the app to a blank profile (no confirmation).
 - A **filled** row shows a food-emoji label; on hover the action reads **Pop**. **Long press** the label to restore that snapshot. The slot **stays** after POP (restore does not consume it).
 - The **×** button: **long press** to remove that slot only.

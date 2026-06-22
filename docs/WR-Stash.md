@@ -174,7 +174,7 @@ Emoji and color lists are defined as exported constants in `src/renderer/stores/
 
 - **`STASH_FOOD_EMOJIS`**: ~40 food-group emoji (🍎 🍊 🍋 🍇 🍓 🫐 🍉 🍑 🍒 🍌 🥝 🍍 🥭 🍏 🍐 🍈 🥥 🥑 🍆 🥦 🥕 🌽 🍕 🍔 🌮 🍜 🍣 🍰 🍩 🍪 🎂 🍫 🍬 🍭 🧁 🍦 🥧 🧆 🍱 🍛)
 - **`STASH_ACCENT_COLORS`**: 15 hex colors chosen for visual variety
-- **`STASH_MAX_COUNT`** = 15
+- **`STASH_MAX_COUNT`** = 30
 - **`STASH_MIN_SLOT_COUNT`** = 3
 
 ---

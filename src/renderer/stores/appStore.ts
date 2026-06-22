@@ -350,7 +350,7 @@ export const STASH_ACCENT_COLORS = [
   '#e11d48', '#0ea5e9', '#d946ef', '#f59e0b', '#22c55e',
 ]
 
-export const STASH_MAX_COUNT = 15
+export const STASH_MAX_COUNT = 30
 export const STASH_MIN_SLOT_COUNT = 3
 
 export const DEFAULT_TEXT_READER_CONFIG: TextReaderConfig = {
@@ -1485,7 +1485,7 @@ export const useAppStore = create<AppStore>()(
         s.fullscreen = profile.fullscreen
         s.showControls = profile.fullscreen ? false : (profile.showControls ?? true)
         s.showNavigationBar = true
-        s.selectedCellId = null
+        s.selectedCellId = s.cells[0]?.id ?? null
         s.imageEffectProfiles = {}
         s.imageEffectProfileAutoApplySuspended = false
         s.timerSuspendedSlideshow = false
@@ -1637,7 +1637,7 @@ export const useAppStore = create<AppStore>()(
         // テキストリーダー設定を復元
         s.textReader.config = normalizeTextReaderConfig({ ...DEFAULT_TEXT_READER_CONFIG, ...item.textReaderConfig })
         s.showNavigationBar = true
-        s.selectedCellId = null
+        s.selectedCellId = s.cells[0]?.id ?? null
         s.imageEffectProfiles = {}
         s.imageEffectProfileAutoApplySuspended = false
         s.timerSuspendedSlideshow = false
