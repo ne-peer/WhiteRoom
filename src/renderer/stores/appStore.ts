@@ -801,7 +801,7 @@ export const useAppStore = create<AppStore>()(
     const autoSaveEffectUserPresetsToDefault = async (getStore: typeof get) => {
       const api = (window as unknown as { api: IpcApi }).api
       const profile = getStore().exportProfile('auto-save')
-      await api.saveDefaultProfile({ ...profile, fullscreen: false, stashes: undefined })
+      await api.saveDefaultProfile({ ...profile, fullscreen: false })
     }
 
     /** 現在のセルからローカルフォルダを集め、whiteroom_effects.json を読み imageEffectProfiles に載せる */

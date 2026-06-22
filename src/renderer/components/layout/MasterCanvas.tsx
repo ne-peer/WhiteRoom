@@ -387,7 +387,7 @@ export const MasterCanvas: React.FC = () => {
         void (async () => {
           const windowSize = await api.getWindowSize()
           const profile = exportProfile('MyProfile')
-          const defaultProfile = { ...profile, windowSize, showControls: sc, fullscreen: false as const, stashes: undefined }
+          const defaultProfile = { ...profile, windowSize, showControls: sc, fullscreen: false as const }
           const result = await api.saveDefaultProfile(defaultProfile)
           if (result.success) showAppNotification(t('saveDefaultDone'), 'info', 'top')
           else showAppNotification(`${t('saveDefaultFailed')}: ${result.error ?? ''}`, 'error', 'top')

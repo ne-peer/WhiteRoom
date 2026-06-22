@@ -43,7 +43,6 @@ export const ProfileControls: React.FC = () => {
       windowSize,
       showControls,
       fullscreen: false,
-      stashes: undefined,
     }
     const result = await api.saveDefaultProfile(defaultProfile)
     if (result.success) showAppNotification(t('saveDefaultDone'), 'info', 'top')
