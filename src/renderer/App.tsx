@@ -89,7 +89,7 @@ const App: React.FC = () => {
           style={{
             position: 'fixed',
             left: '50%',
-            bottom: 24,
+            ...(appNotification.position === 'top' ? { top: 24 } : { bottom: 24 }),
             transform: 'translateX(-50%)',
             zIndex: 700,
             maxWidth: 'min(720px, calc(100vw - 32px))',

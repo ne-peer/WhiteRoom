@@ -7,7 +7,7 @@ import type { IpcApi } from '../../../shared/types'
 import styles from './ProfileControls.module.css'
 
 export const ProfileControls: React.FC = () => {
-  const { exportProfile, importProfile, resetProfile, showControls } = useAppStore()
+  const { exportProfile, importProfile, resetProfile, showControls, showAppNotification } = useAppStore()
   const { language, t } = useTranslation()
   const [profileName, setProfileName] = useState('MyProfile')
   const [importedFileName, setImportedFileName] = useState<string | null>(null)
@@ -46,8 +46,8 @@ export const ProfileControls: React.FC = () => {
       stashes: undefined,
     }
     const result = await api.saveDefaultProfile(defaultProfile)
-    if (result.success) showMsg('ok', t('saveDefaultDone'))
-    else showMsg('err', `${t('saveDefaultFailed')}: ${result.error ?? ''}`)
+    if (result.success) showAppNotification(t('saveDefaultDone'), 'info', 'top')
+    else showAppNotification(`${t('saveDefaultFailed')}: ${result.error ?? ''}`, 'error', 'top')
   }
 
   const handleLoad = async () => {

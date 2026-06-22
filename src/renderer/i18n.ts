@@ -41,6 +41,10 @@ export const emptyCellShortcutTipSections: Record<
       title: 'テキスト操作',
       lines: ['[ n ] 前ページ', '[ m ] 次ページ', '[ ホイール ] ページ移動'],
     },
+    {
+      title: '設定',
+      lines: ['[ Ctrl+S ] デフォルト設定として保存'],
+    },
   ],
   en: [
     {
@@ -63,6 +67,10 @@ export const emptyCellShortcutTipSections: Record<
     {
       title: 'Text controls',
       lines: ['[ n ] prev page', '[ m ] next page', '[ Wheel ] navigate'],
+    },
+    {
+      title: 'Settings',
+      lines: ['[ Ctrl+S ] save as default settings'],
     },
   ],
 }

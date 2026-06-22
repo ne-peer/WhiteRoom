@@ -380,6 +380,20 @@ export const MasterCanvas: React.FC = () => {
         e.preventDefault()
         state.toggleControls()
       }
+      if (e.key.toLowerCase() === 's' && e.ctrlKey && !e.repeat) {
+        e.preventDefault()
+        const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
+        const { exportProfile, showControls: sc, showAppNotification } = useAppStore.getState()
+        void (async () => {
+          const windowSize = await api.getWindowSize()
+          const profile = exportProfile('MyProfile')
+          const defaultProfile = { ...profile, windowSize, showControls: sc, fullscreen: false as const, stashes: undefined }
+          const result = await api.saveDefaultProfile(defaultProfile)
+          if (result.success) showAppNotification(t('saveDefaultDone'), 'info', 'top')
+          else showAppNotification(`${t('saveDefaultFailed')}: ${result.error ?? ''}`, 'error', 'top')
+        })()
+        return
+      }
       if (e.key.toLowerCase() === 's' && !e.repeat && !isEditable) {
         e.preventDefault()
         const p = lastClientPointerRef.current

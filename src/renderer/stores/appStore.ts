@@ -616,7 +616,7 @@ export type AppState = {
   focusWaypointPicking: boolean
   censorRectPicking: boolean
   effectDisplayAreaPicking: EffectDisplayAreaPickTarget | null
-  appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error' } | null
+  appNotification: { id: number; text: string; type: 'info' | 'warning' | 'error'; position?: 'top' | 'bottom' } | null
   imageEffectProfiles: Record<string, ImageEffectProfileDocument | null>
   imageEffectProfileAutoApplySuspended: boolean
   timerSuspendedSlideshow: boolean  // タイマープロファイル適用中はスライドショーを停止
@@ -726,7 +726,7 @@ export type AppActions = {
   toggleControls: () => void
   setLoading: (flag: boolean) => void
   setLanguage: (language: UiLanguage) => void
-  showAppNotification: (text: string, type?: 'info' | 'warning' | 'error') => void
+  showAppNotification: (text: string, type?: 'info' | 'warning' | 'error', position?: 'top' | 'bottom') => void
   clearAppNotification: (id?: number) => void
   setImageEffectProfile: (
     folderPath: string,
@@ -1373,8 +1373,8 @@ export const useAppStore = create<AppStore>()(
       window.localStorage.setItem('whiteroom.uiLanguage', language)
     }),
 
-    showAppNotification: (text, type = 'info') => set(s => {
-      s.appNotification = { id: Date.now(), text, type }
+    showAppNotification: (text, type = 'info', position) => set(s => {
+      s.appNotification = { id: Date.now(), text, type, position }
     }),
 
     clearAppNotification: (id) => set(s => {
