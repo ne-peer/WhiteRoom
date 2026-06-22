@@ -266,3 +266,4 @@ When instructed with `bump to v{x.x.x}` (for example, `bump to v1.5.1`), perform
 | v1.5.9 | Flash effect folder-random display mode, duplicate UI cleanup, and previous-image flash prevention |
 | v1.5.10 | Shake effect direction option with 10-degree animation control for base and delayed trail motion |
 | v1.5.11 | Asset and text effect display area selection; text effect concurrent interval display; two-stage shake-trail area offset and horizontal mirror |
+| v1.5.12 | Effect user presets (save/edit/delete/apply); user default settings auto-save/load; Ctrl+S default-save shortcut; right-drag UI toggle; right-click drag fullscreen shortcuts; stash limit raised to 30; preset UI reorganization; stash scroll fix |
