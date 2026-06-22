@@ -1,4 +1,4 @@
-import * as PIXI from 'pixi.js'
+import { Container, Graphics } from 'pixi.js'
 import { DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART } from '../../shared/types'
 
 export function isBuiltinVectorDynamicAssetPreset(id: string | null | undefined): boolean {
@@ -18,10 +18,10 @@ export function createVectorDynamicAssetDisplay(
   presetId: string,
   overlayTint: number,
   geometryScale = 1,
-): PIXI.Container | null {
+): Container | null {
   if (!isBuiltinVectorDynamicAssetPreset(presetId)) return null
-  const holder = new PIXI.Container()
-  const g = new PIXI.Graphics()
+  const holder = new Container()
+  const g = new Graphics()
   const size = PARTICLE_HEART_UNIT * geometryScale
   const x = 0
   const y = 0
@@ -38,7 +38,7 @@ export function createVectorDynamicAssetDisplay(
 }
 
 function drawHeartBezierTopLeft(
-  g: PIXI.Graphics,
+  g: Graphics,
   x: number,
   y: number,
   size: number,

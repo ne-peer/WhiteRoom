@@ -869,6 +869,7 @@ function createWindow(): BrowserWindow {
     minHeight: 600,
     backgroundColor: '#0a0a0a',
     frame: true,
+    show: false,  // HTML ロード前の白フラッシュを防ぐ。ready-to-show で表示する
     autoHideMenuBar: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
@@ -878,6 +879,8 @@ function createWindow(): BrowserWindow {
       webSecurity: false,  // ローカル画像ファイルのアクセスに必要
     }
   })
+
+  win.once('ready-to-show', () => win.show())
 
   win.setMenuBarVisibility(false)
 

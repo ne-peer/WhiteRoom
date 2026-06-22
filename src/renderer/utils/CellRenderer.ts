@@ -1,4 +1,4 @@
-import * as PIXI from 'pixi.js'
+import { Assets, BlurFilter, ColorMatrixFilter, Container, Filter, Graphics, MaskFilter, PointData, Rectangle, RenderTexture, Renderer, Sprite, Texture } from 'pixi.js'
 import { gsap } from 'gsap'
 import type { BlankBackground, BlurEffect, BreathingEffect, CellEffects, ColorOverlayEffect, EchoEffect, ImageFitMode, IpcApi, FogEffect, ShakeEffect, SlideShowTransition, SquishEffect, ZoomEffect, FocusEffect, FocusBlurPattern, CensorEffect } from '../../shared/types'
 import {
@@ -38,40 +38,40 @@ type DrawableImageSource = HTMLImageElement | HTMLCanvasElement | HTMLVideoEleme
 
 export class CellRenderer {
   readonly cellId: string
-  readonly container: PIXI.Container
+  readonly container: Container
 
   // 画像系レイヤーをまとめてカラーマトリクス（トーン）フィルタを掛けるラッパー。
   // この中身全体に対してフィルタを適用することで、シェイク追従や放射状ブラーなど
   // 画像から派生した描画にも均一にトーンフィルタが反映される。
-  private imageRootLayer: PIXI.Container
-  private dynamicBackgroundLayer: PIXI.Container
-  private imageLayer: PIXI.Container
-  private shakeTrailLayer: PIXI.Container
-  private echoLayer: PIXI.Container
-  private effectsLayer: PIXI.Container
-  private overlayLayer: PIXI.Container
-  private particleContainer: PIXI.Container
-  private textLayer: PIXI.Container
-  private vignetteLayer: PIXI.Container
-  private spiralLayer: PIXI.Container
-  private focusLayer: PIXI.Container
-  private guideLayer: PIXI.Container
+  private imageRootLayer: Container
+  private dynamicBackgroundLayer: Container
+  private imageLayer: Container
+  private shakeTrailLayer: Container
+  private echoLayer: Container
+  private effectsLayer: Container
+  private overlayLayer: Container
+  private particleContainer: Container
+  private textLayer: Container
+  private vignetteLayer: Container
+  private spiralLayer: Container
+  private focusLayer: Container
+  private guideLayer: Container
 
-  private imageSprite: PIXI.Sprite | null = null
-  private dynamicBackgroundSprite: PIXI.Sprite | null = null
-  private dynamicBackgroundTransitionSprite: PIXI.Sprite | null = null
+  private imageSprite: Sprite | null = null
+  private dynamicBackgroundSprite: Sprite | null = null
+  private dynamicBackgroundTransitionSprite: Sprite | null = null
   private dynamicBackgroundTransitionTween: gsap.core.Tween | null = null
-  private dynamicBackgroundBlurFilter: PIXI.BlurFilter | null = null
+  private dynamicBackgroundBlurFilter: BlurFilter | null = null
   private blankBackground: BlankBackground = { mode: 'color', dynamicBlur: 30 }
-  private dynamicBackgroundMask: PIXI.Graphics
-  private imageMask: PIXI.Graphics
-  private echoMask: PIXI.Graphics
-  private colorOverlayGraphics: PIXI.Graphics
-  private squishGraphics: PIXI.Graphics
-  private squishBlurFilter: PIXI.BlurFilter | null = null
-  private echoSprite: PIXI.Sprite | null = null
-  private flashOverlaySprite: PIXI.Sprite | null = null
-  private flashOwnedTexture: PIXI.Texture | null = null
+  private dynamicBackgroundMask: Graphics
+  private imageMask: Graphics
+  private echoMask: Graphics
+  private colorOverlayGraphics: Graphics
+  private squishGraphics: Graphics
+  private squishBlurFilter: BlurFilter | null = null
+  private echoSprite: Sprite | null = null
+  private flashOverlaySprite: Sprite | null = null
+  private flashOwnedTexture: Texture | null = null
   private flashOverlayVisible = false
   private flashElapsedSec = 0
   private flashCycleDurationSec = 0
@@ -102,37 +102,37 @@ export class CellRenderer {
     | null = null
   private flashOverlayEffect: import('../../shared/types').FlashEffect | null = null
   private flashBaseOpacity = 1
-  private flashRadialFadeFilter: PIXI.Filter | null = null
-  private flashBlurFilter: PIXI.BlurFilter | null = null
+  private flashRadialFadeFilter: Filter | null = null
+  private flashBlurFilter: BlurFilter | null = null
   private flashFolderPath: string | null = null
   private flashFolderImages: string[] = []
   private flashFolderPickedPath: string | null = null
-  private vignetteSprite: PIXI.Sprite | null = null
+  private vignetteSprite: Sprite | null = null
   private vignetteTextureKey: string | null = null
-  private fogLayer: PIXI.Container
-  private fogBlobContainer: PIXI.Container
+  private fogLayer: Container
+  private fogBlobContainer: Container
   private fogKey: string | null = null
-  private fogGradientTexture: PIXI.Texture | null = null
+  private fogGradientTexture: Texture | null = null
   private fogInstances: Array<{
-    container: PIXI.Container
-    blobContainer: PIXI.Container
-    dropletGraphics: PIXI.Graphics
+    container: Container
+    blobContainer: Container
+    dropletGraphics: Graphics
     centerXRatio: number
     centerYRatio: number
     elapsedSec: number
-    blobs: Array<{ sprite: PIXI.Sprite; offsetX: number; offsetY: number; phaseDelaySec: number }>
+    blobs: Array<{ sprite: Sprite; offsetX: number; offsetY: number; phaseDelaySec: number }>
     dropletPositions: Array<{ x: number; y: number; rx: number; ry: number; baseAlpha: number }>
-    blobBlurFilter: PIXI.BlurFilter | null
-    dropletBlurFilter: PIXI.BlurFilter | null
+    blobBlurFilter: BlurFilter | null
+    dropletBlurFilter: BlurFilter | null
   }> = []
   private fogSpawnAccumulatorSec = 0
 
-  private focusBlurContainer: PIXI.Container | null = null
-  private focusBlurSprite: PIXI.Sprite | null = null
-  private focusRenderTexture: PIXI.RenderTexture | null = null
-  private focusMaskSprite: PIXI.Sprite | null = null
+  private focusBlurContainer: Container | null = null
+  private focusBlurSprite: Sprite | null = null
+  private focusRenderTexture: RenderTexture | null = null
+  private focusMaskSprite: Sprite | null = null
   private focusMaskCanvas: HTMLCanvasElement | null = null
-  private focusBlurFilter: PIXI.BlurFilter | null = null
+  private focusBlurFilter: BlurFilter | null = null
   private focusBlurLayerKey: string | null = null
   private focusMaskKey: string | null = null
   private focusCurrentX = 0.5
@@ -140,52 +140,52 @@ export class CellRenderer {
   private focusWaypointIndex = 0
   private focusWaypointProgress = 0
 
-  private censorLayer: PIXI.Container
-  private censorBarLayer: PIXI.Container
-  private censorGraphics: PIXI.Graphics
-  private censorShakeSprite: PIXI.Sprite | null = null
+  private censorLayer: Container
+  private censorBarLayer: Container
+  private censorGraphics: Graphics
+  private censorShakeSprite: Sprite | null = null
   private censorShakeCanvas: HTMLCanvasElement | null = null
   private censorShakeKey: string | null = null
-  private censorFocusMask: PIXI.Sprite | null = null
+  private censorFocusMask: Sprite | null = null
   private censorFocusMaskCanvas: HTMLCanvasElement | null = null
-  private censorBlurFilter: PIXI.BlurFilter | null = null
-  private censorTextSprite: PIXI.Sprite | null = null
+  private censorBlurFilter: BlurFilter | null = null
+  private censorTextSprite: Sprite | null = null
   private censorTextCanvas: HTMLCanvasElement | null = null
   private censorTextLayerKey: string | null = null
 
-  private spiralGraphics: PIXI.Graphics
-  private spiralMaskSprite: PIXI.Sprite | null = null
+  private spiralGraphics: Graphics
+  private spiralMaskSprite: Sprite | null = null
   private spiralMaskKey: string | null = null
-  private spiralMaskFilter: PIXI.MaskFilter | null = null
+  private spiralMaskFilter: MaskFilter | null = null
   private spiralDrawKey: string | null = null
   private spiralRotationRad = 0
   private spiralAlphaDynamicProgress = 0
-  private radialBlurLayers: PIXI.Container[] = []
-  private radialBlurMaskSprites: PIXI.Sprite[] = []
-  private radialBlurImageClones: PIXI.Sprite[] = []
+  private radialBlurLayers: Container[] = []
+  private radialBlurMaskSprites: Sprite[] = []
+  private radialBlurImageClones: Sprite[] = []
   /** 各トレイルエリアのレイヤー群（エリア数分の配列） */
   private shakeTrailAreaLayers: Array<{
-    firstLayer: PIXI.Container
-    firstSprite: PIXI.Sprite
-    firstMaskSprite: PIXI.Sprite
-    firstBlurFilter: PIXI.BlurFilter
-    secondLayer: PIXI.Container | null
-    secondSprite: PIXI.Sprite | null
-    secondMaskSprite: PIXI.Sprite | null
-    secondBlurFilter: PIXI.BlurFilter | null
+    firstLayer: Container
+    firstSprite: Sprite
+    firstMaskSprite: Sprite
+    firstBlurFilter: BlurFilter
+    secondLayer: Container | null
+    secondSprite: Sprite | null
+    secondMaskSprite: Sprite | null
+    secondBlurFilter: BlurFilter | null
   }> = []
   /** @deprecated use shakeTrailAreaLayers[0] */
-  private get shakeTrailSprite(): PIXI.Sprite | null { return this.shakeTrailAreaLayers[0]?.firstSprite ?? null }
+  private get shakeTrailSprite(): Sprite | null { return this.shakeTrailAreaLayers[0]?.firstSprite ?? null }
   private shakeTrailKey: string | null = null
   private radialBlurGuideKey: string | null = null
   private shakeTrailFirstGuideKey: string | null = null
   private shakeTrailSecondGuideKey: string | null = null
   /** 円の間隔／縦の間隔スライダー用に直前の値を保持（両ガイド表示の変化検出） */
   private shakeTrailDupSpacingSliderRef: { h: number; v: number; areaKeys: Map<number, string> } | null = null
-  private shakeTrailGuideGraphics: PIXI.Graphics | null = null
+  private shakeTrailGuideGraphics: Graphics | null = null
   private shakeTrailGuideRemainingSec = 0
   private shakeTrailGuideMode: 'radial' | 'first' | 'second' = 'first'
-  private peripheralGuideGraphics: PIXI.Graphics | null = null
+  private peripheralGuideGraphics: Graphics | null = null
   private peripheralGuideRemainingSec = 0
   private peripheralGuideKey: string | null = null
   private shakeTrailSamples: { timeSec: number; offsetY: number }[] = []
@@ -201,12 +201,12 @@ export class CellRenderer {
 
   private vignetteGsapTween: gsap.core.Tween | null = null
   private vignetteAnimationKey: string | null = null
-  private blurFilter: PIXI.BlurFilter | null = null
-  private imageLayerBlurFilter: PIXI.BlurFilter | null = null
-  private radialBlurFilters: { filter: PIXI.BlurFilter; multiplier: number }[] = []
+  private blurFilter: BlurFilter | null = null
+  private imageLayerBlurFilter: BlurFilter | null = null
+  private radialBlurFilters: { filter: BlurFilter; multiplier: number }[] = []
   private blurGsapTween: gsap.core.Tween | null = null
   private blurAnimationKey: string | null = null
-  private colorMatrixFilter: PIXI.ColorMatrixFilter | null = null
+  private colorMatrixFilter: ColorMatrixFilter | null = null
   private colorAdjustGsapTween: gsap.core.Tween | null = null
   private colorAdjustAnimationKey: string | null = null
   private colorTintGsapTween: gsap.core.Tween | null = null
@@ -231,7 +231,7 @@ export class CellRenderer {
   private shakeRepeatElapsedSec = 0
   private shakeLoopSegmentElapsedSec = 0
   private shakeLoopSegmentStartY = 0
-  private shakeAfterimages: { sprite: PIXI.Sprite; ageSec: number; durationSec: number }[] = []
+  private shakeAfterimages: { sprite: Sprite; ageSec: number; durationSec: number }[] = []
   private shakeAfterimagePending = false
   private squishKey: string | null = null
   private squishElapsedSec = 0
@@ -239,12 +239,12 @@ export class CellRenderer {
   private squishOrganicShape: SquishOrganicShape | null = null
   private squishPrevOrganicShape: SquishOrganicShape | null = null
   private squishRandomPosition: { x: number; y: number } | null = null
-  private squishBurstGraphics: PIXI.Graphics
+  private squishBurstGraphics: Graphics
   private squishBurstActiveSec: number | null = null
   private squishBurstTriggeredThisCycle = false
   private squishBurstCenters: { x: number; y: number }[] = []
   private squishBurstRadius = 0
-  private squishBurstBlurFilter: PIXI.BlurFilter | null = null
+  private squishBurstBlurFilter: BlurFilter | null = null
   private zoomKey: string | null = null
   private zoomElapsedSec = 0
   private zoomCycleComplete = false
@@ -252,26 +252,26 @@ export class CellRenderer {
   private zoomCenterOffsetX = 0
   private zoomCenterOffsetY = 0
   private activeSlideTransition: {
-    incoming: PIXI.Sprite
-    outgoing: PIXI.Sprite
+    incoming: Sprite
+    outgoing: Sprite
     incomingOffsetX: number
     incomingOffsetY: number
     outgoingOffsetX: number
     outgoingOffsetY: number
   } | null = null
   private activeZoomTransition: {
-    incoming: PIXI.Sprite
-    outgoing: PIXI.Sprite
+    incoming: Sprite
+    outgoing: Sprite
     incomingScaleMultiplier: number
   } | null = null
 
-  private assetTexture: PIXI.Texture | null = null
+  private assetTexture: Texture | null = null
   private assetTexturesKey: string | null = null
   private assetPath: string | null = null
   private currentImageSrc: string | null = null
   private requestedImageSrc: string | null = null
   private imageFit: ImageFitMode = 'cover'
-  private transitionSprite: PIXI.Sprite | null = null
+  private transitionSprite: Sprite | null = null
   private imageTransitionTween: gsap.core.Tween | null = null
   private imageRequestToken = 0
   private latestEffects: CellEffects | null = null
@@ -286,36 +286,36 @@ export class CellRenderer {
   private storyboardScale: number | null = null
   private storyboardScaleActive = false
 
-  constructor(cellId: string, width: number, height: number, private readonly pixiRenderer: PIXI.Renderer) {
+  constructor(cellId: string, width: number, height: number, private readonly pixiRenderer: Renderer) {
     this.cellId = cellId
     this.width = width
     this.height = height
 
-    this.container = new PIXI.Container()
+    this.container = new Container()
     this.container.eventMode = 'static'
     this.container.cursor = 'pointer'
     this.updateHitArea()
 
-    this.imageRootLayer = new PIXI.Container()
-    this.dynamicBackgroundLayer = new PIXI.Container()
-    this.imageLayer = new PIXI.Container()
-    this.shakeTrailLayer = new PIXI.Container()
-    this.echoLayer = new PIXI.Container()
-    this.effectsLayer = new PIXI.Container()
-    this.overlayLayer = new PIXI.Container()
-    this.particleContainer = new PIXI.Container()
-    this.textLayer = new PIXI.Container()
-    this.vignetteLayer = new PIXI.Container()
-    this.spiralLayer = new PIXI.Container()
-    this.fogLayer = new PIXI.Container()
-    this.fogBlobContainer = new PIXI.Container()
-    this.focusLayer = new PIXI.Container()
-    this.censorLayer = new PIXI.Container()
-    this.censorBarLayer = new PIXI.Container()
-    this.guideLayer = new PIXI.Container()
-    this.dynamicBackgroundMask = new PIXI.Graphics()
-    this.imageMask = new PIXI.Graphics()
-    this.echoMask = new PIXI.Graphics()
+    this.imageRootLayer = new Container()
+    this.dynamicBackgroundLayer = new Container()
+    this.imageLayer = new Container()
+    this.shakeTrailLayer = new Container()
+    this.echoLayer = new Container()
+    this.effectsLayer = new Container()
+    this.overlayLayer = new Container()
+    this.particleContainer = new Container()
+    this.textLayer = new Container()
+    this.vignetteLayer = new Container()
+    this.spiralLayer = new Container()
+    this.fogLayer = new Container()
+    this.fogBlobContainer = new Container()
+    this.focusLayer = new Container()
+    this.censorLayer = new Container()
+    this.censorBarLayer = new Container()
+    this.guideLayer = new Container()
+    this.dynamicBackgroundMask = new Graphics()
+    this.imageMask = new Graphics()
+    this.echoMask = new Graphics()
 
     // 画像系レイヤーは imageRootLayer 配下にまとめ、トーンフィルタを共通適用する。
     // シェイク追従や放射状ブラーなどの動的レイヤーも imageRootLayer に挿入する。
@@ -346,18 +346,18 @@ export class CellRenderer {
     this.redrawImageMask()
     this.redrawEchoMask()
 
-    this.colorOverlayGraphics = new PIXI.Graphics()
+    this.colorOverlayGraphics = new Graphics()
     this.overlayLayer.addChild(this.colorOverlayGraphics)
-    this.squishBurstGraphics = new PIXI.Graphics()
+    this.squishBurstGraphics = new Graphics()
     this.overlayLayer.addChild(this.squishBurstGraphics)
-    this.squishGraphics = new PIXI.Graphics()
+    this.squishGraphics = new Graphics()
     this.overlayLayer.addChild(this.squishGraphics)
-    this.spiralGraphics = new PIXI.Graphics()
+    this.spiralGraphics = new Graphics()
     this.spiralLayer.addChild(this.spiralGraphics)
 
     this.fogLayer.addChild(this.fogBlobContainer)
 
-    this.censorGraphics = new PIXI.Graphics()
+    this.censorGraphics = new Graphics()
     this.censorBarLayer.addChild(this.censorGraphics)
     this.censorLayer.addChild(this.censorBarLayer)
 
@@ -395,7 +395,7 @@ export class CellRenderer {
   }
 
   private updateHitArea() {
-    this.container.hitArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    this.container.hitArea = new Rectangle(0, 0, this.width, this.height)
   }
 
   setImageFit(imageFit: ImageFitMode = 'cover') {
@@ -419,7 +419,7 @@ export class CellRenderer {
 
     if (this.blankBackground.mode === 'dynamic') {
       if (!this.dynamicBackgroundSprite && this.imageSprite) {
-        this.swapDynamicBackgroundSprite(new PIXI.Sprite(this.imageSprite.texture))
+        this.swapDynamicBackgroundSprite(new Sprite(this.imageSprite.texture))
       }
       this.repositionDynamicBackground()
       return
@@ -430,7 +430,7 @@ export class CellRenderer {
     }
   }
 
-  getNormalizedPointFromGlobal(global: PIXI.PointData) {
+  getNormalizedPointFromGlobal(global: PointData) {
     const local = this.container.toLocal(global)
     return {
       x: clamp(local.x / this.width, 0, 1),
@@ -465,25 +465,25 @@ export class CellRenderer {
       return
     }
 
-    let texture: PIXI.Texture
+    let texture: Texture
     try {
       const loadableUrl = await toLoadableImageUrl(url)
       if (this.requestedImageSrc !== url || requestToken !== this.imageRequestToken) return
-      texture = await PIXI.Assets.load(loadableUrl)
+      texture = await Assets.load(loadableUrl)
     } catch {
       if (this.requestedImageSrc === url) this.requestedImageSrc = null
       return
     }
     if (this.requestedImageSrc !== url || requestToken !== this.imageRequestToken) return
 
-    const sprite = new PIXI.Sprite(texture)
+    const sprite = new Sprite(texture)
     sprite.anchor.set(0.5)
 
     if (!this.imageSprite || transition === 'none') {
       this.clearTransitionSprite()
       this.swapImageSprite(sprite, url)
       if (this.blankBackground.mode === 'dynamic') {
-        this.swapDynamicBackgroundSprite(new PIXI.Sprite(texture))
+        this.swapDynamicBackgroundSprite(new Sprite(texture))
       }
       this.positionImageSprite(sprite)
       this.resetShakeMotion()
@@ -798,7 +798,7 @@ export class CellRenderer {
   }
 
   private startImageTransition(
-    sprite: PIXI.Sprite,
+    sprite: Sprite,
     url: string,
     transition: SlideShowTransition,
     transitionDurationMs: number
@@ -930,7 +930,7 @@ export class CellRenderer {
       default:
         this.swapImageSprite(sprite, url)
         if (this.blankBackground.mode === 'dynamic') {
-          this.swapDynamicBackgroundSprite(new PIXI.Sprite(sprite.texture))
+          this.swapDynamicBackgroundSprite(new Sprite(sprite.texture))
         }
         this.positionImageSprite(sprite)
         this.refreshEcho()
@@ -947,7 +947,7 @@ export class CellRenderer {
     this.requestedImageSrc = null
   }
 
-  private swapImageSprite(sprite: PIXI.Sprite | null, url: string | null) {
+  private swapImageSprite(sprite: Sprite | null, url: string | null) {
     const oldSprite = this.imageSprite
     if (oldSprite) gsap.killTweensOf(oldSprite)
     if (sprite) {
@@ -980,13 +980,13 @@ export class CellRenderer {
   }
 
   private startDynamicBackgroundTransition(
-    texture: PIXI.Texture,
+    texture: Texture,
     transition: SlideShowTransition,
     duration: number
   ) {
     if (this.blankBackground.mode !== 'dynamic') return
 
-    const sprite = new PIXI.Sprite(texture)
+    const sprite = new Sprite(texture)
     sprite.anchor.set(0.5)
     this.positionDynamicBackgroundSprite(sprite)
 
@@ -1060,7 +1060,7 @@ export class CellRenderer {
     }
   }
 
-  private finishDynamicBackgroundTransition(oldSprite: PIXI.Sprite) {
+  private finishDynamicBackgroundTransition(oldSprite: Sprite) {
     if (this.dynamicBackgroundTransitionSprite === oldSprite) {
       this.dynamicBackgroundLayer.removeChild(oldSprite)
       oldSprite.destroy({ texture: false })
@@ -1070,7 +1070,7 @@ export class CellRenderer {
     this.repositionDynamicBackground()
   }
 
-  private swapDynamicBackgroundSprite(sprite: PIXI.Sprite | null) {
+  private swapDynamicBackgroundSprite(sprite: Sprite | null) {
     const oldSprite = this.dynamicBackgroundSprite
     this.clearDynamicBackgroundTransitionSprite()
 
@@ -1114,7 +1114,7 @@ export class CellRenderer {
     this.updateDynamicBackgroundBlur()
   }
 
-  private positionDynamicBackgroundSprite(sprite: PIXI.Sprite, offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
+  private positionDynamicBackgroundSprite(sprite: Sprite, offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
     const texW = sprite.texture.width
     const texH = sprite.texture.height
     const scale = Math.max(this.width / texW, this.height / texH) * scaleMultiplier
@@ -1132,10 +1132,10 @@ export class CellRenderer {
     }
 
     if (!this.dynamicBackgroundBlurFilter) {
-      this.dynamicBackgroundBlurFilter = new PIXI.BlurFilter({ quality: 4 })
+      this.dynamicBackgroundBlurFilter = new BlurFilter({ quality: 4 })
     }
     this.dynamicBackgroundBlurFilter.strength = this.blankBackground.dynamicBlur
-    this.dynamicBackgroundLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    this.dynamicBackgroundLayer.filterArea = new Rectangle(0, 0, this.width, this.height)
     this.dynamicBackgroundLayer.filters = [this.dynamicBackgroundBlurFilter]
   }
 
@@ -1149,12 +1149,12 @@ export class CellRenderer {
     this.syncRadialBlurClones()
   }
 
-  private positionImageSprite(sprite: PIXI.Sprite) {
+  private positionImageSprite(sprite: Sprite) {
     const { offsetX, offsetY, scaleMultiplier } = this.getImageMotionTransform()
     this.positionSprite(sprite, offsetX, offsetY, scaleMultiplier)
   }
 
-  private positionSprite(sprite: PIXI.Sprite, offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
+  private positionSprite(sprite: Sprite, offsetX = 0, offsetY = 0, scaleMultiplier = 1) {
     const texW = sprite.texture.width
     const texH = sprite.texture.height
     const scale = this.getImageScale(texW, texH) * scaleMultiplier
@@ -1268,7 +1268,7 @@ export class CellRenderer {
     }
 
     if (!this.colorMatrixFilter) {
-      this.colorMatrixFilter = new PIXI.ColorMatrixFilter()
+      this.colorMatrixFilter = new ColorMatrixFilter()
     }
 
     const isTimerSync = colorOverlay.dynamicAdjust && colorOverlay.dynamicAdjustTimerSync
@@ -1329,18 +1329,18 @@ export class CellRenderer {
 
   private setImageLayerFilters() {
     // ブラー（applyToAll = false 時）は imageLayer 単体に適用する。
-    const imageLayerFilters: PIXI.Filter[] = []
+    const imageLayerFilters: Filter[] = []
     if (this.imageLayerBlurFilter) imageLayerFilters.push(this.imageLayerBlurFilter)
     // filterArea は PixiJS v8 の挙動を踏まえ filters より先に設定する。
-    this.imageLayer.filterArea = imageLayerFilters.length > 0 ? new PIXI.Rectangle(0, 0, this.width, this.height) : undefined
+    this.imageLayer.filterArea = imageLayerFilters.length > 0 ? new Rectangle(0, 0, this.width, this.height) : undefined
     this.imageLayer.filters = imageLayerFilters
 
     // トーンフィルタ（カラーマトリクス）は imageRootLayer 全体に適用する。
     // こうすることで imageLayer 単体だけでなく、シェイク追従・放射状ブラー・
     // エコーなど画像から派生した描画にも均一にトーンフィルタが反映される。
-    const rootFilters: PIXI.Filter[] = []
+    const rootFilters: Filter[] = []
     if (this.colorMatrixFilter) rootFilters.push(this.colorMatrixFilter)
-    this.imageRootLayer.filterArea = rootFilters.length > 0 ? new PIXI.Rectangle(0, 0, this.width, this.height) : undefined
+    this.imageRootLayer.filterArea = rootFilters.length > 0 ? new Rectangle(0, 0, this.width, this.height) : undefined
     this.imageRootLayer.filters = rootFilters
   }
 
@@ -1719,7 +1719,7 @@ export class CellRenderer {
     if (!shake?.afterimageEnabled || !this.imageSprite) return
 
     const durationSec = clamp(shake.afterimageDurationSec, 0.05, 3)
-    const sprite = new PIXI.Sprite(this.imageSprite.texture)
+    const sprite = new Sprite(this.imageSprite.texture)
     sprite.anchor.set(0.5)
     sprite.x = this.imageSprite.x
     sprite.y = this.imageSprite.y
@@ -1843,16 +1843,16 @@ export class CellRenderer {
         })()
         : this.createEllipseMaskSprite(area.centerX, area.centerY, area.size, area.height, 0.18)
 
-      const firstSprite = new PIXI.Sprite(this.imageSprite.texture)
+      const firstSprite = new Sprite(this.imageSprite.texture)
       firstSprite.anchor.set(0.5)
-      const firstMaskFilter = new PIXI.MaskFilter({ sprite: firstMaskSprite, channel: 'alpha' })
-      const firstBlurFilter = new PIXI.BlurFilter({
+      const firstMaskFilter = new MaskFilter({ sprite: firstMaskSprite, channel: 'alpha' })
+      const firstBlurFilter = new BlurFilter({
         strength: clamp(shake.trailBlurStrength ?? 0, 0, 12),
         quality: 3,
       })
-      const firstLayer = new PIXI.Container()
+      const firstLayer = new Container()
       firstLayer.addChild(firstSprite)
-      firstLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      firstLayer.filterArea = new Rectangle(0, 0, this.width, this.height)
       firstLayer.filters = [firstBlurFilter, firstMaskFilter]
 
       // 既存の最後のレイヤーの後に追加
@@ -1865,10 +1865,10 @@ export class CellRenderer {
       this.imageRootLayer.addChildAt(firstMaskSprite, this.imageRootLayer.getChildIndex(firstLayer) + 1)
       firstMaskSprite.alpha = 0
 
-      let secondLayer: PIXI.Container | null = null
-      let secondSprite: PIXI.Sprite | null = null
-      let secondMaskSprite: PIXI.Sprite | null = null
-      let secondBlurFilter: PIXI.BlurFilter | null = null
+      let secondLayer: Container | null = null
+      let secondSprite: Sprite | null = null
+      let secondMaskSprite: Sprite | null = null
+      let secondBlurFilter: BlurFilter | null = null
 
       if (shake.trailSecondStageEnabled) {
         const secondSize = area.size * clamp(shake.trailSecondStageSize ?? 0.62, 0.1, 1)
@@ -1898,16 +1898,16 @@ export class CellRenderer {
             )
           })()
 
-        secondSprite = new PIXI.Sprite(this.imageSprite.texture)
+        secondSprite = new Sprite(this.imageSprite.texture)
         secondSprite.anchor.set(0.5)
-        const secondMaskFilter = new PIXI.MaskFilter({ sprite: secondMaskSprite, channel: 'alpha' })
-        secondBlurFilter = new PIXI.BlurFilter({
+        const secondMaskFilter = new MaskFilter({ sprite: secondMaskSprite, channel: 'alpha' })
+        secondBlurFilter = new BlurFilter({
           strength: clamp((shake.trailBlurStrength ?? 0) * 0.6, 0, 12),
           quality: 3,
         })
-        secondLayer = new PIXI.Container()
+        secondLayer = new Container()
         secondLayer.addChild(secondSprite)
-        secondLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+        secondLayer.filterArea = new Rectangle(0, 0, this.width, this.height)
         secondLayer.filters = [secondBlurFilter, secondMaskFilter]
         secondMaskSprite.alpha = 0
         // 第2段は第1段マスクの直後
@@ -2094,7 +2094,7 @@ export class CellRenderer {
     heightRatio: number
   ) {
     if (!this.shakeTrailGuideGraphics) {
-      this.shakeTrailGuideGraphics = new PIXI.Graphics()
+      this.shakeTrailGuideGraphics = new Graphics()
       this.guideLayer.addChild(this.shakeTrailGuideGraphics)
     }
 
@@ -2206,7 +2206,7 @@ export class CellRenderer {
   /** 「円の間隔」「縦の間隔」変更時に全エリアの第1段（青）と第2段（黄）を同時表示 */
   private showShakeTrailDupSpacingBothGuides(shake: ShakeEffect) {
     if (!this.shakeTrailGuideGraphics) {
-      this.shakeTrailGuideGraphics = new PIXI.Graphics()
+      this.shakeTrailGuideGraphics = new Graphics()
       this.guideLayer.addChild(this.shakeTrailGuideGraphics)
     }
     this.shakeTrailGuideMode = 'first'
@@ -2247,7 +2247,7 @@ export class CellRenderer {
     ry: number,
   ) {
     if (!this.shakeTrailGuideGraphics) {
-      this.shakeTrailGuideGraphics = new PIXI.Graphics()
+      this.shakeTrailGuideGraphics = new Graphics()
       this.guideLayer.addChild(this.shakeTrailGuideGraphics)
     }
 
@@ -2274,7 +2274,7 @@ export class CellRenderer {
 
   private showShakeTrailGuide(shake: ShakeEffect, mode: 'first' | 'second' = 'first') {
     if (!this.shakeTrailGuideGraphics) {
-      this.shakeTrailGuideGraphics = new PIXI.Graphics()
+      this.shakeTrailGuideGraphics = new Graphics()
       this.guideLayer.addChild(this.shakeTrailGuideGraphics)
     }
     this.shakeTrailGuideMode = mode
@@ -2375,7 +2375,7 @@ export class CellRenderer {
 
   private showPeripheralGuide(radius: number) {
     if (!this.peripheralGuideGraphics) {
-      this.peripheralGuideGraphics = new PIXI.Graphics()
+      this.peripheralGuideGraphics = new Graphics()
       this.guideLayer.addChild(this.peripheralGuideGraphics)
     }
     const cx = this.width / 2
@@ -2454,7 +2454,7 @@ export class CellRenderer {
     return true
   }
 
-  private applyBreathingTransform(sprite: PIXI.Sprite, extraScaleMultiplier: number) {
+  private applyBreathingTransform(sprite: Sprite, extraScaleMultiplier: number) {
     const transform = this.getImageMotionTransform()
     sprite.x = this.width / 2 + transform.offsetX
     sprite.y = this.height / 2 + transform.offsetY
@@ -2514,7 +2514,7 @@ export class CellRenderer {
     this.clearEcho()
     this.echoAnimationKey = animationKey
 
-    const sprite = new PIXI.Sprite(this.imageSprite.texture)
+    const sprite = new Sprite(this.imageSprite.texture)
     sprite.anchor.set(0.5)
     sprite.blendMode = 'normal'
     this.echoLayer.addChild(sprite)
@@ -2585,7 +2585,7 @@ export class CellRenderer {
     }
   }
 
-  private createFlashVectorTexture(presetId: string): PIXI.Texture | null {
+  private createFlashVectorTexture(presetId: string): Texture | null {
     const holder = createVectorDynamicAssetDisplay(
       presetId,
       0xffffff,
@@ -2599,7 +2599,7 @@ export class CellRenderer {
         antialias: true,
       }) as HTMLCanvasElement
       holder.destroy({ children: true })
-      return PIXI.Texture.from(canvas)
+      return Texture.from(canvas)
     } catch {
       holder.destroy({ children: true })
       return null
@@ -2664,7 +2664,7 @@ export class CellRenderer {
           }
           const loadableUrl = await toLoadableImageUrl(toFileUrl(pickedPath))
           if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) return
-          const texture = await PIXI.Assets.load(loadableUrl)
+          const texture = await Assets.load(loadableUrl)
           if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) return
           this.ensureFlashOverlaySprite(texture)
           this.flashTextureKey = textureKey
@@ -2715,7 +2715,7 @@ export class CellRenderer {
         }
         const loadableUrl = await toLoadableImageUrl(toFileUrl(flash.imagePath!))
         if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) return
-        const texture = await PIXI.Assets.load(loadableUrl)
+        const texture = await Assets.load(loadableUrl)
         if (nonce !== this.flashTextureRequestNonce || this.flashTextureLoadingKey !== textureKey) return
         this.ensureFlashOverlaySprite(texture)
         this.flashTextureKey = textureKey
@@ -2730,9 +2730,9 @@ export class CellRenderer {
     this.syncFlashVectorTint(false)
   }
 
-  private ensureFlashOverlaySprite(texture: PIXI.Texture) {
+  private ensureFlashOverlaySprite(texture: Texture) {
     if (!this.flashOverlaySprite) {
-      this.flashOverlaySprite = new PIXI.Sprite(texture)
+      this.flashOverlaySprite = new Sprite(texture)
       this.flashOverlaySprite.anchor.set(0.5)
       this.flashOverlaySprite.alpha = 0
       this.flashOverlaySprite.visible = false
@@ -2756,11 +2756,11 @@ export class CellRenderer {
     const innerRadius = flash?.innerRadius ?? 0.5
     const blurStrength = clamp(flash?.blurStrength ?? 0, 0, 100)
 
-    const filters: PIXI.Filter[] = []
+    const filters: Filter[] = []
 
     if (blurStrength > 0) {
       if (!this.flashBlurFilter) {
-        this.flashBlurFilter = new PIXI.BlurFilter({ strength: blurStrength, quality: 4 })
+        this.flashBlurFilter = new BlurFilter({ strength: blurStrength, quality: 4 })
       } else {
         this.flashBlurFilter.strength = blurStrength
       }
@@ -3332,12 +3332,12 @@ export class CellRenderer {
       this.squishBurstBlurFilter = null
     } else {
       if (!this.squishBurstBlurFilter) {
-        this.squishBurstBlurFilter = new PIXI.BlurFilter({ strength, quality: 4 })
+        this.squishBurstBlurFilter = new BlurFilter({ strength, quality: 4 })
         this.squishBurstGraphics.filters = [this.squishBurstBlurFilter]
       } else {
         this.squishBurstBlurFilter.strength = strength
       }
-      this.squishBurstGraphics.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      this.squishBurstGraphics.filterArea = new Rectangle(0, 0, this.width, this.height)
     }
   }
 
@@ -3652,12 +3652,12 @@ export class CellRenderer {
     }
 
     if (!this.squishBlurFilter) {
-      this.squishBlurFilter = new PIXI.BlurFilter({ strength, quality: 4 })
+      this.squishBlurFilter = new BlurFilter({ strength, quality: 4 })
       this.squishGraphics.filters = [this.squishBlurFilter]
     } else {
       this.squishBlurFilter.strength = strength
     }
-    this.squishGraphics.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    this.squishGraphics.filterArea = new Rectangle(0, 0, this.width, this.height)
   }
 
   private resetSquishMotion(squish?: SquishEffect) {
@@ -3702,7 +3702,7 @@ export class CellRenderer {
 
   // ===== Mist Effect =====
 
-  private getFogGradientTexture(): PIXI.Texture {
+  private getFogGradientTexture(): Texture {
     if (this.fogGradientTexture) return this.fogGradientTexture
     const size = 256
     const canvas = document.createElement('canvas')
@@ -3718,7 +3718,7 @@ export class CellRenderer {
     grad.addColorStop(1, 'rgba(255,255,255,0)')
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, size, size)
-    this.fogGradientTexture = PIXI.Texture.from(canvas)
+    this.fogGradientTexture = Texture.from(canvas)
     return this.fogGradientTexture
   }
 
@@ -3731,7 +3731,7 @@ export class CellRenderer {
     const spread = 0.14
 
     for (let i = 0; i < count; i++) {
-      const sprite = new PIXI.Sprite(texture)
+      const sprite = new Sprite(texture)
       sprite.anchor.set(0.5)
       sprite.tint = tint
       sprite.alpha = 0
@@ -3895,9 +3895,9 @@ export class CellRenderer {
     const centerXRatio = randomPos ? (0.2 + Math.random() * 0.6) : 0.5
     const centerYRatio = randomPos ? (0.2 + Math.random() * 0.6) : 0.5
 
-    const container = new PIXI.Container()
-    const blobContainer = new PIXI.Container()
-    const dropletGraphics = new PIXI.Graphics()
+    const container = new Container()
+    const blobContainer = new Container()
+    const dropletGraphics = new Graphics()
     container.addChild(blobContainer)
     container.addChild(dropletGraphics)
 
@@ -3930,12 +3930,12 @@ export class CellRenderer {
       instance.blobBlurFilter = null
     } else {
       if (!instance.blobBlurFilter) {
-        instance.blobBlurFilter = new PIXI.BlurFilter({ strength: blobBlurStrength, quality: 4 })
+        instance.blobBlurFilter = new BlurFilter({ strength: blobBlurStrength, quality: 4 })
         instance.blobContainer.filters = [instance.blobBlurFilter]
       } else {
         instance.blobBlurFilter.strength = blobBlurStrength
       }
-      instance.blobContainer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      instance.blobContainer.filterArea = new Rectangle(0, 0, this.width, this.height)
     }
 
     const dropletBlur = Math.max(0, blobBlurStrength * 0.12)
@@ -3945,12 +3945,12 @@ export class CellRenderer {
       instance.dropletBlurFilter = null
     } else {
       if (!instance.dropletBlurFilter) {
-        instance.dropletBlurFilter = new PIXI.BlurFilter({ strength: dropletBlur, quality: 2 })
+        instance.dropletBlurFilter = new BlurFilter({ strength: dropletBlur, quality: 2 })
         instance.dropletGraphics.filters = [instance.dropletBlurFilter]
       } else {
         instance.dropletBlurFilter.strength = dropletBlur
       }
-      instance.dropletGraphics.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      instance.dropletGraphics.filterArea = new Rectangle(0, 0, this.width, this.height)
     }
   }
 
@@ -4098,33 +4098,33 @@ export class CellRenderer {
     const maskW = Math.max(1, Math.ceil(this.width / 4))
     const maskH = Math.max(1, Math.ceil(this.height / 4))
 
-    const renderTexture = PIXI.RenderTexture.create({
+    const renderTexture = RenderTexture.create({
       width: Math.max(1, Math.ceil(this.width)),
       height: Math.max(1, Math.ceil(this.height)),
       resolution: this.pixiRenderer.resolution,
     })
-    const blurSprite = new PIXI.Sprite(renderTexture)
+    const blurSprite = new Sprite(renderTexture)
 
-    const container = new PIXI.Container()
+    const container = new Container()
     container.addChild(blurSprite)
 
-    const blurFilter = new PIXI.BlurFilter({ strength: focus.blurStrength, quality: 4 })
+    const blurFilter = new BlurFilter({ strength: focus.blurStrength, quality: 4 })
 
     const maskCanvas = document.createElement('canvas')
     maskCanvas.width = maskW
     maskCanvas.height = maskH
     this.drawFocusBandMaskToCanvas(maskCanvas, focus.pattern, focus.viewSizeRatio, this.focusCurrentX, this.focusCurrentY)
 
-    const maskTex = PIXI.Texture.from(maskCanvas)
+    const maskTex = Texture.from(maskCanvas)
     this.pixiRenderer.texture.initSource(maskTex.source)
 
-    const maskSprite = new PIXI.Sprite(maskTex)
+    const maskSprite = new Sprite(maskTex)
     maskSprite.width = this.width
     maskSprite.height = this.height
     maskSprite.alpha = 0  // invisible, only used by MaskFilter
 
-    const maskFilter = new PIXI.MaskFilter({ sprite: maskSprite, channel: 'alpha' })
-    container.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+    const maskFilter = new MaskFilter({ sprite: maskSprite, channel: 'alpha' })
+    container.filterArea = new Rectangle(0, 0, this.width, this.height)
     container.filters = [blurFilter, maskFilter]
 
     this.focusLayer.addChild(container)
@@ -4329,8 +4329,8 @@ export class CellRenderer {
     const feather = censor.feather ?? 0
     if (feather > 0) {
       if (!this.censorBlurFilter) {
-        this.censorBlurFilter = new PIXI.BlurFilter()
-        this.censorBarLayer.filterArea = new PIXI.Rectangle(0, 0, W, H)
+        this.censorBlurFilter = new BlurFilter()
+        this.censorBarLayer.filterArea = new Rectangle(0, 0, W, H)
       }
       this.censorBlurFilter.strength = feather
       if (!this.censorBarLayer.filters?.includes(this.censorBlurFilter)) {
@@ -4447,9 +4447,9 @@ export class CellRenderer {
       }
 
       if (!this.censorShakeSprite) {
-        const tex = PIXI.Texture.from(canvas)
+        const tex = Texture.from(canvas)
         this.pixiRenderer.texture.initSource(tex.source)
-        const sprite = new PIXI.Sprite(tex)
+        const sprite = new Sprite(tex)
         sprite.width = W
         sprite.height = H
         this.censorBarLayer.addChild(sprite)
@@ -4559,9 +4559,9 @@ export class CellRenderer {
       }
 
       if (!this.censorTextSprite) {
-        const tex = PIXI.Texture.from(canvas)
+        const tex = Texture.from(canvas)
         this.pixiRenderer.texture.initSource(tex.source)
-        const sprite = new PIXI.Sprite(tex)
+        const sprite = new Sprite(tex)
         sprite.width = W
         sprite.height = H
         this.censorLayer.addChild(sprite)
@@ -4676,9 +4676,9 @@ export class CellRenderer {
     // focus が未設定・無効の場合は canvas が透明のまま → マスクで全て隠れる
 
     if (!this.censorFocusMask) {
-      const tex = PIXI.Texture.from(canvas)
+      const tex = Texture.from(canvas)
       this.pixiRenderer.texture.initSource(tex.source)
-      const sprite = new PIXI.Sprite(tex)
+      const sprite = new Sprite(tex)
       sprite.width = W
       sprite.height = H
       this.censorLayer.addChild(sprite)
@@ -5048,13 +5048,13 @@ export class CellRenderer {
       )
       this.spiralMaskSprite.alpha = 0
       this.spiralLayer.addChild(this.spiralMaskSprite)
-      this.spiralMaskFilter = new PIXI.MaskFilter({
+      this.spiralMaskFilter = new MaskFilter({
         sprite: this.spiralMaskSprite,
         channel: 'alpha',
       })
       this.spiralMaskFilter.inverse = spiral.radialMode === 'periphery'
       this.spiralLayer.filters = [this.spiralMaskFilter]
-      this.spiralLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      this.spiralLayer.filterArea = new Rectangle(0, 0, this.width, this.height)
       this.spiralMaskKey = key
     }
   }
@@ -5079,7 +5079,7 @@ export class CellRenderer {
     centerXRatio = 0.5,
     centerYRatio = 0.5,
     fadeStrength = 1
-  ): PIXI.Sprite {
+  ): Sprite {
     const canvas = document.createElement('canvas')
     canvas.width = Math.ceil(this.width)
     canvas.height = Math.ceil(this.height)
@@ -5108,7 +5108,7 @@ export class CellRenderer {
       }
     }
     ctx.putImageData(image, 0, 0)
-    return new PIXI.Sprite(PIXI.Texture.from(canvas))
+    return new Sprite(Texture.from(canvas))
   }
 
   private updateVignette(effects: CellEffects) {
@@ -5141,7 +5141,7 @@ export class CellRenderer {
         this.vignetteSprite.destroy({ texture: true })
       }
       const tex = createVignetteTexture(this.width, this.height, vig.color, intensity)
-      this.vignetteSprite = new PIXI.Sprite(tex)
+      this.vignetteSprite = new Sprite(tex)
       this.vignetteSprite.alpha = previousAlpha
       this.vignetteTextureKey = textureKey
       this.vignetteLayer.addChild(this.vignetteSprite)
@@ -5274,19 +5274,19 @@ export class CellRenderer {
     }
 
     const targetLayer = blur.applyToAll ? this.effectsLayer : this.imageLayer
-    const blurFilter = new PIXI.BlurFilter({ strength: blur.strength, quality: 4 })
+    const blurFilter = new BlurFilter({ strength: blur.strength, quality: 4 })
     this.blurFilter = blurFilter
     if (targetLayer === this.imageLayer) {
       this.imageLayerBlurFilter = blurFilter
       this.setImageLayerFilters()
     } else {
-      targetLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      targetLayer.filterArea = new Rectangle(0, 0, this.width, this.height)
       targetLayer.filters = [blurFilter]
     }
     this.applyGradualBlur([{ filter: blurFilter, multiplier: 1 }], blur)
   }
 
-  private applyGradualBlur(blurFilters: { filter: PIXI.BlurFilter; multiplier: number }[], blur: BlurEffect) {
+  private applyGradualBlur(blurFilters: { filter: BlurFilter; multiplier: number }[], blur: BlurEffect) {
     if (!blur.gradualEnabled) return
 
     if (blur.gradualTimerSync) {
@@ -5367,18 +5367,18 @@ export class CellRenderer {
         ]
 
     regions.forEach(({ maskSprite, multiplier }, index) => {
-      const radialBlurLayer = new PIXI.Container()
-      const imageClone = new PIXI.Sprite(this.imageSprite!.texture)
+      const radialBlurLayer = new Container()
+      const imageClone = new Sprite(this.imageSprite!.texture)
       imageClone.anchor.set(0.5)
       this.copySpriteTransform(this.imageSprite!, imageClone)
       radialBlurLayer.addChild(imageClone)
 
-      const blurFilter = new PIXI.BlurFilter({ strength: blur.strength * multiplier, quality: 4 })
-      const maskFilter = new PIXI.MaskFilter({
+      const blurFilter = new BlurFilter({ strength: blur.strength * multiplier, quality: 4 })
+      const maskFilter = new MaskFilter({
         sprite: maskSprite,
         channel: 'alpha',
       })
-      radialBlurLayer.filterArea = new PIXI.Rectangle(0, 0, this.width, this.height)
+      radialBlurLayer.filterArea = new Rectangle(0, 0, this.width, this.height)
       radialBlurLayer.filters = [blurFilter, maskFilter]
 
       maskSprite.alpha = 0
@@ -5393,7 +5393,7 @@ export class CellRenderer {
     })
   }
 
-  private createRadialGradientMaskSprite(intensity: number, centerXRatio: number, centerYRatio: number, size: number, heightRatio: number): PIXI.Sprite {
+  private createRadialGradientMaskSprite(intensity: number, centerXRatio: number, centerYRatio: number, size: number, heightRatio: number): Sprite {
     const canvas = document.createElement('canvas')
     canvas.width = Math.ceil(this.width)
     canvas.height = Math.ceil(this.height)
@@ -5421,11 +5421,11 @@ export class CellRenderer {
     }
 
     ctx.putImageData(image, 0, 0)
-    const texture = PIXI.Texture.from(canvas)
-    return new PIXI.Sprite(texture)
+    const texture = Texture.from(canvas)
+    return new Sprite(texture)
   }
 
-  private createEllipseMaskSprite(centerXRatio: number, centerYRatio: number, size: number, heightRatio: number, feather = 0.08): PIXI.Sprite {
+  private createEllipseMaskSprite(centerXRatio: number, centerYRatio: number, size: number, heightRatio: number, feather = 0.08): Sprite {
     const canvas = document.createElement('canvas')
     canvas.width = Math.ceil(this.width)
     canvas.height = Math.ceil(this.height)
@@ -5452,8 +5452,8 @@ export class CellRenderer {
     }
 
     ctx.putImageData(image, 0, 0)
-    const texture = PIXI.Texture.from(canvas)
-    return new PIXI.Sprite(texture)
+    const texture = Texture.from(canvas)
+    return new Sprite(texture)
   }
 
   /** 2楕円マスク（ピクセル中心・半径指定）。重なりはアルファの max で結合 */
@@ -5465,7 +5465,7 @@ export class CellRenderer {
     rx: number,
     ry: number,
     feather = 0.08,
-  ): PIXI.Sprite {
+  ): Sprite {
     const canvas = document.createElement('canvas')
     canvas.width = Math.ceil(this.width)
     canvas.height = Math.ceil(this.height)
@@ -5492,8 +5492,8 @@ export class CellRenderer {
     }
 
     ctx.putImageData(image, 0, 0)
-    const texture = PIXI.Texture.from(canvas)
-    return new PIXI.Sprite(texture)
+    const texture = Texture.from(canvas)
+    return new Sprite(texture)
   }
 
   private createRadialBandMaskSprite(
@@ -5506,7 +5506,7 @@ export class CellRenderer {
     centerYRatio = 0.5,
     softenInnerEdge = true,
     softenOuterEdge = true
-  ): PIXI.Sprite {
+  ): Sprite {
     const canvas = document.createElement('canvas')
     canvas.width = Math.ceil(this.width)
     canvas.height = Math.ceil(this.height)
@@ -5543,8 +5543,8 @@ export class CellRenderer {
     }
 
     ctx.putImageData(image, 0, 0)
-    const texture = PIXI.Texture.from(canvas)
-    return new PIXI.Sprite(texture)
+    const texture = Texture.from(canvas)
+    return new Sprite(texture)
   }
 
   private refreshBlurRegion() {
@@ -5573,7 +5573,7 @@ export class CellRenderer {
     }
   }
 
-  private copySpriteTransform(from: PIXI.Sprite, to: PIXI.Sprite) {
+  private copySpriteTransform(from: Sprite, to: Sprite) {
     to.x = from.x
     to.y = from.y
     to.scale.set(from.scale.x, from.scale.y)
@@ -5654,10 +5654,10 @@ export class CellRenderer {
       if (texturesKey !== this.assetTexturesKey) {
         this.assetPath = da.assetPath
         this.assetTexturesKey = texturesKey
-        const textures: PIXI.Texture[] = []
+        const textures: Texture[] = []
         for (const path of loadablePaths) {
           try {
-            textures.push(await PIXI.Assets.load(toFileUrl(path)))
+            textures.push(await Assets.load(toFileUrl(path)))
           } catch (error) {
             console.warn(`[アセットエフェクト] テクスチャ読み込みに失敗: ${path}`, error)
           }
@@ -5750,7 +5750,7 @@ function darkenColor(color: number, factor: number): number {
   return rgbToHex(r, g, b)
 }
 
-function sampleTextureCenterColor(texture: PIXI.Texture): { r: number; g: number; b: number } | null {
+function sampleTextureCenterColor(texture: Texture): { r: number; g: number; b: number } | null {
   const resource = texture.source.resource as unknown
   if (!isCanvasImageSource(resource)) return null
   const size = getCanvasImageSourceSize(resource)
@@ -5818,7 +5818,7 @@ function toFileUrl(src: string): string {
   }
   const normalized = src.replace(/\\/g, '/')
   // 日本語などの非 ASCII 文字を含むパスは encodeURI でパーセントエンコードする
-  // （PIXI.Assets.load や fetch がワーカー越しに非エンコード URL を扱えないため）
+  // （Assets.load や fetch がワーカー越しに非エンコード URL を扱えないため）
   const encoded = encodeURI(normalized)
   return encoded.startsWith('/') ? `file://${encoded}` : `file:///${encoded}`
 }

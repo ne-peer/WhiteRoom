@@ -1,4 +1,4 @@
-import * as PIXI from 'pixi.js'
+import { BlurFilter, Container, Graphics, Renderer, Sprite, Text, TextStyle, Texture } from 'pixi.js'
 import { gsap } from 'gsap'
 import type {
   CellEffects, AssetParticle, DynamicAssetAdditionalEffect, TextEffect, RippleMovePattern,
@@ -12,7 +12,7 @@ export function createVignetteTexture(
   height: number,
   color: { r: number; g: number; b: number },
   intensity = 50
-): PIXI.Texture {
+): Texture {
   const t = Math.max(0, Math.min(1, intensity / 100))
   const lerp = (a: number, b: number, u: number) => a + (b - a) * u
   const clearEnd = lerp(0.68, 0.12, t)
@@ -35,7 +35,7 @@ export function createVignetteTexture(
   gradient.addColorStop(1, `rgba(${r},${g},${b},${alphaEdge})`)
   ctx.fillStyle = gradient
   ctx.fillRect(0, 0, width, height)
-  return PIXI.Texture.from(canvas)
+  return Texture.from(canvas)
 }
 
 // ===== フォーカスエフェクト マスクテクスチャ生成 =====
@@ -112,17 +112,17 @@ export function createFocusMaskTexture(
   cy: number,
   width: number,
   height: number,
-): PIXI.Texture {
+): Texture {
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(width))
   canvas.height = Math.max(1, Math.round(height))
   drawFocusMaskToCanvas(canvas, pattern, viewSizeRatio, cx, cy)
-  return PIXI.Texture.from(canvas)
+  return Texture.from(canvas)
 }
 
 // ===== カラーオーバーレイグラフィック更新 =====
 export function updateColorOverlay(
-  graphics: PIXI.Graphics,
+  graphics: Graphics,
   width: number,
   height: number,
   effects: CellEffects
@@ -139,13 +139,13 @@ export function updateColorOverlay(
 
 // ===== ブラーフィルタ適用 =====
 export function applyBlurFilter(
-  container: PIXI.Container,
+  container: Container,
   effects: CellEffects
-): PIXI.BlurFilter | null {
+): BlurFilter | null {
   // 既存フィルタ除去
   container.filters = []
   if (!effects.blur.enabled || effects.blur.strength <= 0) return null
-  const blur = new PIXI.BlurFilter({ strength: effects.blur.strength, quality: 4 })
+  const blur = new BlurFilter({ strength: effects.blur.strength, quality: 4 })
   container.filters = [blur]
   return blur
 }
@@ -181,7 +181,7 @@ function rippleEase(pattern: RippleMovePattern, t: number): number {
 }
 
 function drawDisplayAreaMask(
-  graphics: PIXI.Graphics,
+  graphics: Graphics,
   width: number,
   height: number,
   rects: CensorRect[],
@@ -223,19 +223,19 @@ function samplePointInDisplayRects(
 // ===== パーティクル（動的アセット）管理 =====
 export class ParticleSystem {
   private particles: AssetParticle[] = []
-  private sprites: Map<string, PIXI.Sprite> = new Map()
-  private vectorHolders: Map<string, PIXI.Container> = new Map()
-  private featherTextureCache: Map<string, PIXI.Texture> = new Map()
-  private container: PIXI.Container
-  private renderer: PIXI.Renderer
-  private texture: PIXI.Texture | null = null
-  private textures: PIXI.Texture[] = []
+  private sprites: Map<string, Sprite> = new Map()
+  private vectorHolders: Map<string, Container> = new Map()
+  private featherTextureCache: Map<string, Texture> = new Map()
+  private container: Container
+  private renderer: Renderer
+  private texture: Texture | null = null
+  private textures: Texture[] = []
   private lastSpawn = 0
   private timerProgress = 1
   private activeFeatherRadius = 0
   private activeRasterColorInvert = false
 
-  constructor(container: PIXI.Container, renderer: PIXI.Renderer) {
+  constructor(container: Container, renderer: Renderer) {
     this.container = container
     this.renderer = renderer
   }
@@ -244,7 +244,7 @@ export class ParticleSystem {
     this.timerProgress = progress
   }
 
-  setTexture(texture: PIXI.Texture | null) {
+  setTexture(texture: Texture | null) {
     this.texture = texture
     this.textures = texture ? [texture] : []
     if (!texture) {
@@ -252,7 +252,7 @@ export class ParticleSystem {
     }
   }
 
-  setTextures(textures: PIXI.Texture[]) {
+  setTextures(textures: Texture[]) {
     if (this.vectorHolders.size > 0) {
       this.clear()
     }
@@ -356,7 +356,7 @@ export class ParticleSystem {
               visual.rotation = p.rotationRad
               visual.scale.set(0)
               this.container.addChild(visual)
-              if (visual instanceof PIXI.Sprite) {
+              if (visual instanceof Sprite) {
                 this.sprites.set(p.id, visual)
               } else {
                 this.vectorHolders.set(p.id, visual)
@@ -365,7 +365,7 @@ export class ParticleSystem {
               this.particles.pop()
             }
           } else {
-            const sprite = new PIXI.Sprite(
+            const sprite = new Sprite(
               this.resolveRasterTexture(
                 randomTexture(this.textures),
                 effects.dynamicAsset.featherStrength ?? 0,
@@ -437,7 +437,7 @@ export class ParticleSystem {
             visual.rotation = p.rotationRad
             visual.scale.set(scale)
             this.container.addChild(visual)
-            if (visual instanceof PIXI.Sprite) {
+            if (visual instanceof Sprite) {
               this.sprites.set(p.id, visual)
             } else {
               this.vectorHolders.set(p.id, visual)
@@ -446,7 +446,7 @@ export class ParticleSystem {
             this.particles.pop()
           }
         } else {
-          const sprite = new PIXI.Sprite(
+          const sprite = new Sprite(
             this.resolveRasterTexture(
               randomTexture(this.textures),
               effects.dynamicAsset.featherStrength ?? 0,
@@ -506,7 +506,7 @@ export class ParticleSystem {
               visual.rotation = p.rotationRad
               visual.scale.set(scale)
               this.container.addChild(visual)
-              if (visual instanceof PIXI.Sprite) {
+              if (visual instanceof Sprite) {
                 this.sprites.set(p.id, visual)
               } else {
                 this.vectorHolders.set(p.id, visual)
@@ -515,7 +515,7 @@ export class ParticleSystem {
               this.particles.pop()
             }
           } else {
-            const sprite = new PIXI.Sprite(
+            const sprite = new Sprite(
               this.resolveRasterTexture(
                 randomTexture(this.textures),
                 effects.dynamicAsset.featherStrength ?? 0,
@@ -673,20 +673,20 @@ export class ParticleSystem {
     presetId: string,
     particleTint: number,
     featherStrength: number
-  ): PIXI.Container | PIXI.Sprite | null {
+  ): Container | Sprite | null {
     if (featherStrength <= 0) {
       return createVectorDynamicAssetDisplay(presetId, particleTint)
     }
 
     const texture = this.resolveVectorTexture(presetId, featherStrength)
     if (!texture) return null
-    const sprite = new PIXI.Sprite(texture)
+    const sprite = new Sprite(texture)
     sprite.anchor.set(0.5)
     sprite.tint = particleTint
     return sprite
   }
 
-  private resolveRasterTexture(texture: PIXI.Texture, featherStrength: number, invertRgb: boolean): PIXI.Texture {
+  private resolveRasterTexture(texture: Texture, featherStrength: number, invertRgb: boolean): Texture {
     const radius = featherStrengthToRadius(featherStrength)
     const base =
       radius <= 0 ? texture : this.getOrCreateFeatherTexture(`raster:${texture.uid}:feather:${radius}`, texture, radius)
@@ -694,14 +694,14 @@ export class ParticleSystem {
     return this.getOrCreateInvertTexture(`invert:${base.uid}`, base)
   }
 
-  private getOrCreateInvertTexture(key: string, texture: PIXI.Texture): PIXI.Texture {
+  private getOrCreateInvertTexture(key: string, texture: Texture): Texture {
     const cached = this.featherTextureCache.get(key)
     if (cached) return cached
 
     const canvas = this.renderer.extract.canvas(texture) as HTMLCanvasElement
     const ctx = canvas.getContext('2d')
     if (!ctx) {
-      const t = PIXI.Texture.from(canvas)
+      const t = Texture.from(canvas)
       this.featherTextureCache.set(key, t)
       return t
     }
@@ -714,12 +714,12 @@ export class ParticleSystem {
       d[i + 2] = 255 - d[i + 2]
     }
     ctx.putImageData(imageData, 0, 0)
-    const out = PIXI.Texture.from(canvas)
+    const out = Texture.from(canvas)
     this.featherTextureCache.set(key, out)
     return out
   }
 
-  private resolveVectorTexture(presetId: string, featherStrength: number): PIXI.Texture | null {
+  private resolveVectorTexture(presetId: string, featherStrength: number): Texture | null {
     const radius = featherStrengthToRadius(featherStrength)
     if (radius <= 0) return null
 
@@ -737,18 +737,18 @@ export class ParticleSystem {
     holder.destroy({ children: true })
 
     const feathered = createInnerFeatherCanvas(canvas, radius)
-    const texture = PIXI.Texture.from(feathered)
+    const texture = Texture.from(feathered)
     this.featherTextureCache.set(key, texture)
     return texture
   }
 
-  private getOrCreateFeatherTexture(key: string, texture: PIXI.Texture, radius: number): PIXI.Texture {
+  private getOrCreateFeatherTexture(key: string, texture: Texture, radius: number): Texture {
     const cached = this.featherTextureCache.get(key)
     if (cached) return cached
 
     const canvas = this.renderer.extract.canvas(texture) as HTMLCanvasElement
     const feathered = createInnerFeatherCanvas(canvas, radius)
-    const featherTexture = PIXI.Texture.from(feathered)
+    const featherTexture = Texture.from(feathered)
     this.featherTextureCache.set(key, featherTexture)
     return featherTexture
   }
@@ -757,13 +757,13 @@ export class ParticleSystem {
 // ===== テキストエフェクト管理 =====
 
 type TextAnimationInstance = {
-  chars: PIXI.Text[]
+  chars: Text[]
   timeline: gsap.core.Timeline
 }
 
 export class TextSystem {
-  private container: PIXI.Container
-  private mask: PIXI.Graphics
+  private container: Container
+  private mask: Graphics
   private activeInstances: TextAnimationInstance[] = []
   private spawnInterval: ReturnType<typeof setInterval> | null = null
   private running = false
@@ -773,9 +773,9 @@ export class TextSystem {
   private cellHeight = 0
   private timerProgress = 1
 
-  constructor(container: PIXI.Container) {
+  constructor(container: Container) {
     this.container = container
-    this.mask = new PIXI.Graphics()
+    this.mask = new Graphics()
     this.container.addChild(this.mask)
     this.container.mask = this.mask
   }
@@ -839,7 +839,7 @@ export class TextSystem {
     const alpha = effects.alphaTimerSync ? rawAlpha * this.timerProgress : rawAlpha
     const hexColor = (color.r << 16) | (color.g << 8) | color.b
 
-    const style = new PIXI.TextStyle({
+    const style = new TextStyle({
       fontFamily: font,
       fontSize,
       fill: hexColor,
@@ -847,7 +847,7 @@ export class TextSystem {
     })
 
     const chars = Array.from(text)
-    const charObjects: PIXI.Text[] = []
+    const charObjects: Text[] = []
 
     const textWidth = direction === 'horizontal'
       ? Math.max(fontSize, chars.length * fontSize * 0.85)
@@ -866,7 +866,7 @@ export class TextSystem {
     const safeY = origin.y
 
     chars.forEach((ch, i) => {
-      const charText = new PIXI.Text({ text: ch, style })
+      const charText = new Text({ text: ch, style })
       charText.alpha = 0
       charText.anchor.set(0, 0)
       if (direction === 'horizontal') {
@@ -1035,7 +1035,7 @@ function createInnerFeatherCanvas(source: HTMLCanvasElement, radius: number): HT
 }
 
 function applyAssetAdditionalEffect(
-  visual: PIXI.Container,
+  visual: Container,
   particle: AssetParticle,
   effect: DynamicAssetAdditionalEffect,
   speedFactor: number,
@@ -1079,7 +1079,7 @@ function randomRiseSpeed(): number {
   return [2, 4, 6][Math.floor(Math.random() * 3)]
 }
 
-function randomTexture(textures: PIXI.Texture[]): PIXI.Texture {
+function randomTexture(textures: Texture[]): Texture {
   return textures[Math.floor(Math.random() * textures.length)]
 }
 
