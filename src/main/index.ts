@@ -291,6 +291,10 @@ function serializeAppProfile(profile: AppProfile): AppProfile {
         effects: mapEffectsAssetReferences(cell.effects, serializeAssetEffectReference) as CellEffects,
       })),
     })),
+    effectUserPresets: profile.effectUserPresets?.map(preset => ({
+      ...preset,
+      effects: mapEffectsAssetReferences(preset.effects, serializeAssetEffectReference) as CellEffects,
+    })),
   }
 }
 
@@ -307,6 +311,10 @@ function resolveAppProfile(profile: AppProfile): AppProfile {
         ...cell,
         effects: mapEffectsAssetReferences(cell.effects, resolveAssetEffectReference) as CellEffects,
       })),
+    })),
+    effectUserPresets: profile.effectUserPresets?.map(preset => ({
+      ...preset,
+      effects: mapEffectsAssetReferences(preset.effects, resolveAssetEffectReference) as CellEffects,
     })),
   }
 }

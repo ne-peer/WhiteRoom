@@ -692,6 +692,12 @@ export type StashItem = {
   textReaderPageIndex: number
 }
 
+export type EffectUserPreset = {
+  id: string
+  name: string
+  effects: CellEffects
+}
+
 export type AppProfile = {
   version: string
   createdAt: string
@@ -705,6 +711,8 @@ export type AppProfile = {
   windowSize?: WindowSize
   showControls?: boolean
   stashes?: StashItem[]
+  effectUserPresets?: EffectUserPreset[]
+  effectUserPresetNextNum?: number
 }
 
 // ===== ストーリーボードタグ =====

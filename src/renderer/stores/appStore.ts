@@ -6,6 +6,7 @@ import type {
   BlankBackground, BlankColor, TimerConfig, TimerPosition, ImageFitMode, AppProfile as Profile,
   ImageEffectProfileDocument, TagEntry, TextEffect, UiLanguage, TextReaderConfig, ReadingConfigPayload,
   StashItem, IpcApi, FocusEffect, CensorEffect, ShakeTrailArea, EffectDisplayAreaPickTarget,
+  EffectUserPreset,
 } from '../../shared/types'
 import {
   DYNAMIC_ASSET_VECTOR_PRESET_BUILTIN_HEART,
@@ -621,6 +622,10 @@ export type AppState = {
   imageEffectProfileAutoApplySuspended: boolean
   timerSuspendedSlideshow: boolean  // タイマープロファイル適用中はスライドショーを停止
 
+  // エフェクトユーザープリセット
+  effectUserPresets: EffectUserPreset[]
+  effectUserPresetNextNum: number
+
   // スタッシュ
   stashes: StashItem[]
   stashSlotCount: number   // 表示行数（最低3）
@@ -741,6 +746,12 @@ export type AppActions = {
   importProfile: (profile: AppProfile) => void
   resetProfile: () => void
 
+  // エフェクトユーザープリセット
+  addEffectUserPreset: () => void
+  renameEffectUserPreset: (id: string, name: string) => void
+  deleteEffectUserPreset: (id: string) => void
+  applyEffectUserPreset: (id: string) => void
+
   // スタッシュ
   saveStash: (index: number) => void
   popStash: (index: number) => void
@@ -785,6 +796,13 @@ export type AppStore = AppState & AppActions
 export const useAppStore = create<AppStore>()(
   immer((set, get) => {
     const initialCells = buildCells(1, 1)
+
+    /** エフェクトユーザープリセット変更後にデフォルトプロファイルへ自動保存する */
+    const autoSaveEffectUserPresetsToDefault = async (getStore: typeof get) => {
+      const api = (window as unknown as { api: IpcApi }).api
+      const profile = getStore().exportProfile('auto-save')
+      await api.saveDefaultProfile({ ...profile, fullscreen: false, stashes: undefined })
+    }
 
     /** 現在のセルからローカルフォルダを集め、whiteroom_effects.json を読み imageEffectProfiles に載せる */
     const refreshImageEffectProfileCachesFromDisk = async (applyToCells: boolean) => {
@@ -848,6 +866,8 @@ export const useAppStore = create<AppStore>()(
     imageEffectProfiles: {},
     imageEffectProfileAutoApplySuspended: false,
     timerSuspendedSlideshow: false,
+    effectUserPresets: [],
+    effectUserPresetNextNum: 1,
     stashes: [],
     stashSlotCount: 3,
     stashWindowOpen: false,
@@ -1405,8 +1425,9 @@ export const useAppStore = create<AppStore>()(
     exportProfile: (name) => {
       const s = get()
       const hasStashes = s.stashes.length > 0
+      const hasUserPresets = s.effectUserPresets.length > 0
       const profile: AppProfile = {
-        version: hasStashes ? '1.1.0' : '1.0.0',
+        version: hasUserPresets ? '1.2.0' : (hasStashes ? '1.1.0' : '1.0.0'),
         createdAt: new Date().toISOString(),
         name,
         blankColor: s.blankColor,
@@ -1416,6 +1437,8 @@ export const useAppStore = create<AppStore>()(
         timer: s.timer,
         fullscreen: s.fullscreen,
         stashes: hasStashes ? s.stashes : undefined,
+        effectUserPresets: hasUserPresets ? s.effectUserPresets : undefined,
+        effectUserPresetNextNum: hasUserPresets ? s.effectUserPresetNextNum : undefined,
       }
       return profile
     },
@@ -1469,6 +1492,9 @@ export const useAppStore = create<AppStore>()(
         // スタッシュを上書き復元（1.1.0 以降のみ）
         s.stashes = profile.stashes ?? []
         s.stashSlotCount = Math.max(3, s.stashes.length)
+        // エフェクトユーザープリセットを復元（1.2.0 以降のみ）
+        s.effectUserPresets = profile.effectUserPresets ?? []
+        s.effectUserPresetNextNum = profile.effectUserPresetNextNum ?? (s.effectUserPresets.length + 1)
       })
       void refreshImageEffectProfileCachesFromDisk(false)
     },
@@ -1487,7 +1513,52 @@ export const useAppStore = create<AppStore>()(
       s.imageEffectProfiles = {}
       s.imageEffectProfileAutoApplySuspended = false
       s.timerSuspendedSlideshow = false
+      s.effectUserPresets = []
+      s.effectUserPresetNextNum = 1
     }),
+
+    // ===== エフェクトユーザープリセット =====
+
+    addEffectUserPreset: () => {
+      const selectedCell = get().cells.find(c => c.id === get().selectedCellId)
+      if (!selectedCell) return
+      const lang = get().language
+      const num = get().effectUserPresetNextNum
+      const name = lang === 'ja' ? `ユーザープリセット${num}` : `User Preset ${num}`
+      set(s => {
+        s.effectUserPresets.push({
+          id: crypto.randomUUID(),
+          name,
+          effects: structuredClone(selectedCell.effects),
+        })
+        s.effectUserPresetNextNum = num + 1
+      })
+      void autoSaveEffectUserPresetsToDefault(get)
+    },
+
+    renameEffectUserPreset: (id, name) => {
+      set(s => {
+        const preset = s.effectUserPresets.find(p => p.id === id)
+        if (preset) preset.name = name
+      })
+      void autoSaveEffectUserPresetsToDefault(get)
+    },
+
+    deleteEffectUserPreset: (id) => {
+      set(s => {
+        const idx = s.effectUserPresets.findIndex(p => p.id === id)
+        if (idx !== -1) s.effectUserPresets.splice(idx, 1)
+      })
+      void autoSaveEffectUserPresetsToDefault(get)
+    },
+
+    applyEffectUserPreset: (id) => {
+      const { effectUserPresets, selectedCellId } = get()
+      if (!selectedCellId) return
+      const preset = effectUserPresets.find(p => p.id === id)
+      if (!preset) return
+      get().applyCellEffectPreset(selectedCellId, structuredClone(preset.effects))
+    },
 
     // ===== スタッシュ =====
 

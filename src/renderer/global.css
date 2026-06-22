@@ -39,3 +39,8 @@ body {
   outline: 2px dashed rgba(255, 110, 180, 0.6);
   outline-offset: -4px;
 }
+
+@keyframes userPresetDelGrow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}

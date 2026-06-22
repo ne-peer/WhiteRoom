@@ -582,6 +582,11 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     effectDisplayAreaPicking,
     setEffectDisplayAreaPicking,
     syncZoomSquish,
+    effectUserPresets,
+    addEffectUserPreset,
+    renameEffectUserPreset,
+    deleteEffectUserPreset,
+    applyEffectUserPreset,
   } = useAppStore()
   const { language, t } = useTranslation()
   const [systemFonts, setSystemFonts] = useState<string[]>([])
@@ -590,6 +595,10 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
   const [effectCenterHighlightTick, setEffectCenterHighlightTick] = useState(0)
   const effectCenterSectionRef = useRef<HTMLDivElement | null>(null)
   const effectCenterHighlightTimerRef = useRef<number | null>(null)
+  const [userPresetDelPressId, setUserPresetDelPressId] = useState<string | null>(null)
+  const [userPresetEditId, setUserPresetEditId] = useState<string | null>(null)
+  const [userPresetEditValue, setUserPresetEditValue] = useState('')
+  const userPresetDelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -630,6 +639,9 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
     return () => {
       if (effectCenterHighlightTimerRef.current !== null) {
         window.clearInterval(effectCenterHighlightTimerRef.current)
+      }
+      if (userPresetDelTimerRef.current !== null) {
+        clearTimeout(userPresetDelTimerRef.current)
       }
     }
   }, [])
@@ -888,6 +900,185 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         </Row>
         <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', wordBreak: 'break-all' }}>
           {t('applyEffectChangesToAllColumnsHelp')}
+        </div>
+      </div>
+
+      <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.08)', margin: '0 0 16px' }} />
+
+      {/* ユーザープリセットセクション */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: '1.5px',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.35)',
+          marginBottom: 10,
+          paddingBottom: 6,
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          {t('userPresets')}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {effectUserPresets.map(preset => {
+            const isEditing = userPresetEditId === preset.id
+            const isDelPressing = userPresetDelPressId === preset.id
+            return (
+              <div
+                key={preset.id}
+                style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                {isEditing ? (
+                  <input
+                    autoFocus
+                    type="text"
+                    value={userPresetEditValue}
+                    onChange={e => setUserPresetEditValue(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const trimmed = userPresetEditValue.trim()
+                        if (trimmed) renameEffectUserPreset(preset.id, trimmed)
+                        setUserPresetEditId(null)
+                      } else if (e.key === 'Escape') {
+                        setUserPresetEditId(null)
+                      }
+                    }}
+                    onBlur={() => {
+                      const trimmed = userPresetEditValue.trim()
+                      if (trimmed) renameEffectUserPreset(preset.id, trimmed)
+                      setUserPresetEditId(null)
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '3px 8px',
+                      background: 'rgba(255,255,255,0.10)',
+                      border: '1px solid rgba(140,200,255,0.45)',
+                      borderRadius: 6,
+                      color: '#fff',
+                      fontSize: 12,
+                      outline: 'none',
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => applyEffectUserPreset(preset.id)}
+                    style={{
+                      flex: 1,
+                      textAlign: 'left',
+                      padding: '4px 8px',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: 6,
+                      color: 'rgba(255,255,255,0.85)',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={preset.name}
+                  >
+                    {preset.name}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserPresetEditId(preset.id)
+                    setUserPresetEditValue(preset.name)
+                  }}
+                  title={t('userPresetEditConfirm')}
+                  style={{
+                    flexShrink: 0,
+                    padding: '3px 6px',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 6,
+                    color: 'rgba(200,200,255,0.7)',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('userPresetEditIcon')}
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={() => {
+                    if (userPresetDelTimerRef.current) clearTimeout(userPresetDelTimerRef.current)
+                    setUserPresetDelPressId(preset.id)
+                    userPresetDelTimerRef.current = setTimeout(() => {
+                      userPresetDelTimerRef.current = null
+                      setUserPresetDelPressId(null)
+                      deleteEffectUserPreset(preset.id)
+                    }, 400)
+                  }}
+                  onMouseUp={() => {
+                    if (userPresetDelTimerRef.current) {
+                      clearTimeout(userPresetDelTimerRef.current)
+                      userPresetDelTimerRef.current = null
+                    }
+                    setUserPresetDelPressId(null)
+                  }}
+                  onMouseLeave={() => {
+                    if (userPresetDelTimerRef.current) {
+                      clearTimeout(userPresetDelTimerRef.current)
+                      userPresetDelTimerRef.current = null
+                    }
+                    setUserPresetDelPressId(null)
+                  }}
+                  title={t('userPresetDeleteHint')}
+                  style={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                    padding: '3px 6px',
+                    background: isDelPressing ? 'rgba(255,80,80,0.15)' : 'rgba(255,255,255,0.06)',
+                    border: isDelPressing ? '1px solid rgba(255,100,100,0.4)' : '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 6,
+                    color: isDelPressing ? 'rgba(255,160,160,0.9)' : 'rgba(200,200,255,0.7)',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    transition: 'background 100ms, border-color 100ms, color 100ms',
+                  }}
+                >
+                  {isDelPressing && (
+                    <span style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      height: '100%',
+                      width: '100%',
+                      background: 'rgba(255,80,80,0.25)',
+                      transformOrigin: 'left center',
+                      transform: 'scaleX(0)',
+                      animation: 'userPresetDelGrow 400ms linear forwards',
+                      borderRadius: 6,
+                      pointerEvents: 'none',
+                    }} />
+                  )}
+                  {t('userPresetDeleteIcon')}
+                </button>
+              </div>
+            )
+          })}
+          <button
+            type="button"
+            onClick={addEffectUserPreset}
+            style={{
+              marginTop: effectUserPresets.length > 0 ? 4 : 0,
+              padding: '4px 8px',
+              background: 'transparent',
+              border: '1px dashed rgba(255,255,255,0.2)',
+              borderRadius: 6,
+              color: 'rgba(255,255,255,0.45)',
+              fontSize: 12,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            {t('userPresetAddButton')}
+          </button>
         </div>
       </div>
 
