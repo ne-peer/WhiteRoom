@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import { MasterCanvas } from './components/layout/MasterCanvas'
 import { TopBar } from './components/layout/TopBar'
 import { ControlPanel } from './components/controls/ControlPanel'
-import { StoryboardPanel } from './components/reader/StoryboardPanel'
-import { StashWindow } from './components/stash/StashWindow'
 import { useAppStore } from './stores/appStore'
 import { fadeOutAndRemoveWhiteroomSplash } from './utils/splashDismiss'
 import type { IpcApi } from '../shared/types'
 import './global.css'
+
+const StoryboardPanel = React.lazy(() => import('./components/reader/StoryboardPanel').then(m => ({ default: m.StoryboardPanel })))
+const StashWindow = React.lazy(() => import('./components/stash/StashWindow').then(m => ({ default: m.StashWindow })))
 
 const CONTROL_PANEL_WIDTH = 300
 const EDGE_REVEAL_THRESHOLD = 150
@@ -21,8 +22,11 @@ const App: React.FC = () => {
   const importProfile = useAppStore(s => s.importProfile)
   const [showFloatingControls, setShowFloatingControls] = useState(false)
 
+  // PixiJS 初期化完了時に usePixiStage から呼ばれるが、
+  // 遅延・エラー時に備えたフォールバックとして 3000ms 後に強制消去する。
   useEffect(() => {
-    fadeOutAndRemoveWhiteroomSplash()
+    const id = window.setTimeout(fadeOutAndRemoveWhiteroomSplash, 3000)
+    return () => window.clearTimeout(id)
   }, [])
 
   useEffect(() => {
@@ -82,8 +86,8 @@ const App: React.FC = () => {
       <TopBar />
       <MasterCanvas />
       <ControlPanel floating={showFloatingControls} />
-      {storyboardOpen && <StoryboardPanel />}
-      <StashWindow />
+      {storyboardOpen && <Suspense fallback={null}><StoryboardPanel /></Suspense>}
+      <Suspense fallback={null}><StashWindow /></Suspense>
       {appNotification && (
         <div
           style={{

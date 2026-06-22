@@ -1,13 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react'
-import * as PIXI from 'pixi.js'
+import { Application, Container, FederatedPointerEvent, Graphics } from 'pixi.js'
 import { useAppStore } from '../stores/appStore'
 import { CellRenderer, configureRemoteImageLoading } from '../utils/CellRenderer'
 import { getTimerEffectSyncProgress } from '../utils/timerProgress'
+import { fadeOutAndRemoveWhiteroomSplash } from '../utils/splashDismiss'
 
 type CellRendererMap = Map<string, CellRenderer>
 
 export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) {
-  const appRef = useRef<PIXI.Application | null>(null)
+  const appRef = useRef<Application | null>(null)
   const cellRenderersRef = useRef<CellRendererMap>(new Map())
   const slideshowTimersRef = useRef<Map<string, number>>(new Map())
   const lastRandomRestartNonceRef = useRef(0)
@@ -31,7 +32,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     if (!canvasRef.current) return
 
     const container = canvasRef.current
-    const app = new PIXI.Application()
+    const app = new Application()
     let cancelled = false
     let initialized = false
     let resizeObserver: ResizeObserver | null = null
@@ -55,6 +56,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
       container.querySelectorAll(':scope > canvas').forEach(canvas => canvas.remove())
       container.appendChild(app.canvas)
       appRef.current = app
+      fadeOutAndRemoveWhiteroomSplash()
 
       app.ticker.add((ticker) => {
         const state = useAppStore.getState()
@@ -342,7 +344,7 @@ function getSmoothTimerProgress(
 }
 
 function layoutCells(
-  app: PIXI.Application,
+  app: Application,
   renderers: CellRendererMap,
   state: ReturnType<typeof useAppStore.getState>
 ) {
@@ -377,7 +379,7 @@ function layoutCells(
       app.stage.addChild(cr.container)
       renderers.set(cell.id, cr)
 
-      cr.container.on('pointerdown', (event: PIXI.FederatedPointerEvent) => {
+      cr.container.on('pointerdown', (event: FederatedPointerEvent) => {
         const state = useAppStore.getState()
         if (state.shakeTrailPositionPicking !== null || state.spiralRadialPositionPicking) {
           return
@@ -404,19 +406,19 @@ function layoutCells(
 }
 
 function drawCellBackground(
-  container: PIXI.Container,
+  container: Container,
   w: number,
   h: number,
   color: { r: number; g: number; b: number; a: number } | null
 ) {
-  const existing = container.getChildByName('__bg__') as PIXI.Graphics | null
+  const existing = container.getChildByName('__bg__') as Graphics | null
   if (existing) {
     container.removeChild(existing)
     existing.destroy()
   }
   if (!color) return
 
-  const bg = new PIXI.Graphics()
+  const bg = new Graphics()
   bg.label = '__bg__'
   bg.rect(0, 0, w, h)
   bg.fill({ color: rgbaToHex(color), alpha: color.a })

@@ -1,13 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { Suspense, useState, useRef, useEffect } from 'react'
 import { useAppStore, selectSelectedCell } from '../../stores/appStore'
 import { GridControls } from './GridControls'
-import { EffectsPanel } from '../effects/EffectsPanel'
 import { TimerControls } from '../timer/TimerControls'
 import { ProfileControls } from './ProfileControls'
 import { AppearanceControls } from './AppearanceControls'
 import { TextReaderPanel } from '../reader/TextReaderPanel'
 import { useTranslation } from '../../i18n'
 import styles from './ControlPanel.module.css'
+
+const EffectsPanel = React.lazy(() => import('../effects/EffectsPanel').then(m => ({ default: m.EffectsPanel })))
 
 type Tab = 'grid' | 'effects' | 'timer' | 'appearance' | 'profile' | 'textreader'
 
@@ -147,7 +148,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ floating = false }) 
       {/* コンテンツ */}
       <div className={styles.content}>
         {activeTab === 'grid'       && <GridControls />}
-        {activeTab === 'effects'    && <EffectsPanel selectedCell={selectedCell} />}
+        {activeTab === 'effects'    && <Suspense fallback={null}><EffectsPanel selectedCell={selectedCell} /></Suspense>}
         {activeTab === 'timer'      && <TimerControls />}
         {activeTab === 'appearance' && <AppearanceControls />}
         {activeTab === 'profile'    && <ProfileControls />}
