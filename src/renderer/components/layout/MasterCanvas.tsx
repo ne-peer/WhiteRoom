@@ -56,6 +56,8 @@ const EMPTY_CELL_TIPS_MAX_ROW_HEIGHT_PX = 500
 const STASH_POINTER_FALLBACK = { x: 8, y: 48 }
 /** StashWindow のスロット長押し（LONG_PRESS_MS）と揃える */
 const STASH_RMB_LONG_PRESS_MS = 400
+/** RMB ドラッグでフルスクリーン切替を発動するY方向移動量（px） */
+const FS_RMB_DRAG_THRESHOLD_PX = 30
 
 export const MasterCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -63,6 +65,8 @@ export const MasterCanvas: React.FC = () => {
   const stashRmbLongPressTimerRef = useRef<number | null>(null)
   const stashRmbOpenAnchorRef = useRef<{ x: number; y: number } | null>(null)
   const stashRmbSuppressNextContextMenuRef = useRef(false)
+  const fsRmbDragStartRef = useRef<{ x: number; y: number } | null>(null)
+  const fsRmbDragFiredRef = useRef(false)
   const centerPickDragRef = useRef<PickCenterPoint | null>(null)
   const trailSizeDragRef = useRef<{
     cellId: string
@@ -270,6 +274,8 @@ export const MasterCanvas: React.FC = () => {
       if (e.button === 2) {
         trailSizeDragRef.current = null
         clearStashRmbLongPressTimer()
+        fsRmbDragStartRef.current = null
+        fsRmbDragFiredRef.current = false
       }
       if (e.button !== 0) return
 
@@ -456,6 +462,26 @@ export const MasterCanvas: React.FC = () => {
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
+    // RMB 上ドラッグ→フルスクリーン、下ドラッグ→ウィンドウ表示
+    if ((e.buttons & 2) !== 0 && fsRmbDragStartRef.current && !fsRmbDragFiredRef.current) {
+      const deltaY = e.clientY - fsRmbDragStartRef.current.y
+      if (Math.abs(deltaY) >= FS_RMB_DRAG_THRESHOLD_PX) {
+        fsRmbDragFiredRef.current = true
+        fsRmbDragStartRef.current = null
+        clearStashRmbLongPressTimer()
+        stashRmbSuppressNextContextMenuRef.current = true
+        const api = (window as unknown as { api: import('../../../shared/types').IpcApi }).api
+        const store = useAppStore.getState()
+        if (deltaY < 0) {
+          store.setFullscreen(true)
+          api?.setFullscreen(true)
+        } else {
+          store.setFullscreen(false)
+          api?.setFullscreen(false)
+        }
+        return
+      }
+    }
     const { grid, cells, selectedCellId, shakeTrailPositionPicking, spiralRadialPositionPicking, squishColorPicking, flashRangePicking, focusWaypointPicking, censorRectPicking, effectDisplayAreaPicking } = useAppStore.getState()
     const rectAreaPickingActive = censorRectPicking || effectDisplayAreaPicking !== null
     const activePickColumn = lockedPickColumn ?? cells.find(c => c.id === selectedCellId)?.col ?? null
@@ -568,12 +594,14 @@ export const MasterCanvas: React.FC = () => {
       x: relX - left,
       y: relY - top,
     })
-  }, [])
+  }, [clearStashRmbLongPressTimer])
 
   const handleMouseLeave = useCallback(() => {
     setHoveredCellId(null)
     setPickGuide(null)
     trailSizeDragRef.current = null
+    fsRmbDragStartRef.current = null
+    fsRmbDragFiredRef.current = false
     clearStashRmbLongPressTimer()
   }, [clearStashRmbLongPressTimer])
 
@@ -684,6 +712,8 @@ export const MasterCanvas: React.FC = () => {
         stashRmbSuppressNextContextMenuRef.current = true
         useAppStore.getState().setStashWindowOpen(true, anchor)
       }, STASH_RMB_LONG_PRESS_MS)
+      fsRmbDragStartRef.current = { x: e.clientX, y: e.clientY }
+      fsRmbDragFiredRef.current = false
       return
     }
     if (state.shakeTrailPositionPicking === null && !state.spiralRadialPositionPicking) return
@@ -729,6 +759,8 @@ export const MasterCanvas: React.FC = () => {
     if (e.button === 2) {
       trailSizeDragRef.current = null
       clearStashRmbLongPressTimer()
+      fsRmbDragStartRef.current = null
+      fsRmbDragFiredRef.current = false
     }
     if (e.button !== 0) return
     const censorDrag = censorRectDragRef.current
