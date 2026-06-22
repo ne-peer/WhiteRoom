@@ -879,16 +879,7 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
 
   return (
     <div>
-      <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Button small variant="secondary" onClick={applyEffectPreset1}>
-          {t('samplePresetBlur')}
-        </Button>
-        <Button small variant="secondary" onClick={applyEffectPreset2}>
-          {t('samplePresetShake')}
-        </Button>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 8 }}>
         <Row label={t('applyEffectChangesToAllColumns')}>
           <Toggle
             value={applyEffectChangesToAllColumns}
@@ -898,10 +889,39 @@ export const EffectsPanel: React.FC<Props> = ({ selectedCell }) => {
         <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', wordBreak: 'break-all' }}>
           {t('applyEffectChangesToAllColumnsHelp')}
         </div>
+      </div>
+
+      <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.08)', margin: '0 0 16px' }} />
+
+      <div style={{ marginBottom: 16 }}>
+        <div style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: '1.5px',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.35)',
+          marginBottom: 10,
+          paddingBottom: 6,
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          {t('samplePreset')}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button small variant="secondary" onClick={applyEffectPreset1}>
+            {t('samplePresetBlur')}
+          </Button>
+          <Button small variant="secondary" onClick={applyEffectPreset2}>
+            {t('samplePresetShake')}
+          </Button>
+        </div>
+      </div>
+
+      <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.08)', margin: '0 0 16px' }} />
+
+      <div style={{ marginBottom: 16 }}>
         <div
           ref={effectCenterSectionRef}
           style={{
-            marginTop: 8,
             padding: '6px 8px',
             borderRadius: 8,
             border: effectCenterHighlightTick > 0 && effectCenterHighlightTick % 2 === 1
