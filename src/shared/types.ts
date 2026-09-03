@@ -920,7 +920,6 @@ export type IpcApi = {
   cleanupTextReaderTempFile: (tempFilePath: string) => Promise<CleanupTextReaderTempFileResult>
   loadRemoteImageAsDataUrl: (url: string) => Promise<RemoteImageResult>
   getRemoteImageStats: () => Promise<RemoteImageStatsResult>
-  checkHasStash: () => Promise<boolean>
   getDefaultProfilePath: () => Promise<string>
   loadDefaultProfile: () => Promise<LoadProfileResult>
   saveDefaultProfile: (profile: AppProfile) => Promise<SaveProfileResult>

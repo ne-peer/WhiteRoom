@@ -214,22 +214,11 @@ Actions:
 
 ---
 
-## App Close Guard
-
-When the user attempts to close the app while stash slots contain saved data, a native dialog is shown:
-
-> 「スタッシュに設定が残っています。終了しますか？」
-> Buttons: **終了する** / **キャンセル**
-
-Implementation: `win.on('close', ...)` in `src/main/index.ts` calls `win.webContents.executeJavaScript('window.__whiteroom_hasStash?.()')`. The renderer sets `window.__whiteroom_hasStash` via a `useEffect` in `StashWindow` that re-registers whenever `stashes` changes.
-
----
-
 ## File Map
 
 | File | Role |
 |---|---|
-| `src/shared/types.ts` | `StashItem` type; `AppProfile.stashes`; `IpcApi.checkHasStash` |
+| `src/shared/types.ts` | `StashItem` type; `AppProfile.stashes` |
 | `src/renderer/stores/appStore.ts` | State, actions, emoji/color constants |
 | `src/renderer/components/stash/StashWindow.tsx` | Float window UI component |
 | `src/renderer/components/stash/StashWindow.module.css` | Styles |
@@ -238,5 +227,4 @@ Implementation: `win.on('close', ...)` in `src/main/index.ts` calls `win.webCont
 | `src/renderer/components/layout/MasterCanvas.tsx` | `[s]` shortcut; wheel suppression |
 | `src/renderer/App.tsx` | `<StashWindow />` mount; hover suppression |
 | `src/renderer/i18n.ts` | Stash-related translation keys |
-| `src/main/index.ts` | Close guard; `mapEffectsAssetReferences` for stash cells |
-| `src/preload/index.ts` | `checkHasStash` IPC binding |
+| `src/main/index.ts` | `mapEffectsAssetReferences` for stash cells |

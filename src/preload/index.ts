@@ -30,7 +30,6 @@ const api: IpcApi = {
   cleanupTextReaderTempFile: (tempFilePath) => ipcRenderer.invoke('cleanup-text-reader-temp-file', tempFilePath),
   loadRemoteImageAsDataUrl: (url) => ipcRenderer.invoke('load-remote-image-data-url', url),
   getRemoteImageStats: () => ipcRenderer.invoke('get-remote-image-stats'),
-  checkHasStash: () => ipcRenderer.invoke('check-has-stash'),
   getDefaultProfilePath: () => ipcRenderer.invoke('get-default-profile-path'),
   loadDefaultProfile: () => ipcRenderer.invoke('load-default-profile'),
   saveDefaultProfile: (profile) => ipcRenderer.invoke('save-default-profile', profile),

@@ -143,11 +143,6 @@ export const StashWindow: React.FC = () => {
     e.preventDefault()
   }
 
-  // window.__whiteroom_hasStash を公開
-  useEffect(() => {
-    ;(window as unknown as Record<string, unknown>).__whiteroom_hasStash = () => stashes.length > 0
-  }, [stashes])
-
   // 初回マウント時にフェードタイマー開始
   useEffect(() => {
     startFadeTimer()
