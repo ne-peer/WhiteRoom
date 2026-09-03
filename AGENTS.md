@@ -267,3 +267,4 @@ When instructed with `bump to v{x.x.x}` (for example, `bump to v1.5.1`), perform
 | v1.5.11 | Asset and text effect display area selection; text effect concurrent interval display; two-stage shake-trail area offset and horizontal mirror |
 | v1.5.12 | Effect user presets (save/edit/delete/apply); user default settings auto-save/load; Ctrl+S default-save shortcut; right-drag UI toggle; right-click drag fullscreen shortcuts; stash limit raised to 30; preset UI reorganization; stash scroll fix |
 | v1.5.13 | Startup optimization: PixiJS named imports for tree-shaking, lazy-load EffectsPanel/StashWindow/StoryboardPanel (-169 KB initial JS); splash dismiss deferred until PixiJS ready; BrowserWindow show:false to prevent blank-window flash |
+| v1.5.14 | Column width drag resizing; stash display names include parent folder; app-exit confirmation dialog handling removed |
