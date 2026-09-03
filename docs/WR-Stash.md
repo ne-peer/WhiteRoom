@@ -103,7 +103,7 @@ Each row follows the structure:
 
 - **Minimum rows displayed**: 3.
 - **Maximum stash count**: 15.
-- **Panel width**: 180 px.
+- **Panel width**: 216 px (120% of the original 180 px width).
 
 #### Label Button (empty state)
 
@@ -113,7 +113,8 @@ Each row follows the structure:
 
 #### Label Button (filled state)
 
-- Text: `{emoji} スタッシュ` (e.g., `🍉 スタッシュ`)
+- Text: `{emoji} {先頭グリッド(1x1)の親フォルダ名}` (e.g., `🍉 SampleFolder`)
+- If the top-left cell has no folder name, fallback text is `{emoji} スタッシュ`.
 - Text color, border color: the stash's accent color
 - Left border of the row: the stash's accent color
 - On hover: text changes to `取り出す` (blue highlight)

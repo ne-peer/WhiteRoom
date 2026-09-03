@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from
 import { useAppStore, STASH_MAX_COUNT, STASH_MIN_SLOT_COUNT } from '../../stores/appStore'
 import { useTranslation } from '../../i18n'
 import styles from './StashWindow.module.css'
+import type { StashItem } from '../../../shared/types'
 
 const WINDOW_DEFAULT_X = 8
 const WINDOW_DEFAULT_Y = 48
@@ -14,11 +15,23 @@ const LONG_PRESS_MS = 400
 const DEL_LONG_PRESS_MS = 400
 const DEL_CIRCLE_R = 8
 const DEL_CIRCUMFERENCE = 2 * Math.PI * DEL_CIRCLE_R
+const FALLBACK_STASH_NAME = 'スタッシュ'
 
 function getDistanceToRect(mx: number, my: number, rect: DOMRect): number {
   const dx = Math.max(rect.left - mx, 0, mx - rect.right)
   const dy = Math.max(rect.top - my, 0, my - rect.bottom)
   return Math.sqrt(dx * dx + dy * dy)
+}
+
+function getPathBasename(path: string): string {
+  const normalized = path.replace(/[\\/]+$/, '')
+  return normalized.split(/[\\/]/).filter(Boolean).pop() ?? ''
+}
+
+function getStashDisplayName(item: StashItem): string {
+  const firstCell = item.cells.find(cell => cell.col === 0 && cell.row === 0) ?? item.cells[0]
+  const folderName = firstCell?.folder?.path ? getPathBasename(firstCell.folder.path) : ''
+  return folderName || FALLBACK_STASH_NAME
 }
 
 export const StashWindow: React.FC = () => {
@@ -276,7 +289,7 @@ export const StashWindow: React.FC = () => {
                       <span className={styles.longPressBar} />
                     )}
                     {item
-                      ? (isHovering ? t('stashRestoreHover') : `${item.emoji} スタッシュ`)
+                      ? (isHovering ? t('stashRestoreHover') : `${item.emoji} ${getStashDisplayName(item)}`)
                       : (isHovering ? t('stashSaveButton') : t('stashEmptySlot'))
                     }
                   </button>
