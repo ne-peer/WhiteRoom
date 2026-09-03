@@ -674,6 +674,7 @@ export type AppActions = {
   removeColumn: () => void
   addRow: () => void
   removeRow: () => void
+  setColumnWidths: (widths: number[]) => void
   // セル操作
   setCellFolder: (cellId: string, folder: CellFolder) => void
   resetCellFolder: (cellId: string) => void
@@ -904,7 +905,8 @@ export const useAppStore = create<AppStore>()(
     setGrid: (cols, rows) => set(s => {
       const clampedCols = Math.max(1, Math.min(15, cols))
       const clampedRows = Math.max(1, Math.min(15, rows))
-      s.grid = { cols: clampedCols, rows: clampedRows }
+      const keepColumnWidths = s.grid.cols === clampedCols ? s.grid.columnWidths : undefined
+      s.grid = { cols: clampedCols, rows: clampedRows, columnWidths: keepColumnWidths }
       s.cells = rebuildCells(s.cells, clampedCols, clampedRows)
     }),
 
@@ -912,6 +914,7 @@ export const useAppStore = create<AppStore>()(
       if (s.grid.cols >= 15) return
       const newCols = s.grid.cols + 1
       s.grid.cols = newCols
+      delete s.grid.columnWidths
       s.cells = rebuildCells(s.cells, newCols, s.grid.rows)
     }),
 
@@ -919,6 +922,7 @@ export const useAppStore = create<AppStore>()(
       if (s.grid.cols <= 1) return
       const newCols = s.grid.cols - 1
       s.grid.cols = newCols
+      delete s.grid.columnWidths
       s.cells = s.cells.filter(c => c.col < newCols)
     }),
 
@@ -934,6 +938,16 @@ export const useAppStore = create<AppStore>()(
       const newRows = s.grid.rows - 1
       s.grid.rows = newRows
       s.cells = s.cells.filter(c => c.row < newRows)
+    }),
+
+    setColumnWidths: (widths) => set(s => {
+      if (widths.length !== s.grid.cols) return
+      const sum = widths.reduce((acc, value) => acc + (Number.isFinite(value) && value > 0 ? value : 0), 0)
+      if (sum <= 0) {
+        delete s.grid.columnWidths
+        return
+      }
+      s.grid.columnWidths = widths.map(value => Math.max(0, value) / sum)
     }),
 
     // ===== セル操作 =====

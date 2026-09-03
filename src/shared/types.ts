@@ -673,6 +673,7 @@ export type TimerAutoNextConfig = {
 export type GridLayout = {
   cols: number  // 1-15
   rows: number  // 1-15
+  columnWidths?: number[]  // normalized ratios; omitted means equal-width columns
 }
 
 // ===== アプリ全体状態（プロファイルと同一構造）=====

@@ -2,6 +2,7 @@ import React from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { useTranslation } from '../../i18n'
 import type { IpcApi } from '../../../shared/types'
+import { getCellRect } from '../../utils/gridGeometry'
 import styles from './CellNavigationOverlay.module.css'
 
 const BTN_HEIGHT = 32
@@ -29,8 +30,9 @@ export const CellNavigationOverlay: React.FC<Props> = ({ hoveredCellId }) => {
   const cell = cells.find(c => c.id === hoveredCellId)
   if (!cell || !cell.folder || cell.folder.images.length === 0) return null
 
-  const rightPct = ((cell.col + 1) / grid.cols) * 100
-  const bottomPct = ((cell.row + 1) / grid.rows) * 100
+  const cellRect = getCellRect({ left: 0, top: 0, width: 100, height: 100 }, cell.col, cell.row, grid)
+  const rightPct = cellRect.left + cellRect.width
+  const bottomPct = cellRect.top + cellRect.height
   const showNavButtons = cell.folder.images.length > 1 && !storyboardFileActive
   const groupWidth = showNavButtons ? BTN_WIDTH * 3 + BTN_GAP * 2 : BTN_WIDTH
 

@@ -16,6 +16,14 @@ import {
   trailDuplicateVerticalStaggerOffsetsNormY,
   trailSecondStageCenterOffsetNorm,
 } from '../../utils/shakeTrailDuplicateGeometry'
+import {
+  findColumnAtX,
+  getCellRect,
+  getColumnEdges,
+  getColumnRect,
+  resizeColumnPair,
+  toGridTemplateColumns,
+} from '../../utils/gridGeometry'
 import styles from './MasterCanvas.module.css'
 
 type CircleGuideKind = 'radialBlur' | 'shakeTrail' | 'shakeTrailSecondStage'
@@ -46,6 +54,12 @@ type CensorRectDrag = {
   currentX: number
   currentY: number
 }
+type ColumnResizeDrag = {
+  boundaryIndex: number
+  startX: number
+  startGrid: ReturnType<typeof useAppStore.getState>['grid']
+  totalWidth: number
+}
 
 /** 1 列あたりの幅がこの値以下なら空セルの Tips 文言を出さない */
 const EMPTY_CELL_TIPS_MAX_COLUMN_WIDTH_PX = 300
@@ -67,6 +81,7 @@ export const MasterCanvas: React.FC = () => {
   const stashRmbSuppressNextContextMenuRef = useRef(false)
   const fsRmbDragStartRef = useRef<{ x: number; y: number } | null>(null)
   const fsRmbDragFiredRef = useRef(false)
+  const columnResizeDragRef = useRef<ColumnResizeDrag | null>(null)
   const centerPickDragRef = useRef<PickCenterPoint | null>(null)
   const trailSizeDragRef = useRef<{
     cellId: string
@@ -94,6 +109,7 @@ export const MasterCanvas: React.FC = () => {
   const effectDisplayAreaPicking = useAppStore(s => s.effectDisplayAreaPicking)
   const rectAreaPicking = censorRectPicking || effectDisplayAreaPicking !== null
   const selectedCellId = useAppStore(s => s.selectedCellId)
+  const setColumnWidths = useAppStore(s => s.setColumnWidths)
   const textReaderVisible = useAppStore(s => s.textReader.visible)
   const textReaderConfig = useAppStore(s => s.textReader.config)
   const [hoveredCellId, setHoveredCellId] = useState<string | null>(null)
@@ -107,9 +123,11 @@ export const MasterCanvas: React.FC = () => {
   } | null>(null)
   const [pickPreviewCenter, setPickPreviewCenter] = useState<PickCenterPoint | null>(null)
   const [flashRangeDrag, setFlashRangeDrag] = useState<FlashRangeDrag | null>(null)
+  const [columnResizeDrag, setColumnResizeDrag] = useState<ColumnResizeDrag | null>(null)
   const [lockedPickColumn, setLockedPickColumn] = useState<number | null>(null)
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const { t, language } = useTranslation()
+  const gridTemplateColumns = React.useMemo(() => toGridTemplateColumns(grid), [grid])
 
   const canvasShrinkStyle = React.useMemo((): React.CSSProperties => {
     if (!textReaderVisible || (textReaderConfig.overlayOnImage ?? true)) return {}
@@ -151,59 +169,63 @@ export const MasterCanvas: React.FC = () => {
   const flashRangeColumn = flashRangePicking ? lockedPickColumn ?? selectedCell?.col ?? null : null
   const pickColumnBounds = React.useMemo((): React.CSSProperties | null => {
     if (!pickingActive || pickColumn === null || grid.cols <= 0) return null
-    const left = Math.round((pickColumn * canvasSize.width) / grid.cols)
-    const nextLeft = Math.round(((pickColumn + 1) * canvasSize.width) / grid.cols)
+    const column = getColumnRect({ left: 0, top: 0, width: canvasSize.width, height: canvasSize.height }, pickColumn, grid)
     return {
-      left,
+      left: column.left,
       top: 0,
-      width: nextLeft - left,
+      width: column.width,
       height: canvasSize.height,
     }
-  }, [canvasSize.height, canvasSize.width, grid.cols, pickColumn, pickingActive])
+  }, [canvasSize.height, canvasSize.width, grid, pickColumn, pickingActive])
   const flashRangeColumnBounds = React.useMemo((): React.CSSProperties | null => {
     if (!flashRangePicking || flashRangeColumn === null || grid.cols <= 0) return null
-    const left = Math.round((flashRangeColumn * canvasSize.width) / grid.cols)
-    const nextLeft = Math.round(((flashRangeColumn + 1) * canvasSize.width) / grid.cols)
+    const column = getColumnRect({ left: 0, top: 0, width: canvasSize.width, height: canvasSize.height }, flashRangeColumn, grid)
     return {
-      left,
+      left: column.left,
       top: 0,
-      width: nextLeft - left,
+      width: column.width,
       height: canvasSize.height,
     }
-  }, [canvasSize.height, canvasSize.width, flashRangeColumn, flashRangePicking, grid.cols])
+  }, [canvasSize.height, canvasSize.width, flashRangeColumn, flashRangePicking, grid])
   const pickModeColumn = (focusWaypointPicking || rectAreaPicking) ? lockedPickColumn ?? selectedCell?.col ?? null : null
   const pickModeColumnBounds = React.useMemo((): React.CSSProperties | null => {
     if (pickModeColumn === null || grid.cols <= 0) return null
-    const left = Math.round((pickModeColumn * canvasSize.width) / grid.cols)
-    const nextLeft = Math.round(((pickModeColumn + 1) * canvasSize.width) / grid.cols)
+    const column = getColumnRect({ left: 0, top: 0, width: canvasSize.width, height: canvasSize.height }, pickModeColumn, grid)
     return {
-      left,
+      left: column.left,
       top: 0,
-      width: nextLeft - left,
+      width: column.width,
       height: canvasSize.height,
     }
-  }, [canvasSize.height, canvasSize.width, grid.cols, pickModeColumn])
+  }, [canvasSize.height, canvasSize.width, grid, pickModeColumn])
   const censorRectDragColumnBounds = rectAreaPicking ? pickModeColumnBounds : null
   const focusWaypointColumnBounds = focusWaypointPicking ? pickModeColumnBounds : null
   const selectedCellOutlineBounds = React.useMemo((): React.CSSProperties | null => {
     if (anyPickModeActive) return null
     if (!selectedCell || grid.cols <= 0 || grid.rows <= 0) return null
     if (canvasSize.width <= 0 || canvasSize.height <= 0) return null
-    const left = Math.round((selectedCell.col * canvasSize.width) / grid.cols)
-    const top = Math.round((selectedCell.row * canvasSize.height) / grid.rows)
-    const nextLeft = Math.round(((selectedCell.col + 1) * canvasSize.width) / grid.cols)
-    const nextTop = Math.round(((selectedCell.row + 1) * canvasSize.height) / grid.rows)
+    const rect = getCellRect(
+      { left: 0, top: 0, width: canvasSize.width, height: canvasSize.height },
+      selectedCell.col,
+      selectedCell.row,
+      grid,
+    )
     return {
-      left,
-      top,
-      width: nextLeft - left,
-      height: nextTop - top,
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
     }
-  }, [anyPickModeActive, canvasSize.height, canvasSize.width, grid.cols, grid.rows, selectedCell])
+  }, [anyPickModeActive, canvasSize.height, canvasSize.width, grid, selectedCell])
   const guideCellSize = {
-    width: grid.cols > 0 ? canvasSize.width / grid.cols : 0,
+    width: selectedCell ? getColumnRect({ left: 0, top: 0, width: canvasSize.width, height: canvasSize.height }, selectedCell.col, grid).width : (grid.cols > 0 ? canvasSize.width / grid.cols : 0),
     height: grid.rows > 0 ? canvasSize.height / grid.rows : 0,
   }
+  const columnResizeHandles = React.useMemo(() => {
+    if (grid.cols < 2 || canvasSize.width <= 0 || anyPickModeActive) return []
+    const edges = getColumnEdges(canvasSize.width, grid)
+    return edges.slice(1, -1).map((left, index) => ({ index, left: Math.round(left) }))
+  }, [anyPickModeActive, canvasSize.width, grid])
   const showEmptyCellTips =
     grid.cols > 0 &&
     grid.rows > 0 &&
@@ -271,6 +293,10 @@ export const MasterCanvas: React.FC = () => {
 
   useEffect(() => {
     const onMouseUp = (e: MouseEvent) => {
+      if (columnResizeDragRef.current) {
+        columnResizeDragRef.current = null
+        setColumnResizeDrag(null)
+      }
       if (e.button === 2) {
         trailSizeDragRef.current = null
         clearStashRmbLongPressTimer()
@@ -322,6 +348,27 @@ export const MasterCanvas: React.FC = () => {
     window.addEventListener('mouseup', onMouseUp)
     return () => window.removeEventListener('mouseup', onMouseUp)
   }, [clearStashRmbLongPressTimer, t])
+
+  useEffect(() => {
+    if (!columnResizeDrag) return
+    const onMouseMove = (e: MouseEvent) => {
+      const drag = columnResizeDragRef.current
+      if (!drag) return
+      setColumnWidths(resizeColumnPair(drag.startGrid, drag.boundaryIndex, e.clientX - drag.startX, drag.totalWidth))
+    }
+    const onMouseUp = () => {
+      columnResizeDragRef.current = null
+      setColumnResizeDrag(null)
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    document.body.classList.add(styles.columnResizing)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+      document.body.classList.remove(styles.columnResizing)
+    }
+  }, [columnResizeDrag, setColumnWidths])
 
   useEffect(() => {
     const el = containerRef.current
@@ -459,7 +506,7 @@ export const MasterCanvas: React.FC = () => {
       if (textReader.storyboardFileActive) return
       const relX = e.clientX - rect.left
       const relY = e.clientY - rect.top
-      const col = Math.max(0, Math.min(Math.floor(relX / (rect.width / grid.cols)), grid.cols - 1))
+      const col = findColumnAtX(relX, rect.width, grid)
       const row = Math.max(0, Math.min(Math.floor(relY / (rect.height / grid.rows)), grid.rows - 1))
       const cell = cells.find(c => c.col === col && c.row === row)
       if (!cell || !cell.folder || cell.folder.images.length <= 1) return
@@ -475,6 +522,7 @@ export const MasterCanvas: React.FC = () => {
   }, [])
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (columnResizeDragRef.current) return
     const rect = e.currentTarget.getBoundingClientRect()
     // RMB ドラッグ: 横→UI非表示、縦上→フルスクリーン、縦下→ウィンドウ表示
     if ((e.buttons & 2) !== 0 && fsRmbDragStartRef.current && !fsRmbDragFiredRef.current) {
@@ -508,7 +556,7 @@ export const MasterCanvas: React.FC = () => {
     const activePickColumn = lockedPickColumn ?? cells.find(c => c.id === selectedCellId)?.col ?? null
     const relX = e.clientX - rect.left
     const relY = e.clientY - rect.top
-    const col = Math.max(0, Math.min(Math.floor(relX / (rect.width / grid.cols)), grid.cols - 1))
+    const col = findColumnAtX(relX, rect.width, grid)
     const row = Math.max(0, Math.min(Math.floor(relY / (rect.height / grid.rows)), grid.rows - 1))
     const cell = cells.find(c => c.col === col && c.row === row)
     setHoveredCellId(
@@ -603,17 +651,14 @@ export const MasterCanvas: React.FC = () => {
       return
     }
 
-    const left = Math.round((cell.col * rect.width) / grid.cols)
-    const top = Math.round((cell.row * rect.height) / grid.rows)
-    const nextLeft = Math.round(((cell.col + 1) * rect.width) / grid.cols)
-    const nextTop = Math.round(((cell.row + 1) * rect.height) / grid.rows)
+    const cellRect = getCellRect(rect, cell.col, cell.row, grid)
     setPickGuide({
-      left,
-      top,
-      width: nextLeft - left,
-      height: nextTop - top,
-      x: relX - left,
-      y: relY - top,
+      left: cellRect.left,
+      top: cellRect.top,
+      width: cellRect.width,
+      height: cellRect.height,
+      x: relX - cellRect.left,
+      y: relY - cellRect.top,
     })
   }, [clearStashRmbLongPressTimer])
 
@@ -625,6 +670,23 @@ export const MasterCanvas: React.FC = () => {
     fsRmbDragFiredRef.current = false
     clearStashRmbLongPressTimer()
   }, [clearStashRmbLongPressTimer])
+
+  const handleColumnResizeMouseDown = useCallback((boundaryIndex: number, e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect || rect.width <= 0) return
+    const drag: ColumnResizeDrag = {
+      boundaryIndex,
+      startX: e.clientX,
+      startGrid: structuredClone(useAppStore.getState().grid),
+      totalWidth: rect.width,
+    }
+    columnResizeDragRef.current = drag
+    setColumnResizeDrag(drag)
+    setHoveredCellId(null)
+  }, [])
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -896,7 +958,7 @@ export const MasterCanvas: React.FC = () => {
       <div
         className={styles.emptyCellHints}
         style={{
-          gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
+          gridTemplateColumns,
           gridTemplateRows: `repeat(${grid.rows}, minmax(0, 1fr))`,
         }}
       >
@@ -929,6 +991,14 @@ export const MasterCanvas: React.FC = () => {
           </div>
         ))}
       </div>
+      {columnResizeHandles.map(handle => (
+        <div
+          key={handle.index}
+          className={`${styles.columnResizeHandle} ${columnResizeDrag?.boundaryIndex === handle.index ? styles.columnResizeHandleActive : ''}`}
+          style={{ left: handle.left }}
+          onMouseDown={e => handleColumnResizeMouseDown(handle.index, e)}
+        />
+      ))}
       {selectedCellOutlineBounds && selectedCellId !== null && (
         <div
           key={selectedCellId}
@@ -1095,20 +1165,20 @@ export const MasterCanvas: React.FC = () => {
       )}
       {focusWaypointPicking && pickModeColumn !== null && (() => {
         const colCells = cells.filter(c => c.col === pickModeColumn)
-        const cellW = grid.cols > 0 ? canvasSize.width / grid.cols : 0
         const cellH = grid.rows > 0 ? canvasSize.height / grid.rows : 0
         const markers: React.ReactNode[] = []
         for (const cell of colCells) {
           const waypoints = cell.effects.focus.waypoints
           if (!waypoints.length) continue
-          const cellLeft = cell.col * cellW
+          const column = getColumnRect({ left: 0, top: 0, width: canvasSize.width, height: canvasSize.height }, cell.col, grid)
+          const cellLeft = column.left
           const cellTop = cell.row * cellH
           waypoints.forEach((wp, i) => {
             markers.push(
               <div
                 key={`${cell.id}-wp-${i}`}
                 className={styles.focusWaypointMarker}
-                style={{ left: cellLeft + wp.x * cellW, top: cellTop + wp.y * cellH }}
+                style={{ left: cellLeft + wp.x * column.width, top: cellTop + wp.y * cellH }}
               >
                 {i + 1}
               </div>
@@ -1214,7 +1284,7 @@ function getCellAtClientPoint(
   const relX = clientX - rect.left
   const relY = clientY - rect.top
   if (relX < 0 || relY < 0 || relX > rect.width || relY > rect.height) return null
-  const col = Math.max(0, Math.min(Math.floor(relX / (rect.width / grid.cols)), grid.cols - 1))
+  const col = findColumnAtX(relX, rect.width, grid)
   const row = Math.max(0, Math.min(Math.floor(relY / (rect.height / grid.rows)), grid.rows - 1))
   return cells.find(c => c.col === col && c.row === row) ?? null
 }
@@ -1228,14 +1298,13 @@ function getNormalizedPointInCell(
 ): PickCenterPoint | null {
   const cell = state.cells.find(c => c.id === cellId)
   if (!cell) return null
-  const cellLeft = rect.left + (cell.col * rect.width) / state.grid.cols
-  const cellTop = rect.top + (cell.row * rect.height) / state.grid.rows
-  const cellWidth = rect.width / state.grid.cols
-  const cellHeight = rect.height / state.grid.rows
+  const cellRect = getCellRect(rect, cell.col, cell.row, state.grid)
+  const cellLeft = rect.left + cellRect.left
+  const cellTop = rect.top + cellRect.top
   return {
     cellId,
-    x: clamp((clientX - cellLeft) / cellWidth, 0, 1),
-    y: clamp((clientY - cellTop) / cellHeight, 0, 1),
+    x: clamp((clientX - cellLeft) / cellRect.width, 0, 1),
+    y: clamp((clientY - cellTop) / cellRect.height, 0, 1),
   }
 }
 
@@ -1246,16 +1315,7 @@ function getCellGuideRect(
 ): { left: number; top: number; width: number; height: number } | null {
   const cell = state.cells.find(c => c.id === cellId)
   if (!cell) return null
-  const left = Math.round((cell.col * rect.width) / state.grid.cols)
-  const top = Math.round((cell.row * rect.height) / state.grid.rows)
-  const nextLeft = Math.round(((cell.col + 1) * rect.width) / state.grid.cols)
-  const nextTop = Math.round(((cell.row + 1) * rect.height) / state.grid.rows)
-  return {
-    left,
-    top,
-    width: nextLeft - left,
-    height: nextTop - top,
-  }
+  return getCellRect(rect, cell.col, cell.row, state.grid)
 }
 
 function getColumnGuideRect(
@@ -1263,14 +1323,7 @@ function getColumnGuideRect(
   column: number,
   grid: ReturnType<typeof useAppStore.getState>['grid']
 ): { left: number; top: number; width: number; height: number } {
-  const left = Math.round((column * rect.width) / grid.cols)
-  const nextLeft = Math.round(((column + 1) * rect.width) / grid.cols)
-  return {
-    left,
-    top: 0,
-    width: nextLeft - left,
-    height: rect.height,
-  }
+  return getColumnRect(rect, column, grid)
 }
 
 function toFlashRangeSelectionStyle(drag: FlashRangeDrag): React.CSSProperties {
@@ -1495,10 +1548,11 @@ function getImageSourcePoint(
   imageHeight: number
 ): { x: number; y: number } | null {
   if (imageWidth <= 0 || imageHeight <= 0 || grid.cols <= 0 || grid.rows <= 0) return null
-  const cellWidth = rect.width / grid.cols
+  const cellRect = getCellRect(rect, cell.col, cell.row, grid)
+  const cellWidth = cellRect.width
   const cellHeight = rect.height / grid.rows
-  const cellLeft = rect.left + cell.col * cellWidth
-  const cellTop = rect.top + cell.row * cellHeight
+  const cellLeft = rect.left + cellRect.left
+  const cellTop = rect.top + cellRect.top
   const localX = clientX - cellLeft
   const localY = clientY - cellTop
   const scale = getImageFitScale(cell.imageFit, cellWidth, cellHeight, imageWidth, imageHeight)

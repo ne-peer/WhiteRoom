@@ -25,6 +25,43 @@
   cursor: crosshair;
 }
 
+.columnResizing,
+.columnResizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+.columnResizeHandle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 12px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+  pointer-events: auto;
+}
+
+.columnResizeHandle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.18);
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.columnResizeHandle:hover::before,
+.columnResizeHandleActive::before {
+  opacity: 1;
+  background: rgba(255, 224, 48, 0.82);
+  box-shadow: 0 0 8px rgba(255, 214, 64, 0.45);
+}
+
 .pickFreezeLayer {
   position: absolute;
   z-index: 4;

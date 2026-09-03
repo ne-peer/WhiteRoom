@@ -3,6 +3,7 @@ import { useAppStore } from '../stores/appStore'
 import type { CellFolder, IpcApi } from '../../shared/types'
 import { parseTextFile } from '../utils/storyboardParser'
 import { isRasterSourceListingFilename } from '../../shared/rasterSourceExtensions'
+import { findColumnAtX } from '../utils/gridGeometry'
 
 function isProfileFile(name: string): boolean {
   return name.toLowerCase().endsWith('.json')
@@ -205,9 +206,8 @@ function getCellIdAtPosition(
 ): string | null {
   const relX = clientX - canvasRect.left
   const relY = clientY - canvasRect.top
-  const cellW = canvasRect.width / grid.cols
   const cellH = canvasRect.height / grid.rows
-  const col = Math.max(0, Math.min(Math.floor(relX / cellW), grid.cols - 1))
+  const col = findColumnAtX(relX, canvasRect.width, grid)
   const row = Math.max(0, Math.min(Math.floor(relY / cellH), grid.rows - 1))
   const cell = cells.find(c => c.col === col && c.row === row)
   return cell?.id ?? null

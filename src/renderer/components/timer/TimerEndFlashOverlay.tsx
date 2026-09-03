@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../../stores/appStore'
 import { getTimerCompletionElapsed } from '../../utils/timerProgress'
+import { toGridTemplateColumns } from '../../utils/gridGeometry'
 import styles from './TimerEndFlashOverlay.module.css'
 
 export const TimerEndFlashOverlay: React.FC = () => {
   const timer = useAppStore(s => s.timer)
-  const cols = useAppStore(s => s.grid.cols)
+  const grid = useAppStore(s => s.grid)
   const [flashKey, setFlashKey] = useState(0)
   const [visible, setVisible] = useState(false)
   const wasRunningRef = useRef(timer.running)
@@ -57,7 +58,7 @@ export const TimerEndFlashOverlay: React.FC = () => {
     }
   }, [])
 
-  if (!visible || cols <= 0) return null
+  if (!visible || grid.cols <= 0) return null
 
   const { color, maxTransparency, count, intervalSec } = timer.endFlash
   const opacity = Math.max(0, Math.min(1, 1 - maxTransparency / 100))
@@ -67,9 +68,9 @@ export const TimerEndFlashOverlay: React.FC = () => {
     <div
       key={flashKey}
       className={styles.overlay}
-      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      style={{ gridTemplateColumns: toGridTemplateColumns(grid) }}
     >
-      {Array.from({ length: cols }, (_, index) => (
+      {Array.from({ length: grid.cols }, (_, index) => (
         <div
           key={index}
           className={styles.column}

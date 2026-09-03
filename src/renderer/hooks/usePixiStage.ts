@@ -4,6 +4,7 @@ import { useAppStore } from '../stores/appStore'
 import { CellRenderer, configureRemoteImageLoading } from '../utils/CellRenderer'
 import { getTimerEffectSyncProgress } from '../utils/timerProgress'
 import { fadeOutAndRemoveWhiteroomSplash } from '../utils/splashDismiss'
+import { getCellRect } from '../utils/gridGeometry'
 
 type CellRendererMap = Map<string, CellRenderer>
 
@@ -106,7 +107,7 @@ export function usePixiStage(canvasRef: React.RefObject<HTMLDivElement | null>) 
     const app = appRef.current
     if (!app) return
     layoutCells(app, cellRenderersRef.current, store)
-  }, [store.grid, store.cells.length, store.blankColor, store.blankBackground])
+  }, [store.grid, store.grid.columnWidths, store.cells.length, store.blankColor, store.blankBackground])
 
   useEffect(() => {
     const message = store.language === 'en'
@@ -364,12 +365,12 @@ function layoutCells(
   })
 
   cells.forEach(cell => {
-    const x = Math.round((cell.col * totalW) / grid.cols)
-    const y = Math.round((cell.row * totalH) / grid.rows)
-    const nextX = Math.round(((cell.col + 1) * totalW) / grid.cols)
-    const nextY = Math.round(((cell.row + 1) * totalH) / grid.rows)
-    const cellW = nextX - x
-    const cellH = nextY - y
+    const { left: x, top: y, width: cellW, height: cellH } = getCellRect(
+      { left: 0, top: 0, width: totalW, height: totalH },
+      cell.col,
+      cell.row,
+      grid,
+    )
 
     let cr = renderers.get(cell.id)
 
